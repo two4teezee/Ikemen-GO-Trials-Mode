@@ -3,7 +3,7 @@
 
 > Module developed by two4teezee
 ---
-This external module offers a universal solution for Trials Mode. This markdown file is best viewed in Github or your favorite markdown file viewer.
+This external module offers a universal solution for Trials Mode. This markdown file is best viewed in Github or your favorite markdown file viewer. For greater detail on how to create trials definitions, or the customization options supported, please consult this readme, or the wiki found here: https://github.com/two4teezee/Ikemen-GO-Trials-Mode/wiki.
 
 ## Installation
 1. Extract archive content into "./external/mods/trials" directory
