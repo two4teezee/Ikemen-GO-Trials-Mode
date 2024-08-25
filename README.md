@@ -1,4 +1,4 @@
-# Universal Trials Mode
+# Ikemen GO Universal Trials Mode
 > Last tested on Ikemen GO v0.99 and Nightly Build (08/24/2024).
 
 > Module developed by two4teezee
