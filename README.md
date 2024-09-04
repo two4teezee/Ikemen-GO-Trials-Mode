@@ -70,9 +70,9 @@ You can make the trials mode look as fancy or as basic as you want. The `system.
 
 	; TRIALSTEPS OPTIONS -------------------------------------------------------
 	; trialsteps.pos: local origin from which trial steps are drawn. Other elements have their own origin specifications.
-    ; trialsteps.spacing: spacing between trial steps. For horizontal layout, the second argument determines the spacing between rows.
+	; trialsteps.spacing: spacing between trial steps. For horizontal layout, the second argument determines the spacing between rows.
 	; trialsteps.horizontal.padding: horizontal layouts only - padding between glyphs and edges of the background element along the x (horizontal) axis.
-    ; trialsteps.window: X1,Y1,X2,Y2: display window for trials--will create automated scrolling or line returns, depending on the trial layout of choice
+	; trialsteps.window: X1,Y1,X2,Y2: display window for trials--will create automated scrolling or line returns, depending on the trial layout of choice
 	; --------------------------------------------------------------------------
 	trialsteps.pos = 42,40
 	trialsteps.spacing = 0,11
