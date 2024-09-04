@@ -420,11 +420,11 @@ local t_base_info = {
 	movelist_arrow_down_offset = {0, 0}, --Ikemen feature
 	movelist_arrow_down_facing = 1, --Ikemen feature
 	movelist_arrow_down_scale = {1.0, 1.0}, --Ikemen feature
-	menu_valuename_trialsList = "", --Ikemen feature
-	menu_valuename_trialAdvancement_autoadvance = "Auto-Advance",
-	menu_valuename_trialAdvancement_repeat = "Repeat",
-	menu_valuename_trialResetonSuccess_yes = "Yes",
-	menu_valuename_trialResetonSuccess_no = "No",
+	menu_valuename_trialslist = "", --Ikemen feature
+	menu_valuename_trialadvancement_autoadvance = "Auto-Advance",
+	menu_valuename_trialadvancement_repeat = "Repeat",
+	menu_valuename_trialresetonsuccess_yes = "Yes",
+	menu_valuename_trialresetonsuccess_no = "No",
 }
 if motif.trials_info == nil then
 	motif.trials_info = {}
@@ -437,6 +437,24 @@ if motif.trialsbgdef == nil then
         bgclearcolor = {0, 0, 0},
     }
 end
+
+--trials_info section reuses menu_info values (excluding itemnames)
+t = {}
+motif.trials_info = main.f_tableMerge(motif.trials_info, motif.menu_info)
+t.trials_info = {}
+for k, v in pairs(motif.menu_info) do
+	if t.trials_info[k] == nil and not k:match('_itemname_') then
+		t.trials_info[k] = v
+	end
+end
+motif = main.f_tableMerge(motif, t)
+
+--arrows spr/anim data
+motif.f_loadSprData(motif.trials_info, {s = 'menu_arrow_up_',   x = motif.trials_info.menu_pos[1], y = motif.trials_info.menu_pos[2]})
+motif.f_loadSprData(motif.trials_info, {s = 'menu_arrow_down_', x = motif.trials_info.menu_pos[1], y = motif.trials_info.menu_pos[2]})
+motif.f_loadSprData(motif.trials_info, {s = 'movelist_arrow_up_',   x = motif.trials_info.movelist_pos[1], y = motif.trials_info.movelist_pos[2]})
+motif.f_loadSprData(motif.trials_info, {s = 'movelist_arrow_down_', x = motif.trials_info.movelist_pos[1], y = motif.trials_info.movelist_pos[2]})
+
 
 -- This code creates data out of optional [trialsbgdef] sff file.
 -- Defaults to motif.files.spr_data, defined in screenpack, if not declared.
@@ -499,9 +517,9 @@ function motif.setBaseTrialsInfo()
 	motif.trials_info.menu_itemname_nexttrial = "Next Trial"
 	motif.trials_info.menu_itemname_previoustrial = "Previous Trial"
 	motif.trials_info.menu_itemname_menutrials = "Trials Menu"
-	motif.trials_info.menu_itemname_menutrials_trialsList = "Trials List"
-	motif.trials_info.menu_itemname_menutrials_trialAdvancement = "Trial Advancement"
-	motif.trials_info.menu_itemname_menutrials_trialResetonSuccess = "Reset on Success"
+	motif.trials_info.menu_itemname_menutrials_trialslist = "Trials List"
+	motif.trials_info.menu_itemname_menutrials_trialadvancement = "Trial Advancement"
+	motif.trials_info.menu_itemname_menutrials_trialresetonsuccess = "Reset on Success"
 	motif.trials_info.menu_itemname_menutrials_back = "Back"
 	motif.trials_info.menu_itemname_empty = ""
 	motif.trials_info.menu_itemname_menuinput = "Button Config"
@@ -521,9 +539,9 @@ function motif.setBaseTrialsInfo()
 		"nexttrial",
 		"previoustrial",
 		"menutrials",
-		"menutrials_trialsList",
-		"menutrials_trialAdvancement",
-		"menutrials_trialResetonSuccess",
+		"menutrials_trialslist",
+		"menutrials_trialadvancement",
+		"menutrials_trialresetonsuccess",
 		"menutrials_back",
 		"empty",
 		"menuinput",
@@ -548,7 +566,7 @@ function start.f_inittrialsData()
 		trialsExist = true,
 		trialsInitialized = false,
 		trialsPaused = false,
-		trialAdvancement = true,
+		trialadvancement = true,
 		trialsRemovalIndex = {},
 		active = false,
 		allclear = false,
@@ -567,11 +585,11 @@ function start.f_inittrialsData()
 		},
 	}
 
-	-- Initialize trialAdvancement based on last-left menu value
-	if menu.t_valuename.trialAdvancement[menu.trialAdvancement or 1].itemname == "Auto-Advance" then
-		start.trialsdata.trialAdvancement = true
+	-- Initialize trialadvancement based on last-left menu value
+	if menu.t_valuename.trialadvancement[menu.trialadvancement or 1].itemname == "Auto-Advance" then
+		start.trialsdata.trialadvancement = true
 	else
-		start.trialsdata.trialAdvancement = false
+		start.trialsdata.trialadvancement = false
 	end
 end
 
@@ -749,9 +767,9 @@ function start.f_trialsBuilder()
 	end
 
 	-- Build list out all of the available trials for Pause menu
-	menu.t_valuename.trialsList = {}
+	menu.t_valuename.trialslist = {}
 	for i = 1, #start.trialsdata.trial, 1 do
-		table.insert(menu.t_valuename.trialsList, {itemname = tostring(i), displayname = start.trialsdata.trial[i].name})
+		table.insert(menu.t_valuename.trialslist, {itemname = tostring(i), displayname = start.trialsdata.trial[i].name})
 	end
 
 	start.trialsdata.trialsInitialized = true
@@ -1147,12 +1165,12 @@ function start.f_trialsChecker()
 					start.trialsdata.pauseuntilnexthit = start.trialsdata.trial[ct].trialstep[cts].validuntilnexthit[ctms]
 					if start.trialsdata.currenttrialstep > #start.trialsdata.trial[ct].trialstep then
 						-- If trial step was last, go to next trial and display success banner
-						if start.trialsdata.trialAdvancement then
+						if start.trialsdata.trialadvancement then
 							start.trialsdata.currenttrial = ct + 1
 						end
 						start.trialsdata.currenttrialstep = 1
 						start.trialsdata.combocounter = 0
-						if ct < #start.trialsdata.trial or (not start.trialsdata.trialAdvancement and ct == #start.trialsdata.trial) then
+						if ct < #start.trialsdata.trial or (not start.trialsdata.trialadvancement and ct == #start.trialsdata.trial) then
 							if (motif.trials_mode.success_front_displaytime == -1) and (motif.trials_mode.success_bg_displaytime == -1) then
 								start.trialsdata.draw.success = math.max(animGetLength(motif.trials_mode.success_front_data), animGetLength(motif.trials_mode.success_bg_data), motif.trials_mode.success_text_displaytime)
 							else
@@ -1210,7 +1228,7 @@ function start.f_trialsSuccess(successstring, index)
 	start.trialsdata.trial[index].complete = true
 	start.trialsdata.trial[index].active = false
 	start.trialsdata.active = false
-	if not start.trialsdata.trialAdvancement then
+	if not start.trialsdata.trialadvancement then
 		start.trialsdata.trial[index].starttick = tickcount()
 	end
 	if index ~= #start.trialsdata.trial then
@@ -1316,21 +1334,21 @@ if main.t_sort.trials_info == nil or main.t_sort.trials_info.menu == nil or #mai
 	motif.setBaseTrialsInfo()
 end
 
-menu.t_valuename.trialsList = {
+menu.t_valuename.trialslist = {
  	{itemname = "0", displayname = "Select Trial"},
 }
-menu.t_valuename.trialAdvancement = {
-	{itemname = "Auto-Advance", displayname = motif.trials_info.menu_valuename_trialAdvancement_autoadvance},
-	{itemname = "Repeat", displayname = motif.trials_info.menu_valuename_trialAdvancement_repeat}
+menu.t_valuename.trialadvancement = {
+	{itemname = "Auto-Advance", displayname = motif.trials_info.menu_valuename_trialadvancement_autoadvance},
+	{itemname = "Repeat", displayname = motif.trials_info.menu_valuename_trialadvancement_repeat}
 }
-menu.t_valuename.trialResetonSuccess = {
-	{itemname = "Yes", displayname = motif.trials_info.menu_valuename_trialResetonSuccess_yes},
-	{itemname = "No", displayname = motif.trials_info.menu_valuename_trialResetonSuccess_no}
+menu.t_valuename.trialresetonsuccess = {
+	{itemname = "Yes", displayname = motif.trials_info.menu_valuename_trialresetonsuccess_yes},
+	{itemname = "No", displayname = motif.trials_info.menu_valuename_trialresetonsuccess_no}
 }
 
-menu.t_itemname['trialsList'] = function(t, item, cursorPosY, moveTxt, section)
+menu.t_itemname['trialslist'] = function(t, item, cursorPosY, moveTxt, section)
 	if menu.f_valueChanged(t.items[item], motif[section]) then
-		start.trialsdata.currenttrial = menu.trialsList
+		start.trialsdata.currenttrial = menu.trialslist
 		start.trialsdata.trial[start.trialsdata.currenttrial].complete = false
 		start.trialsdata.trial[start.trialsdata.currenttrial].active = false
 		start.trialsdata.active = false
@@ -1339,27 +1357,27 @@ menu.t_itemname['trialsList'] = function(t, item, cursorPosY, moveTxt, section)
 	end
 	return true
 end
-menu.t_vardisplay['trialsList'] = function()
-	return menu.t_valuename.trialsList[menu.trialsList or 1].displayname
+menu.t_vardisplay['trialslist'] = function()
+	return menu.t_valuename.trialslist[menu.trialslist or 1].displayname
 end
 
-menu.t_itemname['trialAdvancement'] = function(t, item, cursorPosY, moveTxt, section)
+menu.t_itemname['trialadvancement'] = function(t, item, cursorPosY, moveTxt, section)
 	if menu.f_valueChanged(t.items[item], motif[section]) then
-		if menu.t_valuename.trialAdvancement[menu.trialAdvancement or 1].itemname == "Auto-Advance" then
-			start.trialsdata.trialAdvancement = true
+		if menu.t_valuename.trialadvancement[menu.trialadvancement or 1].itemname == "Auto-Advance" then
+			start.trialsdata.trialadvancement = true
 		else
-			start.trialsdata.trialAdvancement = false
+			start.trialsdata.trialadvancement = false
 		end
 	end
 	return true
 end
-menu.t_vardisplay['trialAdvancement'] = function()
-	return menu.t_valuename.trialAdvancement[menu.trialAdvancement or 1].displayname
+menu.t_vardisplay['trialadvancement'] = function()
+	return menu.t_valuename.trialadvancement[menu.trialadvancement or 1].displayname
 end
 
-menu.t_itemname['trialResetonSuccess'] = function(t, item, cursorPosY, moveTxt, section)
+menu.t_itemname['trialresetonsuccess'] = function(t, item, cursorPosY, moveTxt, section)
 	if menu.f_valueChanged(t.items[item], motif[section]) then
-		if menu.t_valuename.trialResetonSuccess[menu.trialResetonSuccess or 1].itemname == "Yes" then
+		if menu.t_valuename.trialresetonsuccess[menu.trialresetonsuccess or 1].itemname == "Yes" then
 			motif.trials_mode.resetonsuccess = "true"
 		else
 			motif.trials_mode.resetonsuccess = "false"
@@ -1367,8 +1385,8 @@ menu.t_itemname['trialResetonSuccess'] = function(t, item, cursorPosY, moveTxt, 
 	end
 	return true
 end
-menu.t_vardisplay['trialResetonSuccess'] = function()
-	return menu.t_valuename.trialResetonSuccess[menu.trialResetonSuccess or 1].displayname
+menu.t_vardisplay['trialresetonsuccess'] = function()
+	return menu.t_valuename.trialresetonsuccess[menu.trialresetonsuccess or 1].displayname
 end
 
 menu.t_itemname['nexttrial'] = function(t, item, cursorPosY, moveTxt, section)
@@ -1402,9 +1420,9 @@ function menu.f_trialsReset()
 		menu[k] = 1
 	end
 	if motif.trials_mode.resetonsuccess == "true" then
-		menu.trialResetonSuccess = 1
+		menu.trialresetonsuccess = 1
 	else
-		menu.trialResetonSuccess = 2
+		menu.trialresetonsuccess = 2
 	end
 	for _, v in ipairs(menu.t_vardisplayPointers) do
 		v.vardisplay = menu.f_vardisplay(v.itemname)
