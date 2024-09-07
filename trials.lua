@@ -1162,7 +1162,7 @@ function start.f_trialsChecker()
 				if start.trialsdata.currenttrialmicrostep > start.trialsdata.trial[ct].trialstep[cts].numofmicrosteps then
 					start.trialsdata.currenttrialmicrostep = 1
 					start.trialsdata.currenttrialstep = cts + 1
-					if not start.trialsdata.trial[ct].trialstep[cts].isnohit[ctms] and combocount() == start.trialsdata.combocounter then
+					if not start.trialsdata.trial[ct].trialstep[cts].isnohit[ctms] and combocount() == 0 and combocount() == start.trialsdata.combocounter then
 						start.trialsdata.combocounter = start.trialsdata.combocounter + 1
 					else
 						start.trialsdata.combocounter = combocount()
