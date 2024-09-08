@@ -38,7 +38,7 @@ You can make the trials mode look as fancy or as basic as you want. The `system.
 - Other features:
 	- The user can choose to apply palFX in the Trials Select Screen to portraits of characters who do not have trials definition files.
 
-## select.def Example
+## system.def Example
 
 ```
 [Trials Mode] ;Ikemen feature
