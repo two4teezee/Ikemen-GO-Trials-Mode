@@ -139,132 +139,226 @@ local t_base = {
 	fadeout_time = 40, --Ikemen feature
 	fadeout_col = {0, 0, 0}, --Ikemen feature
 	fadeout_anim = -1, --Ikemen feature
-    bg_anim = -1,
-    bg_spr = {},
-    bg_offset = {0, 0},
-    bg_facing = 1,
-    bg_scale = {1.0, 1.0},
-    bg_displaytime = 0,
-	trialsteps_pos = {0, 0},
-    trialsteps_spacing = {0, 0},
+    bg_vertical_anim = -1,
+    bg_vertical_spr = {},
+    bg_vertical_offset = {0, 0},
+    bg_vertical_facing = 1,
+    bg_vertical_scale = {1.0, 1.0},
+    bg_vertical_displaytime = 0,
+	bg_horizontal_anim = -1,
+    bg_horizontal_spr = {},
+    bg_horizontal_offset = {0, 0},
+    bg_horizontal_facing = 1,
+    bg_horizontal_scale = {1.0, 1.0},
+    bg_horizontal_displaytime = 0,
+	trialsteps_vertical_pos = {0, 0},
+    trialsteps_vertical_spacing = {0, 0},
+    trialsteps_vertical_window = {0,0,0,0},
+	trialtitle_vertical_pos = {0,0},
+	trialtitle_vertical_text_offset = {0,0},
+    trialtitle_vertical_text_font = {},
+    trialtitle_vertical_text_font_height = -1,
+    trialtitle_vertical_text_text = '',
+	trialtitle_vertical_text_scale = {1.0, 1.0},
+    trialtitle_vertical_bg_anim = -1,
+    trialtitle_vertical_bg_spr = {},
+    trialtitle_vertical_bg_offset = {0, 0},
+    trialtitle_vertical_bg_facing = 1,
+    trialtitle_vertical_bg_scale = {1.0, 1.0},
+    trialtitle_vertical_bg_displaytime = -1,
+	trialtitle_vertical_front_anim = -1,
+    trialtitle_vertical_front_spr = {},
+    trialtitle_vertical_front_offset = {0, 0},
+    trialtitle_vertical_front_facing = 1,
+    trialtitle_vertical_front_scale = {1.0, 1.0},
+    trialtitle_vertical_front_displaytime = -1,
+	trialsteps_horizontal_pos = {0, 0},
+    trialsteps_horizontal_spacing = {0, 0},
 	trialsteps_horizontal_padding = 0,
-    trialsteps_window = {0,0,0,0},
-	trialtitle_pos = {0,0},
-	trialtitle_text_offset = {0,0},
-    trialtitle_text_font = {},
-    trialtitle_text_font_height = -1,
-    trialtitle_text_text = '',
-	trialtitle_text_scale = {1.0, 1.0},
-    trialtitle_bg_anim = -1,
-    trialtitle_bg_spr = {},
-    trialtitle_bg_offset = {0, 0},
-    trialtitle_bg_facing = 1,
-    trialtitle_bg_scale = {1.0, 1.0},
-    trialtitle_bg_displaytime = -1,
-	trialtitle_front_anim = -1,
-    trialtitle_front_spr = {},
-    trialtitle_front_offset = {0, 0},
-    trialtitle_front_facing = 1,
-    trialtitle_front_scale = {1.0, 1.0},
-    trialtitle_front_displaytime = -1,
-    upcomingstep_text_offset = {0,0},
-    upcomingstep_text_font = {},
-    upcomingstep_text_font_height = -1,
-    upcomingstep_text_text = '',
-	upcomingstep_text_scale = {1.0, 1.0},
-    upcomingstep_bg_anim = -1,
-    upcomingstep_bg_spr = {},
-    upcomingstep_bg_offset = {0, 0},
-    upcomingstep_bg_facing = 1,
-    upcomingstep_bg_scale = {1.0, 1.0},
-    upcomingstep_bg_displaytime = -1,
-	upcomingstep_bg_tail_anim = -1,
-    upcomingstep_bg_tail_spr = {},
-    upcomingstep_bg_tail_offset = {0, 0},
-    upcomingstep_bg_tail_facing = 1,
-    upcomingstep_bg_tail_scale = {1.0, 1.0},
-    upcomingstep_bg_head_anim = -1,
-    upcomingstep_bg_head_spr = {},
-    upcomingstep_bg_head_offset = {0, 0},
-    upcomingstep_bg_head_facing = 1,
-    upcomingstep_bg_head_scale = {1.0, 1.0},
-	upcomingstep_bg_palfx_add = {0, 0, 0},
-	upcomingstep_bg_palfx_mul = {256, 256, 256},
-	upcomingstep_bg_palfx_sinadd = {0, 0, 0},
-	upcomingstep_bg_palfx_invertall = 0,
-	upcomingstep_bg_palfx_color = 256,
-	upcomingstep_glyphs_palfx_add = {0, 0, 0},
-	upcomingstep_glyphs_palfx_mul = {256, 256, 256},
-	upcomingstep_glyphs_palfx_sinadd = {0, 0, 0},
-	upcomingstep_glyphs_palfx_invertall = 0,
-	upcomingstep_glyphs_palfx_color = 256,
-    currentstep_text_offset = {0,0},
-    currentstep_text_font = {},
-    currentstep_text_font_height = -1,
-    currentstep_text_text = '',
-	currentstep_text_scale = {1.0, 1.0},
-    currentstep_bg_anim = -1,
-    currentstep_bg_spr = {},
-    currentstep_bg_offset = {0, 0},
-    currentstep_bg_facing = 1,
-    currentstep_bg_scale = {1.0, 1.0},
-    currentstep_bg_displaytime = -1,
-	currentstep_bg_tail_anim = -1,
-    currentstep_bg_tail_spr = {},
-    currentstep_bg_tail_offset = {0, 0},
-    currentstep_bg_tail_facing = 1,
-    currentstep_bg_tail_scale = {1.0, 1.0},
-    currentstep_bg_head_anim = -1,
-    currentstep_bg_head_spr = {},
-    currentstep_bg_head_offset = {0, 0},
-    currentstep_bg_head_facing = 1,
-    currentstep_bg_head_scale = {1.0, 1.0},
-	currentstep_bg_palfx_add = {0, 0, 0},
-	currentstep_bg_palfx_mul = {256, 256, 256},
-	currentstep_bg_palfx_sinadd = {0, 0, 0},
-	currentstep_bg_palfx_invertall = 0,
-	currentstep_bg_palfx_color = 256,
-	currentstep_glyphs_palfx_add = {0, 0, 0},
-	currentstep_glyphs_palfx_mul = {256, 256, 256},
-	currentstep_glyphs_palfx_sinadd = {0, 0, 0},
-	currentstep_glyphs_palfx_invertall = 0,
-	currentstep_glyphs_palfx_color = 256,
-    completedstep_text_offset = {0,0},
-    completedstep_text_font = {},
-    completedstep_text_font_height = -1,
-    completedstep_text_text = '',
-	completedstep_text_scale = {1.0, 1.0},
-    completedstep_bg_anim = -1,
-    completedstep_bg_spr = {},
-    completedstep_bg_offset = {0, 0},
-    completedstep_bg_facing = 1,
-    completedstep_bg_scale = {1.0, 1.0},
-    completedstep_bg_displaytime = -1,
-	completedstep_bg_tail_anim = -1,
-    completedstep_bg_tail_spr = {},
-    completedstep_bg_tail_offset = {0, 0},
-    completedstep_bg_tail_facing = 1,
-    completedstep_bg_tail_scale = {1.0, 1.0},
-    completedstep_bg_head_anim = -1,
-    completedstep_bg_head_spr = {},
-    completedstep_bg_head_offset = {0, 0},
-    completedstep_bg_head_facing = 1,
-    completedstep_bg_head_scale = {1.0, 1.0},
-	completedstep_bg_palfx_add = {0, 0, 0},
-	completedstep_bg_palfx_mul = {256, 256, 256},
-	completedstep_bg_palfx_sinadd = {0, 0, 0},
-	completedstep_bg_palfx_invertall = 0,
-	completedstep_bg_palfx_color = 256,
-	completedstep_glyphs_palfx_add = {0, 0, 0},
-	completedstep_glyphs_palfx_mul = {256, 256, 256},
-	completedstep_glyphs_palfx_sinadd = {0, 0, 0},
-	completedstep_glyphs_palfx_invertall = 0,
-	completedstep_glyphs_palfx_color = 256,
-    glyphs_offset = {0, 0},
-    glyphs_scale = {1.0,1.0},
-    glyphs_spacing = {0,0},
-    glyphs_align = 1,
-	glyphs_scalewithtext = "false",
+    trialsteps_horizontal_window = {0,0,0,0},
+	trialtitle_horizontal_pos = {0,0},
+	trialtitle_horizontal_text_offset = {0,0},
+    trialtitle_horizontal_text_font = {},
+    trialtitle_horizontal_text_font_height = -1,
+    trialtitle_horizontal_text_text = '',
+	trialtitle_horizontal_text_scale = {1.0, 1.0},
+    trialtitle_horizontal_bg_anim = -1,
+    trialtitle_horizontal_bg_spr = {},
+    trialtitle_horizontal_bg_offset = {0, 0},
+    trialtitle_horizontal_bg_facing = 1,
+    trialtitle_horizontal_bg_scale = {1.0, 1.0},
+    trialtitle_horizontal_bg_displaytime = -1,
+	trialtitle_horizontal_front_anim = -1,
+    trialtitle_horizontal_front_spr = {},
+    trialtitle_horizontal_front_offset = {0, 0},
+    trialtitle_horizontal_front_facing = 1,
+    trialtitle_horizontal_front_scale = {1.0, 1.0},
+    trialtitle_horizontal_front_displaytime = -1,
+	upcomingstep_vertical_text_offset = {0,0},
+    upcomingstep_vertical_text_font = {},
+    upcomingstep_vertical_text_font_height = -1,
+    upcomingstep_vertical_text_text = '',
+	upcomingstep_vertical_text_scale = {1.0, 1.0},
+    upcomingstep_vertical_bg_anim = -1,
+    upcomingstep_vertical_bg_spr = {},
+    upcomingstep_vertical_bg_offset = {0, 0},
+    upcomingstep_vertical_bg_facing = 1,
+    upcomingstep_vertical_bg_scale = {1.0, 1.0},
+    upcomingstep_vertical_bg_displaytime = -1,
+	upcomingstep_vertical_bg_palfx_add = {0, 0, 0},
+	upcomingstep_vertical_bg_palfx_mul = {256, 256, 256},
+	upcomingstep_vertical_bg_palfx_sinadd = {0, 0, 0},
+	upcomingstep_vertical_bg_palfx_invertall = 0,
+	upcomingstep_vertical_bg_palfx_color = 256,
+	upcomingstep_vertical_glyphs_palfx_add = {0, 0, 0},
+	upcomingstep_vertical_glyphs_palfx_mul = {256, 256, 256},
+	upcomingstep_vertical_glyphs_palfx_sinadd = {0, 0, 0},
+	upcomingstep_vertical_glyphs_palfx_invertall = 0,
+	upcomingstep_vertical_glyphs_palfx_color = 256,
+    upcomingstep_horizontal_text_offset = {0,0},
+    upcomingstep_horizontal_text_font = {},
+    upcomingstep_horizontal_text_font_height = -1,
+    upcomingstep_horizontal_text_text = '',
+	upcomingstep_horizontal_text_scale = {1.0, 1.0},
+    upcomingstep_horizontal_bg_anim = -1,
+    upcomingstep_horizontal_bg_spr = {},
+    upcomingstep_horizontal_bg_offset = {0, 0},
+    upcomingstep_horizontal_bg_facing = 1,
+    upcomingstep_horizontal_bg_scale = {1.0, 1.0},
+    upcomingstep_horizontal_bg_displaytime = -1,
+	upcomingstep_horizontal_bg_tail_anim = -1,
+    upcomingstep_horizontal_bg_tail_spr = {},
+    upcomingstep_horizontal_bg_tail_offset = {0, 0},
+    upcomingstep_horizontal_bg_tail_facing = 1,
+    upcomingstep_horizontal_bg_tail_scale = {1.0, 1.0},
+    upcomingstep_horizontal_bg_head_anim = -1,
+    upcomingstep_horizontal_bg_head_spr = {},
+    upcomingstep_horizontal_bg_head_offset = {0, 0},
+    upcomingstep_horizontal_bg_head_facing = 1,
+    upcomingstep_horizontal_bg_head_scale = {1.0, 1.0},
+	upcomingstep_horizontal_bg_palfx_add = {0, 0, 0},
+	upcomingstep_horizontal_bg_palfx_mul = {256, 256, 256},
+	upcomingstep_horizontal_bg_palfx_sinadd = {0, 0, 0},
+	upcomingstep_horizontal_bg_palfx_invertall = 0,
+	upcomingstep_horizontal_bg_palfx_color = 256,
+	upcomingstep_horizontal_glyphs_palfx_add = {0, 0, 0},
+	upcomingstep_horizontal_glyphs_palfx_mul = {256, 256, 256},
+	upcomingstep_horizontal_glyphs_palfx_sinadd = {0, 0, 0},
+	upcomingstep_horizontal_glyphs_palfx_invertall = 0,
+	upcomingstep_horizontal_glyphs_palfx_color = 256,
+	currentstep_vertical_text_offset = {0,0},
+    currentstep_vertical_text_font = {},
+    currentstep_vertical_text_font_height = -1,
+    currentstep_vertical_text_text = '',
+	currentstep_vertical_text_scale = {1.0, 1.0},
+    currentstep_vertical_bg_anim = -1,
+    currentstep_vertical_bg_spr = {},
+    currentstep_vertical_bg_offset = {0, 0},
+    currentstep_vertical_bg_facing = 1,
+    currentstep_vertical_bg_scale = {1.0, 1.0},
+    currentstep_vertical_bg_displaytime = -1,
+	currentstep_vertical_bg_palfx_add = {0, 0, 0},
+	currentstep_vertical_bg_palfx_mul = {256, 256, 256},
+	currentstep_vertical_bg_palfx_sinadd = {0, 0, 0},
+	currentstep_vertical_bg_palfx_invertall = 0,
+	currentstep_vertical_bg_palfx_color = 256,
+	currentstep_vertical_glyphs_palfx_add = {0, 0, 0},
+	currentstep_vertical_glyphs_palfx_mul = {256, 256, 256},
+	currentstep_vertical_glyphs_palfx_sinadd = {0, 0, 0},
+	currentstep_vertical_glyphs_palfx_invertall = 0,
+	currentstep_vertical_glyphs_palfx_color = 256,
+    currentstep_horizontal_text_offset = {0,0},
+    currentstep_horizontal_text_font = {},
+    currentstep_horizontal_text_font_height = -1,
+    currentstep_horizontal_text_text = '',
+	currentstep_horizontal_text_scale = {1.0, 1.0},
+    currentstep_horizontal_bg_anim = -1,
+    currentstep_horizontal_bg_spr = {},
+    currentstep_horizontal_bg_offset = {0, 0},
+    currentstep_horizontal_bg_facing = 1,
+    currentstep_horizontal_bg_scale = {1.0, 1.0},
+    currentstep_horizontal_bg_displaytime = -1,
+	currentstep_horizontal_bg_tail_anim = -1,
+    currentstep_horizontal_bg_tail_spr = {},
+    currentstep_horizontal_bg_tail_offset = {0, 0},
+    currentstep_horizontal_bg_tail_facing = 1,
+    currentstep_horizontal_bg_tail_scale = {1.0, 1.0},
+    currentstep_horizontal_bg_head_anim = -1,
+    currentstep_horizontal_bg_head_spr = {},
+    currentstep_horizontal_bg_head_offset = {0, 0},
+    currentstep_horizontal_bg_head_facing = 1,
+    currentstep_horizontal_bg_head_scale = {1.0, 1.0},
+	currentstep_horizontal_bg_palfx_add = {0, 0, 0},
+	currentstep_horizontal_bg_palfx_mul = {256, 256, 256},
+	currentstep_horizontal_bg_palfx_sinadd = {0, 0, 0},
+	currentstep_horizontal_bg_palfx_invertall = 0,
+	currentstep_horizontal_bg_palfx_color = 256,
+	currentstep_horizontal_glyphs_palfx_add = {0, 0, 0},
+	currentstep_horizontal_glyphs_palfx_mul = {256, 256, 256},
+	currentstep_horizontal_glyphs_palfx_sinadd = {0, 0, 0},
+	currentstep_horizontal_glyphs_palfx_invertall = 0,
+	currentstep_horizontal_glyphs_palfx_color = 256,
+	completedstep_vertical_text_offset = {0,0},
+    completedstep_vertical_text_font = {},
+    completedstep_vertical_text_font_height = -1,
+    completedstep_vertical_text_text = '',
+	completedstep_vertical_text_scale = {1.0, 1.0},
+    completedstep_vertical_bg_anim = -1,
+    completedstep_vertical_bg_spr = {},
+    completedstep_vertical_bg_offset = {0, 0},
+    completedstep_vertical_bg_facing = 1,
+    completedstep_vertical_bg_scale = {1.0, 1.0},
+    completedstep_vertical_bg_displaytime = -1,
+	completedstep_vertical_bg_palfx_add = {0, 0, 0},
+	completedstep_vertical_bg_palfx_mul = {256, 256, 256},
+	completedstep_vertical_bg_palfx_sinadd = {0, 0, 0},
+	completedstep_vertical_bg_palfx_invertall = 0,
+	completedstep_vertical_bg_palfx_color = 256,
+	completedstep_vertical_glyphs_palfx_add = {0, 0, 0},
+	completedstep_vertical_glyphs_palfx_mul = {256, 256, 256},
+	completedstep_vertical_glyphs_palfx_sinadd = {0, 0, 0},
+	completedstep_vertical_glyphs_palfx_invertall = 0,
+	completedstep_vertical_glyphs_palfx_color = 256,
+    completedstep_horizontal_text_offset = {0,0},
+    completedstep_horizontal_text_font = {},
+    completedstep_horizontal_text_font_height = -1,
+    completedstep_horizontal_text_text = '',
+	completedstep_horizontal_text_scale = {1.0, 1.0},
+    completedstep_horizontal_bg_anim = -1,
+    completedstep_horizontal_bg_spr = {},
+    completedstep_horizontal_bg_offset = {0, 0},
+    completedstep_horizontal_bg_facing = 1,
+    completedstep_horizontal_bg_scale = {1.0, 1.0},
+    completedstep_horizontal_bg_displaytime = -1,
+	completedstep_horizontal_bg_tail_anim = -1,
+    completedstep_horizontal_bg_tail_spr = {},
+    completedstep_horizontal_bg_tail_offset = {0, 0},
+    completedstep_horizontal_bg_tail_facing = 1,
+    completedstep_horizontal_bg_tail_scale = {1.0, 1.0},
+    completedstep_horizontal_bg_head_anim = -1,
+    completedstep_horizontal_bg_head_spr = {},
+    completedstep_horizontal_bg_head_offset = {0, 0},
+    completedstep_horizontal_bg_head_facing = 1,
+    completedstep_horizontal_bg_head_scale = {1.0, 1.0},
+	completedstep_horizontal_bg_palfx_add = {0, 0, 0},
+	completedstep_horizontal_bg_palfx_mul = {256, 256, 256},
+	completedstep_horizontal_bg_palfx_sinadd = {0, 0, 0},
+	completedstep_horizontal_bg_palfx_invertall = 0,
+	completedstep_horizontal_bg_palfx_color = 256,
+	completedstep_horizontal_glyphs_palfx_add = {0, 0, 0},
+	completedstep_horizontal_glyphs_palfx_mul = {256, 256, 256},
+	completedstep_horizontal_glyphs_palfx_sinadd = {0, 0, 0},
+	completedstep_horizontal_glyphs_palfx_invertall = 0,
+	completedstep_horizontal_glyphs_palfx_color = 256,
+    glyphs_vertical_offset = {0, 0},
+    glyphs_vertical_scale = {1.0,1.0},
+    glyphs_vertical_spacing = {0,0},
+    glyphs_vertical_align = 1,
+	glyphs_vertical_scalewithtext = "false",
+    glyphs_horizontal_offset = {0, 0},
+    glyphs_horizontal_scale = {1.0,1.0},
+    glyphs_horizontal_spacing = {0,0},
+    glyphs_horizontal_align = 1,
 	trialcounter_pos = {0,0},
     trialcounter_font = {},
     trialcounter_text_scale = {1.0, 1.0},
@@ -425,6 +519,8 @@ local t_base_info = {
 	menu_valuename_trialadvancement_repeat = "Repeat",
 	menu_valuename_trialresetonsuccess_yes = "Yes",
 	menu_valuename_trialresetonsuccess_no = "No",
+	menu_valuename_trialslayout_vertical = "Vertical",
+	menu_valuename_trialslayout_horizontal = "Horizontal",
 }
 if motif.trials_info == nil then
 	motif.trials_info = {}
@@ -474,22 +570,34 @@ motif.trialsbgdef.bg = bgNew(motif.trialsbgdef.spr_data, motif.def, 'trialsbg')
 --trials spr/anim data
 local tr_pos = motif.trials_mode
 for _, v in ipairs({
-	{s = 'bg_',							x = tr_pos.trialsteps_pos[1] + tr_pos.bg_offset[1],					y = tr_pos.trialsteps_pos[2] + tr_pos.bg_offset[2],					},
-	{s = 'success_bg_',    				x = tr_pos.success_pos[1] + tr_pos.success_bg_offset[1],			y = tr_pos.success_pos[2] + tr_pos.success_bg_offset[2],			},
-	{s = 'allclear_bg_',	   			x = tr_pos.allclear_pos[1] + tr_pos.allclear_bg_offset[1],			y = tr_pos.allclear_pos[2] + tr_pos.allclear_bg_offset[2],			},
-	{s = 'success_front_',    			x = tr_pos.success_pos[1] + tr_pos.success_front_offset[1],			y = tr_pos.success_pos[2] + tr_pos.success_front_offset[2],			},
-	{s = 'allclear_front_',   			x = tr_pos.allclear_pos[1] + tr_pos.allclear_front_offset[1],		y = tr_pos.allclear_pos[2] + tr_pos.allclear_front_offset[2],		},
-	{s = 'upcomingstep_bg_',			x = 0,																y = 0,																},
-	{s = 'upcomingstep_bg_tail_',		x = 0,																y = 0,																},
-	{s = 'upcomingstep_bg_head_',		x = 0,																y = 0,																},
-	{s = 'currentstep_bg_',				x = 0,																y = 0,																},
-	{s = 'currentstep_bg_tail_',		x = 0,																y = 0,																},
-	{s = 'currentstep_bg_head_',		x = 0,																y = 0,																},
-	{s = 'completedstep_bg_',			x = 0,																y = 0,																},
-	{s = 'completedstep_bg_tail_',		x = 0,																y = 0,																},
-	{s = 'completedstep_bg_head_',		x = 0,																y = 0,																},
-	{s = 'trialtitle_bg_',    			x = tr_pos.trialtitle_pos[1] + tr_pos.trialtitle_bg_offset[1],		y = tr_pos.trialtitle_pos[2] + tr_pos.trialtitle_bg_offset[2],		},
-	{s = 'trialtitle_front_',    		x = tr_pos.trialtitle_pos[1] + tr_pos.trialtitle_front_offset[1],	y = tr_pos.trialtitle_pos[2] + tr_pos.trialtitle_front_offset[2],	},
+	{s = 'bg_vertical_',						x = tr_pos.trialsteps_vertical_pos[1] + tr_pos.bg_vertical_offset[1],					y = tr_pos.trialsteps_vertical_pos[2] + tr_pos.bg_vertical_offset[2],					},
+	{s = 'bg_horizontal_',						x = tr_pos.trialsteps_horizontal_pos[1] + tr_pos.bg_horizontal_offset[1],				y = tr_pos.trialsteps_horizontal_pos[2] + tr_pos.bg_horizontal_offset[2],				},
+	{s = 'success_bg_',    						x = tr_pos.success_pos[1] + tr_pos.success_bg_offset[1],								y = tr_pos.success_pos[2] + tr_pos.success_bg_offset[2],								},
+	{s = 'allclear_bg_',	   					x = tr_pos.allclear_pos[1] + tr_pos.allclear_bg_offset[1],								y = tr_pos.allclear_pos[2] + tr_pos.allclear_bg_offset[2],								},
+	{s = 'success_front_',  	  				x = tr_pos.success_pos[1] + tr_pos.success_front_offset[1],								y = tr_pos.success_pos[2] + tr_pos.success_front_offset[2],								},
+	{s = 'allclear_front_',   					x = tr_pos.allclear_pos[1] + tr_pos.allclear_front_offset[1],							y = tr_pos.allclear_pos[2] + tr_pos.allclear_front_offset[2],							},
+	{s = 'upcomingstep_vertical_bg_',			x = 0,																					y = 0,																					},
+	{s = 'upcomingstep_vertical_bg_tail_',		x = 0,																					y = 0,																					},
+	{s = 'upcomingstep_vertical_bg_head_',		x = 0,																					y = 0,																					},
+	{s = 'currentstep_vertical_bg_',			x = 0,																					y = 0,																					},
+	{s = 'currentstep_vertical_bg_tail_',		x = 0,																					y = 0,																					},
+	{s = 'currentstep_vertical_bg_head_',		x = 0,																					y = 0,																					},
+	{s = 'completedstep_vertical_bg_',			x = 0,																					y = 0,																					},
+	{s = 'completedstep_vertical_bg_tail_',		x = 0,																					y = 0,																					},
+	{s = 'completedstep_vertical_bg_head_',		x = 0,																					y = 0,																					},
+    {s = 'upcomingstep_horizontal_bg_',			x = 0,																					y = 0,																					},
+	{s = 'upcomingstep_horizontal_bg_tail_',	x = 0,																					y = 0,																					},
+	{s = 'upcomingstep_horizontal_bg_head_',	x = 0,																					y = 0,																					},
+	{s = 'currentstep_horizontal_bg_',			x = 0,																					y = 0,																					},
+	{s = 'currentstep_horizontal_bg_tail_',		x = 0,																					y = 0,																					},
+	{s = 'currentstep_horizontal_bg_head_',		x = 0,																					y = 0,																					},
+	{s = 'completedstep_horizontal_bg_',		x = 0,																					y = 0,																					},
+	{s = 'completedstep_horizontal_bg_tail_',	x = 0,																					y = 0,																					},
+	{s = 'completedstep_horizontal_bg_head_',	x = 0,																					y = 0,																					},
+	{s = 'trialtitle_vertical_bg_',    			x = tr_pos.trialtitle_vertical_pos[1] + tr_pos.trialtitle_vertical_bg_offset[1],		y = tr_pos.trialtitle_vertical_pos[2] + tr_pos.trialtitle_vertical_bg_offset[2],		},
+	{s = 'trialtitle_vertical_front_',    		x = tr_pos.trialtitle_vertical_pos[1] + tr_pos.trialtitle_vertical_front_offset[1],		y = tr_pos.trialtitle_vertical_pos[2] + tr_pos.trialtitle_vertical_front_offset[2],		},
+    {s = 'trialtitle_horizontal_bg_',    		x = tr_pos.trialtitle_horizontal_pos[1] + tr_pos.trialtitle_horizontal_bg_offset[1],	y = tr_pos.trialtitle_horizontal_pos[2] + tr_pos.trialtitle_horizontal_bg_offset[2],	},
+	{s = 'trialtitle_horizontal_front_',    	x = tr_pos.trialtitle_horizontal_pos[1] + tr_pos.trialtitle_horizontal_front_offset[1],	y = tr_pos.trialtitle_horizontal_pos[2] + tr_pos.trialtitle_horizontal_front_offset[2],	},
 }) do
 	if motif.files.trials ~= nil and motif.files.trials ~= '' then
 	 	motif.files.trials_data = sffNew(searchFile(motif.files.trials, {motif.fileDir, '', 'data/'}))
@@ -520,6 +628,7 @@ function motif.setBaseTrialsInfo()
 	motif.trials_info.menu_itemname_menutrials_trialslist = "Trials List"
 	motif.trials_info.menu_itemname_menutrials_trialadvancement = "Trial Advancement"
 	motif.trials_info.menu_itemname_menutrials_trialresetonsuccess = "Reset on Success"
+	motif.trials_info.menu_itemname_menutrials_trialslayout = "Trials Layout"
 	motif.trials_info.menu_itemname_menutrials_back = "Back"
 	motif.trials_info.menu_itemname_empty = ""
 	motif.trials_info.menu_itemname_menuinput = "Button Config"
@@ -542,6 +651,7 @@ function motif.setBaseTrialsInfo()
 		"menutrials_trialslist",
 		"menutrials_trialadvancement",
 		"menutrials_trialresetonsuccess",
+		"menutrials_trialslayout",
 		"menutrials_back",
 		"empty",
 		"menuinput",
@@ -579,6 +689,8 @@ function start.f_inittrialsData()
 		starttick = tickcount(),
 		elapsedtime = 0,
 		trial = f_deepCopy(start.f_getCharData(start.p[1].t_selected[1].ref).trialsdata),
+		bgelemdata = {},
+		draw = {},
 		displaytimers = {
 			totaltimer = true,
 			trialtimer = true,
@@ -594,24 +706,24 @@ function start.f_inittrialsData()
 end
 
 function start.f_trialsBuilder()
-	--start.f_trialsParser()
 	--This function will initialize once to build all the trial tables based on the motif information and the trials information loaded when the char was selected
 	--Populate background elements information
-	start.trials.bgelemdata = {
-		currentbgsize = animGetSpriteInfo(motif.trials_mode.currentstep_bg_data),
-		upcomingbgsize = animGetSpriteInfo(motif.trials_mode.upcomingstep_bg_data),
-		completedbgsize = animGetSpriteInfo(motif.trials_mode.completedstep_bg_data),
-		currentbgtailwidth = animGetSpriteInfo(motif.trials_mode.currentstep_bg_tail_data),
-		currentbgheadwidth = animGetSpriteInfo(motif.trials_mode.currentstep_bg_head_data),
-		upcomingbgtailwidth = animGetSpriteInfo(motif.trials_mode.upcomingstep_bg_tail_data),
-		upcomingbgheadwidth = animGetSpriteInfo(motif.trials_mode.upcomingstep_bg_head_data),
-		completedbgtailwidth = animGetSpriteInfo(motif.trials_mode.completedstep_bg_tail_data),
-		completedbgheadwidth = animGetSpriteInfo(motif.trials_mode.completedstep_bg_head_data),
-	}
+	for _, v in ipairs({'vertical','horizontal'}) do
+		for _, k in ipairs({'currentstep_','upcomingstep_','completedstep_'}) do
+			start.trials.bgelemdata[v] = {
+				[k .. 'bgsize'] = animGetSpriteInfo(motif.trials_mode[k .. v .. '_bg_data']),
+			}
+			if v == 'horizontal' then
+				start.trials.bgelemdata[v] = {
+					[k .. 'bgtailwidth'] = animGetSpriteInfo(motif.trials_mode[k .. v .. '_bg_tail_data']),
+					[k .. 'bgheadwidth'] = animGetSpriteInfo(motif.trials_mode[k .. v .. '_bg_tail_data']),
+				}
+			end
+		end
+	end
 	
 	-- thin out trials data according to showforvarvalpairs
 	for i = 1, #start.trials.trial, 1 do
-		--player(1)
 		if #start.trials.trial[i].showforvarvalpairs > 1 then
 			valvarcheck = true
 			for ii = 1, #start.trials.trial[i].showforvarvalpairs, 2 do
@@ -631,11 +743,9 @@ function start.f_trialsBuilder()
 
 	--Obtain all of the trials information, to include the offset positions based on whether the display layout is horizontal or vertical
 	for i = 1, #start.trials.trial, 1 do
-		
 		if #start.trials.trial[i].trialstep > start.trials.maxsteps then
 			start.trials.maxsteps = #start.trials.trial[i].trialstep
 		end
-
 		for j = 1, #start.trials.trial[i].trialstep, 1 do
 			--var-val pairs for each trialstep
 			if #start.trials.trial[i].trialstep[j].validforvarvalpairs > 1 then
@@ -658,75 +768,76 @@ function start.f_trialsBuilder()
 						tempglyphs[#tempglyphs+1] = m2
 					end
 				end
-				if motif.trials_mode.glyphs_align == -1 then
-					for ii = #tempglyphs, 1, -1 do
-						start.trials.trial[i].trialstep[j].glyphline.glyph[#start.trials.trial[i].trialstep[j].glyphline.glyph+1] = tempglyphs[ii]
-						start.trials.trial[i].trialstep[j].glyphline.pos[#start.trials.trial[i].trialstep[j].glyphline.glyph+1] = {0,0}
-						start.trials.trial[i].trialstep[j].glyphline.width[#start.trials.trial[i].trialstep[j].glyphline.glyph+1] = 0
-						start.trials.trial[i].trialstep[j].glyphline.alignOffset[#start.trials.trial[i].trialstep[j].glyphline.glyph+1] = 0
-						start.trials.trial[i].trialstep[j].glyphline.lengthOffset[#start.trials.trial[i].trialstep[j].glyphline.glyph+1] = 0
-						start.trials.trial[i].trialstep[j].glyphline.scale[#start.trials.trial[i].trialstep[j].glyphline.glyph+1] = {1,1}
-					end
-				else
-					for ii = 1, #tempglyphs do
-						start.trials.trial[i].trialstep[j].glyphline.glyph[ii] = tempglyphs[ii]
-						start.trials.trial[i].trialstep[j].glyphline.pos[ii] = {0,0}
-						start.trials.trial[i].trialstep[j].glyphline.width[ii] = 0
-						start.trials.trial[i].trialstep[j].glyphline.alignOffset[ii] = 0
-						start.trials.trial[i].trialstep[j].glyphline.lengthOffset[ii] = 0
-						start.trials.trial[i].trialstep[j].glyphline.scale[ii] = {1,1}
+				for _, v in ipairs({'vertical','horizontal'}) do
+					if motif.trials_mode['glyphs_' .. v .. '_align'] == -1 then
+						for ii = #tempglyphs, 1, -1 do
+							start.trials.trial[i].trialstep[j].glyphline[v].glyph[#start.trials.trial[i].trialstep[j].glyphline[v].glyph+1] = tempglyphs[ii]
+							start.trials.trial[i].trialstep[j].glyphline[v].pos[#start.trials.trial[i].trialstep[j].glyphline[v].glyph+1] = {0,0}
+							start.trials.trial[i].trialstep[j].glyphline[v].width[#start.trials.trial[i].trialstep[j].glyphline[v].glyph+1] = 0
+							start.trials.trial[i].trialstep[j].glyphline[v].alignOffset[#start.trials.trial[i].trialstep[j].glyphline[v].glyph+1] = 0
+							start.trials.trial[i].trialstep[j].glyphline[v].lengthOffset[#start.trials.trial[i].trialstep[j].glyphline[v].glyph+1] = 0
+							start.trials.trial[i].trialstep[j].glyphline[v].scale[#start.trials.trial[i].trialstep[j].glyphline[v].glyph+1] = {1,1}
+						end
+					else
+						for ii = 1, #tempglyphs do
+							start.trials.trial[i].trialstep[j].glyphline[v].glyph[ii] = tempglyphs[ii]
+							start.trials.trial[i].trialstep[j].glyphline[v].pos[ii] = {0,0}
+							start.trials.trial[i].trialstep[j].glyphline[v].width[ii] = 0
+							start.trials.trial[i].trialstep[j].glyphline[v].alignOffset[ii] = 0
+							start.trials.trial[i].trialstep[j].glyphline[v].lengthOffset[ii] = 0
+							start.trials.trial[i].trialstep[j].glyphline[v].scale[ii] = {1,1}
+						end
 					end
 				end
 			end
-			--This glyphs section is more or less wholesale borrowed from the movelist section with minor tweaks
-			local lengthOffset = 0
-			local alignOffset = 0
-			local align = 1
-			local width = 0
-			local font_def = 0
-			--Some fonts won't give us the data we need to scale glyphs from, but sometimes that doesn't matter anyway
-			if motif.trials_mode.currentstep_text_font[7] == nil and motif.trials_mode.glyphs_scalewithtext == "true" then
-				font_def = main.font_def[motif.trials_mode.currentstep_text_font[1] .. motif.trials_mode.currentstep_text_font_height]
-			elseif motif.trials_mode.glyphs_scalewithtext == "true" then
-				font_def = main.font_def[motif.trials_mode.currentstep_text_font[1] .. motif.trials_mode.currentstep_text_font[7]]
-			end
-			for m in pairs(start.trials.trial[i].trialstep[j].glyphline.glyph) do
-				if motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline.glyph[m]] ~= nil then
-					if motif.trials_mode.trialslayout == "vertical" then
-						if motif.trials_mode.glyphs_align == 0 then --center align
-							alignOffset = motif.trials_mode.glyphs_offset[1] * 0.5
-						elseif motif.trials_mode.glyphs_align == -1 then --right align
-							alignOffset = motif.trials_mode.glyphs_offset[1]
+			for _, v in ipairs({'vertical','horizontal'}) do
+				local lengthOffset = 0
+				local alignOffset = 0
+				local align = 1
+				local width = 0
+				local font_def = 0
+				--Some fonts won't give us the data we need to scale glyphs from, but sometimes that doesn't matter anyway
+				if motif.trials_mode['currentstep_' .. v .. '_text_font'][7] == nil and motif.trials_mode.glyphs_scalewithtext == "true" then
+					font_def = main.font_def[motif.trials_mode['currentstep_' .. v .. '_text_font'][1] .. motif.trials_mode['currentstep_' .. v .. '_text_font_height']]
+				elseif motif.trials_mode.glyphs_scalewithtext == "true" then
+					font_def = main.font_def[motif.trials_mode['currentstep_' .. v .. '_text_font'][1] .. motif.trials_mode['currentstep_' .. v .. '_text_font'][7]]
+				end
+				for m in pairs(start.trials.trial[i].trialstep[j].glyphline[v].glyph) do
+					if motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline[v].glyph[m]] ~= nil then
+						if motif.trials_mode['glyphs_' .. v .. '_align'] == 0 then --center align
+							alignOffset = motif.trials_mode['glyphs_' .. v .. '_offset'][1] * 0.5
+						elseif motif.trials_mode['glyphs_' .. v .. '_align'] == -1 then --right align
+							alignOffset = motif.trials_mode['glyphs_' .. v .. '_offset'][1]
 						end
-						if motif.trials_mode.glyphs_align ~= align then
+						if motif.trials_mode['glyphs_' .. v .. '_align'] ~= align then
 							lengthOffset = 0
-							align = motif.trials_mode.glyphs_align
+							align = motif.trials_mode['glyphs_' .. v .. '_align']
 						end
+						local scaleX = motif.trials_mode['glyphs_' .. v .. '_scale'][1]
+						local scaleY = motif.trials_mode['glyphs_' .. v .. '_scale'][2]
+						if motif.trials_mode['glyphs_' .. v .. '_scalewithtext'] == "true" then
+							scaleX = font_def.Size[2] * motif.trials_mode['currentstep_' .. v .. '_text_scale'][2] / motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline[v].glyph[m]].info.Size[2] * motif.trials_mode['glyphs_' .. v .. '_scale'][1]
+							scaleY = font_def.Size[2] * motif.trials_mode['currentstep_' .. v .. '_text_scale'][2] / motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline[v].glyph[m]].info.Size[2] * motif.trials_mode['glyphs_' .. v .. '_scale'][2]
+						end
+						if motif.trials_mode['glyphs_' .. v .. '_align'] == -1 then
+							alignOffset = alignOffset - motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline[v].glyph[m]].info.Size[1] * scaleX
+						end
+						start.trials.trial[i].trialstep[j].glyphline[v].alignOffset[m] = alignOffset
+						start.trials.trial[i].trialstep[j].glyphline[v].scale[m] = {scaleX, scaleY}
+						start.trials.trial[i].trialstep[j].glyphline[v].pos[m] = {
+							math.floor(motif.trials_mode['trialsteps_' .. v .. '_pos'][1] + motif.trials_mode['glyphs_' .. v .. '_offset'][1] + alignOffset + lengthOffset),
+							motif.trials_mode['trialsteps_' .. v .. '_pos'][2] + motif.trials_mode['glyphs_' .. v .. '_offset'][2]
+						}
+						start.trials.trial[i].trialstep[j].glyphline[v].width[m] = math.floor(motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline[v].glyph[m]].info.Size[1] * scaleX + motif.trials_mode['glyphs_' .. v .. '_spacing'][1])
+						if motif.trials_mode['glyphs_' .. v .. '_align'] == 1 then
+							lengthOffset = lengthOffset + start.trials.trial[i].trialstep[j].glyphline[v].width[m]
+						elseif motif.trials_mode['glyphs_' .. v .. '_align'] == -1 then
+							lengthOffset = lengthOffset - start.trials.trial[i].trialstep[j].glyphline[v].width[m]
+						else
+							lengthOffset = lengthOffset + start.trials.trial[i].trialstep[j].glyphline[v].width[m] / 2
+						end
+						start.trials.trial[i].trialstep[j].glyphline[v].lengthOffset[m] = lengthOffset
 					end
-					local scaleX = motif.trials_mode.glyphs_scale[1]
-					local scaleY = motif.trials_mode.glyphs_scale[2]
-					if motif.trials_mode.trialslayout == "vertical" and motif.trials_mode.glyphs_scalewithtext == "true" then
-						scaleX = font_def.Size[2] * motif.trials_mode.currentstep_text_scale[2] / motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline.glyph[m]].info.Size[2] * motif.trials_mode.glyphs_scale[1]
-						scaleY = font_def.Size[2] * motif.trials_mode.currentstep_text_scale[2] / motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline.glyph[m]].info.Size[2] * motif.trials_mode.glyphs_scale[2]
-					end
-					if motif.trials_mode.glyphs_align == -1 then
-						alignOffset = alignOffset - motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline.glyph[m]].info.Size[1] * scaleX
-					end
-					start.trials.trial[i].trialstep[j].glyphline.alignOffset[m] = alignOffset
-					start.trials.trial[i].trialstep[j].glyphline.scale[m] = {scaleX, scaleY}
-					start.trials.trial[i].trialstep[j].glyphline.pos[m] = {
-						math.floor(motif.trials_mode.trialsteps_pos[1] + motif.trials_mode.glyphs_offset[1] + alignOffset + lengthOffset),
-						motif.trials_mode.trialsteps_pos[2] + motif.trials_mode.glyphs_offset[2]
-					}
-					start.trials.trial[i].trialstep[j].glyphline.width[m] = math.floor(motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline.glyph[m]].info.Size[1] * scaleX + motif.trials_mode.glyphs_spacing[1])
-					if motif.trials_mode.glyphs_align == 1 then
-						lengthOffset = lengthOffset + start.trials.trial[i].trialstep[j].glyphline.width[m]
-					elseif motif.trials_mode.glyphs_align == -1 then
-						lengthOffset = lengthOffset - start.trials.trial[i].trialstep[j].glyphline.width[m]
-					else
-						lengthOffset = lengthOffset + start.trials.trial[i].trialstep[j].glyphline.width[m] / 2
-					end
-					start.trials.trial[i].trialstep[j].glyphline.lengthOffset[m] = lengthOffset
 				end
 			end
 		end
@@ -736,9 +847,8 @@ function start.f_trialsBuilder()
 	end
 	--Pre-populate the draw table
 	start.trials.draw = {
-		upcomingtextline = {},
-		currenttextline = {},
-		completedtextline = {},
+		vertical = {},
+		horizontal = {},
 		success = 0,
 		fade = 0,
 		fadein = 0,
@@ -749,21 +859,28 @@ function start.f_trialsBuilder()
 		trialcounter = main.f_createTextImg(motif.trials_mode, 'trialcounter'),
 		totaltrialtimer = main.f_createTextImg(motif.trials_mode, 'totaltrialtimer'),
 		currenttrialtimer = main.f_createTextImg(motif.trials_mode, 'currenttrialtimer'),
-		trialtitle = math.max(animGetLength(motif.trials_mode.trialtitle_front_data), animGetLength(motif.trials_mode.trialtitle_bg_data)),
-		trialtitle_text = main.f_createTextImg(motif.trials_mode, 'trialtitle_text'),
-		windowXrange = motif.trials_mode.trialsteps_window[3] - motif.trials_mode.trialsteps_window[1],
-		windowYrange = motif.trials_mode.trialsteps_window[4] - motif.trials_mode.trialsteps_window[2],
 	}
 	start.trials.draw.success_text:update({x = motif.trials_mode.success_pos[1], y = motif.trials_mode.success_pos[2]+motif.trials_mode.success_text_offset[2],})
 	start.trials.draw.allclear_text:update({x = motif.trials_mode.allclear_pos[1]+motif.trials_mode.allclear_text_offset[1], y = motif.trials_mode.allclear_pos[2]+motif.trials_mode.allclear_text_offset[2],})
 	start.trials.draw.trialcounter:update({x = motif.trials_mode.trialcounter_pos[1], y = motif.trials_mode.trialcounter_pos[2],})
 	start.trials.draw.totaltrialtimer:update({x = motif.trials_mode.totaltrialtimer_pos[1], y = motif.trials_mode.totaltrialtimer_pos[2],})
 	start.trials.draw.currenttrialtimer:update({x = motif.trials_mode.currenttrialtimer_pos[1], y = motif.trials_mode.currenttrialtimer_pos[2],})
-	start.trials.draw.trialtitle_text:update({x = motif.trials_mode.trialtitle_pos[1]+motif.trials_mode.trialtitle_text_offset[1], y = motif.trials_mode.trialtitle_pos[2]+motif.trials_mode.trialtitle_text_offset[2],})
-	for i = 1, start.trials.maxsteps, 1 do
-		start.trials.draw.upcomingtextline[i] = main.f_createTextImg(motif.trials_mode, 'upcomingstep_text')
-		start.trials.draw.currenttextline[i] = main.f_createTextImg(motif.trials_mode, 'currentstep_text')
-		start.trials.draw.completedtextline[i] = main.f_createTextImg(motif.trials_mode, 'completedstep_text')
+	for _, v in ipairs({'vertical','horizontal'}) do
+		start.trials.draw[v] = {
+			upcomingtextline = {},
+			currenttextline = {},
+			completedtextline = {},
+			trialtitle = math.max(animGetLength(motif.trials_mode['trialtitle_' .. v .. '_front_data']), animGetLength(motif.trials_mode['trialtitle_' .. v .. '_bg_data'])),
+			trialtitle_text = main.f_createTextImg(motif.trials_mode, 'trialtitle_' .. v .. '_text'),
+			windowXrange = motif.trials_mode['trialsteps_' .. v .. '_window'][3] - motif.trials_mode['trialsteps_' .. v .. '_window'][1],
+			windowYrange = motif.trials_mode['trialsteps_' .. v .. '_window'][4] - motif.trials_mode['trialsteps_' .. v .. '_window'][2],
+		}
+		start.trials.draw[v].trialtitle_text:update({x = motif.trials_mode['trialtitle_' .. v .. '_pos'][1]+motif.trials_mode['trialtitle_' .. v .. '_text_offset'][1], y = motif.trials_mode['trialtitle_' .. v .. '_pos'][2]+motif.trials_mode['trialtitle_' .. v .. '_text_offset'][2],})
+		for i = 1, start.trials.maxsteps, 1 do
+			start.trials.draw[v].upcomingtextline[i] = main.f_createTextImg(motif.trials_mode, 'upcomingstep_' .. v .. '_text')
+			start.trials.draw[v].currenttextline[i] = main.f_createTextImg(motif.trials_mode, 'currentstep_' .. v .. '_text')
+			start.trials.draw[v].completedtextline[i] = main.f_createTextImg(motif.trials_mode, 'completedstep_' .. v .. '_text')
+		end
 	end
 
 	-- Build list out all of the available trials for Pause menu
@@ -842,6 +959,7 @@ function start.f_trialsDrawer()
 	ct = start.trials.currenttrial
 	cts = start.trials.currenttrialstep
 	ctms = start.trials.currenttrialmicrostep
+	layout = motif.trials_mode.trialslayout
 
 	if start.trials.active then
 		if ct <= #start.trials.trial and start.trials.draw.success == 0 then
@@ -875,28 +993,28 @@ function start.f_trialsDrawer()
 				--start.trials.draw.currenttrialtimer:draw()
 			end
 
-			start.trials.draw.trialtitle_text:update({text = start.trials.trial[ct].name})
-			start.trials.draw.trialtitle_text:draw()
-			animUpdate(motif.trials_mode.trialtitle_bg_data)
-			animDraw(motif.trials_mode.trialtitle_bg_data)
-			animUpdate(motif.trials_mode.trialtitle_front_data)
-			animDraw(motif.trials_mode.trialtitle_front_data)
+			start.trials.draw[layout].trialtitle_text:update({text = start.trials.trial[ct].name})
+			start.trials.draw[layout].trialtitle_text:draw()
+			animUpdate(motif.trials_mode['trialtitle_' .. layout .. '_bg_data'])
+			animDraw(motif.trials_mode['trialtitle_' .. layout .. '_bg_data'])
+			animUpdate(motif.trials_mode['trialtitle_' .. layout .. '_front_data'])
+			animDraw(motif.trials_mode['trialtitle_' .. layout .. '_front_data'])
 
 			local startonstep = 1
 			local drawtothisstep = #start.trials.trial[ct].trialstep
 
 			--For vertical trial layouts, determine if all assets will be drawn within the trials window range, or if scrolling needs to be enabled. For horizontal layouts, we will figure it out
 			--when we determine glyph and incrementor widths (see notes below). We do this step outside of the draw loop to speed things up.
-			if #start.trials.trial[ct].trialstep*motif.trials_mode.trialsteps_spacing[2] > start.trials.draw.windowYrange and motif.trials_mode.trialslayout == "vertical" then
+			if #start.trials.trial[ct].trialstep*motif.trials_mode['trialsteps_' .. layout .. '_spacing'][2] > start.trials.draw[layout].windowYrange and layout == "vertical" then
 				startonstep = math.max(cts-2, 1)
-				if (drawtothisstep - startonstep)*motif.trials_mode.trialsteps_spacing[2] > start.trials.draw.windowYrange then
-					drawtothisstep = math.min(startonstep+math.floor(start.trials.draw.windowYrange/motif.trials_mode.trialsteps_spacing[2]),#start.trials.trial[ct].trialstep)
+				if (drawtothisstep - startonstep)*motif.trials_mode['trialsteps_' .. layout .. '_spacing'][2] > start.trials.draw[layout].windowYrange then
+					drawtothisstep = math.min(startonstep+math.floor(start.trials.draw[layout].windowYrange/motif.trials_mode['trialsteps_' .. layout .. '_spacing'][2]),#start.trials.trial[ct].trialstep)
 				end
 			end
 
 			--This is the draw loop
 			for i = startonstep, drawtothisstep, 1 do
-				local tempoffset = {motif.trials_mode.trialsteps_spacing[1]*(i-startonstep),motif.trials_mode.trialsteps_spacing[2]*(i-startonstep)}
+				local tempoffset = {motif.trials_mode['trialsteps_' .. layout .. '_spacing'][1]*(i-startonstep),motif.trials_mode['trialsteps_' .. layout .. '_spacing'][2]*(i-startonstep)}
 				--sub = 'current'
 				if i < cts then
 					sub = 'completed'
@@ -913,20 +1031,20 @@ function start.f_trialsDrawer()
 				local bgtailwidth = 0 --only used for horizontal layouts
 				local bgheadwidth = 0 --only used for horizontal layouts
 
-				if motif.trials_mode.trialslayout == "vertical" then
+				if layout == "vertical" then
 					--Vertical layouts are the simplest - they have a constant width sprite or anim that the text is drawn on top of, and the glyphs are displayed wherever specified.
 					--The vertical layouts do NOT support incrementors (see notes below for horizontal layout).
 					animSetPos(
-						motif.trials_mode[sub .. 'step_bg_data'],
-						motif.trials_mode.trialsteps_pos[1] + motif.trials_mode[sub .. 'step_bg_offset'][1] + tempoffset[1],
-						motif.trials_mode.trialsteps_pos[2] + motif.trials_mode[sub .. 'step_bg_offset'][2] + tempoffset[2]
+						motif.trials_mode[sub .. 'step_vertical_bg_data'],
+						motif.trials_mode.trialsteps_vertical_pos[1] + motif.trials_mode[sub .. 'step_vertical_bg_offset'][1] + tempoffset[1],
+						motif.trials_mode.trialsteps_vertical_pos[2] + motif.trials_mode[sub .. 'step_vertical_bg_offset'][2] + tempoffset[2]
 					)
-					start.trials.draw[sub .. 'textline'][i]:update({
-						x = motif.trials_mode.trialsteps_pos[1]+motif.trials_mode.upcomingstep_text_offset[1]+motif.trials_mode.trialsteps_spacing[1]*(i-startonstep),
-						y = motif.trials_mode.trialsteps_pos[2]+motif.trials_mode.upcomingstep_text_offset[2]+motif.trials_mode.trialsteps_spacing[2]*(i-startonstep),
+					start.trials.draw.vertical[sub .. 'textline'][i]:update({
+						x = motif.trials_mode.trialsteps_vertical_pos[1]+motif.trials_mode[sub .. 'step_vertical_text_offset'][1]+motif.trials_mode.trialsteps_vertical_spacing[1]*(i-startonstep),
+						y = motif.trials_mode.trialsteps_vertical_pos[2]+motif.trials_mode[sub .. 'step_vertical_text_offset'][2]+motif.trials_mode.trialsteps_vertical_spacing[2]*(i-startonstep),
 						text = start.trials.trial[ct].trialstep[i].text
 					})
-					animSetPalFX(motif.trials_mode[sub .. 'step_bg_data'], {
+					animSetPalFX(motif.trials_mode[sub .. 'step_vertical_bg_data'], {
 						time = 1,
 						add = motif.trials_mode[sub .. 'step_bg_palfx_add'],
 						mul = motif.trials_mode[sub .. 'step_bg_palfx_mul'],
@@ -934,11 +1052,11 @@ function start.f_trialsDrawer()
 						invertall = motif.trials_mode[sub .. 'step_bg_palfx_invertall'],
 						color = motif.trials_mode[sub .. 'step_bg_palfx_color']
 					})
-					animReset(motif.trials_mode[sub .. 'step_bg_data'])
-					animUpdate(motif.trials_mode[sub .. 'step_bg_data'])
-					animDraw(motif.trials_mode[sub .. 'step_bg_data'])
-					start.trials.draw[sub .. 'textline'][i]:draw()
-				elseif motif.trials_mode.trialslayout == "horizontal" then
+					animReset(motif.trials_mode[sub .. 'step_vertical_bg_data'])
+					animUpdate(motif.trials_mode[sub .. 'step_vertical_bg_data'])
+					animDraw(motif.trials_mode[sub .. 'step_vertical_bg_data'])
+					start.trials.draw.vertical[sub .. 'textline'][i]:draw()
+				elseif layout == "horizontal" then
 					--Horizontal layouts are much more complicated. Text is not drawn in horizontal mode, instead we only display the glyphs. A small sprite is dynamically tiled to the width of the
 					--glyphs, and an optional background element called an incrementor (bginc) can be used to link the pieces together (think of an arrow where the body of the arrow is where the
 					--glyphs are being drawn and that's the dynamically sized part, and the head of the arrow is the incrementor which is a fixed width sprite). There's quite a bit more work that
@@ -946,36 +1064,37 @@ function start.f_trialsDrawer()
 					--that trials can be displayed dynamically. Back to the arrow analogy, you always want an arrow body to have an arrow head, so the incrementor width is added to the glyphs length
 					--and the padding factor specified in the motif data, it's all added together until the window width is met or exceeded, then a line return occurs and the next line is drawn.
 					local bgsize = {0,0}
-					if start.trials.bgelemdata[sub .. 'bgtailwidth'] ~= nil then bgtailwidth = math.floor(start.trials.bgelemdata[sub .. 'bgtailwidth'].Size[1]) end
-					if start.trials.bgelemdata[sub .. 'bgheadwidth'] ~= nil then bgheadwidth = math.floor(start.trials.bgelemdata[sub .. 'bgheadwidth'].Size[1]) end
-					if start.trials.bgelemdata[sub .. 'bgsize'] ~= nil then bgsize = start.trials.bgelemdata[sub .. 'bgsize'].Size end
+					if start.trials.bgelemdata.horizontal[sub .. 'step_bgtailwidth'] ~= nil then bgtailwidth = math.floor(start.trials.bgelemdata.horizontal[sub .. 'step_bgtailwidth'].Size[1]) end
+					if start.trials.bgelemdata.horizontal[sub .. 'step_bgheadwidth'] ~= nil then bgheadwidth = math.floor(start.trials.bgelemdata.horizontal[sub .. 'step_bgheadwidth'].Size[1]) end
+					if start.trials.bgelemdata.horizontal[sub .. 'step_bgsize'] ~= nil then bgsize = start.trials.bgelemdata.horizontal[sub .. 'step_bgsize'].Size end
 
-					totalglyphlength = start.trials.trial[ct].trialstep[i].glyphline.lengthOffset[#start.trials.trial[ct].trialstep[i].glyphline.lengthOffset]
-					local tailoffset = motif.trials_mode[sub .. 'step_bg_tail_offset'][1]
+					totalglyphlength = start.trials.trial[ct].trialstep[i].glyphline.horizontal.lengthOffset[#start.trials.trial[ct].trialstep[i].glyphline.horizontal.lengthOffset]
+					local tailoffset = motif.trials_mode[sub .. 'step_horizontal_bg_tail_offset'][1]
 					padding = motif.trials_mode.trialsteps_horizontal_padding
-					spacing = motif.trials_mode.trialsteps_spacing[1]
+					spacing = motif.trials_mode.trialsteps_horizontal_spacing[1]
 
+					print("tailwidth = " .. bgtailwidth .. ", headwidth = " .. bgheadwidth)
 					local tempwidth = spacing + bgtailwidth + tailoffset + padding + totalglyphlength + padding + bgheadwidth + accwidth
-					if tempwidth - motif.trials_mode.trialsteps_spacing[1] > start.trials.draw.windowXrange then
+					if tempwidth - motif.trials_mode.trialsteps_horizontal_spacing[1] > start.trials.draw.horizontal.windowXrange then
 						accwidth = 0
 						addrow = addrow + 1
 					end
 
-					tempoffset[2] = motif.trials_mode.trialsteps_spacing[2]*(addrow)
+					tempoffset[2] = motif.trials_mode.trialsteps_horizontal_spacing[2]*(addrow)
 
 					-- Calculate initial positions
 					if accwidth == 0 then
-						bgcomponentposX = motif.trials_mode.trialsteps_pos[1] + motif.trials_mode[sub .. 'step_bg_tail_offset'][1]
+						bgcomponentposX = motif.trials_mode.trialsteps_horizontal_pos[1] + motif.trials_mode[sub .. 'step_horizontal_bg_tail_offset'][1]
 					else
-						bgcomponentposX = accwidth + spacing - bgheadwidth + bgtailwidth + motif.trials_mode[sub .. 'step_bg_tail_offset'][1]
+						bgcomponentposX = accwidth + spacing + bgheadwidth + motif.trials_mode[sub .. 'step_horizontal_bg_tail_offset'][1]
 					end
 					
 					-- Draw tail
-					animSetPos(motif.trials_mode[sub .. 'step_bg_tail_data'], 
+					animSetPos(motif.trials_mode[sub .. 'step_horizontal_bg_tail_data'], 
 						bgcomponentposX, 
-						start.trials.trial[ct].trialstep[i].glyphline.pos[1][2] + motif.trials_mode[sub .. 'step_bg_tail_offset'][2] + tempoffset[2]
+						start.trials.trial[ct].trialstep[i].glyphline.horizontal.pos[1][2] + motif.trials_mode[sub .. 'step_horizontal_bg_tail_offset'][2] + tempoffset[2]
 					)
-					animSetPalFX(motif.trials_mode[sub .. 'step_bg_tail_data'], {
+					animSetPalFX(motif.trials_mode[sub .. 'step_horizontal_bg_tail_data'], {
 						time = 1,
 						add = motif.trials_mode[sub .. 'step_bg_palfx_add'],
 						mul = motif.trials_mode[sub .. 'step_bg_palfx_mul'],
@@ -983,25 +1102,25 @@ function start.f_trialsDrawer()
 						invertall = motif.trials_mode[sub .. 'step_bg_palfx_invertall'],
 						color = motif.trials_mode[sub .. 'step_bg_palfx_color']
 					})
-					animReset(motif.trials_mode[sub .. 'step_bg_tail_data'])
-					animUpdate(motif.trials_mode[sub .. 'step_bg_tail_data'])
-					animDraw(motif.trials_mode[sub .. 'step_bg_tail_data'])
+					animReset(motif.trials_mode[sub .. 'step_horizontal_bg_tail_data'])
+					animUpdate(motif.trials_mode[sub .. 'step_horizontal_bg_tail_data'])
+					animDraw(motif.trials_mode[sub .. 'step_horizontal_bg_tail_data'])
 					
 					-- Draw BG for Glyphs - scale to length, start from tail pos
 					bgtargetscale = {(padding + totalglyphlength + padding)/bgsize[1], 1}
-					bgcomponentposX = bgcomponentposX + bgtailwidth + motif.trials_mode[sub .. 'step_bg_offset'][1]
+					bgcomponentposX = bgcomponentposX + bgtailwidth + motif.trials_mode[sub .. 'step_horizontal_bg_offset'][1]
 					local gpoffset = 0
-					for m in pairs(start.trials.trial[ct].trialstep[i].glyphline.glyph) do
-						if m > 1 then gpoffset = start.trials.trial[ct].trialstep[i].glyphline.lengthOffset[m-1] end
-						start.trials.trial[ct].trialstep[i].glyphline.pos[m][1] = bgcomponentposX + padding + gpoffset -- motif.trials_mode.trialsteps_pos[1] + start.trials.trial[ct].trialstep[i].glyphline.alignOffset[m] +
+					for m in pairs(start.trials.trial[ct].trialstep[i].glyphline.horizontal.glyph) do
+						if m > 1 then gpoffset = start.trials.trial[ct].trialstep[i].glyphline.horizontal.lengthOffset[m-1] end
+						start.trials.trial[ct].trialstep[i].glyphline.horizontal.pos[m][1] = bgcomponentposX + padding + gpoffset -- motif.trials_mode.trialsteps_pos[1] + start.trials.trial[ct].trialstep[i].glyphline.alignOffset[m] +
 					end
 
-					animSetScale(motif.trials_mode[sub .. 'step_bg_data'], bgtargetscale[1], bgtargetscale[2])
-					animSetPos(motif.trials_mode[sub .. 'step_bg_data'], 
+					animSetScale(motif.trials_mode[sub .. 'step_horizontal_bg_data'], bgtargetscale[1], bgtargetscale[2])
+					animSetPos(motif.trials_mode[sub .. 'step_horizontal_bg_data'], 
 						bgcomponentposX, 
-						start.trials.trial[ct].trialstep[i].glyphline.pos[1][2] + motif.trials_mode[sub .. 'step_bg_offset'][2] + tempoffset[2]
+						start.trials.trial[ct].trialstep[i].glyphline.horizontal.pos[1][2] + motif.trials_mode[sub .. 'step_horizontal_bg_offset'][2] + tempoffset[2]
 					)
-					animSetPalFX(motif.trials_mode[sub .. 'step_bg_data'], {
+					animSetPalFX(motif.trials_mode[sub .. 'step_horizontal_bg_data'], {
 						time = 1,
 						add = motif.trials_mode[sub .. 'step_bg_palfx_add'],
 						mul = motif.trials_mode[sub .. 'step_bg_palfx_mul'],
@@ -1009,17 +1128,17 @@ function start.f_trialsDrawer()
 						invertall = motif.trials_mode[sub .. 'step_bg_palfx_invertall'],
 						color = motif.trials_mode[sub .. 'step_bg_palfx_color']
 					})
-					animReset(motif.trials_mode[sub .. 'step_bg_data'])
-					animUpdate(motif.trials_mode[sub .. 'step_bg_data'])
-					animDraw(motif.trials_mode[sub .. 'step_bg_data'])
+					animReset(motif.trials_mode[sub .. 'step_horizontal_bg_data'])
+					animUpdate(motif.trials_mode[sub .. 'step_horizontal_bg_data'])
+					animDraw(motif.trials_mode[sub .. 'step_horizontal_bg_data'])
 					
 					-- Draw head
-					bgcomponentposX = bgcomponentposX + start.trials.trial[ct].trialstep[i].glyphline.alignOffset[1] + (totalglyphlength + 2*padding) + motif.trials_mode[sub .. 'step_bg_head_offset'][1]
-					animSetPos(motif.trials_mode[sub .. 'step_bg_head_data'], 
+					bgcomponentposX = bgcomponentposX + start.trials.trial[ct].trialstep[i].glyphline.horizontal.alignOffset[1] + (totalglyphlength + 2*padding) + motif.trials_mode[sub .. 'step_horizontal_bg_head_offset'][1]
+					animSetPos(motif.trials_mode[sub .. 'step_horizontal_bg_head_data'], 
 						bgcomponentposX, 
-						start.trials.trial[ct].trialstep[i].glyphline.pos[1][2] + motif.trials_mode[sub .. 'step_bg_head_offset'][2] + tempoffset[2]
+						start.trials.trial[ct].trialstep[i].glyphline.horizontal.pos[1][2] + motif.trials_mode[sub .. 'step_horizontal_bg_head_offset'][2] + tempoffset[2]
 					)
-					animSetPalFX(motif.trials_mode[sub .. 'step_bg_head_data'], {
+					animSetPalFX(motif.trials_mode[sub .. 'step_horizontal_bg_head_data'], {
 						time = 1,
 						add = motif.trials_mode[sub .. 'step_bg_palfx_add'],
 						mul = motif.trials_mode[sub .. 'step_bg_palfx_mul'],
@@ -1027,17 +1146,17 @@ function start.f_trialsDrawer()
 						invertall = motif.trials_mode[sub .. 'step_bg_palfx_invertall'],
 						color = motif.trials_mode[sub .. 'step_bg_palfx_color']
 					})
-					animReset(motif.trials_mode[sub .. 'step_bg_head_data'])
-					animUpdate(motif.trials_mode[sub .. 'step_bg_head_data'])
-					animDraw(motif.trials_mode[sub .. 'step_bg_head_data'])
+					animReset(motif.trials_mode[sub .. 'step_horizontal_bg_head_data'])
+					animUpdate(motif.trials_mode[sub .. 'step_horizontal_bg_head_data'])
+					animDraw(motif.trials_mode[sub .. 'step_horizontal_bg_head_data'])
 				end
-				for m = 1, #start.trials.trial[ct].trialstep[i].glyphline.glyph, 1 do
-					animSetScale(motif.glyphs_data[start.trials.trial[ct].trialstep[i].glyphline.glyph[m]].anim, start.trials.trial[ct].trialstep[i].glyphline.scale[m][1], start.trials.trial[ct].trialstep[i].glyphline.scale[m][2])
-					animSetPos(motif.glyphs_data[start.trials.trial[ct].trialstep[i].glyphline.glyph[m]].anim, 
-						start.trials.trial[ct].trialstep[i].glyphline.pos[m][1], 
-						start.trials.trial[ct].trialstep[i].glyphline.pos[m][2] + tempoffset[2] + motif.trials_mode.glyphs_offset[2]
+				for m = 1, #start.trials.trial[ct].trialstep[i].glyphline[layout].glyph, 1 do
+					animSetScale(motif.glyphs_data[start.trials.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim, start.trials.trial[ct].trialstep[i].glyphline[layout].scale[m][1], start.trials.trial[ct].trialstep[i].glyphline[layout].scale[m][2])
+					animSetPos(motif.glyphs_data[start.trials.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim, 
+						start.trials.trial[ct].trialstep[i].glyphline[layout].pos[m][1], 
+						start.trials.trial[ct].trialstep[i].glyphline[layout].pos[m][2] + tempoffset[2] + motif.trials_mode['glyphs_' .. layout .. '_offset'][2]
 					)
-					animSetPalFX(motif.glyphs_data[start.trials.trial[ct].trialstep[i].glyphline.glyph[m]].anim, {
+					animSetPalFX(motif.glyphs_data[start.trials.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim, {
 						time = 1,
 						add = motif.trials_mode[sub .. 'step_glyphs_palfx_add'],
 						mul = motif.trials_mode[sub .. 'step_glyphs_palfx_mul'],
@@ -1045,9 +1164,9 @@ function start.f_trialsDrawer()
 						invertall = motif.trials_mode[sub .. 'step_glyphs_palfx_invertall'],
 						color = motif.trials_mode[sub .. 'step_glyphs_palfx_color']
 					})
-					animReset(motif.glyphs_data[start.trials.trial[ct].trialstep[i].glyphline.glyph[m]].anim)
-					animUpdate(motif.glyphs_data[start.trials.trial[ct].trialstep[i].glyphline.glyph[m]].anim)
-					animDraw(motif.glyphs_data[start.trials.trial[ct].trialstep[i].glyphline.glyph[m]].anim)
+					animReset(motif.glyphs_data[start.trials.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim)
+					animUpdate(motif.glyphs_data[start.trials.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim)
+					animDraw(motif.glyphs_data[start.trials.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim)
 				end
 				accwidth = bgcomponentposX
 			end
@@ -1259,7 +1378,7 @@ function start.f_trialsFade()
 		main.f_fadeAnim(motif.trials_mode)
 		start.trials.draw.fadein = start.trials.draw.fadein - 1
 	end
-	
+
 	start.trials.draw.fade = start.trials.draw.fade - 1
 end
 
@@ -1272,14 +1391,14 @@ function start.f_trialsSelectScreen()
 				if t.skip ~= 1 then
 					--draw random cell
 					if t.char == 'randomselect' or t.hidden == 3 then
-						animSetPalFX(motif.select_info.cell_random_data, {
-							time = 1,
-							add = motif.trials_mode.selscreenpalfx_add,
-							mul = motif.trials_mode.selscreenpalfx_mul,
-							sinadd = motif.trials_mode.selscreenpalfx_sinadd,
-							invertall = motif.trials_mode.selscreenpalfx_invertall,
-							color = motif.trials_mode.selscreenpalfx_color
-						})
+						-- animSetPalFX(motif.select_info.cell_random_data, {
+						-- 	time = 1,
+						-- 	add = motif.trials_mode.selscreenpalfx_add,
+						-- 	mul = motif.trials_mode.selscreenpalfx_mul,
+						-- 	sinadd = motif.trials_mode.selscreenpalfx_sinadd,
+						-- 	invertall = motif.trials_mode.selscreenpalfx_invertall,
+						-- 	color = motif.trials_mode.selscreenpalfx_color
+						-- })
 					--draw face cell
 					elseif t.char ~= nil and t.hidden == 0 and start.f_getCharData(t.char_ref).trialsdef == ""  then
 						animSetPalFX(start.f_getCharData(t.char_ref).cell_data, {
@@ -1350,7 +1469,10 @@ menu.t_valuename.trialresetonsuccess = {
 	{itemname = "Yes", displayname = motif.trials_info.menu_valuename_trialresetonsuccess_yes},
 	{itemname = "No", displayname = motif.trials_info.menu_valuename_trialresetonsuccess_no}
 }
-
+menu.t_valuename.trialslayout = {
+	{itemname = "Vertical", displayname = motif.trials_info.menu_valuename_trialslayout_vertical},
+	{itemname = "Horizontal", displayname = motif.trials_info.menu_valuename_trialslayout_horizontal}
+}
 menu.t_itemname['trialslist'] = function(t, item, cursorPosY, moveTxt, section)
 	if menu.f_valueChanged(t.items[item], motif[section]) then
 		start.trials.currenttrial = menu.trialslist
@@ -1378,6 +1500,20 @@ menu.t_itemname['trialadvancement'] = function(t, item, cursorPosY, moveTxt, sec
 end
 menu.t_vardisplay['trialadvancement'] = function()
 	return menu.t_valuename.trialadvancement[menu.trialadvancement or 1].displayname
+end
+
+menu.t_itemname['trialslayout'] = function(t, item, cursorPosY, moveTxt, section)
+	if menu.f_valueChanged(t.items[item], motif[section]) then
+		if menu.t_valuename.trialslayout[menu.trialslayout or 1].itemname == "Vertical" then
+			motif.trials_mode.trialslayout = "vertical"
+		else
+			motif.trials_mode.trialslayout = "horizontal"
+		end
+	end
+	return true
+end
+menu.t_vardisplay['trialslayout'] = function()
+	return menu.t_valuename.trialslayout[menu.trialslayout or 1].displayname
 end
 
 menu.t_itemname['trialresetonsuccess'] = function(t, item, cursorPosY, moveTxt, section)
@@ -1428,6 +1564,11 @@ function menu.f_trialsReset()
 		menu.trialresetonsuccess = 1
 	else
 		menu.trialresetonsuccess = 2
+	end
+	if motif.trials_mode.trialslayout == "vertical" then
+		menu.trialslayout = 1
+	else
+		menu.trialslayout = 2
 	end
 	for _, v in ipairs(menu.t_vardisplayPointers) do
 		v.vardisplay = menu.f_vardisplay(v.itemname)
@@ -1494,12 +1635,22 @@ for row = 1, #main.t_selChars, 1 do
 					validforvar = {},
 					validforval = {},
 					glyphline = {
-						glyph = {},
-						pos = {},
-						width = {},
-						alignOffset = {},
-						lengthOffset = {},
-						scale = {},
+						vertical = {
+							glyph = {},
+							pos = {},
+							width = {},
+							alignOffset = {},
+							lengthOffset = {},
+							scale = {},
+						},
+						horizontal = {
+							glyph = {},
+							pos = {},
+							width = {},
+							alignOffset = {},
+							lengthOffset = {},
+							scale = {},
+						},
 					},
 				}
 			end 

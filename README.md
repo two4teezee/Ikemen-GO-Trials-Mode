@@ -43,10 +43,10 @@ You can make the trials mode look as fancy or as basic as you want. The `system.
 ```
 [Trials Mode] ;Ikemen feature
 	; GENERAL TRIALS OPTIONS ---------------------------------------------------
-	; resetonsuccess: set to "true" to reset character positions after each trial success (except the final one). Can optionally specify fadein and fadeout parameters - will default to shown values.
+	; trialsresetonsuccess: set to "true" to reset character positions after each trial success (except the final one). Can optionally specify fadein and fadeout parameters - will default to shown values.
 	; trialslayout: "vertical" or "horizontal" are the only valid values. Defaults to "vertical" if not specified. Affects scrolling logic, as stated above, also enables dynamic step width
 	; --------------------------------------------------------------------------
-	resetonsuccess = "false"
+	trialsresetonsuccess = "false"
 	trialslayout = "vertical"
 
 	; SELSCREENPALFX -----------------------------------------------------------
