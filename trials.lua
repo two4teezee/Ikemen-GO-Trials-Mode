@@ -126,7 +126,7 @@ if motif.select_info.title_trials_text == nil then
 end
 
 local t_base = {
-    resetonsuccess = "false",
+    trialsresetonsuccess = "false",
     trialslayout = "vertical",
 	selscreenpalfx_add = {},
 	selscreenpalfx_mul = {},
@@ -1181,7 +1181,7 @@ function start.f_trialsChecker()
 							else
 								start.trials.draw.success = math.max(motif.trials_mode.success_front_displaytime, motif.trials_mode.success_bg_displaytime, motif.trials_mode.success_text_displaytime)
 							end
-							if motif.trials_mode.resetonsuccess == "true" then
+							if motif.trials_mode.trialsresetonsuccess == "true" then
 								start.trials.draw.fadein = motif.trials_mode.fadein_time
 								start.trials.draw.fadeout = motif.trials_mode.fadeout_time
 								start.trials.draw.fade = start.trials.draw.fadein + start.trials.draw.fadeout
@@ -1202,7 +1202,7 @@ function start.f_trialsChecker()
 	--If the trial was completed successfully, draw the trials success
 	if start.trials.draw.success > 0 then
 		start.f_trialsSuccess('success', ct)
-	elseif start.trials.draw.fade > 0 and motif.trials_mode.resetonsuccess == "true" then
+	elseif start.trials.draw.fade > 0 and motif.trials_mode.trialsresetonsuccess == "true" then
 		if start.trials.draw.fade < start.trials.draw.fadein + start.trials.draw.fadeout then
 			start.f_trialsFade()
 		else
@@ -1242,7 +1242,7 @@ function start.f_trialsSuccess(successstring, index)
 end
 
 function start.f_trialsFade()
-	-- This function is responsible for fadein/fadeout if resetonsuccess is set to true.
+	-- This function is responsible for fadein/fadeout if trialsresetonsuccess is set to true.
 	if start.trials.draw.fadeout > 0 then
 		if not main.fadeActive then
 			main.f_fadeReset('fadeout',motif.trials_mode)
@@ -1383,9 +1383,9 @@ end
 menu.t_itemname['trialresetonsuccess'] = function(t, item, cursorPosY, moveTxt, section)
 	if menu.f_valueChanged(t.items[item], motif[section]) then
 		if menu.t_valuename.trialresetonsuccess[menu.trialresetonsuccess or 1].itemname == "Yes" then
-			motif.trials_mode.resetonsuccess = "true"
+			motif.trials_mode.trialsresetonsuccess = "true"
 		else
-			motif.trials_mode.resetonsuccess = "false"
+			motif.trials_mode.trialsresetonsuccess = "false"
 		end
 	end
 	return true
@@ -1424,7 +1424,7 @@ function menu.f_trialsReset()
 	for k, _ in pairs(menu.t_valuename) do
 		menu[k] = 1
 	end
-	if motif.trials_mode.resetonsuccess == "true" then
+	if motif.trials_mode.trialsresetonsuccess == "true" then
 		menu.trialresetonsuccess = 1
 	else
 		menu.trialresetonsuccess = 2
