@@ -689,7 +689,10 @@ function start.f_inittrialsData()
 		starttick = tickcount(),
 		elapsedtime = 0,
 		trial = f_deepCopy(start.f_getCharData(start.p[1].t_selected[1].ref).trialsdata),
-		bgelemdata = {},
+		bgelemdata = {
+			vertical = {},
+			horizontal = {},
+		},
 		draw = {},
 		displaytimers = {
 			totaltimer = true,
@@ -710,14 +713,10 @@ function start.f_trialsBuilder()
 	--Populate background elements information
 	for _, v in ipairs({'vertical','horizontal'}) do
 		for _, k in ipairs({'currentstep_','upcomingstep_','completedstep_'}) do
-			start.trials.bgelemdata[v] = {
-				[k .. 'bgsize'] = animGetSpriteInfo(motif.trials_mode[k .. v .. '_bg_data']),
-			}
+			start.trials.bgelemdata[v][k .. 'bgsize'] = animGetSpriteInfo(motif.trials_mode[k .. v .. '_bg_data'])
 			if v == 'horizontal' then
-				start.trials.bgelemdata[v] = {
-					[k .. 'bgtailwidth'] = animGetSpriteInfo(motif.trials_mode[k .. v .. '_bg_tail_data']),
-					[k .. 'bgheadwidth'] = animGetSpriteInfo(motif.trials_mode[k .. v .. '_bg_tail_data']),
-				}
+				start.trials.bgelemdata[v][k .. 'bgtailwidth'] = animGetSpriteInfo(motif.trials_mode[k .. v .. '_bg_tail_data'])
+				start.trials.bgelemdata[v][k .. 'bgheadwidth'] = animGetSpriteInfo(motif.trials_mode[k .. v .. '_bg_tail_data'])
 			end
 		end
 	end
@@ -1073,7 +1072,6 @@ function start.f_trialsDrawer()
 					padding = motif.trials_mode.trialsteps_horizontal_padding
 					spacing = motif.trials_mode.trialsteps_horizontal_spacing[1]
 
-					print("tailwidth = " .. bgtailwidth .. ", headwidth = " .. bgheadwidth)
 					local tempwidth = spacing + bgtailwidth + tailoffset + padding + totalglyphlength + padding + bgheadwidth + accwidth
 					if tempwidth - motif.trials_mode.trialsteps_horizontal_spacing[1] > start.trials.draw.horizontal.windowXrange then
 						accwidth = 0
@@ -1108,7 +1106,7 @@ function start.f_trialsDrawer()
 					
 					-- Draw BG for Glyphs - scale to length, start from tail pos
 					bgtargetscale = {(padding + totalglyphlength + padding)/bgsize[1], 1}
-					bgcomponentposX = bgcomponentposX + bgtailwidth + motif.trials_mode[sub .. 'step_horizontal_bg_offset'][1]
+					bgcomponentposX = bgcomponentposX + bgtailwidth --+ motif.trials_mode[sub .. 'step_horizontal_bg_offset'][1]
 					local gpoffset = 0
 					for m in pairs(start.trials.trial[ct].trialstep[i].glyphline.horizontal.glyph) do
 						if m > 1 then gpoffset = start.trials.trial[ct].trialstep[i].glyphline.horizontal.lengthOffset[m-1] end
