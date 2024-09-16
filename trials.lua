@@ -128,6 +128,13 @@ end
 local t_base = {
     trialsresetonsuccess = "false",
     trialslayout = "vertical",
+	trialsteps_vertical_pos = {0, 0},
+    trialsteps_vertical_spacing = {0, 0},
+    trialsteps_vertical_window = {0,0,0,0},
+	trialsteps_horizontal_pos = {0, 0},
+    trialsteps_horizontal_spacing = {0, 0},
+	trialsteps_horizontal_padding = 0,
+    trialsteps_horizontal_window = {0,0,0,0},
 	selscreenpalfx_add = {},
 	selscreenpalfx_mul = {},
 	selscreenpalfx_sinadd = {},
@@ -151,9 +158,6 @@ local t_base = {
     bg_horizontal_facing = 1,
     bg_horizontal_scale = {1.0, 1.0},
     bg_horizontal_displaytime = 0,
-	trialsteps_vertical_pos = {0, 0},
-    trialsteps_vertical_spacing = {0, 0},
-    trialsteps_vertical_window = {0,0,0,0},
 	trialtitle_vertical_pos = {0,0},
 	trialtitle_vertical_text_offset = {0,0},
     trialtitle_vertical_text_font = {},
@@ -172,10 +176,6 @@ local t_base = {
     trialtitle_vertical_front_facing = 1,
     trialtitle_vertical_front_scale = {1.0, 1.0},
     trialtitle_vertical_front_displaytime = -1,
-	trialsteps_horizontal_pos = {0, 0},
-    trialsteps_horizontal_spacing = {0, 0},
-	trialsteps_horizontal_padding = 0,
-    trialsteps_horizontal_window = {0,0,0,0},
 	trialtitle_horizontal_pos = {0,0},
 	trialtitle_horizontal_text_offset = {0,0},
     trialtitle_horizontal_text_font = {},
@@ -767,75 +767,75 @@ function start.f_trialsBuilder()
 						tempglyphs[#tempglyphs+1] = m2
 					end
 				end
-				for _, v in ipairs({'vertical','horizontal'}) do
-					if motif.trials_mode['glyphs_' .. v .. '_align'] == -1 then
-						for ii = #tempglyphs, 1, -1 do
-							start.trials.trial[i].trialstep[j].glyphline[v].glyph[#start.trials.trial[i].trialstep[j].glyphline[v].glyph+1] = tempglyphs[ii]
-							start.trials.trial[i].trialstep[j].glyphline[v].pos[#start.trials.trial[i].trialstep[j].glyphline[v].glyph+1] = {0,0}
-							start.trials.trial[i].trialstep[j].glyphline[v].width[#start.trials.trial[i].trialstep[j].glyphline[v].glyph+1] = 0
-							start.trials.trial[i].trialstep[j].glyphline[v].alignOffset[#start.trials.trial[i].trialstep[j].glyphline[v].glyph+1] = 0
-							start.trials.trial[i].trialstep[j].glyphline[v].lengthOffset[#start.trials.trial[i].trialstep[j].glyphline[v].glyph+1] = 0
-							start.trials.trial[i].trialstep[j].glyphline[v].scale[#start.trials.trial[i].trialstep[j].glyphline[v].glyph+1] = {1,1}
+				for _, layout in ipairs({'vertical','horizontal'}) do
+					if motif.trials_mode['glyphs_' .. layout .. '_align'] == -1 then
+						for m = #tempglyphs, 1, -1 do
+							start.trials.trial[i].trialstep[j].glyphline[layout].glyph[#start.trials.trial[i].trialstep[j].glyphline[layout].glyph+1] = tempglyphs[m]
+							start.trials.trial[i].trialstep[j].glyphline[layout].pos[#start.trials.trial[i].trialstep[j].glyphline[layout].glyph+1] = {0,0}
+							start.trials.trial[i].trialstep[j].glyphline[layout].width[#start.trials.trial[i].trialstep[j].glyphline[layout].glyph+1] = 0
+							start.trials.trial[i].trialstep[j].glyphline[layout].alignOffset[#start.trials.trial[i].trialstep[j].glyphline[layout].glyph+1] = 0
+							start.trials.trial[i].trialstep[j].glyphline[layout].lengthOffset[#start.trials.trial[i].trialstep[j].glyphline[layout].glyph+1] = 0
+							start.trials.trial[i].trialstep[j].glyphline[layout].scale[m] = {1,1}
 						end
 					else
-						for ii = 1, #tempglyphs do
-							start.trials.trial[i].trialstep[j].glyphline[v].glyph[ii] = tempglyphs[ii]
-							start.trials.trial[i].trialstep[j].glyphline[v].pos[ii] = {0,0}
-							start.trials.trial[i].trialstep[j].glyphline[v].width[ii] = 0
-							start.trials.trial[i].trialstep[j].glyphline[v].alignOffset[ii] = 0
-							start.trials.trial[i].trialstep[j].glyphline[v].lengthOffset[ii] = 0
-							start.trials.trial[i].trialstep[j].glyphline[v].scale[ii] = {1,1}
+						for m = 1, #tempglyphs do
+							start.trials.trial[i].trialstep[j].glyphline[layout].glyph[m] = tempglyphs[m]
+							start.trials.trial[i].trialstep[j].glyphline[layout].pos[m] = {0,0}
+							start.trials.trial[i].trialstep[j].glyphline[layout].width[m] = 0
+							start.trials.trial[i].trialstep[j].glyphline[layout].alignOffset[m] = 0
+							start.trials.trial[i].trialstep[j].glyphline[layout].lengthOffset[m] = 0
+							start.trials.trial[i].trialstep[j].glyphline[layout].scale[m] = {1,1}
 						end
 					end
 				end
 			end
-			for _, v in ipairs({'vertical','horizontal'}) do
+			for _, layout in ipairs({'vertical','horizontal'}) do
 				local lengthOffset = 0
 				local alignOffset = 0
 				local align = 1
 				local width = 0
 				local font_def = 0
 				--Some fonts won't give us the data we need to scale glyphs from, but sometimes that doesn't matter anyway
-				if motif.trials_mode['currentstep_' .. v .. '_text_font'][7] == nil and motif.trials_mode.glyphs_scalewithtext == "true" then
-					font_def = main.font_def[motif.trials_mode['currentstep_' .. v .. '_text_font'][1] .. motif.trials_mode['currentstep_' .. v .. '_text_font_height']]
+				if motif.trials_mode['currentstep_' .. layout .. '_text_font'][7] == nil and motif.trials_mode.glyphs_scalewithtext == "true" then
+					font_def = main.font_def[motif.trials_mode['currentstep_' .. layout .. '_text_font'][1] .. motif.trials_mode['currentstep_' .. layout .. '_text_font_height']]
 				elseif motif.trials_mode.glyphs_scalewithtext == "true" then
-					font_def = main.font_def[motif.trials_mode['currentstep_' .. v .. '_text_font'][1] .. motif.trials_mode['currentstep_' .. v .. '_text_font'][7]]
+					font_def = main.font_def[motif.trials_mode['currentstep_' .. layout .. '_text_font'][1] .. motif.trials_mode['currentstep_' .. layout .. '_text_font'][7]]
 				end
-				for m in pairs(start.trials.trial[i].trialstep[j].glyphline[v].glyph) do
-					if motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline[v].glyph[m]] ~= nil then
-						if motif.trials_mode['glyphs_' .. v .. '_align'] == 0 then --center align
-							alignOffset = motif.trials_mode['glyphs_' .. v .. '_offset'][1] * 0.5
-						elseif motif.trials_mode['glyphs_' .. v .. '_align'] == -1 then --right align
-							alignOffset = motif.trials_mode['glyphs_' .. v .. '_offset'][1]
+				for m in pairs(start.trials.trial[i].trialstep[j].glyphline[layout].glyph) do
+					if motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline[layout].glyph[m]] ~= nil then
+						if motif.trials_mode['glyphs_' .. layout .. '_align'] == 0 then --center align
+							alignOffset = motif.trials_mode['glyphs_' .. layout .. '_offset'][1] * 0.5
+						elseif motif.trials_mode['glyphs_' .. layout .. '_align'] == -1 then --right align
+							alignOffset = motif.trials_mode['glyphs_' .. layout .. '_offset'][1]
 						end
-						if motif.trials_mode['glyphs_' .. v .. '_align'] ~= align then
+						if motif.trials_mode['glyphs_' .. layout .. '_align'] ~= align then
 							lengthOffset = 0
-							align = motif.trials_mode['glyphs_' .. v .. '_align']
+							align = motif.trials_mode['glyphs_' .. layout .. '_align']
 						end
-						local scaleX = motif.trials_mode['glyphs_' .. v .. '_scale'][1]
-						local scaleY = motif.trials_mode['glyphs_' .. v .. '_scale'][2]
-						if motif.trials_mode['glyphs_' .. v .. '_scalewithtext'] == "true" then
-							scaleX = font_def.Size[2] * motif.trials_mode['currentstep_' .. v .. '_text_scale'][2] / motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline[v].glyph[m]].info.Size[2] * motif.trials_mode['glyphs_' .. v .. '_scale'][1]
-							scaleY = font_def.Size[2] * motif.trials_mode['currentstep_' .. v .. '_text_scale'][2] / motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline[v].glyph[m]].info.Size[2] * motif.trials_mode['glyphs_' .. v .. '_scale'][2]
+						local scaleX = motif.trials_mode['glyphs_' .. layout .. '_scale'][1]
+						local scaleY = motif.trials_mode['glyphs_' .. layout .. '_scale'][2]
+						if motif.trials_mode['glyphs_' .. layout .. '_scalewithtext'] == "true" then
+							scaleX = font_def.Size[2] * motif.trials_mode['currentstep_' .. layout .. '_text_scale'][2] / motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline[layout].glyph[m]].info.Size[2] * motif.trials_mode['glyphs_' .. layout .. '_scale'][1]
+							scaleY = font_def.Size[2] * motif.trials_mode['currentstep_' .. layout .. '_text_scale'][2] / motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline[layout].glyph[m]].info.Size[2] * motif.trials_mode['glyphs_' .. layout .. '_scale'][2]
 						end
-						if motif.trials_mode['glyphs_' .. v .. '_align'] == -1 then
-							alignOffset = alignOffset - motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline[v].glyph[m]].info.Size[1] * scaleX
+						if motif.trials_mode['glyphs_' .. layout .. '_align'] == -1 then
+							alignOffset = alignOffset - motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline[layout].glyph[m]].info.Size[1] * scaleX
 						end
-						start.trials.trial[i].trialstep[j].glyphline[v].alignOffset[m] = alignOffset
-						start.trials.trial[i].trialstep[j].glyphline[v].scale[m] = {scaleX, scaleY}
-						start.trials.trial[i].trialstep[j].glyphline[v].pos[m] = {
-							math.floor(motif.trials_mode['trialsteps_' .. v .. '_pos'][1] + motif.trials_mode['glyphs_' .. v .. '_offset'][1] + alignOffset + lengthOffset),
-							motif.trials_mode['trialsteps_' .. v .. '_pos'][2] + motif.trials_mode['glyphs_' .. v .. '_offset'][2]
-						}
-						start.trials.trial[i].trialstep[j].glyphline[v].width[m] = math.floor(motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline[v].glyph[m]].info.Size[1] * scaleX + motif.trials_mode['glyphs_' .. v .. '_spacing'][1])
-						if motif.trials_mode['glyphs_' .. v .. '_align'] == 1 then
-							lengthOffset = lengthOffset + start.trials.trial[i].trialstep[j].glyphline[v].width[m]
-						elseif motif.trials_mode['glyphs_' .. v .. '_align'] == -1 then
-							lengthOffset = lengthOffset - start.trials.trial[i].trialstep[j].glyphline[v].width[m]
+						start.trials.trial[i].trialstep[j].glyphline[layout].alignOffset[m] = alignOffset
+						start.trials.trial[i].trialstep[j].glyphline[layout].scale[m] = {scaleX, scaleY}
+						start.trials.trial[i].trialstep[j].glyphline[layout].width[m] = math.floor(motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline[layout].glyph[m]].info.Size[1] * scaleX + motif.trials_mode['glyphs_' .. layout .. '_spacing'][1])
+						if motif.trials_mode['glyphs_' .. layout .. '_align'] == 1 then
+							lengthOffset = lengthOffset + start.trials.trial[i].trialstep[j].glyphline[layout].width[m]
+						elseif motif.trials_mode['glyphs_' .. layout .. '_align'] == -1 then
+							lengthOffset = lengthOffset - start.trials.trial[i].trialstep[j].glyphline[layout].width[m]
 						else
-							lengthOffset = lengthOffset + start.trials.trial[i].trialstep[j].glyphline[v].width[m] / 2
+							lengthOffset = lengthOffset + start.trials.trial[i].trialstep[j].glyphline[layout].width[m] / 2
 						end
-						start.trials.trial[i].trialstep[j].glyphline[v].lengthOffset[m] = lengthOffset
+						start.trials.trial[i].trialstep[j].glyphline[layout].lengthOffset[m] = lengthOffset
+						start.trials.trial[i].trialstep[j].glyphline[layout].pos[m] = {
+							math.floor(motif.trials_mode['trialsteps_' .. layout .. '_pos'][1] + motif.trials_mode['glyphs_' .. layout .. '_offset'][1] + alignOffset + lengthOffset),
+							motif.trials_mode['trialsteps_' .. layout .. '_pos'][2] + motif.trials_mode['glyphs_' .. layout .. '_offset'][2]
+						}
 					end
 				end
 			end
@@ -889,7 +889,6 @@ function start.f_trialsBuilder()
 	end
 
 	start.trials.trialsInitialized = true
-	if main.debugLog then main.f_printTable(start.trials, "debug/t_trialsdata.txt") end
 end
 
 function start.f_trialsDummySetup()
@@ -1045,11 +1044,11 @@ function start.f_trialsDrawer()
 					})
 					animSetPalFX(motif.trials_mode[sub .. 'step_vertical_bg_data'], {
 						time = 1,
-						add = motif.trials_mode[sub .. 'step_bg_palfx_add'],
-						mul = motif.trials_mode[sub .. 'step_bg_palfx_mul'],
-						sinadd = motif.trials_mode[sub .. 'step_bg_palfx_sinadd'],
-						invertall = motif.trials_mode[sub .. 'step_bg_palfx_invertall'],
-						color = motif.trials_mode[sub .. 'step_bg_palfx_color']
+						add = motif.trials_mode[sub .. 'step_vertical_bg_palfx_add'],
+						mul = motif.trials_mode[sub .. 'step_vertical_bg_palfx_mul'],
+						sinadd = motif.trials_mode[sub .. 'step_vertical_bg_palfx_sinadd'],
+						invertall = motif.trials_mode[sub .. 'step_vertical_bg_palfx_invertall'],
+						color = motif.trials_mode[sub .. 'step_vertical_bg_palfx_color']
 					})
 					animReset(motif.trials_mode[sub .. 'step_vertical_bg_data'])
 					animUpdate(motif.trials_mode[sub .. 'step_vertical_bg_data'])
@@ -1072,7 +1071,7 @@ function start.f_trialsDrawer()
 					padding = motif.trials_mode.trialsteps_horizontal_padding
 					spacing = motif.trials_mode.trialsteps_horizontal_spacing[1]
 
-					local tempwidth = spacing + bgtailwidth + tailoffset + padding + totalglyphlength + padding + bgheadwidth + accwidth
+					local tempwidth = spacing + bgtailwidth + padding + totalglyphlength + padding + bgheadwidth + accwidth
 					if tempwidth - motif.trials_mode.trialsteps_horizontal_spacing[1] > start.trials.draw.horizontal.windowXrange then
 						accwidth = 0
 						addrow = addrow + 1
@@ -1082,23 +1081,23 @@ function start.f_trialsDrawer()
 
 					-- Calculate initial positions
 					if accwidth == 0 then
-						bgcomponentposX = motif.trials_mode.trialsteps_horizontal_pos[1] + motif.trials_mode[sub .. 'step_horizontal_bg_tail_offset'][1]
+						bgcomponentposX = motif.trials_mode.trialsteps_horizontal_pos[1]
 					else
-						bgcomponentposX = accwidth + spacing + bgheadwidth + motif.trials_mode[sub .. 'step_horizontal_bg_tail_offset'][1]
+						bgcomponentposX = accwidth + spacing -- + bgheadwidth 
 					end
 					
 					-- Draw tail
 					animSetPos(motif.trials_mode[sub .. 'step_horizontal_bg_tail_data'], 
-						bgcomponentposX, 
+						bgcomponentposX + motif.trials_mode[sub .. 'step_horizontal_bg_tail_offset'][1], 
 						start.trials.trial[ct].trialstep[i].glyphline.horizontal.pos[1][2] + motif.trials_mode[sub .. 'step_horizontal_bg_tail_offset'][2] + tempoffset[2]
 					)
 					animSetPalFX(motif.trials_mode[sub .. 'step_horizontal_bg_tail_data'], {
 						time = 1,
-						add = motif.trials_mode[sub .. 'step_bg_palfx_add'],
-						mul = motif.trials_mode[sub .. 'step_bg_palfx_mul'],
-						sinadd = motif.trials_mode[sub .. 'step_bg_palfx_sinadd'],
-						invertall = motif.trials_mode[sub .. 'step_bg_palfx_invertall'],
-						color = motif.trials_mode[sub .. 'step_bg_palfx_color']
+						add = motif.trials_mode[sub .. 'step_horizontal_bg_palfx_add'],
+						mul = motif.trials_mode[sub .. 'step_horizontal_bg_palfx_mul'],
+						sinadd = motif.trials_mode[sub .. 'step_horizontal_bg_palfx_sinadd'],
+						invertall = motif.trials_mode[sub .. 'step_horizontal_bg_palfx_invertall'],
+						color = motif.trials_mode[sub .. 'step_horizontal_bg_palfx_color']
 					})
 					animReset(motif.trials_mode[sub .. 'step_horizontal_bg_tail_data'])
 					animUpdate(motif.trials_mode[sub .. 'step_horizontal_bg_tail_data'])
@@ -1106,7 +1105,7 @@ function start.f_trialsDrawer()
 					
 					-- Draw BG for Glyphs - scale to length, start from tail pos
 					bgtargetscale = {(padding + totalglyphlength + padding)/bgsize[1], 1}
-					bgcomponentposX = bgcomponentposX + bgtailwidth --+ motif.trials_mode[sub .. 'step_horizontal_bg_offset'][1]
+					bgcomponentposX = bgcomponentposX + bgtailwidth
 					local gpoffset = 0
 					for m in pairs(start.trials.trial[ct].trialstep[i].glyphline.horizontal.glyph) do
 						if m > 1 then gpoffset = start.trials.trial[ct].trialstep[i].glyphline.horizontal.lengthOffset[m-1] end
@@ -1115,34 +1114,34 @@ function start.f_trialsDrawer()
 
 					animSetScale(motif.trials_mode[sub .. 'step_horizontal_bg_data'], bgtargetscale[1], bgtargetscale[2])
 					animSetPos(motif.trials_mode[sub .. 'step_horizontal_bg_data'], 
-						bgcomponentposX, 
+						bgcomponentposX + motif.trials_mode[sub .. 'step_horizontal_bg_offset'][1], 
 						start.trials.trial[ct].trialstep[i].glyphline.horizontal.pos[1][2] + motif.trials_mode[sub .. 'step_horizontal_bg_offset'][2] + tempoffset[2]
 					)
 					animSetPalFX(motif.trials_mode[sub .. 'step_horizontal_bg_data'], {
 						time = 1,
-						add = motif.trials_mode[sub .. 'step_bg_palfx_add'],
-						mul = motif.trials_mode[sub .. 'step_bg_palfx_mul'],
-						sinadd = motif.trials_mode[sub .. 'step_bg_palfx_sinadd'],
-						invertall = motif.trials_mode[sub .. 'step_bg_palfx_invertall'],
-						color = motif.trials_mode[sub .. 'step_bg_palfx_color']
+						add = motif.trials_mode[sub .. 'step_horizontal_bg_palfx_add'],
+						mul = motif.trials_mode[sub .. 'step_horizontal_bg_palfx_mul'],
+						sinadd = motif.trials_mode[sub .. 'step_horizontal_bg_palfx_sinadd'],
+						invertall = motif.trials_mode[sub .. 'step_horizontal_bg_palfx_invertall'],
+						color = motif.trials_mode[sub .. 'step_horizontal_bg_palfx_color']
 					})
 					animReset(motif.trials_mode[sub .. 'step_horizontal_bg_data'])
 					animUpdate(motif.trials_mode[sub .. 'step_horizontal_bg_data'])
 					animDraw(motif.trials_mode[sub .. 'step_horizontal_bg_data'])
 					
 					-- Draw head
-					bgcomponentposX = bgcomponentposX + start.trials.trial[ct].trialstep[i].glyphline.horizontal.alignOffset[1] + (totalglyphlength + 2*padding) + motif.trials_mode[sub .. 'step_horizontal_bg_head_offset'][1]
+					bgcomponentposX = bgcomponentposX + (totalglyphlength + 2*padding)
 					animSetPos(motif.trials_mode[sub .. 'step_horizontal_bg_head_data'], 
-						bgcomponentposX, 
+						bgcomponentposX + motif.trials_mode[sub .. 'step_horizontal_bg_head_offset'][1] + start.trials.trial[ct].trialstep[i].glyphline.horizontal.alignOffset[1], 
 						start.trials.trial[ct].trialstep[i].glyphline.horizontal.pos[1][2] + motif.trials_mode[sub .. 'step_horizontal_bg_head_offset'][2] + tempoffset[2]
 					)
 					animSetPalFX(motif.trials_mode[sub .. 'step_horizontal_bg_head_data'], {
 						time = 1,
-						add = motif.trials_mode[sub .. 'step_bg_palfx_add'],
-						mul = motif.trials_mode[sub .. 'step_bg_palfx_mul'],
-						sinadd = motif.trials_mode[sub .. 'step_bg_palfx_sinadd'],
-						invertall = motif.trials_mode[sub .. 'step_bg_palfx_invertall'],
-						color = motif.trials_mode[sub .. 'step_bg_palfx_color']
+						add = motif.trials_mode[sub .. 'step_horizontal_bg_palfx_add'],
+						mul = motif.trials_mode[sub .. 'step_horizontal_bg_palfx_mul'],
+						sinadd = motif.trials_mode[sub .. 'step_horizontal_bg_palfx_sinadd'],
+						invertall = motif.trials_mode[sub .. 'step_horizontal_bg_palfx_invertall'],
+						color = motif.trials_mode[sub .. 'step_horizontal_bg_palfx_color']
 					})
 					animReset(motif.trials_mode[sub .. 'step_horizontal_bg_head_data'])
 					animUpdate(motif.trials_mode[sub .. 'step_horizontal_bg_head_data'])
@@ -1156,11 +1155,11 @@ function start.f_trialsDrawer()
 					)
 					animSetPalFX(motif.glyphs_data[start.trials.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim, {
 						time = 1,
-						add = motif.trials_mode[sub .. 'step_glyphs_palfx_add'],
-						mul = motif.trials_mode[sub .. 'step_glyphs_palfx_mul'],
-						sinadd = motif.trials_mode[sub .. 'step_glyphs_palfx_sinadd'],
-						invertall = motif.trials_mode[sub .. 'step_glyphs_palfx_invertall'],
-						color = motif.trials_mode[sub .. 'step_glyphs_palfx_color']
+						add = motif.trials_mode[sub .. 'step_' .. layout .. '_glyphs_palfx_add'],
+						mul = motif.trials_mode[sub .. 'step_' .. layout .. '_glyphs_palfx_mul'],
+						sinadd = motif.trials_mode[sub .. 'step_' .. layout .. '_glyphs_palfx_sinadd'],
+						invertall = motif.trials_mode[sub .. 'step_' .. layout .. '_glyphs_palfx_invertall'],
+						color = motif.trials_mode[sub .. 'step_' .. layout .. '_glyphs_palfx_color']
 					})
 					animReset(motif.glyphs_data[start.trials.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim)
 					animUpdate(motif.glyphs_data[start.trials.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim)
