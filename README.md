@@ -20,7 +20,7 @@ The Trials Mode provides new screenpack features and engine features so that cre
 ## system.def Template and Customization
 Using this external module allows full customization of the trials mode in system.def, with sprites in `system.sff` or in `trials.sff`, if so desired. If you are using `trials.sff`, make sure you point to it in the system.def's [Files] section as `trialsbgdef = trials.sff`.
 
-The universal trials mode supports **vertical** trials readouts, and **horizontal** readouts as seen in KOF XIV, among other games. The sample `system.def` included in this file can be configured to support either layouts, but as shown, it is configured to work exclusively with default assets (only uses fonts and stock glyphs, for instance). Below you'll find a brief summary of screenpack features supported by trials mode. For more detail, please consult the example `system.def` templates provided in this file for both vertical and horizontal layouts.
+The universal trials mode supports **vertical** trials readouts, and **horizontal** readouts as seen in KOF XIV, among other games. The sample `system.def` included in this file can be configured to support either or both layouts, but shared in this readme, it should work "out of the box" with the `mugen1` screenpack found [here](https://github.com/ikemen-engine/Ikemen_GO-Elecbyte-Screenpack). Below you'll find a brief summary of screenpack features supported by trials mode. For more detail, please consult the example `system.def` templates provided in this file for both vertical and horizontal layouts.
 
 You can make the trials mode look as fancy or as basic as you want. The `system.def` trials mode example included in this readme only leverage "stock" Ikemen fonts and sprites in the most minimal way possible.
 
@@ -41,279 +41,380 @@ You can make the trials mode look as fancy or as basic as you want. The `system.
 ## system.def Example
 
 ```
-[Trials Mode] ;Ikemen feature
-	; GENERAL TRIALS OPTIONS ---------------------------------------------------
-	; trialsresetonsuccess: set to "true" to reset character positions after each trial success (except the final one). Can optionally specify fadein and fadeout parameters - will default to shown values.
-	; trialslayout: "vertical" or "horizontal" are the only valid values. Defaults to "vertical" if not specified. Affects scrolling logic, as stated above, also enables dynamic step width
-	; --------------------------------------------------------------------------
-	trialsresetonsuccess = "false"
-	trialslayout = "vertical"
+[Trials Mode]
+; GENERAL TRIALS OPTIONS ---------------------------------------------------
+; trialsresetonsuccess: set to "true" to reset character positions after each trial success (except the final one). Can optionally specify fadein and fadeout parameters - will default to shown values.
+; trialslayout: "vertical" or "horizontal" are the only valid values. Defaults to "vertical" if not specified. Affects scrolling logic, as stated above, also enables dynamic step width. Can be changed via the pause menu if screenpack author leaves the option in.
+; --------------------------------------------------------------------------
+trialsresetonsuccess = "false"
+trialslayout = "vertical"
 
-	; SELSCREENPALFX -----------------------------------------------------------
-	; Sets specified palfx color to character portraits WITHOUT trials files in the trials select screen. See definition for palfx for different fields and options.
-	; --------------------------------------------------------------------------
-	selscreenpalfx.color = 0
-	; selscreenpalfx.invertall = 0
-	; selscreenpalfx.sinadd = 0, 0, 0, 0
-	selscreenpalfx.mul = 100, 100, 100
-	; selscreenpalfx.add = 0, 0, 0
+; SELSCREENPALFX -----------------------------------------------------------
+; Sets specified palfx color to character portraits WITHOUT trials files in the trials select screen. See definition for palfx for different fields and options.
+; --------------------------------------------------------------------------
+selscreenpalfx.color = 0
+; selscreenpalfx.invertall = 0
+; selscreenpalfx.sinadd = 0, 0, 0, 0
+selscreenpalfx.mul = 100, 100, 100
+; selscreenpalfx.add = 0, 0, 0
 
-	; RESETONSUCCESS FADES -----------------------------------------------------
-	; Used when "resetonsuccess" is set to "true"; defaults to the commented values below.
-	; --------------------------------------------------------------------------
-	; fadein.time = 40, --Ikemen feature
-	; fadein.col = {0, 0, 0}, --Ikemen feature
-	; fadein.anim = -1, --Ikemen feature
-	; fadeout.time = 40, --Ikemen feature
-	; fadeout.col = {0, 0, 0}, --Ikemen feature
-	; fadeout.anim = -1, --Ikemen feature
+; RESETONSUCCESS FADES -----------------------------------------------------
+; Used when "trialsresetonsuccess" is set to "true"
+; --------------------------------------------------------------------------
+; fadein.time = 40
+; fadein.col = {0, 0, 0}
+; fadein.anim = -1
+; fadeout.time = 40
+; fadeout.col = {0, 0, 0}
+; fadeout.anim = -1
 
-	; TRIALSTEPS OPTIONS -------------------------------------------------------
-	; trialsteps.pos: local origin from which trial steps are drawn. Other elements have their own origin specifications.
-	; trialsteps.spacing: spacing between trial steps. For horizontal layout, the second argument determines the spacing between rows.
-	; trialsteps.horizontal.padding: horizontal layouts only - padding between glyphs and edges of the background element along the x (horizontal) axis.
-	; trialsteps.window: X1,Y1,X2,Y2: display window for trials--will create automated scrolling or line returns, depending on the trial layout of choice
-	; --------------------------------------------------------------------------
-	trialsteps.pos = 42,40
-	trialsteps.spacing = 0,11
-	trialsteps.window = 40,40, 320,240
 
-	; TRIALTITLE OPTIONS -------------------------------------------------------
-	; --------------------------------------------------------------------------
-	trialtitle.pos = 42,40
-	trialtitle.text.offset = 0,-7
-	trialtitle.text.font = 1,0,1, 255, 100, 100
-	; trialtitle.text.text = "Trial: %s"
-	; trialtitle.text.scale = 
-	; trialtitle.text.font.height	=
-	; trialtitle.bg.offset = 
-	; trialtitle.bg.anim = 
-	; trialtitle.bg.scale = 
-	; trialtitle.bg.spr = 
-	; trialtitle.bg.displaytime = 
-	; trialtitle.front.offset = 
-	; trialtitle.front.anim = 
-	; trialtitle.front.scale = 
-	; trialtitle.front.spr = 
-	; trialtitle.front.displaytime = 
+; TRIALSTEPS OPTIONS -------------------------------------------------------
+; TRIALSTEPS options can be specified for both vertical and horizontal layouts simultaneously.
+; trialsteps.<layout>.pos: local origin from which trial steps are drawn. Other elements have their own origin specifications.
+; trialsteps.<layout>.spacing: spacing between trial steps. For horizontal layout, the second argument determines the spacing between rows.
+; trialsteps.<layout>.window: X1,Y1,X2,Y2: display window for trials--will create automated scrolling or line returns, depending on the trial layout of choice
+; trialsteps.horizontal.padding: horizontal layouts only - padding between glyphs and edges of the background element along the x (horizontal) axis.
+; TRIALSTEPS VERTICAL ------------------------------------------------------
+trialsteps.vertical.pos = 140,150
+trialsteps.vertical.spacing = 0,25
+trialsteps.vertical.window = 100,175, 1180,550
+; TRIALSTEPS HORIZONTAL ----------------------------------------------------
+trialsteps.horizontal.pos = 140,175
+trialsteps.horizontal.spacing = 1,40
+trialsteps.horizontal.window = 100,175, 1180,550
+trialsteps.horizontal.padding = 10
 
-	; UPCOMINGSTEP (ALL) -------------------------------------------------------
-	; upcomingstep.bg.offset = 
-	; upcomingstep.bg.anim = 
-	; upcomingstep.bg.spr = 
-	; upcomingstep.bg.scale = 
-	; upcomingstep.bg.displaytime = 
-	; UPCOMINGSTEP VERTICAL ONLY -----------------------------------------------
-	upcomingstep.text.offset = 0,0
-	upcomingstep.text.font = 1, 0, 1, 255, 255, 255
-	upcomingstep.text.scale	= 1,1
-	; UPCOMINGSTEP HORIZONTAL ONLY ---------------------------------------------
-	; upcomingstep.bg.tail.offset = 
-	; upcomingstep.bg.tail.anim = 
-	; upcomingstep.bg.tail.spr = 
-	; upcomingstep.bg.tail.scale = 
-	; upcomingstep.bg.tail.facing = 
-	; upcomingstep.bg.head.offset = 
-	; upcomingstep.bg.head.anim = 
-	; upcomingstep.bg.head.spr = 
-	; upcomingstep.bg.head.scale = 
-	; upcomingstep.bg.head.facing = 
-	; UPCOMINGSTEP PALFX -------------------------------------------------------
-	upcomingstep.bg.palfx.color = 100
-	; upcomingstep.bg.palfx.invertall = 0
-	; upcomingstep.bg.palfx.sinadd = 0, 0, 0, 0
-	upcomingstep.bg.palfx.mul = 150, 150, 150
-	; upcomingstep.bg.palfx.add = 0, 0, 0
-	; upcomingstep.glyphs.palfx.color = 256
-	; upcomingstep.glyphs.palfx.invertall = 0
-	; upcomingstep.glyphs.palfx.sinadd = 0, 0, 0, 0
-	; upcomingstep.glyphs.palfx.mul = 0, 0, 0
-	; upcomingstep.glyphs.palfx.add = 0, 0, 0
+; TRIALTITLE OPTIONS -------------------------------------------------------
+; TRAILTITLE options can be specified for both vertical and horizontal layouts simultaneously.
+; TRIALTITLE VERTICAL ------------------------------------------------------
+trialtitle.vertical.pos = 140,140
+trialtitle.vertical.text.offset = 0,-17
+trialtitle.vertical.text.font = 2,0,1, 255, 200, 100
+; trialtitle.vertical.text.text = "Trial: %s"
+; trialtitle.vertical.text.scale = 
+; trialtitle.vertical.text.font.height =
+; trialtitle.vertical.bg.offset = 
+; trialtitle.vertical.bg.anim = 
+; trialtitle.vertical.bg.scale = 
+; trialtitle.vertical.bg.spr = 
+; trialtitle.vertical.bg.displaytime = 
+; trialtitle.vertical.front.offset = 
+; trialtitle.vertical.front.anim = 
+; trialtitle.vertical.front.scale = 
+; trialtitle.vertical.front.spr = 
+; trialtitle.vertical.front.displaytime = 
+; TRIALTITLE HORIZONTAL ----------------------------------------------------
+trialtitle.horizontal.pos = 140,140
+trialtitle.horizontal.text.offset = 0,-17
+trialtitle.horizontal.text.font = 2,0,1, 255, 200, 100
+; trialtitle.horizontal.text.text = "Trial: %s"
+; trialtitle.horizontal.text.scale = 
+; trialtitle.horizontal.text.font.height =
+; trialtitle.horizontal.bg.offset =
+; trialtitle.horizontal.bg.anim =
+; trialtitle.horizontal.bg.scale = 
+; trialtitle.horizontal.bg.spr = 
+; trialtitle.horizontal.bg.displaytime = 
+; trialtitle.horizontal.front.offset = 
+; trialtitle.horizontal.front.anim = 
+; trialtitle.horizontal.front.scale = 
+; trialtitle.horizontal.front.spr = 
+; trialtitle.horizontal.front.displaytime = 
 
-	; CURRENTSTEP (ALL) --------------------------------------------------------
-	; --------------------------------------------------------------------------
-	currentstep.bg.offset = -2,0
-	; currentstep.bg.anim = -1
-	currentstep.bg.spr = 190,0
-	currentstep.bg.scale = .8,.8
-	currentstep.bg.facing = -1
-	; currentstep.bg.displaytime = -1
-	; CURRENTSTEP VERTICAL ONLY ------------------------------------------------
-	currentstep.text.offset = 0,0
-	currentstep.text.font = 1, 0, 1, 255, 255, 0
-	currentstep.text.scale = 1,1
-	; currentstep.text.font.height =
-	; CURRENTSTEP HORIZONTAL ONLY ----------------------------------------------
-	; currentstep.bg.displaytime = 
-	; currentstep.bg.tail.offset = 
-	; currentstep.bg.tail.anim = 
-	; currentstep.bg.tail.spr = 
-	; currentstep.bg.tail.scale = 
-	; currentstep.bg.tail.facing = 
-	; currentstep.bg.head.offset = 
-	; currentstep.bg.head.anim = 
-	; currentstep.bg.head.spr = 
-	; currentstep.bg.head.scale = 
-	; currentstep.bg.head.facing = 
-	; CURRENTSTEP PALFX --------------------------------------------------------
-	; currentstep.bg.palfx.color = 0
-	; currentstep.bg.palfx.invertall = 0
-	; currentstep.bg.palfx.sinadd = 0, 0, 0, 0
-	; currentstep.bg.palfx.mul = 0, 0, 0
-	; currentstep.bg.palfx.add = 0, 0, 0
-	; currentstep.glyphs.palfx.color = 256
-	; currentstep.glyphs.palfx.invertall = 0
-	; currentstep.glyphs.palfx.sinadd = 0, 0, 0, 0
-	; currentstep.glyphs.palfx.mul = 0, 0, 0
-	; currentstep.glyphs.palfx.add = 0, 0, 0
+; UPCOMINGSTEP -------------------------------------------------------------
+; UPCOMINGSTEP options can be specified for both vertical and horizontal layouts simultaneously.
+; UPCOMINGSTEP VERTICAL ----------------------------------------------------
+upcomingstep.vertical.text.offset = 0,0
+upcomingstep.vertical.text.font = 2,0,1, 200, 200, 200
+; upcomingstep.vertical.text.scale = 
+; upcomingstep.vertical.bg.offset = 
+; upcomingstep.vertical.bg.anim = 
+; upcomingstep.vertical.bg.spr = 
+; upcomingstep.vertical.bg.scale = 
+; upcomingstep.vertical.bg.facing =
+; upcomingstep.vertical.bg.displaytime = 
+upcomingstep.vertical.bg.palfx.color = 200
+; upcomingstep.vertical.bg.palfx.invertall = 0
+; upcomingstep.vertical.bg.palfx.sinadd = 0, 0, 0, 0
+upcomingstep.vertical.bg.palfx.mul = 200, 200, 200
+; upcomingstep.vertical.bg.palfx.add = 0, 0, 0
+; upcomingstep.vertical.glyphs.palfx.color = 256
+; upcomingstep.vertical.glyphs.palfx.invertall = 0
+; upcomingstep.vertical.glyphs.palfx.sinadd = 0, 0, 0, 0
+; upcomingstep.vertical.glyphs.palfx.mul = 0, 0, 0
+; upcomingstep.vertical.glyphs.palfx.add = 0, 0, 0
+; UPCOMINGSTEP HORIZONTAL --------------------------------------------------
+; upcomingstep.horizontal.bg.offset =
+; upcomingstep.horizontal.bg.anim = 
+; upcomingstep.horizontal.bg.spr =
+; upcomingstep.horizontal.bg.scale = 
+; upcomingstep.horizontal.bg.facing = 
+; upcomingstep.horizontal.bg.displaytime = 
+upcomingstep.horizontal.bg.tail.offset = 0,-14
+; upcomingstep.horizontal.bg.tail.anim = 
+upcomingstep.horizontal.bg.tail.spr = 402,0
+; upcomingstep.horizontal.bg.tail.scale = 
+; upcomingstep.horizontal.bg.tail.facing = 
+; upcomingstep.horizontal.bg.tail.displaytime = 
+; upcomingstep.horizontal.bg.head.offset = 
+; upcomingstep.horizontal.bg.head.anim = 
+; upcomingstep.horizontal.bg.head.spr = 
+; upcomingstep.horizontal.bg.head.scale = 
+; upcomingstep.horizontal.bg.head.facing = 
+; upcomingstep.horizontal.bg.head.displaytime = 
+upcomingstep.horizontal.bg.palfx.color = 200
+; upcomingstep.horizontal.bg.palfx.invertall = 
+; upcomingstep.horizontal.bg.palfx.sinadd = 
+upcomingstep.horizontal.bg.palfx.mul = 200, 200, 200
+; upcomingstep.horizontal.bg.palfx.add =
+upcomingstep.horizontal.glyphs.palfx.color = 200
+; upcomingstep.horizontal.glyphs.palfx.invertall = 
+; upcomingstep.horizontal.glyphs.palfx.sinadd =
+upcomingstep.horizontal.glyphs.palfx.mul = 200, 200, 200
+; upcomingstep.horizontal.glyphs.palfx.add = 
 
-	; COMPLETEDSTEP (ALL) --------------------------------------------------------
-	; --------------------------------------------------------------------------
-	; completedstep.bg.offset = 
-	; completedstep.bg.spr = 
-	; completedstep.bg.anim = 
-	; completedstep.bg.scale = 
-	; completedstep.bg.facing = 
-	; completedstep.bg.displaytime = 
-	; COMPLETEDSTEP VERTICAL ONLY ----------------------------------------------
-	completedstep.text.offset = 0,0
-	completedstep.text.font = 1, 0, 1, 100, 100, 100
-	completedstep.text.scale = 1,1
-	; completedstep.text.font.height = 
-	; COMPLETEDSTEP HORIZONTAL ONLY --------------------------------------------
-	; completedstep.bg.displaytime = 
-	; completedstep.bg.tail.offset = 
-	; completedstep.bg.tail.anim = 
-	; completedstep.bg.tail.spr = 
-	; completedstep.bg.tail.scale = 
-	; completedstep.bg.tail.facing = 
-	; completedstep.bg.head.offset = 
-	; completedstep.bg.head.anim = 
-	; completedstep.bg.head.spr = 
-	; completedstep.bg.head.scale = 
-	; completedstep.bg.head.facing	= 
-	; COMPLETEDSTEP PALFX ------------------------------------------------------
-	completedstep.bg.palfx.color = 0
-	; completedstep.bg.palfx.invertall = 0
-	; completedstep.bg.palfx.sinadd = 0, 0, 0, 0
-	completedstep.bg.palfx.mul = 100, 100, 100
-	; completedstep.bg.palfx.add = 0, 0, 0
-	; completedstep.glyphs.palfx.color = 0
-	; completedstep.glyphs.palfx.invertall = 0
-	; completedstep.glyphs.palfx.sinadd = 0, 0, 0, 0
-	; completedstep.glyphs.palfx.mul = 0, 0, 0
-	; completedstep.glyphs.palfx.add = 0, 0, 0
 
-	; GLYPHS -------------------------------------------------------------------
-	; --------------------------------------------------------------------------
-	glyphs.offset = 100,1
-	glyphs.scale = 0.125,0.125
-	glyphs.scalewithtext = "false" 	; Scales glyph height with respect to the font height. Only works for vertical trial layouts.
-	glyphs.spacing = 0,0
-	glyphs.align = 1
+; CURRENTSTEP --------------------------------------------------------------
+; CURRENTSTEP options can be specified for both vertical and horizontal layouts simultaneously.
+; CURRENTSTEP VERTICAL -----------------------------------------------------
+currentstep.vertical.text.offset = 0,0
+currentstep.vertical.text.font = 2,0,1
+; currentstep.vertical.text.scale = 
+; currentstep.vertical.text.font.height = 
+; currentstep.vertical.bg.offset = 
+; currentstep.vertical.bg.anim = 
+; currentstep.vertical.bg.spr = 
+; currentstep.vertical.bg.scale = 
+; currentstep.vertical.bg.facing = 
+; currentstep.vertical.bg.displaytime = 
+; currentstep.vertical.bg.displaytime = 
+; currentstep.vertical.bg.palfx.color = 
+; currentstep.vertical.bg.palfx.invertall = 
+; currentstep.vertical.bg.palfx.sinadd = 
+; currentstep.vertical.bg.palfx.mul = 
+; currentstep.vertical.bg.palfx.add = 
+; currentstep.vertical.glyphs.palfx.color = 
+; currentstep.vertical.glyphs.palfx.invertall = 
+; currentstep.vertical.glyphs.palfx.sinadd = 
+; currentstep.vertical.glyphs.palfx.mul = 
+; currentstep.vertical.glyphs.palfx.add = 
+; CURRENTSTEP HORIZONTAL ---------------------------------------------------
+; currentstep.horizontal.bg.offset = 
+; currentstep.horizontal.bg.anim = 
+; currentstep.horizontal.bg.spr = 
+; currentstep.horizontal.bg.scale = 
+; currentstep.horizontal.bg.facing = 
+; currentstep.horizontal.bg.displaytime = 
+currentstep.horizontal.bg.tail.offset = 0,-14
+; currentstep.horizontal.bg.tail.anim = 
+currentstep.horizontal.bg.tail.spr = 402,0
+; currentstep.horizontal.bg.tail.scale = 
+; currentstep.horizontal.bg.tail.facing = 
+; currentstep.horizontal.bg.tail.displaytime = 
+; currentstep.horizontal.bg.head.offset = 
+; currentstep.horizontal.bg.head.anim = 
+; currentstep.horizontal.bg.head.spr = 
+; currentstep.horizontal.bg.head.scale = 
+; currentstep.horizontal.bg.head.facing = 
+; currentstep.horizontal.bg.head.displaytime = 
+currentstep.horizontal.bg.palfx.color = 200
+; currentstep.horizontal.bg.palfx.invertall = 
+; currentstep.horizontal.bg.palfx.sinadd = 
+currentstep.horizontal.bg.palfx.mul = 255, 255, 50
+; currentstep.horizontal.bg.palfx.add = 
+; currentstep.horizontal.glyphs.palfx.color = 
+; currentstep.horizontal.glyphs.palfx.invertall = 
+; currentstep.horizontal.glyphs.palfx.sinadd = 
+; currentstep.horizontal.glyphs.palfx.mul = 
+; currentstep.horizontal.glyphs.palfx.add = 
 
-	; TRIAL BACKGROUND ---------------------------------------------------------
-	; --------------------------------------------------------------------------
-	; bg.layerno = 
-	; bg.offset = 
-	; bg.anim = 
-	; bg.scale = 
-	; bg.spr = 
+; COMPLETEDSTEP -------------------------------------------------------------
+; COMPLETEDSTEP options can be specified for both vertical and horizontal layouts simultaneously.
+; COMPLETEDSTEP VERTICAL ----------------------------------------------------
+completedstep.vertical.text.offset = 0,0
+completedstep.vertical.text.font = 2,0,1, 100, 100, 100
+; completedstep.vertical.text.scale = 
+; completedstep.vertical.text.font.height = 
+; completedstep.vertical.bg.offset = 
+; completedstep.vertical.bg.anim = 
+; completedstep.vertical.bg.spr = 
+; completedstep.vertical.bg.scale = 
+; completedstep.vertical.bg.facing =
+; completedstep.vertical.bg.displaytime = 
+; completedstep.vertical.bg.palfx.color = 
+; completedstep.vertical.bg.palfx.invertall = 
+; completedstep.vertical.bg.palfx.sinadd = 
+; completedstep.vertical.bg.palfx.mul = 
+; completedstep.vertical.bg.palfx.add = 
+completedstep.vertical.glyphs.palfx.color = 0
+; completedstep.vertical.glyphs.palfx.invertall = 
+; completedstep.vertical.glyphs.palfx.sinadd = 
+; completedstep.vertical.glyphs.palfx.mul = 
+; completedstep.vertical.glyphs.palfx.add = 
+; COMPLETEDSTEP HORIZONTAL  --------------------------------------------------
+; completedstep.horizontal.bg.offset =
+; completedstep.horizontal.bg.anim = 
+; completedstep.horizontal.bg.spr = 
+; completedstep.horizontal.bg.scale = 
+; completedstep.horizontal.bg.facing = 
+; completedstep.horizontal.bg.displaytime = 
+completedstep.horizontal.bg.tail.offset = 0,-14
+; completedstep.horizontal.bg.tail.anim = 
+completedstep.horizontal.bg.tail.spr = 402,0
+; completedstep.horizontal.bg.tail.scale =
+; completedstep.horizontal.bg.tail.facing = 
+; completedstep.horizontal.bg.tail.displaytime = 
+; completedstep.horizontal.bg.head.offset = 
+; completedstep.horizontal.bg.head.anim = 
+; completedstep.horizontal.bg.head.spr = 
+; completedstep.horizontal.bg.head.scale = 
+; completedstep.horizontal.bg.head.facing = 
+; completedstep.horizontal.bg.head.displaytime = 
+completedstep.horizontal.bg.palfx.color = 0
+; completedstep.horizontal.bg.palfx.invertall = 
+; completedstep.horizontal.bg.palfx.sinadd = 
+completedstep.horizontal.bg.palfx.mul = 100, 100, 100
+; completedstep.horizontal.bg.palfx.add = 
+completedstep.horizontal.glyphs.palfx.color = 0
+; completedstep.horizontal.glyphs.palfx.invertall = 
+; completedstep.horizontal.glyphs.palfx.sinadd =
+completedstep.horizontal.glyphs.palfx.mul = 100, 100, 100
+; completedstep.horizontal.glyphs.palfx.add = 
 
-	; TRIALS COUNTER AND TIMERS ------------------------------------------------
-	; --------------------------------------------------------------------------
-	trialcounter.pos = 10,235
-	trialcounter.font = 1,0,1
-	trialcounter.text.scale	= 1,1
-	; trialcounter.font.height	=
-	trialcounter.text = "Trial %s of %t"
-	trialcounter.allclear.text = "All Trials Clear"
-	trialcounter.notrialsdata.text = "No Trials Data Found"
-	totaltrialtimer.pos	= 310,228
-	totaltrialtimer.font = 1,0,-1
-	totaltrialtimer.text.scale	= 1,1
-	; totaltrialtimer.font.height =
-	totaltrialtimer.text = "Trial Timer: %s"
-	currenttrialtimer.pos = 310,235
-	currenttrialtimer.font = 1,0,-1
-	currenttrialtimer.text.scale = 1,1
-	; currenttrialtimer.font.height	=
-	currenttrialtimer.text = "Current Trial: %s"
+; GLYPHS -------------------------------------------------------------------
+; GLYPHS options can be specified for both vertical and horizontal layouts simultaneously.
+; glyphs.<layout>.offset: x,y offset from current trialstep position
+; glyphs.<layout>.scale: x,y scale for glyphs
+; glyphs.<layout>.spacing: x,y spacing from one glyph element to another on the same trialstep
+; glyphs.vertical.align: alignment for glyphs (vertical layout only)
+; glyphs.vertical.scalewithtext: true or false; scales glyphs according to font height - ignores scale parameter when set to true.
+; GLYPHS VERTICAL ----------------------------------------------------------
+glyphs.vertical.offset = 244,3
+glyphs.vertical.scale = 0.3125,0.3125
+glyphs.vertical.spacing = 0,0
+glyphs.vertical.align = -1
+glyphs.vertical.scalewithtext = false
+; GLYPHS HORIZONTAL --------------------------------------------------------
+glyphs.horizontal.offset = 0,-3
+glyphs.horizontal.scale = 0.4, 0.4
+glyphs.horizontal.spacing = 0,0
 
-	; TRIAL SUCCESS BANNER -----------------------------------------------------
-	; --------------------------------------------------------------------------
-	success.pos	= 160,120
-	success.snd	= 600,0 
-	success.text.text = "SUCCESS!"
-	success.text.offset = 0,0
-	success.text.font = 2,0,0, 255, 100, 100
-	success.text.displaytime = 70
-	success.text.scale = 4,4
-	; success.text.font.height =
-	; success.bg.offset = 
-	; success.bg.anim = 
-	; success.bg.scale = 
-	; success.bg.spr = 
-	; success.bg.displaytime = 
-	; success.front.offset = 
-	; success.front.anim = 
-	; success.front.scale = 
-	; success.front.spr = 
-	; success.front.displaytime	= 
+; TRIAL BACKGROUND ---------------------------------------------------------
+; BG options can be specified for both vertical and horizontal layouts simultaneously.
+; BG VERTICAL --------------------------------------------------------------
+; bg.vertical.layerno = 
+; bg.vertical.offset = 
+; bg.vertical.anim = 
+; bg.vertical.scale = 
+; bg.vertical.spr = 
+; BG HORIZONTAL ------------------------------------------------------------
+; bg.horizontal.layerno = 
+; bg.horizontal.offset = 
+; bg.horizontal.anim = 
+; bg.horizontal.scale = 
+; bg.horizontal.spr = 
 
-	; TRIALS ALL CLEAR BANNER --------------------------------------------------
-	; --------------------------------------------------------------------------
-	allclear.pos = 160,120
-	allclear.snd = 900,0
-	allclear.text.text = "ALL CLEAR!"
-	allclear.text.offset = 0,0
-	allclear.text.font = 2,0,0, 255, 100, 100
-	allclear.text.displaytime	= 70
-	allclear.text.scale	= 4,4
-	; allclear.text.font.height	=
-	; allclear.bg.offset = 
-	; allclear.bg.anim = 
-	; allclear.bg.scale = 
-	; allclear.bg.spr = 
-	; allclear.bg.displaytime = 
-	; allclear.front.offset = 
-	; allclear.front.anim = 
-	; allclear.front.scale = 
-	; allclear.front.spr = 
-	; allclear.front.displaytime = 
+; TRIALS COUNTER AND TIMERS ------------------------------------------------
+; trialcounter shows the current trial number
+; totaltrialtimer shows the total time for the trial. It is erased if the pause menu is used to skip or rewind.
+; currenttrialtimer shows the time spent on the current trial attempt.
+; --------------------------------------------------------------------------
+trialcounter.pos = 10,710
+trialcounter.font = 1,0,1
+trialcounter.scale = 2,2
+; trialcounter.font.height	=
+trialcounter.text = "Trial %s of %t"
+trialcounter.allclear.text = "All Trials Clear"
+trialcounter.notrialsdata.text = "No Trials Data Found"
+totaltrialtimer.pos	= 1270,690
+totaltrialtimer.font = 1,0,-1
+totaltrialtimer.scale = 2,2
+; totaltrialtimer.font.height =
+totaltrialtimer.text = "Trial Timer: %s"
+currenttrialtimer.pos = 1270,710
+currenttrialtimer.font = 1,0,-1
+currenttrialtimer.scale = 2,2
+; currenttrialtimer.font.height	=
+currenttrialtimer.text = "Current Trial: %s"
 
-[Trials Info] ;Ikemen feature
-	; If not overridden, values used for [Menu Info] are shared with this group.
-	; Trials specific parameters:
-	menu.valuename.trialslist = ""
-	menu.valuename.trialdvancement.autoadvance = "Auto-Advance"
-	menu.valuename.trialadvancement.repeat = "Repeat"
-	menu.valuename.trialresetonsuccess.yes = "Yes"
-	menu.valuename.trialresetonsuccess.no = "No"
+; TRIAL SUCCESS BANNER -----------------------------------------------------
+; --------------------------------------------------------------------------
+success.pos	= 640,360
+success.snd	= 600,0 
+success.text.text = "SUCCESS"
+success.text.offset = 0,0
+success.text.font = 4,0,0, 255, 100, 100
+success.text.displaytime = 70
+success.text.scale = 3,3
+; success.text.font.height =
+; success.bg.offset = 
+; success.bg.anim = 
+; success.bg.scale = 
+; success.bg.spr = 
+; success.bg.displaytime = 
+; success.front.offset = 
+; success.front.anim = 
+; success.front.scale = 
+; success.front.spr = 
+; success.front.displaytime	= 
 
-	; https://github.com/ikemen-engine/Ikemen-GO/wiki/Screenpack-features#submenus
-	; If custom menu is not declared, following menu is loaded by default:
-	; menu.itemname.back = "Continue"
-	; menu.itemname.nexttrial = "Next Trial"
-	; menu.itemname.previoustrial = "Previous Trial"
-	; menu.itemname.menutrials = "Trials Menu"
-	; menu.itemname.menutrials.trialslist = "Trials List"
-	; menu.itemname.menutrials.trialadvancement = "Trials Advancement"
-	; menu.itemname.menutrials.trialresetonsuccess = "Reset to Center on Success"
-	; menu.itemname.menutrials.back = "Back"
-	; menu.itemname.menuinput = "Button Config"
-	; menu.itemname.menuinput.keyboard = "Key Config"
-	; menu.itemname.menuinput.gamepad = "Joystick Config"
-	; menu.itemname.menuinput.empty = ""
-	; menu.itemname.menuinput.inputdefault = "Default"
-	; menu.itemname.menuinput.back = "Back"
-	; menu.itemname.commandlist = "Command List"
-	; menu.itemname.characterchange = "Character Change"
-	; menu.itemname.exit = "Exit"
+; TRIALS ALL CLEAR BANNER --------------------------------------------------
+; --------------------------------------------------------------------------
+allclear.pos = 640,360
+allclear.snd = 900,0
+allclear.text.text = "ALL CLEAR"
+allclear.text.offset = 0,0
+allclear.text.font = 4,0,0, 255, 100, 100
+allclear.text.displaytime	= 70
+allclear.text.scale	= 3,3
+; allclear.text.font.height	=
+; allclear.bg.offset = 
+; allclear.bg.anim = 
+; allclear.bg.scale = 
+; allclear.bg.spr = 
+; allclear.bg.displaytime = 
+; allclear.front.offset = 
+; allclear.front.anim = 
+; allclear.front.scale = 
+; allclear.front.spr = 
+; allclear.front.displaytime = 
 
-[TrialsBgDef] ;Ikemen feature
-	spr 			= ""
-	bgclearcolor 	= 0, 0, 0
+[Trials Info]
+; If not overridden, values used for [Menu Info] are shared with this group.
+; Trials specific parameters:
+menu.valuename.trialslist = ""
+menu.valuename.trialdvancement.autoadvance = "Auto-Advance"
+menu.valuename.trialadvancement.repeat = "Repeat"
+menu.valuename.trialresetonsuccess.yes = "Yes"
+menu.valuename.trialresetonsuccess.no = "No"
+menu.valuename.trialslayout.vertical = "Vertical"
+menu.valuename.trialslayout.horizontal = "Horizontal"
+
+; https://github.com/ikemen-engine/Ikemen-GO/wiki/Screenpack-features#submenus
+; If custom menu is not declared, following menu is loaded by default:
+; menu.itemname.back = "Continue"
+; menu.itemname.nexttrial = "Next Trial"
+; menu.itemname.previoustrial = "Previous Trial"
+; menu.itemname.menutrials = "Trials Menu"
+; menu.itemname.menutrials.trialslist = "Trials List"
+; menu.itemname.menutrials.trialadvancement = "Trials Advancement"
+; menu.itemname.menutrials.trialresetonsuccess = "Reset to Center on Success"
+; menu.itemname.menutrials.trialslayout = "Trials Layout"
+; menu.itemname.menutrials.back = "Back"
+; menu.itemname.menuinput = "Button Config"
+; menu.itemname.menuinput.keyboard = "Key Config"
+; menu.itemname.menuinput.gamepad = "Joystick Config"
+; menu.itemname.menuinput.empty = ""
+; menu.itemname.menuinput.inputdefault = "Default"
+; menu.itemname.menuinput.back = "Back"
+; menu.itemname.commandlist = "Command List"
+; menu.itemname.characterchange = "Character Change"
+; menu.itemname.exit = "Exit"
+
+[TrialsBgDef]
+spr 			= ""
+bgclearcolor 	= 0, 0, 0
 ```
 
 ## Creating a Character's Trials Definition File

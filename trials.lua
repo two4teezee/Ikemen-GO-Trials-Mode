@@ -361,19 +361,19 @@ local t_base = {
     glyphs_horizontal_align = 1,
 	trialcounter_pos = {0,0},
     trialcounter_font = {},
-    trialcounter_text_scale = {1.0, 1.0},
+    trialcounter_scale = {1.0, 1.0},
     trialcounter_font_height = -1,
     trialcounter_text = '',
 	trialcounter_allclear_text = '',
 	trialcounter_notrialsdata_text = 'No Trials Data Found',
 	totaltrialtimer_pos = {0,0},
     totaltrialtimer_font = {},
-    totaltrialtimer_text_scale = {1.0, 1.0},
+    totaltrialtimer_scale = {1.0, 1.0},
     totaltrialtimer_font_height = -1,
     totaltrialtimer_text = '',
     currenttrialtimer_pos = {0,0},
     currenttrialtimer_font = {},
-    currenttrialtimer_text_scale = {1.0, 1.0},
+    currenttrialtimer_scale = {1.0, 1.0},
     currenttrialtimer_font_height = -1,
     currenttrialtimer_text = '',
     success_pos = {0, 0},
@@ -796,10 +796,12 @@ function start.f_trialsBuilder()
 				local width = 0
 				local font_def = 0
 				--Some fonts won't give us the data we need to scale glyphs from, but sometimes that doesn't matter anyway
-				if motif.trials_mode['currentstep_' .. layout .. '_text_font'][7] == nil and motif.trials_mode.glyphs_scalewithtext == "true" then
-					font_def = main.font_def[motif.trials_mode['currentstep_' .. layout .. '_text_font'][1] .. motif.trials_mode['currentstep_' .. layout .. '_text_font_height']]
-				elseif motif.trials_mode.glyphs_scalewithtext == "true" then
-					font_def = main.font_def[motif.trials_mode['currentstep_' .. layout .. '_text_font'][1] .. motif.trials_mode['currentstep_' .. layout .. '_text_font'][7]]
+				if layout == "vertical" and motif.trials_mode.currentstep_vertical_text_font[7] == nil and motif.trials_mode.glyphs_vertical_scalewithtext == "true" then
+					font_def = main.font_def[motif.trials_mode.currentstep_vertical_text_font[1] .. motif.trials_mode.currentstep_vertical_text_font_height]
+					print(font_def.Size[2])
+				elseif layout == "vertical" and motif.trials_mode.glyphs_vertical_scalewithtext == "true" then
+					font_def = main.font_def[motif.trials_mode.currentstep_vertical_text_font[1] .. motif.trials_mode.currentstep_vertical_text_font[7]]
+					print(font_def.Size[2])
 				end
 				for m in pairs(start.trials.trial[i].trialstep[j].glyphline[layout].glyph) do
 					if motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline[layout].glyph[m]] ~= nil then
@@ -814,14 +816,14 @@ function start.f_trialsBuilder()
 						end
 						local scaleX = motif.trials_mode['glyphs_' .. layout .. '_scale'][1]
 						local scaleY = motif.trials_mode['glyphs_' .. layout .. '_scale'][2]
-						if motif.trials_mode['glyphs_' .. layout .. '_scalewithtext'] == "true" then
-							scaleX = font_def.Size[2] * motif.trials_mode['currentstep_' .. layout .. '_text_scale'][2] / motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline[layout].glyph[m]].info.Size[2] * motif.trials_mode['glyphs_' .. layout .. '_scale'][1]
-							scaleY = font_def.Size[2] * motif.trials_mode['currentstep_' .. layout .. '_text_scale'][2] / motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline[layout].glyph[m]].info.Size[2] * motif.trials_mode['glyphs_' .. layout .. '_scale'][2]
-						end
 						if motif.trials_mode['glyphs_' .. layout .. '_align'] == -1 then
 							alignOffset = alignOffset - motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline[layout].glyph[m]].info.Size[1] * scaleX
 						end
 						start.trials.trial[i].trialstep[j].glyphline[layout].alignOffset[m] = alignOffset
+						if layout == "vertical" and motif.trials_mode.glyphs_vertical_scalewithtext == "true" then
+							scaleY = font_def.Size[2] * motif.trials_mode.currentstep_vertical_text_scale[2] / motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline[layout].glyph[m]].info.Size[2]
+							scaleX = scaleY
+						end
 						start.trials.trial[i].trialstep[j].glyphline[layout].scale[m] = {scaleX, scaleY}
 						start.trials.trial[i].trialstep[j].glyphline[layout].width[m] = math.floor(motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline[layout].glyph[m]].info.Size[1] * scaleX + motif.trials_mode['glyphs_' .. layout .. '_spacing'][1])
 						if motif.trials_mode['glyphs_' .. layout .. '_align'] == 1 then
@@ -859,7 +861,7 @@ function start.f_trialsBuilder()
 		totaltrialtimer = main.f_createTextImg(motif.trials_mode, 'totaltrialtimer'),
 		currenttrialtimer = main.f_createTextImg(motif.trials_mode, 'currenttrialtimer'),
 	}
-	start.trials.draw.success_text:update({x = motif.trials_mode.success_pos[1], y = motif.trials_mode.success_pos[2]+motif.trials_mode.success_text_offset[2],})
+	start.trials.draw.success_text:update({x = motif.trials_mode.success_pos[1]+motif.trials_mode.success_text_offset[1], y = motif.trials_mode.success_pos[2]+motif.trials_mode.success_text_offset[2],})
 	start.trials.draw.allclear_text:update({x = motif.trials_mode.allclear_pos[1]+motif.trials_mode.allclear_text_offset[1], y = motif.trials_mode.allclear_pos[2]+motif.trials_mode.allclear_text_offset[2],})
 	start.trials.draw.trialcounter:update({x = motif.trials_mode.trialcounter_pos[1], y = motif.trials_mode.trialcounter_pos[2],})
 	start.trials.draw.totaltrialtimer:update({x = motif.trials_mode.totaltrialtimer_pos[1], y = motif.trials_mode.totaltrialtimer_pos[2],})
@@ -1224,6 +1226,10 @@ function start.f_trialsChecker()
 			-- print("ID: " .. attackerid)
 			-- print("State: " .. attackerstate)
 			-- print("Anim: " .. attackeranim)
+		end
+
+		if start.trials.trial[ct].trialstep[cts].numofhits[ctms] == 0 then
+			start.trials.trial[ct].trialstep[cts].isnohit[ctms] = true
 		end
 
 		if (start.trials.trial[ct].trialstep[cts].ishelper[ctms] and start.trials.trial[ct].trialstep[cts].stateno[ctms] == attackerstate) and (attackeranim == start.trials.trial[ct].trialstep[cts].animno[ctms] or start.trials.trial[ct].trialstep[cts].animno[ctms] == nil) then
@@ -1667,7 +1673,7 @@ for row = 1, #main.t_selChars, 1 do
 						complete = false,
 						showforvarvalpairs = {nil},
 						elapsedtime = 0,
-						starttick = tickcount(),
+						starttick = tickcount()+1,
 						trialstep = {},
 					}
 					line = f_trimafterchar(line, ",")
