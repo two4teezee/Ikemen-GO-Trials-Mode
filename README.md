@@ -435,17 +435,16 @@ trial.dummybuttonjam = none
 
 trialstep.1.text = Strong Kung Fu Palm
 trialstep.1.glyphs = _QDF^Y
-; trialstep.1.validforvarvalpairs = 
-
 trialstep.1.stateno = 1010
-; trialstep.1.anim =
-; trialstep.1.numofhits =
+
+; trialstep.1.animno =
+; trialstep.1.hitcount =
 ; trialstep.1.isthrow =
-; trialstep.1.isnohit =
 ; trialstep.1.iscounterhit =
 ; trialstep.1.ishelper =
 ; trialstep.1.isproj =
-; trialstep.1.validuntilnexthit = 
+; trialstep.1.validforvarvalpairs = 
+; trialstep.1.validfortickcount = 
 
 ; TrialDef Parameter Descriptions
 ; ===============================
@@ -460,17 +459,16 @@ trialstep.1.stateno = 1010
 
 ; trialstep.X.text - optional - (string). Text for trial step (only displayed in vertical trials layout).
 ; trialstep.X.glyphs - optional - (string, see Glyph documentation [https://github.com/ikemen-engine/Ikemen-GO/wiki/Miscellaneous-info#movelists] for syntax). Same syntax as movelist glyphs. Glyphs are displayed in vertical and horizontal trials layouts.
-; trialstep.X.validforvarvalpairs - optional - (comma-separated integers, specified in pairs, can specify 0..n pairs). Sister functionality to "showforvarvalpairs". These variable-value pairs are used to optionally check a trial step. Useful if you are forcing the trial step to be completed when certain var-val pairs are met (for instance, while in a custom combo state). Variable-value pairs are considered valid for entire trial step (regardless if the trial step is specified using condensed terminology).
-
 ; trialstep.X.stateno - mandatory - (integer or comma-separated integers). State to be checked to pass trial. This is the state whether it's the main character, a helper, or even a projectile.
-; trialstep.X.anim - optional - (integer or comma-separated integers). Identifies animno to be checked to pass trial. Useful in certain cases.
-; trialstep.X.numofhits - optional - (integer or comma-separated integers), will default to 1 if not defined. In some instances, you might want to specify a trial step to meet a multi-hit criteria before proceeding to the next trial step.
+
+; trialstep.X.animno - optional - (integer or comma-separated integers). Identifies animno to be checked to pass trial. Useful in certain cases.
+; trialstep.X.hitcount - optional - (integer or comma-separated integers), will default to 1 if not defined. In some instances, you might want to specify a trial step to meet a hit count criteria before proceeding to the next trial step. Useful for multi-hit moves, or for moves that don't hit (e.g. taunts).
 ; trialstep.X.isthrow - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step is a throw. Should be 'true' is trial step is a throw.
-; trialstep.X.isnohit - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step does not hit the opponent, or does not increase the combo counter.
 ; trialstep.X.iscounterhit - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step should be a counter hit. Typically does not work with helpers or projectiles.
 ; trialstep.X.ishelper - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step is a helper. Should be 'true' is trial step is a hit from a helper.
 ; trialstep.X.isproj - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step is a projectile. Should be 'true' is trial step is a hit from a projectile.
-; trialstep.X.validuntilnexthit - optional (true or false, or comma-separate true/false), will default to false if not defined. Makes the trials checking logic pause until the next hit is registered.
+; trialstep.X.validforvarvalpairs - optional - (comma-separated integers, specified in pairs, can specify 0..n pairs). Sister functionality to "showforvarvalpairs". These variable-value pairs are used to optionally check a trial step. Useful if you are forcing the trial step to be completed when certain var-val pairs are met (for instance, while in a custom combo state). Variable-value pairs are considered valid for entire trial step (regardless if the trial step is specified using condensed terminology).
+; trialstep.X.validfortickcount - optional (integer, or comma-separate integers), will default to nil if not defined. Makes the trials checking logic pause until the next hit is registered for the tickcount specified.
 
 ;---------------------------------------------
 
@@ -486,7 +484,7 @@ trialstep.1.isthrow = true
 trialstep.1.text = Kung Fu Taunt
 trialstep.1.glyphs = ^S
 trialstep.1.stateno = 195
-trialstep.1.isnohit = true
+trialstep.1.hitcount = 0
 
 ;---------------------------------------------
 
@@ -510,10 +508,10 @@ trialstep.2.stateno = 210
 trialstep.1.text = Standing Light to Strong Punch Chain		
 trialstep.1.glyphs = ^X_-^Y			
 trialstep.1.stateno = 200, 210		
-trialstep.1.numofhits = 1, 1
+trialstep.1.hitcount = 1, 1
 
-; When desired, you can collapsed multiple steps into a single one but using comma separated values in the following parameters:
-; stateno, animno, numofhits, isthrow, iscounterhit, isnohit, ishelper, isproj, specialbool, specialvar, specialstr
+; When desired, you can collapse multiple steps into a single one but using comma separated values in the following parameters:
+; stateno, animno, hitcount, isthrow, iscounterhit, ishelper, isproj
 ; If one parameter on the trial step is defined using comma separated values, all parameters on that trial step must be defined similarly.
 
 ;---------------------------------------------
@@ -572,7 +570,7 @@ trialstep.4.stateno = 1420
 trialstep.5.text = Triple Kung Fu Palm
 trialstep.5.glyphs = _QDF_QDF^P
 trialstep.5.stateno = 3000
-trialstep.5.numofhits = 3
+trialstep.5.hitcount = 3
 ```
 
 ## Editing the Character's Def File
@@ -589,6 +587,7 @@ trials = trials.def        ;Ikemen feature: Trials mode data
 Trials Mode ships with the several pause menu options. Customizing the pause menu must be done by editing the `motif.setBaseTrialsInfo()` in `trials.lua`.
 - **Next Trial**: advance to the next trial
 - **Previous Trial**: return to the previous trial
-- **Trials List**: view a list of the trials, and select the one to activate
+- **Trials List**: view a list of the trials, and select which one to activate
 - **Trial Advancement**: toggles between either Auto-Advance or Repeat, allows the player to play a single trial on repeat if desired
 - **Reset on Success**: resets the players to center stage when the trial is cleared. This can be set in the `system.def`, but the player can modify it in-game as well.
+- **Trials Layout**: toggles between Vertical and Horizontal trials layout. This can be set in the `system.def`, but the player can modify it in-game as well.
