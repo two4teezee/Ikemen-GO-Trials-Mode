@@ -885,6 +885,25 @@ function start.f_trialsBuilder()
 		table.insert(menu.t_valuename.trialslist, {itemname = tostring(i), displayname = start.trials.trial[i].name})
 	end
 
+	local t_menuWindow = main.f_menuWindow(motif.trials_info)
+	local t_pos = {}
+	for i = #start.trials.trial, 1, -1 do
+		-- local itemname = options.t_shaders[k].path .. options.t_shaders[k].filename
+		table.insert(t_pos.items, 1, {
+			data = text:create({window = t_menuWindow}),
+			itemname = tostring(i),
+			displayname = start.trials.trial[i].name,
+			paramname = 'menu_itemname_' .. suffix:gsub('back$', itemname),
+			vardata = text:create({window = t_menuWindow}),
+			vardisplay = menu.f_vardisplay(c),
+			selected = false,
+		})
+		table.insert(menu.t_vardisplayPointers, t_pos.items[#t_pos.items])
+		--creating anim data out of appended menu items
+		motif.f_loadSprData(motif.trials_info, {s = 'menu_bg_' .. suffix:gsub('back$', itemname) .. '_', x = motif.trials_info.menu_pos[1], y = motif.trials_info.menu_pos[2]})
+		motif.f_loadSprData(motif.trials_info, {s = 'menu_bg_active_' .. suffix:gsub('back$', itemname) .. '_', x = motif.trials_info.menu_pos[1], y = motif.trials_info.menu_pos[2]})
+	end
+
 	start.trials.trialsInitialized = true
 end
 
