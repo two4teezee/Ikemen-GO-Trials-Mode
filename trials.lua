@@ -215,11 +215,12 @@ local t_base = {
 	upcomingstep_vertical_glyphs_palfx_sinadd = {0, 0, 0},
 	upcomingstep_vertical_glyphs_palfx_invertall = 0,
 	upcomingstep_vertical_glyphs_palfx_color = 256,
-    upcomingstep_horizontal_text_offset = {0,0},
-    upcomingstep_horizontal_text_font = {},
-    upcomingstep_horizontal_text_font_height = -1,
-    upcomingstep_horizontal_text_text = '',
-	upcomingstep_horizontal_text_scale = {1.0, 1.0},
+	-- text in horizontal layouts not yet supported
+    -- upcomingstep_horizontal_text_offset = {0,0},
+    -- upcomingstep_horizontal_text_font = {},
+    -- upcomingstep_horizontal_text_font_height = -1,
+    -- upcomingstep_horizontal_text_text = '',
+	-- upcomingstep_horizontal_text_scale = {1.0, 1.0},
     upcomingstep_horizontal_bg_anim = -1,
     upcomingstep_horizontal_bg_spr = {},
     upcomingstep_horizontal_bg_offset = {0, 0},
@@ -267,11 +268,12 @@ local t_base = {
 	currentstep_vertical_glyphs_palfx_sinadd = {0, 0, 0},
 	currentstep_vertical_glyphs_palfx_invertall = 0,
 	currentstep_vertical_glyphs_palfx_color = 256,
-    currentstep_horizontal_text_offset = {0,0},
-    currentstep_horizontal_text_font = {},
-    currentstep_horizontal_text_font_height = -1,
-    currentstep_horizontal_text_text = '',
-	currentstep_horizontal_text_scale = {1.0, 1.0},
+	-- text in horizontal layouts not yet supported
+	-- currentstep_horizontal_text_offset = {0,0},
+    -- currentstep_horizontal_text_font = {},
+    -- currentstep_horizontal_text_font_height = -1,
+    -- currentstep_horizontal_text_text = '',
+	-- currentstep_horizontal_text_scale = {1.0, 1.0},
     currentstep_horizontal_bg_anim = -1,
     currentstep_horizontal_bg_spr = {},
     currentstep_horizontal_bg_offset = {0, 0},
@@ -319,11 +321,12 @@ local t_base = {
 	completedstep_vertical_glyphs_palfx_sinadd = {0, 0, 0},
 	completedstep_vertical_glyphs_palfx_invertall = 0,
 	completedstep_vertical_glyphs_palfx_color = 256,
-    completedstep_horizontal_text_offset = {0,0},
-    completedstep_horizontal_text_font = {},
-    completedstep_horizontal_text_font_height = -1,
-    completedstep_horizontal_text_text = '',
-	completedstep_horizontal_text_scale = {1.0, 1.0},
+	-- text in horizontal layouts not yet supported
+    -- completedstep_horizontal_text_offset = {0,0},
+    -- completedstep_horizontal_text_font = {},
+    -- completedstep_horizontal_text_font_height = -1,
+    -- completedstep_horizontal_text_text = '',
+	-- completedstep_horizontal_text_scale = {1.0, 1.0},
     completedstep_horizontal_bg_anim = -1,
     completedstep_horizontal_bg_spr = {},
     completedstep_horizontal_bg_offset = {0, 0},
@@ -683,7 +686,7 @@ function start.f_inittrialsData()
 		currenttrial = 1,
 		currenttrialstep = 1,
 		currenttrialmicrostep = 1,
-		pauseuntilnexthit = false,
+		validfortickcount = 0,
 		combocounter = 0,
 		maxsteps = 0,
 		starttick = tickcount(),
@@ -746,14 +749,6 @@ function start.f_trialsBuilder()
 			start.trials.maxsteps = #start.trials.trial[i].trialstep
 		end
 		for j = 1, #start.trials.trial[i].trialstep, 1 do
-			--var-val pairs for each trialstep
-			if #start.trials.trial[i].trialstep[j].validforvarvalpairs > 1 then
-				for ii = 1, #start.trials.trial[i].trialstep[j].validforvarvalpairs, 2 do
-					table.insert(start.trials.trial[i].trialstep[j].validforvar,start.trials.trial[i].trialstep[j].validforvarvalpairs[ii])
-					table.insert(start.trials.trial[i].trialstep[j].validforval,start.trials.trial[i].trialstep[j].validforvarvalpairss[ii+1])
-				end
-			end
-
 			local movelistline = start.trials.trial[i].trialstep[j].glyphs
 			for kk, v in main.f_sortKeys(motif.glyphs, function(t, a, b) return string.len(a) > string.len(b) end) do
 				movelistline = movelistline:gsub(main.f_escapePattern(kk), '<' .. numberToRune(v[1] + 0xe000) .. '>')
@@ -1239,12 +1234,16 @@ function start.f_trialsChecker()
 		maincharcheck = (stateno() == start.trials.trial[ct].trialstep[cts].stateno[ctms] and not(start.trials.trial[ct].trialstep[cts].isproj[ctms]) and not(start.trials.trial[ct].trialstep[cts].ishelper[ctms]) and (anim() == start.trials.trial[ct].trialstep[cts].animno[ctms] or start.trials.trial[ct].trialstep[cts].animno[ctms] == nil) and ((hitpausetime() > 1 and movehit() and combocount() > start.trials.combocounter) or start.trials.trial[ct].trialstep[cts].isthrow[ctms] or start.trials.trial[ct].trialstep[cts].hitcount[ctms] == 0))
 		
 		--Check val-var pairs if specified
-		if start.trials.trial[ct].trialstep[cts].validforvarvalpairs ~= nil and maincharcheck then
+		if start.trials.trial[ct].trialstep[cts].validforvar ~= nil and maincharcheck then
 			for i = 1, #start.trials.trial[ct].trialstep[cts].validforvar, 1 do
 				if maincharcheck then
 					maincharcheck = var(start.trials.trial[ct].trialstep[cts].validforvar[i]) == start.trials.trial[ct].trialstep[cts].validforval[i]
 				end
 			end
+		end
+
+		if start.trials.validfortickcount > 0 then
+			start.trials.validfortickcount = start.trials.validfortickcount - 1
 		end
 		
 		if maincharcheck or projcheck or helpercheck then
@@ -1265,14 +1264,19 @@ function start.f_trialsChecker()
 				if nctms >= 1 and ((combocount() > 0 and (start.trials.trial[ct].trialstep[cts].iscounterhit[ctms] and movecountered() > 0) or not start.trials.trial[ct].trialstep[cts].iscounterhit[ctms]) or start.trials.trial[ct].trialstep[cts].hitcount[ctms] == 0) then
 					if nctms >= 1 and ((start.trials.trial[ct].trialstep[cts].hitcount[ctms] > 1 and combocount() == start.trials.trial[ct].trialstep[cts].stephitscount[ctms] + start.trials.trial[ct].trialstep[cts].combocountonstep[ctms] - 1) or start.trials.trial[ct].trialstep[cts].hitcount[ctms] == 1 or start.trials.trial[ct].trialstep[cts].hitcount[ctms] == 0) then
 						start.trials.currenttrialmicrostep = nctms
-						start.trials.pauseuntilnexthit = start.trials.trial[ct].trialstep[cts].validuntilnexthit[ctms]
+						if start.trials.trial[ct].trialstep[cts].validfortickcount[ctms] ~= nil then
+							start.trials.validfortickcount = start.trials.trial[ct].trialstep[cts].validfortickcount[ctms]
+						else
+							start.trials.validfortickcount = 0
+						end
 						start.trials.combocounter = combocount()
-					elseif ((combocount() == 0 and start.trials.trial[ct].trialstep[cts].hitcount[ctms] ~= 0) and not start.trials.pauseuntilnexthit) or (start.trials.pauseuntilnexthit and combocount() > start.trials.combocounter) then
+					elseif ((combocount() == 0 and start.trials.trial[ct].trialstep[cts].hitcount[ctms] ~= 0) and start.trials.validfortickcount == 0) or (start.trials.validfortickcount > 0 and combocount() > start.trials.combocounter) then
 						start.trials.currenttrialstep = 1
 						start.trials.currenttrialmicrostep = 1
 						start.trials.trial[ct].trialstep[cts].stephitscount[ctms] = 0
 						start.trials.trial[ct].trialstep[cts].combocountonstep[ctms] = 0
 						start.trials.combocounter = 0
+						start.trials.validfortickcount = 0
 					end
 				end
 				-- Next, if microstep is exceeded, go to next trial step
@@ -1284,7 +1288,11 @@ function start.f_trialsChecker()
 					else
 						start.trials.combocounter = combocount()
 					end	
-					start.trials.pauseuntilnexthit = start.trials.trial[ct].trialstep[cts].validuntilnexthit[ctms]
+					if start.trials.trial[ct].trialstep[cts].validfortickcount[ctms] ~= nil then
+						start.trials.validfortickcount = start.trials.trial[ct].trialstep[cts].validfortickcount[ctms]
+					else
+						start.trials.validfortickcount = 0
+					end
 					if start.trials.currenttrialstep > #start.trials.trial[ct].trialstep then
 						-- If trial step was last, go to next trial and display success banner
 						if start.trials.trialadvancement then
@@ -1307,13 +1315,13 @@ function start.f_trialsChecker()
 					end
 				end
 			end
-		elseif ((combocount() == 0 and start.trials.trial[ct].trialstep[cts].hitcount[ctms] ~= 0) and not start.trials.pauseuntilnexthit) or (start.trials.pauseuntilnexthit and combocount() > start.trials.combocounter) then
+		elseif ((combocount() == 0 and start.trials.trial[ct].trialstep[cts].hitcount[ctms] ~= 0) and start.trials.validfortickcount == 0) or (start.trials.validfortickcount > 0 and combocount() > start.trials.combocounter) then
 			start.trials.currenttrialstep = 1
 			start.trials.currenttrialmicrostep = 1
 			start.trials.combocounter = 0
 			start.trials.trial[ct].trialstep[cts].stephitscount[ctms] = 0
 			start.trials.trial[ct].trialstep[cts].combocountonstep[ctms] = 0
-			start.trials.pauseuntilnexthit = false
+			start.trials.validfortickcount = 0
 		end
 	end
 	--If the trial was completed successfully, draw the trials success
@@ -1627,8 +1635,7 @@ for row = 1, #main.t_selChars, 1 do
 					ishelper = {},
 					isproj = {},
 					iscounterhit = {},
-					validuntilnexthit = {},
-					validforvarvalpairs = {nil},
+					validfortickcount = {},
 					validforvar = {},
 					validforval = {},
 					glyphline = {
@@ -1699,7 +1706,9 @@ for row = 1, #main.t_selChars, 1 do
 					trial[i].trialstep[j].ishelper[k] = false
 					trial[i].trialstep[j].isproj[k] = false
 					trial[i].trialstep[j].iscounterhit[k] = false
-					trial[i].trialstep[j].validuntilnexthit[k] = false
+					trial[i].trialstep[j].validforval[k] = nil
+					trial[i].trialstep[j].validforvar[k] = nil
+					trial[i].trialstep[j].validfortickcount[k] = nil
 				end
 			elseif lcline:find("trialstep." .. j .. ".animno") then
 				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
@@ -1725,9 +1734,17 @@ for row = 1, #main.t_selChars, 1 do
 				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
 					trial[i].trialstep[j].isproj = f_strtoboolean(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
 				end
-			elseif lcline:find("trialstep." .. j .. ".validuntilnexthit") then
+			elseif lcline:find("trialstep." .. j .. ".validforvarvalpairs") then
 				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].validuntilnexthit = f_strtoboolean(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+					local varvalpairs = f_strtonumber(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+					for ii = 1, #varvalpairs, 2 do
+						trial[i].trialstep[j].validforvar[ii] = varvalpairs[ii]
+						trial[i].trialstep[j].validforval[ii] = varvalpairs[ii+1]
+					end
+				end
+			elseif lcline:find("trialstep." .. j .. ".validfortickcount") then
+				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
+					trial[i].trialstep[j].validfortickcount = f_strtonumber(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
 				end
 			end
 		end
