@@ -46,7 +46,7 @@ for pn = 1; 2; 1 {
 [Function TrialsReposition()]
 Camera{view: free; pos:0,0;}
 for pn = 1; 2; 1 {
-	if player($pn), map(_iksys_trialsPosX) != 0 {PosSet{x:player($pn), map(_iksys_trialsPosX); redirectID: player($pn),id;}}
+	if player($pn), map(_iksys_trialsPosX) != 0 {PosSet{x:player($pn), map(_iksys_trialsPosX); y:player($pn), map(_iksys_trialsPosY); redirectID: player($pn),id;}}
 }
 
 [Function TrialsResetCamera()]
