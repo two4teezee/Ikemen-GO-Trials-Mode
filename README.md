@@ -435,15 +435,15 @@ trial.dummybuttonjam = none
 
 trialstep.1.text = Strong Kung Fu Palm
 trialstep.1.glyphs = _QDF^Y
-; trialstep.1.validforvarvalpairs = 
-
 trialstep.1.stateno = 1010
+
 ; trialstep.1.animno =
 ; trialstep.1.hitcount =
 ; trialstep.1.isthrow =
 ; trialstep.1.iscounterhit =
 ; trialstep.1.ishelper =
 ; trialstep.1.isproj =
+; trialstep.1.validforvarvalpairs = 
 ; trialstep.1.validfortickcount = 
 
 ; TrialDef Parameter Descriptions
@@ -459,15 +459,15 @@ trialstep.1.stateno = 1010
 
 ; trialstep.X.text - optional - (string). Text for trial step (only displayed in vertical trials layout).
 ; trialstep.X.glyphs - optional - (string, see Glyph documentation [https://github.com/ikemen-engine/Ikemen-GO/wiki/Miscellaneous-info#movelists] for syntax). Same syntax as movelist glyphs. Glyphs are displayed in vertical and horizontal trials layouts.
-; trialstep.X.validforvarvalpairs - optional - (comma-separated integers, specified in pairs, can specify 0..n pairs). Sister functionality to "showforvarvalpairs". These variable-value pairs are used to optionally check a trial step. Useful if you are forcing the trial step to be completed when certain var-val pairs are met (for instance, while in a custom combo state). Variable-value pairs are considered valid for entire trial step (regardless if the trial step is specified using condensed terminology).
-
 ; trialstep.X.stateno - mandatory - (integer or comma-separated integers). State to be checked to pass trial. This is the state whether it's the main character, a helper, or even a projectile.
+
 ; trialstep.X.animno - optional - (integer or comma-separated integers). Identifies animno to be checked to pass trial. Useful in certain cases.
 ; trialstep.X.hitcount - optional - (integer or comma-separated integers), will default to 1 if not defined. In some instances, you might want to specify a trial step to meet a hit count criteria before proceeding to the next trial step. Useful for multi-hit moves, or for moves that don't hit (e.g. taunts).
 ; trialstep.X.isthrow - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step is a throw. Should be 'true' is trial step is a throw.
 ; trialstep.X.iscounterhit - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step should be a counter hit. Typically does not work with helpers or projectiles.
 ; trialstep.X.ishelper - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step is a helper. Should be 'true' is trial step is a hit from a helper.
 ; trialstep.X.isproj - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step is a projectile. Should be 'true' is trial step is a hit from a projectile.
+; trialstep.X.validforvarvalpairs - optional - (comma-separated integers, specified in pairs, can specify 0..n pairs). Sister functionality to "showforvarvalpairs". These variable-value pairs are used to optionally check a trial step. Useful if you are forcing the trial step to be completed when certain var-val pairs are met (for instance, while in a custom combo state). Variable-value pairs are considered valid for entire trial step (regardless if the trial step is specified using condensed terminology).
 ; trialstep.X.validfortickcount - optional (integer, or comma-separate integers), will default to nil if not defined. Makes the trials checking logic pause until the next hit is registered for the tickcount specified.
 
 ;---------------------------------------------
