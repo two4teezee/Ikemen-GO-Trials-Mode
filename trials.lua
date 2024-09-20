@@ -1228,10 +1228,6 @@ function start.f_trialsChecker()
 			-- print("Anim: " .. attackeranim)
 		end
 
-		if start.trials.trial[ct].trialstep[cts].numofhits[ctms] == 0 then
-			start.trials.trial[ct].trialstep[cts].isnohit[ctms] = true
-		end
-
 		if (start.trials.trial[ct].trialstep[cts].ishelper[ctms] and start.trials.trial[ct].trialstep[cts].stateno[ctms] == attackerstate) and (attackeranim == start.trials.trial[ct].trialstep[cts].animno[ctms] or start.trials.trial[ct].trialstep[cts].animno[ctms] == nil) then
 			helpercheck = true
 		end
@@ -1240,7 +1236,7 @@ function start.f_trialsChecker()
 			projcheck = true
 		end
 
-		maincharcheck = (stateno() == start.trials.trial[ct].trialstep[cts].stateno[ctms] and not(start.trials.trial[ct].trialstep[cts].isproj[ctms]) and not(start.trials.trial[ct].trialstep[cts].ishelper[ctms]) and (anim() == start.trials.trial[ct].trialstep[cts].animno[ctms] or start.trials.trial[ct].trialstep[cts].animno[ctms] == nil) and ((hitpausetime() > 1 and movehit() and combocount() > start.trials.combocounter) or start.trials.trial[ct].trialstep[cts].isthrow[ctms] or start.trials.trial[ct].trialstep[cts].isnohit[ctms]))
+		maincharcheck = (stateno() == start.trials.trial[ct].trialstep[cts].stateno[ctms] and not(start.trials.trial[ct].trialstep[cts].isproj[ctms]) and not(start.trials.trial[ct].trialstep[cts].ishelper[ctms]) and (anim() == start.trials.trial[ct].trialstep[cts].animno[ctms] or start.trials.trial[ct].trialstep[cts].animno[ctms] == nil) and ((hitpausetime() > 1 and movehit() and combocount() > start.trials.combocounter) or start.trials.trial[ct].trialstep[cts].isthrow[ctms] or start.trials.trial[ct].trialstep[cts].hitcount[ctms] == 0))
 		
 		--Check val-var pairs if specified
 		if start.trials.trial[ct].trialstep[cts].validforvarvalpairs ~= nil and maincharcheck then
@@ -1252,27 +1248,26 @@ function start.f_trialsChecker()
 		end
 		
 		if maincharcheck or projcheck or helpercheck then
-			if start.trials.trial[ct].trialstep[cts].numofhits[ctms] >= 1 then
+			if start.trials.trial[ct].trialstep[cts].hitcount[ctms] >= 1 then
 				if start.trials.trial[ct].trialstep[cts].stephitscount[ctms] == 0 then
 					start.trials.trial[ct].trialstep[cts].combocountonstep[ctms] = combocount()
 				end
 				if combocount() - start.trials.trial[ct].trialstep[cts].stephitscount[ctms] == start.trials.trial[ct].trialstep[cts].combocountonstep[ctms] then
 					start.trials.trial[ct].trialstep[cts].stephitscount[ctms] = start.trials.trial[ct].trialstep[cts].stephitscount[ctms] + 1
 				end
-			elseif start.trials.trial[ct].trialstep[cts].numofhits[ctms] == 0 then
-				start.trials.trial[ct].trialstep[cts].isnohit[ctms] = true
+			elseif start.trials.trial[ct].trialstep[cts].hitcount[ctms] == 0 then
 				start.trials.trial[ct].trialstep[cts].stephitscount[ctms] = 0
 			end
 
-			if start.trials.trial[ct].trialstep[cts].numofhits[ctms] == start.trials.trial[ct].trialstep[cts].stephitscount[ctms] then
+			if start.trials.trial[ct].trialstep[cts].hitcount[ctms] == start.trials.trial[ct].trialstep[cts].stephitscount[ctms] then
 				nctms = ctms + 1
 				-- First, check that the microstep has passed
-				if nctms >= 1 and ((combocount() > 0 and (start.trials.trial[ct].trialstep[cts].iscounterhit[ctms] and movecountered() > 0) or not start.trials.trial[ct].trialstep[cts].iscounterhit[ctms]) or start.trials.trial[ct].trialstep[cts].isnohit[ctms]) then
-					if nctms >= 1 and ((start.trials.trial[ct].trialstep[cts].numofhits[ctms] > 1 and combocount() == start.trials.trial[ct].trialstep[cts].stephitscount[ctms] + start.trials.trial[ct].trialstep[cts].combocountonstep[ctms] - 1) or start.trials.trial[ct].trialstep[cts].numofhits[ctms] == 1 or start.trials.trial[ct].trialstep[cts].isnohit[ctms]) then
+				if nctms >= 1 and ((combocount() > 0 and (start.trials.trial[ct].trialstep[cts].iscounterhit[ctms] and movecountered() > 0) or not start.trials.trial[ct].trialstep[cts].iscounterhit[ctms]) or start.trials.trial[ct].trialstep[cts].hitcount[ctms] == 0) then
+					if nctms >= 1 and ((start.trials.trial[ct].trialstep[cts].hitcount[ctms] > 1 and combocount() == start.trials.trial[ct].trialstep[cts].stephitscount[ctms] + start.trials.trial[ct].trialstep[cts].combocountonstep[ctms] - 1) or start.trials.trial[ct].trialstep[cts].hitcount[ctms] == 1 or start.trials.trial[ct].trialstep[cts].hitcount[ctms] == 0) then
 						start.trials.currenttrialmicrostep = nctms
 						start.trials.pauseuntilnexthit = start.trials.trial[ct].trialstep[cts].validuntilnexthit[ctms]
 						start.trials.combocounter = combocount()
-					elseif ((combocount() == 0 and not start.trials.trial[ct].trialstep[cts].isnohit[ctms]) and not start.trials.pauseuntilnexthit) or (start.trials.pauseuntilnexthit and combocount() > start.trials.combocounter) then
+					elseif ((combocount() == 0 and start.trials.trial[ct].trialstep[cts].hitcount[ctms] ~= 0) and not start.trials.pauseuntilnexthit) or (start.trials.pauseuntilnexthit and combocount() > start.trials.combocounter) then
 						start.trials.currenttrialstep = 1
 						start.trials.currenttrialmicrostep = 1
 						start.trials.trial[ct].trialstep[cts].stephitscount[ctms] = 0
@@ -1284,7 +1279,7 @@ function start.f_trialsChecker()
 				if start.trials.currenttrialmicrostep > start.trials.trial[ct].trialstep[cts].numofmicrosteps then
 					start.trials.currenttrialmicrostep = 1
 					start.trials.currenttrialstep = cts + 1
-					if not start.trials.trial[ct].trialstep[cts].isnohit[ctms] and combocount() == 0 and combocount() == start.trials.combocounter then
+					if start.trials.trial[ct].trialstep[cts].hitcount[ctms] ~= 0 and combocount() == 0 and combocount() == start.trials.combocounter then
 						start.trials.combocounter = start.trials.combocounter + 1
 					else
 						start.trials.combocounter = combocount()
@@ -1312,7 +1307,7 @@ function start.f_trialsChecker()
 					end
 				end
 			end
-		elseif ((combocount() == 0 and not start.trials.trial[ct].trialstep[cts].isnohit[ctms]) and not start.trials.pauseuntilnexthit) or (start.trials.pauseuntilnexthit and combocount() > start.trials.combocounter) then
+		elseif ((combocount() == 0 and start.trials.trial[ct].trialstep[cts].hitcount[ctms] ~= 0) and not start.trials.pauseuntilnexthit) or (start.trials.pauseuntilnexthit and combocount() > start.trials.combocounter) then
 			start.trials.currenttrialstep = 1
 			start.trials.currenttrialmicrostep = 1
 			start.trials.combocounter = 0
@@ -1625,11 +1620,10 @@ for row = 1, #main.t_selChars, 1 do
 					glyphs = "",
 					stateno = {},
 					animno = {},
-					numofhits = {},
+					hitcount = {},
 					stephitscount = {},
 					combocountonstep = {},
 					isthrow = {},
-					isnohit = {},
 					ishelper = {},
 					isproj = {},
 					iscounterhit = {},
@@ -1700,29 +1694,24 @@ for row = 1, #main.t_selChars, 1 do
 				for k = 1, trial[i].trialstep[j].numofmicrosteps, 1 do
 					trial[i].trialstep[j].stephitscount[k] = 0
 					trial[i].trialstep[j].combocountonstep[k] = 0
-					trial[i].trialstep[j].numofhits[k] = 1
+					trial[i].trialstep[j].hitcount[k] = 1
 					trial[i].trialstep[j].isthrow[k] = false
-					trial[i].trialstep[j].isnohit[k] = false
 					trial[i].trialstep[j].ishelper[k] = false
 					trial[i].trialstep[j].isproj[k] = false
 					trial[i].trialstep[j].iscounterhit[k] = false
 					trial[i].trialstep[j].validuntilnexthit[k] = false
 				end
-			elseif lcline:find("trialstep." .. j .. ".anim") then
+			elseif lcline:find("trialstep." .. j .. ".animno") then
 				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].anim = f_strtonumber(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+					trial[i].trialstep[j].animno = f_strtonumber(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
 				end
-			elseif lcline:find("trialstep." .. j .. ".numofhits") then
+			elseif lcline:find("trialstep." .. j .. ".hitcount") then
 				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].numofhits = f_strtonumber(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+					trial[i].trialstep[j].hitcount = f_strtonumber(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
 				end
 			elseif lcline:find("trialstep." .. j .. ".isthrow") then
 				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
 					trial[i].trialstep[j].isthrow = f_strtoboolean(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
-				end
-			elseif lcline:find("trialstep." .. j .. ".isnohit") then
-				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].isnohit = f_strtoboolean(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
 				end
 			elseif lcline:find("trialstep." .. j .. ".iscounterhit") then
 				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
