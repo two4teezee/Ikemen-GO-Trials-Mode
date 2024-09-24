@@ -1499,13 +1499,28 @@ menu.t_valuename.trialslayout = {
 	{itemname = "Horizontal", displayname = motif.trials_info.menu_valuename_trialslayout_horizontal}
 }
 menu.t_itemname['trialslist'] = function(t, item, cursorPosY, moveTxt, section)
-	if menu.f_valueChanged(t.items[item], motif[section]) then
-		start.trials.currenttrial = menu.trialslist
-		start.trials.trial[start.trials.currenttrial].complete = false
-		start.trials.trial[start.trials.currenttrial].active = false
-		start.trials.active = false
-		start.trials.displaytimers.totaltimer = false
-		start.trials.trial[start.trials.currenttrial].starttick = tickcount()
+	-- if menu.f_valueChanged(t.items[item], motif[section]) then
+	-- 	start.trials.currenttrial = menu.trialslist
+	-- 	start.trials.trial[start.trials.currenttrial].complete = false
+	-- 	start.trials.trial[start.trials.currenttrial].active = false
+	-- 	start.trials.active = false
+	-- 	start.trials.displaytimers.totaltimer = false
+	-- 	start.trials.trial[start.trials.currenttrial].starttick = tickcount()
+	-- end
+	if main.f_input(main.t_players, {'$F', '$B', 'pal', 's'}) then
+		sndPlay(motif.files.snd_data, motif.trials_info.cursor_move_snd[1], motif.trials_info.cursor_move_snd[2])
+		-- if #options.t_shaders == 0 then
+		-- 	main.f_warning(main.f_extractText(motif.warning_info.text_shaders_text), motif.optionbgdef)
+		-- 	return true
+		-- end
+		for k, v in ipairs(t.submenu[t.items[item].itemname].items) do
+			if start.trials.name == v.itemname then
+				start.trials.currenttrial = menu.trialslist
+			end
+		end
+		t.submenu[t.items[item].itemname].loop()
+		t.items[item].vardisplay = f_externalShaderName()
+
 	end
 	return true
 end

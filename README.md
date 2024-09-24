@@ -68,7 +68,6 @@ selscreenpalfx.mul = 100, 100, 100
 ; fadeout.col = {0, 0, 0}
 ; fadeout.anim = -1
 
-
 ; TRIALSTEPS OPTIONS -------------------------------------------------------
 ; TRIALSTEPS options can be specified for both vertical and horizontal layouts simultaneously.
 ; trialsteps.<layout>.pos: local origin from which trial steps are drawn. Other elements have their own origin specifications.
@@ -95,14 +94,16 @@ trialtitle.vertical.text.font = 2,0,1, 255, 200, 100
 ; trialtitle.vertical.text.scale = 
 ; trialtitle.vertical.text.font.height =
 ; trialtitle.vertical.bg.offset = 
+; trialtitle.vertical.bg.spr = 
 ; trialtitle.vertical.bg.anim = 
 ; trialtitle.vertical.bg.scale = 
-; trialtitle.vertical.bg.spr = 
+; trialtitle.vertical.bg.facing = 
 ; trialtitle.vertical.bg.displaytime = 
 ; trialtitle.vertical.front.offset = 
+; trialtitle.vertical.front.spr = 
 ; trialtitle.vertical.front.anim = 
 ; trialtitle.vertical.front.scale = 
-; trialtitle.vertical.front.spr = 
+; trialtitle.vertical.front.facing = 
 ; trialtitle.vertical.front.displaytime = 
 ; TRIALTITLE HORIZONTAL ----------------------------------------------------
 trialtitle.horizontal.pos = 140,140
@@ -112,14 +113,16 @@ trialtitle.horizontal.text.font = 2,0,1, 255, 200, 100
 ; trialtitle.horizontal.text.scale = 
 ; trialtitle.horizontal.text.font.height =
 ; trialtitle.horizontal.bg.offset =
+; trialtitle.horizontal.bg.spr = 
 ; trialtitle.horizontal.bg.anim =
 ; trialtitle.horizontal.bg.scale = 
-; trialtitle.horizontal.bg.spr = 
+; trialtitle.horizontal.bg.facing = 
 ; trialtitle.horizontal.bg.displaytime = 
 ; trialtitle.horizontal.front.offset = 
+; trialtitle.horizontal.front.spr = 
 ; trialtitle.horizontal.front.anim = 
 ; trialtitle.horizontal.front.scale = 
-; trialtitle.horizontal.front.spr = 
+; trialtitle.horizontal.front.facing = 
 ; trialtitle.horizontal.front.displaytime = 
 
 ; UPCOMINGSTEP -------------------------------------------------------------
