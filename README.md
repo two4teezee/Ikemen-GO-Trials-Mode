@@ -308,15 +308,19 @@ glyphs.horizontal.spacing = 0,0
 ; BG VERTICAL --------------------------------------------------------------
 ; bg.vertical.layerno = 
 ; bg.vertical.offset = 
+; bg.vertical.spr = 
 ; bg.vertical.anim = 
 ; bg.vertical.scale = 
-; bg.vertical.spr = 
+; bg.vertical.facing =
+; bg.vertical.displaytime =
 ; BG HORIZONTAL ------------------------------------------------------------
 ; bg.horizontal.layerno = 
 ; bg.horizontal.offset = 
+; bg.horizontal.spr = 
 ; bg.horizontal.anim = 
 ; bg.horizontal.scale = 
-; bg.horizontal.spr = 
+; bg.horizontal.facing =
+; bg.horizontal.displaytime =
 
 ; TRIALS COUNTER AND TIMERS ------------------------------------------------
 ; trialcounter shows the current trial number
