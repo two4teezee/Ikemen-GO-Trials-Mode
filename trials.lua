@@ -1014,10 +1014,10 @@ function start.f_trialsDrawer()
 			animDraw(motif.trials_mode['trialsteps_' .. layout .. '_bg_data'])
 
 			-- Draw trial title
-			start.trials.draw[layout].trialtitle_text:update({text = start.trials.trial[ct].name})
-			start.trials.draw[layout].trialtitle_text:draw()
 			animUpdate(motif.trials_mode['trialtitle_' .. layout .. '_bg_data'])
 			animDraw(motif.trials_mode['trialtitle_' .. layout .. '_bg_data'])
+			start.trials.draw[layout].trialtitle_text:update({text = start.trials.trial[ct].name})
+			start.trials.draw[layout].trialtitle_text:draw()
 			animUpdate(motif.trials_mode['trialtitle_' .. layout .. '_front_data'])
 			animDraw(motif.trials_mode['trialtitle_' .. layout .. '_front_data'])
 
@@ -1377,9 +1377,9 @@ function start.f_trialsSuccess(successstring, index)
 	end
 	animUpdate(motif.trials_mode[successstring .. '_bg_data'])
 	animDraw(motif.trials_mode[successstring .. '_bg_data'])
+	start.trials.draw[successstring .. '_text']:draw()
 	animUpdate(motif.trials_mode[successstring .. '_front_data'])
 	animDraw(motif.trials_mode[successstring .. '_front_data'])
-	start.trials.draw[successstring .. '_text']:draw()
 	start.trials.draw[successstring] = start.trials.draw[successstring] - 1
 	start.trials.trial[index].complete = true
 	start.trials.trial[index].active = false
