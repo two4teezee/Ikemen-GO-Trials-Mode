@@ -135,6 +135,18 @@ local t_base = {
     trialsteps_horizontal_spacing = {0, 0},
 	trialsteps_horizontal_padding = 0,
     trialsteps_horizontal_window = {0,0,0,0},
+	trialsteps_vertical_bg_anim = -1,
+    trialsteps_vertical_bg_spr = {},
+    trialsteps_vertical_bg_offset = {0, 0},
+    trialsteps_vertical_bg_facing = 1,
+    trialsteps_vertical_bg_scale = {1.0, 1.0},
+    trialsteps_vertical_bg_displaytime = 0,
+	trialsteps_horizontal_bg_anim = -1,
+    trialsteps_horizontal_bg_spr = {},
+    trialsteps_horizontal_bg_offset = {0, 0},
+    trialsteps_horizontal_bg_facing = 1,
+    trialsteps_horizontal_bg_scale = {1.0, 1.0},
+    trialsteps_horizontal_bg_displaytime = 0,
 	selscreenpalfx_add = {},
 	selscreenpalfx_mul = {},
 	selscreenpalfx_sinadd = {},
@@ -146,18 +158,6 @@ local t_base = {
 	fadeout_time = 40, --Ikemen feature
 	fadeout_col = {0, 0, 0}, --Ikemen feature
 	fadeout_anim = -1, --Ikemen feature
-    bg_vertical_anim = -1,
-    bg_vertical_spr = {},
-    bg_vertical_offset = {0, 0},
-    bg_vertical_facing = 1,
-    bg_vertical_scale = {1.0, 1.0},
-    bg_vertical_displaytime = 0,
-	bg_horizontal_anim = -1,
-    bg_horizontal_spr = {},
-    bg_horizontal_offset = {0, 0},
-    bg_horizontal_facing = 1,
-    bg_horizontal_scale = {1.0, 1.0},
-    bg_horizontal_displaytime = 0,
 	trialtitle_vertical_pos = {0,0},
 	trialtitle_vertical_text_offset = {0,0},
     trialtitle_vertical_text_font = {},
@@ -573,8 +573,8 @@ motif.trialsbgdef.bg = bgNew(motif.trialsbgdef.spr_data, motif.def, 'trialsbg')
 --trials spr/anim data
 local tr_pos = motif.trials_mode
 for _, v in ipairs({
-	{s = 'bg_vertical_',						x = tr_pos.trialsteps_vertical_pos[1] + tr_pos.bg_vertical_offset[1],					y = tr_pos.trialsteps_vertical_pos[2] + tr_pos.bg_vertical_offset[2],					},
-	{s = 'bg_horizontal_',						x = tr_pos.trialsteps_horizontal_pos[1] + tr_pos.bg_horizontal_offset[1],				y = tr_pos.trialsteps_horizontal_pos[2] + tr_pos.bg_horizontal_offset[2],				},
+	{s = 'trialsteps_vertical_bg_',				x = tr_pos.trialsteps_vertical_pos[1] + tr_pos.trialsteps_vertical_bg_offset[1],		y = tr_pos.trialsteps_vertical_pos[2] + tr_pos.trialsteps_vertical_bg_offset[2],		},
+	{s = 'trialsteps_horizontal_bg_',			x = tr_pos.trialsteps_horizontal_pos[1] + tr_pos.trialsteps_horizontal_bg_offset[1],	y = tr_pos.trialsteps_horizontal_pos[2] + tr_pos.trialsteps_horizontal_bg_offset[2],	},
 	{s = 'success_bg_',    						x = tr_pos.success_pos[1] + tr_pos.success_bg_offset[1],								y = tr_pos.success_pos[2] + tr_pos.success_bg_offset[2],								},
 	{s = 'allclear_bg_',	   					x = tr_pos.allclear_pos[1] + tr_pos.allclear_bg_offset[1],								y = tr_pos.allclear_pos[2] + tr_pos.allclear_bg_offset[2],								},
 	{s = 'success_front_',  	  				x = tr_pos.success_pos[1] + tr_pos.success_front_offset[1],								y = tr_pos.success_pos[2] + tr_pos.success_front_offset[2],								},
@@ -988,10 +988,17 @@ function start.f_trialsDrawer()
 				--start.trials.draw.currenttrialtimer:draw()
 			end
 
-			start.trials.draw[layout].trialtitle_text:update({text = start.trials.trial[ct].name})
-			start.trials.draw[layout].trialtitle_text:draw()
+			-- Draw trialstep background
+			animUpdate(motif.trials_mode['trialsteps_' .. layout .. '_bg_data'])
+			animDraw(motif.trials_mode['trialsteps_' .. layout .. '_bg_data'])
+			animUpdate(motif.trials_mode['trialsteps_' .. layout .. '_bg_data'])
+			animDraw(motif.trials_mode['trialsteps_' .. layout .. '_bg_data'])
+
+			-- Draw trial title
 			animUpdate(motif.trials_mode['trialtitle_' .. layout .. '_bg_data'])
 			animDraw(motif.trials_mode['trialtitle_' .. layout .. '_bg_data'])
+			start.trials.draw[layout].trialtitle_text:update({text = start.trials.trial[ct].name})
+			start.trials.draw[layout].trialtitle_text:draw()
 			animUpdate(motif.trials_mode['trialtitle_' .. layout .. '_front_data'])
 			animDraw(motif.trials_mode['trialtitle_' .. layout .. '_front_data'])
 
@@ -1351,9 +1358,9 @@ function start.f_trialsSuccess(successstring, index)
 	end
 	animUpdate(motif.trials_mode[successstring .. '_bg_data'])
 	animDraw(motif.trials_mode[successstring .. '_bg_data'])
+	start.trials.draw[successstring .. '_text']:draw()
 	animUpdate(motif.trials_mode[successstring .. '_front_data'])
 	animDraw(motif.trials_mode[successstring .. '_front_data'])
-	start.trials.draw[successstring .. '_text']:draw()
 	start.trials.draw[successstring] = start.trials.draw[successstring] - 1
 	start.trials.trial[index].complete = true
 	start.trials.trial[index].active = false
