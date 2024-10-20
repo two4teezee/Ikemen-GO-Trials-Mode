@@ -68,23 +68,6 @@ selscreenpalfx.mul = 100, 100, 100
 ; fadeout.col = {0, 0, 0}
 ; fadeout.anim = -1
 
-
-; TRIALSTEPS OPTIONS -------------------------------------------------------
-; TRIALSTEPS options can be specified for both vertical and horizontal layouts simultaneously.
-; trialsteps.<layout>.pos: local origin from which trial steps are drawn. Other elements have their own origin specifications.
-; trialsteps.<layout>.spacing: spacing between trial steps. For horizontal layout, the second argument determines the spacing between rows.
-; trialsteps.<layout>.window: X1,Y1,X2,Y2: display window for trials--will create automated scrolling or line returns, depending on the trial layout of choice
-; trialsteps.horizontal.padding: horizontal layouts only - padding between glyphs and edges of the background element along the x (horizontal) axis.
-; TRIALSTEPS VERTICAL ------------------------------------------------------
-trialsteps.vertical.pos = 140,150
-trialsteps.vertical.spacing = 0,25
-trialsteps.vertical.window = 100,175, 1180,550
-; TRIALSTEPS HORIZONTAL ----------------------------------------------------
-trialsteps.horizontal.pos = 140,175
-trialsteps.horizontal.spacing = 1,40
-trialsteps.horizontal.window = 100,175, 1180,550
-trialsteps.horizontal.padding = 10
-
 ; TRIALTITLE OPTIONS -------------------------------------------------------
 ; TRAILTITLE options can be specified for both vertical and horizontal layouts simultaneously.
 ; TRIALTITLE VERTICAL ------------------------------------------------------
@@ -95,14 +78,16 @@ trialtitle.vertical.text.font = 2,0,1, 255, 200, 100
 ; trialtitle.vertical.text.scale = 
 ; trialtitle.vertical.text.font.height =
 ; trialtitle.vertical.bg.offset = 
+; trialtitle.vertical.bg.spr = 
 ; trialtitle.vertical.bg.anim = 
 ; trialtitle.vertical.bg.scale = 
-; trialtitle.vertical.bg.spr = 
+; trialtitle.vertical.bg.facing = 
 ; trialtitle.vertical.bg.displaytime = 
 ; trialtitle.vertical.front.offset = 
+; trialtitle.vertical.front.spr = 
 ; trialtitle.vertical.front.anim = 
 ; trialtitle.vertical.front.scale = 
-; trialtitle.vertical.front.spr = 
+; trialtitle.vertical.front.facing = 
 ; trialtitle.vertical.front.displaytime = 
 ; TRIALTITLE HORIZONTAL ----------------------------------------------------
 trialtitle.horizontal.pos = 140,140
@@ -112,15 +97,46 @@ trialtitle.horizontal.text.font = 2,0,1, 255, 200, 100
 ; trialtitle.horizontal.text.scale = 
 ; trialtitle.horizontal.text.font.height =
 ; trialtitle.horizontal.bg.offset =
+; trialtitle.horizontal.bg.spr = 
 ; trialtitle.horizontal.bg.anim =
 ; trialtitle.horizontal.bg.scale = 
-; trialtitle.horizontal.bg.spr = 
+; trialtitle.horizontal.bg.facing = 
 ; trialtitle.horizontal.bg.displaytime = 
 ; trialtitle.horizontal.front.offset = 
+; trialtitle.horizontal.front.spr = 
 ; trialtitle.horizontal.front.anim = 
 ; trialtitle.horizontal.front.scale = 
-; trialtitle.horizontal.front.spr = 
+; trialtitle.horizontal.front.facing = 
 ; trialtitle.horizontal.front.displaytime = 
+
+; TRIALSTEPS OPTIONS -------------------------------------------------------
+; TRIALSTEPS options can be specified for both vertical and horizontal layouts simultaneously.
+; trialsteps.<layout>.pos: local origin from which trial steps are drawn. Other elements have their own origin specifications.
+; trialsteps.<layout>.spacing: spacing between trial steps. For horizontal layout, the second argument determines the spacing between rows.
+; trialsteps.<layout>.window: X1,Y1,X2,Y2: display window for trials--will create automated scrolling or line returns, depending on the trial layout of choice
+; trialsteps.horizontal.padding: horizontal layouts only - padding between glyphs and edges of the background element along the x (horizontal) axis.
+; trialsteps.<layout>.bg. ...: optional background displayed behind all other trial step text, background elements, etc.
+; TRIALSTEPS VERTICAL ------------------------------------------------------
+trialsteps.vertical.pos = 140,150
+trialsteps.vertical.spacing = 0,25
+trialsteps.vertical.window = 100,175, 1180,550
+; trialsteps.vertical.bg.offset = 
+; trialsteps.vertical.bg.spr = 
+; trialsteps.vertical.bg.anim = 
+; trialsteps.vertical.bg.scale = 
+; trialsteps.vertical.bg.facing = 
+; trialsteps.vertical.bg.displaytime =   
+; TRIALSTEPS HORIZONTAL ----------------------------------------------------
+trialsteps.horizontal.pos = 140,175
+trialsteps.horizontal.spacing = 1,40
+trialsteps.horizontal.window = 100,175, 1180,550
+trialsteps.horizontal.padding = 10
+; trialsteps.horizontal.bg.offset = 
+; trialsteps.horizontal.bg.spr = 
+; trialsteps.horizontal.bg.anim = 
+; trialsteps.horizontal.bg.scale = 
+; trialsteps.horizontal.bg.facing = 
+; trialsteps.horizontal.bg.displaytime =  
 
 ; UPCOMINGSTEP -------------------------------------------------------------
 ; UPCOMINGSTEP options can be specified for both vertical and horizontal layouts simultaneously.
@@ -299,21 +315,6 @@ glyphs.vertical.scalewithtext = false
 glyphs.horizontal.offset = 0,-3
 glyphs.horizontal.scale = 0.4, 0.4
 glyphs.horizontal.spacing = 0,0
-
-; TRIAL BACKGROUND ---------------------------------------------------------
-; BG options can be specified for both vertical and horizontal layouts simultaneously.
-; BG VERTICAL --------------------------------------------------------------
-; bg.vertical.layerno = 
-; bg.vertical.offset = 
-; bg.vertical.anim = 
-; bg.vertical.scale = 
-; bg.vertical.spr = 
-; BG HORIZONTAL ------------------------------------------------------------
-; bg.horizontal.layerno = 
-; bg.horizontal.offset = 
-; bg.horizontal.anim = 
-; bg.horizontal.scale = 
-; bg.horizontal.spr = 
 
 ; TRIALS COUNTER AND TIMERS ------------------------------------------------
 ; trialcounter shows the current trial number
