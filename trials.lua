@@ -53,7 +53,7 @@ local function f_trimafterchar(line, char)
 	return line
 end
 
-local function f_strtoboolean(str)
+local function f_str2boolean(str)
 	-- converts a table of "true" and "false" strings to bool
     local bool = {}
 	for x = 1, #str, 1 do
@@ -66,7 +66,7 @@ local function f_strtoboolean(str)
     return bool
 end
 
-local function f_strtonumber(str)
+local function f_str2number(str)
 	-- converts a table of strings to numbers
     local array = {}
 	for x = 1, #str, 1 do
@@ -726,13 +726,20 @@ function start.f_trialsBuilder()
 	
 	-- thin out trials data according to showforvarvalpairs
 	for i = 1, #start.trials.trial, 1 do
-		if #start.trials.trial[i].showforvarvalpairs > 1 then
+		if #start.trials.trial[i].showforvar > 1 then
 			valvarcheck = true
-			for ii = 1, #start.trials.trial[i].showforvarvalpairs, 2 do
+			sumcheck = 0
+			for ii = 1, #start.trials.trial[i].showforvar, 1 do
 				player(1)
-				if var(start.trials.trial[i].showforvarvalpairs[ii]) ~= start.trials.trial[i].showforvarvalpairs[ii+1] then
-					valvarcheck = false
+				for iii = 1, #start.trials.trial[i].showforval, 1 do
+					if var(start.trials.trial[i].showforvar[ii]) == start.trials.trial[i].showforval[iii] then
+						sumcheck = sumcheck + 1
+					end
 				end
+			end
+			print(sumcheck)
+			if sumcheck > 0 then
+				valvarcheck = false
 			end
 			if not valvarcheck then
 				start.trials.trialsRemovalIndex[#start.trials.trialsRemovalIndex+1] = i
@@ -1620,7 +1627,6 @@ for row = 1, #main.t_selChars, 1 do
 		i = 0 --Trial number
 		j = 0 --TrialStep number
 		trial = {}
-
 		local trialsFile = io.open(main.t_selChars[row].trialsdef, "r")
 
 		for line in trialsFile:lines() do
@@ -1679,11 +1685,13 @@ for row = 1, #main.t_selChars, 1 do
 						buttonjam = "none",
 						active = false,
 						complete = false,
-						showforvarvalpairs = {nil},
+						showforvar = {nil},
+						showforval = {nil},
 						elapsedtime = 0,
 						starttick = tickcount()+1,
 						trialstep = {},
 					}
+					temp = {}
 					line = f_trimafterchar(line, ",")
 					if line == "" then
 						line = "Trial " .. tostring(i)
@@ -1697,13 +1705,17 @@ for row = 1, #main.t_selChars, 1 do
 			elseif lcline:find("dummybuttonjam") then
 				trial[i].buttonjam = f_trimafterchar(lcline, "=")
 			elseif lcline:find("showforvarvalpairs") then
-				trial[i].showforvarvalpairs = f_strtonumber(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+				temp = main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", ""))
+				for k = 1, #temp, 2 do
+					trial[i].showforvar = f_str2number(temp[k])
+					trial[i].showforval = f_str2number(main.f_strsplit('|', temp[k+1]))
+				end
 			elseif lcline:find("trialstep." .. j .. ".text") then
 				trial[i].trialstep[j].text = f_trimafterchar(line, "=")
 			elseif lcline:find("trialstep." .. j .. ".glyphs") then
 				trial[i].trialstep[j].glyphs = f_trimafterchar(line, "=")
 			elseif lcline:find("trialstep." .. j .. ".stateno") then
-				trial[i].trialstep[j].stateno = f_strtonumber(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+				trial[i].trialstep[j].stateno = f_str2number(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
 				trial[i].trialstep[j].numofmicrosteps = #trial[i].trialstep[j].stateno
 				for k = 1, trial[i].trialstep[j].numofmicrosteps, 1 do
 					trial[i].trialstep[j].stephitscount[k] = 0
@@ -1719,31 +1731,31 @@ for row = 1, #main.t_selChars, 1 do
 				end
 			elseif lcline:find("trialstep." .. j .. ".animno") then
 				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].animno = f_strtonumber(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+					trial[i].trialstep[j].animno = f_str2number(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
 				end
 			elseif lcline:find("trialstep." .. j .. ".hitcount") then
 				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].hitcount = f_strtonumber(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+					trial[i].trialstep[j].hitcount = f_str2number(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
 				end
 			elseif lcline:find("trialstep." .. j .. ".isthrow") then
 				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].isthrow = f_strtoboolean(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+					trial[i].trialstep[j].isthrow = f_str2boolean(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
 				end
 			elseif lcline:find("trialstep." .. j .. ".iscounterhit") then
 				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].iscounterhit = f_strtoboolean(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+					trial[i].trialstep[j].iscounterhit = f_str2boolean(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
 				end
 			elseif lcline:find("trialstep." .. j .. ".ishelper") then
 				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].ishelper = f_strtoboolean(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+					trial[i].trialstep[j].ishelper = f_str2boolean(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
 				end
 			elseif lcline:find("trialstep." .. j .. ".isproj") then
 				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].isproj = f_strtoboolean(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+					trial[i].trialstep[j].isproj = f_str2boolean(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
 				end
 			elseif lcline:find("trialstep." .. j .. ".validforvarvalpairs") then
 				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					local varvalpairs = f_strtonumber(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+					local varvalpairs = f_str2number(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
 					for ii = 1, #varvalpairs, 2 do
 						trial[i].trialstep[j].validforvar[ii] = varvalpairs[ii]
 						trial[i].trialstep[j].validforval[ii] = varvalpairs[ii+1]
@@ -1751,7 +1763,7 @@ for row = 1, #main.t_selChars, 1 do
 				end
 			elseif lcline:find("trialstep." .. j .. ".validfortickcount") then
 				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].validfortickcount = f_strtonumber(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+					trial[i].trialstep[j].validfortickcount = f_str2number(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
 				end
 			end
 		end
