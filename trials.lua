@@ -726,19 +726,24 @@ function start.f_trialsBuilder()
 	
 	-- thin out trials data according to showforvarvalpairs
 	for i = 1, #start.trials.trial, 1 do
-		if #start.trials.trial[i].showforvar > 1 then
+		if start.trials.trial[i].showforvar[1] ~= {nil} then
 			valvarcheck = true
 			sumcheck = 0
 			for ii = 1, #start.trials.trial[i].showforvar, 1 do
-				player(1)
-				for iii = 1, #start.trials.trial[i].showforval, 1 do
-					if var(start.trials.trial[i].showforvar[ii]) == start.trials.trial[i].showforval[iii] then
-						sumcheck = sumcheck + 1
+				if start.trials.trial[i].showforvar[ii][1] ~= nil then
+					player(1)
+					print('testing var = ' .. tostring(i) .. ', ' .. tostring(ii) .. ', ' .. tostring(start.trials.trial[i].showforvar[ii][1]))
+					for iii = 1, #start.trials.trial[i].showforval[ii], 1 do
+						print('numvals = ' .. tostring(#start.trials.trial[i].showforval[ii]))
+						print('testing val = ' .. tostring(start.trials.trial[i].showforval[ii][iii]))
+						if var(start.trials.trial[i].showforvar[ii]) == start.trials.trial[i].showforval[ii][iii] then
+							sumcheck = sumcheck + 1
+							print('got one')
+						end
 					end
 				end
 			end
-			print(sumcheck)
-			if sumcheck > 0 then
+			if sumcheck ~= #start.trials.trial[i].showforvar then
 				valvarcheck = false
 			end
 			if not valvarcheck then
@@ -1706,9 +1711,11 @@ for row = 1, #main.t_selChars, 1 do
 				trial[i].buttonjam = f_trimafterchar(lcline, "=")
 			elseif lcline:find("showforvarvalpairs") then
 				temp = main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", ""))
+				trial[i].showforvar = {}
+				trial[i].showforvar = {}
 				for k = 1, #temp, 2 do
-					trial[i].showforvar = f_str2number(temp[k])
-					trial[i].showforval = f_str2number(main.f_strsplit('|', temp[k+1]))
+					trial[i].showforvar[#trial[i].showforvar+1] = f_str2number(temp[k])
+					trial[i].showforval[#trial[i].showforval+1] = f_str2number(main.f_strsplit('|', temp[k+1]))
 				end
 			elseif lcline:find("trialstep." .. j .. ".text") then
 				trial[i].trialstep[j].text = f_trimafterchar(line, "=")
