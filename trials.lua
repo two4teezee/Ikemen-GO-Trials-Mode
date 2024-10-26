@@ -726,26 +726,24 @@ function start.f_trialsBuilder()
 	
 	-- thin out trials data according to showforvarvalpairs
 	for i = 1, #start.trials.trial, 1 do
-		if start.trials.trial[i].showforvar[1] ~= {nil} then
+		if start.trials.trial[i].showforvar[1] ~= nil then
 			valvarcheck = true
 			sumcheck = 0
+			-- check every var
 			for ii = 1, #start.trials.trial[i].showforvar, 1 do
-				if start.trials.trial[i].showforvar[ii][1] ~= nil then
-					player(1)
-					print('testing var = ' .. tostring(i) .. ', ' .. tostring(ii) .. ', ' .. tostring(start.trials.trial[i].showforvar[ii][1]))
-					for iii = 1, #start.trials.trial[i].showforval[ii], 1 do
-						print('numvals = ' .. tostring(#start.trials.trial[i].showforval[ii]))
-						print('testing val = ' .. tostring(start.trials.trial[i].showforval[ii][iii]))
-						if var(start.trials.trial[i].showforvar[ii]) == start.trials.trial[i].showforval[ii][iii] then
-							sumcheck = sumcheck + 1
-							print('got one')
-						end
+				player(1)
+				-- iterate over vals
+				for iii = 1, #start.trials.trial[i].showforval[ii], 1 do
+					if var(start.trials.trial[i].showforvar[ii]) == start.trials.trial[i].showforval[ii][iii] then
+						sumcheck = sumcheck + 1
 					end
 				end
 			end
+			-- for every var, there should have been one hit; if not, set valvarcheck to false
 			if sumcheck ~= #start.trials.trial[i].showforvar then
 				valvarcheck = false
 			end
+			-- remove trials that failed valvarcheck
 			if not valvarcheck then
 				start.trials.trialsRemovalIndex[#start.trials.trialsRemovalIndex+1] = i
 			end
@@ -805,10 +803,8 @@ function start.f_trialsBuilder()
 				--Some fonts won't give us the data we need to scale glyphs from, but sometimes that doesn't matter anyway
 				if layout == "vertical" and motif.trials_mode.currentstep_vertical_text_font[7] == nil and motif.trials_mode.glyphs_vertical_scalewithtext == "true" then
 					font_def = main.font_def[motif.trials_mode.currentstep_vertical_text_font[1] .. motif.trials_mode.currentstep_vertical_text_font_height]
-					print(font_def.Size[2])
 				elseif layout == "vertical" and motif.trials_mode.glyphs_vertical_scalewithtext == "true" then
 					font_def = main.font_def[motif.trials_mode.currentstep_vertical_text_font[1] .. motif.trials_mode.currentstep_vertical_text_font[7]]
-					print(font_def.Size[2])
 				end
 				for m in pairs(start.trials.trial[i].trialstep[j].glyphline[layout].glyph) do
 					if motif.glyphs_data[start.trials.trial[i].trialstep[j].glyphline[layout].glyph[m]] ~= nil then
@@ -1237,29 +1233,41 @@ function start.f_trialsChecker()
 			attackeranim = anim()
 			player(1)
 			-- Can uncomment this section to debug helper/proj data
-			-- print("ID: " .. attackerid)
-			-- print("State: " .. attackerstate)
-			-- print("Anim: " .. attackeranim)
+			print("ID: " .. attackerid)
+			print("State: " .. attackerstate)
+			print("Anim: " .. attackeranim)
 		end
 
 		if (start.trials.trial[ct].trialstep[cts].ishelper[ctms] and start.trials.trial[ct].trialstep[cts].stateno[ctms] == attackerstate) and (attackeranim == start.trials.trial[ct].trialstep[cts].animno[ctms] or start.trials.trial[ct].trialstep[cts].animno[ctms] == nil) then
 			helpercheck = true
+			if start.trials.trial[ct].trialstep[cts].validforvar ~= nil and helpercheck then
+				for i = 1, #start.trials.trial[ct].trialstep[cts].validforvar, 1 do
+					if helpercheck then
+						helpercheck = var(start.trials.trial[ct].trialstep[cts].validforvar[i]) == start.trials.trial[ct].trialstep[cts].validforval[i]
+					end
+				end
+			end
 		end
 
 		if (start.trials.trial[ct].trialstep[cts].isproj[ctms] and start.trials.trial[ct].trialstep[cts].stateno[ctms] == attackerstate) and (attackeranim == start.trials.trial[ct].trialstep[cts].animno[ctms] or start.trials.trial[ct].trialstep[cts].animno[ctms] == nil) then
 			projcheck = true
+			if start.trials.trial[ct].trialstep[cts].validforvar ~= nil and projcheck then
+				for i = 1, #start.trials.trial[ct].trialstep[cts].validforvar, 1 do
+					if projcheck then
+						projcheck = var(start.trials.trial[ct].trialstep[cts].validforvar[i]) == start.trials.trial[ct].trialstep[cts].validforval[i]
+					end
+				end
+			end
 		end
 
 		maincharcheck = (stateno() == start.trials.trial[ct].trialstep[cts].stateno[ctms] and not(start.trials.trial[ct].trialstep[cts].isproj[ctms]) and not(start.trials.trial[ct].trialstep[cts].ishelper[ctms]) and (anim() == start.trials.trial[ct].trialstep[cts].animno[ctms] or start.trials.trial[ct].trialstep[cts].animno[ctms] == nil) and ((hitpausetime() > 1 and movehit() and combocount() > start.trials.combocounter) or start.trials.trial[ct].trialstep[cts].isthrow[ctms] or start.trials.trial[ct].trialstep[cts].hitcount[ctms] == 0))
-		
-		--Check val-var pairs if specified
 		if start.trials.trial[ct].trialstep[cts].validforvar ~= nil and maincharcheck then
 			for i = 1, #start.trials.trial[ct].trialstep[cts].validforvar, 1 do
 				if maincharcheck then
 					maincharcheck = var(start.trials.trial[ct].trialstep[cts].validforvar[i]) == start.trials.trial[ct].trialstep[cts].validforval[i]
 				end
 			end
-		end
+		end		
 
 		if start.trials.validfortickcount > 0 then
 			start.trials.validfortickcount = start.trials.validfortickcount - 1
@@ -1712,9 +1720,9 @@ for row = 1, #main.t_selChars, 1 do
 			elseif lcline:find("showforvarvalpairs") then
 				temp = main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", ""))
 				trial[i].showforvar = {}
-				trial[i].showforvar = {}
+				trial[i].showforval = {}
 				for k = 1, #temp, 2 do
-					trial[i].showforvar[#trial[i].showforvar+1] = f_str2number(temp[k])
+					trial[i].showforvar[#trial[i].showforvar+1] = tonumber(temp[k])
 					trial[i].showforval[#trial[i].showforval+1] = f_str2number(main.f_strsplit('|', temp[k+1]))
 				end
 			elseif lcline:find("trialstep." .. j .. ".text") then
