@@ -1233,9 +1233,9 @@ function start.f_trialsChecker()
 			attackeranim = anim()
 			player(1)
 			-- Can uncomment this section to debug helper/proj data
-			print("ID: " .. attackerid)
-			print("State: " .. attackerstate)
-			print("Anim: " .. attackeranim)
+			-- print("ID: " .. attackerid)
+			-- print("State: " .. attackerstate)
+			-- print("Anim: " .. attackeranim)
 		end
 
 		if (start.trials.trial[ct].trialstep[cts].ishelper[ctms] and start.trials.trial[ct].trialstep[cts].stateno[ctms] == attackerstate) and (attackeranim == start.trials.trial[ct].trialstep[cts].animno[ctms] or start.trials.trial[ct].trialstep[cts].animno[ctms] == nil) then
