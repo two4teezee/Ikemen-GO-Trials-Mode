@@ -889,8 +889,40 @@ function start.f_trialsBuilder()
 
 	-- Build list out all of the available trials for Pause menu
 	menu.t_valuename.trialslist = {}
+	menu.t_itemname.trialslist = {}
+	local t_pos = {}
+	t_pos.items = {}
+	local t_menuWindow = main.f_menuWindow(motif.trials_info)
+
 	for i = 1, #start.trials.trial, 1 do
 		table.insert(menu.t_valuename.trialslist, {itemname = tostring(i), displayname = start.trials.trial[i].name})
+		menu.t_itemname.trialslist[start.trials.trial[i].name] = function(t, item, cursorPosY, moveTxt)
+			if main.f_input(main.t_players, {'pal', 's'}) then
+				sndPlay(motif.files.snd_data, motif.trials_info.cursor_done_snd[1], motif.trials_info.cursor_done_snd[2])
+				start.trials.currenttrial = tonumber(menu.t_valuename.trialslist[menu.trialslist or 1].itemname)
+				start.trials.trial[start.trials.currenttrial].complete = false
+				start.trials.trial[start.trials.currenttrial].active = false
+				start.trials.active = false
+				start.trials.displaytimers.totaltimer = false
+				start.trials.trial[start.trials.currenttrial].starttick = tickcount()
+				return false
+			end
+			return true
+		end
+		table.insert(t_pos.items, 1, {
+			data = text:create({window = t_menuWindow}),
+			itemname = tostring(i),
+			displayname = start.trials.trial[i].name,
+			paramname = 'menu_itemname_menutrials_trialslist_' .. start.trials.trial[i].name,
+			vardata = text:create({window = t_menuWindow}),
+			vardisplay = menu.f_vardisplay('back'),
+			selected = false,
+		})
+		table.insert(menu.t_vardisplayPointers, t_pos.items[#t_pos.items])
+	end
+
+	menu.t_vardisplay['trialslist'] = function()
+		return menu.t_valuename.trialslist[menu.trialslist or 1].displayname
 	end
 
 	start.trials.trialsInitialized = true
