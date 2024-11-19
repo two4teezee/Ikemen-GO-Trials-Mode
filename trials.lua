@@ -624,15 +624,57 @@ if motif.trials_mode.fadeout_anim ~= -1 then
 end
 
 function motif.setBaseTrialsInfo()
+	-- motif.trials_info.menu_itemname_back = "Continue"
+	-- motif.trials_info.menu_itemname_nexttrial = "Next Trial"
+	-- motif.trials_info.menu_itemname_previoustrial = "Previous Trial"
+	-- motif.trials_info.menu_itemname_menutrials = "Trials Menu"
+	-- motif.trials_info.menu_itemname_menutrials_trialslist = "Trials List"
+	-- motif.trials_info.menu_itemname_menutrials_trialadvancement = "Trial Advancement"
+	-- motif.trials_info.menu_itemname_menutrials_trialresetonsuccess = "Reset on Success"
+	-- motif.trials_info.menu_itemname_menutrials_trialslayout = "Trials Layout"
+	-- motif.trials_info.menu_itemname_menutrials_back = "Back"
+	-- motif.trials_info.menu_itemname_empty = ""
+	-- motif.trials_info.menu_itemname_menuinput = "Button Config"
+	-- motif.trials_info.menu_itemname_menuinput_keyboard = "Key Config"
+	-- motif.trials_info.menu_itemname_menuinput_gamepad = "Joystick Config"
+	-- motif.trials_info.menu_itemname_menuinput_empty = ""
+	-- motif.trials_info.menu_itemname_menuinput_inputdefault = "Default"
+	-- motif.trials_info.menu_itemname_menuinput_back = "Back"
+	-- motif.trials_info.menu_itemname_commandlist = "Command List"
+	-- motif.trials_info.menu_itemname_characterchange = "Character Change"
+	-- motif.trials_info.menu_itemname_exit = "Exit"
+	-- if main.t_sort.trials_info == nil then
+	-- 	main.t_sort.trials_info = {}
+	-- end
+	-- main.t_sort.trials_info.menu = {
+	-- 	"back",
+	-- 	"nexttrial",
+	-- 	"previoustrial",
+	-- 	"menutrials",
+	-- 	"menutrials_trialslist",
+	-- 	"menutrials_trialadvancement",
+	-- 	"menutrials_trialresetonsuccess",
+	-- 	"menutrials_trialslayout",
+	-- 	"menutrials_back",
+	-- 	"empty",
+	-- 	"menuinput",
+	-- 	"menuinput_keyboard",
+	-- 	"menuinput_gamepad",
+	-- 	"menuinput_empty",
+	-- 	"menuinput_inputdefault",
+	-- 	"menuinput_back",
+	-- 	"commandlist",
+	-- 	"characterchange",
+	-- 	"exit",
+	-- }
+
 	motif.trials_info.menu_itemname_back = "Continue"
 	motif.trials_info.menu_itemname_nexttrial = "Next Trial"
 	motif.trials_info.menu_itemname_previoustrial = "Previous Trial"
-	motif.trials_info.menu_itemname_menutrials = "Trials Menu"
-	motif.trials_info.menu_itemname_menutrials_trialslist = "Trials List"
-	motif.trials_info.menu_itemname_menutrials_trialadvancement = "Trial Advancement"
-	motif.trials_info.menu_itemname_menutrials_trialresetonsuccess = "Reset on Success"
-	motif.trials_info.menu_itemname_menutrials_trialslayout = "Trials Layout"
-	motif.trials_info.menu_itemname_menutrials_back = "Back"
+	motif.trials_info.menu_itemname_trialslist = "Trials List"
+	motif.trials_info.menu_itemname_trialadvancement = "Trial Advancement"
+	motif.trials_info.menu_itemname_trialresetonsuccess = "Reset on Success"
+	motif.trials_info.menu_itemname_trialslayout = "Trials Layout"
 	motif.trials_info.menu_itemname_empty = ""
 	motif.trials_info.menu_itemname_menuinput = "Button Config"
 	motif.trials_info.menu_itemname_menuinput_keyboard = "Key Config"
@@ -650,12 +692,10 @@ function motif.setBaseTrialsInfo()
 		"back",
 		"nexttrial",
 		"previoustrial",
-		"menutrials",
-		"menutrials_trialslist",
-		"menutrials_trialadvancement",
-		"menutrials_trialresetonsuccess",
-		"menutrials_trialslayout",
-		"menutrials_back",
+		"trialslist",
+		"trialadvancement",
+		"trialresetonsuccess",
+		"trialslayout",
 		"empty",
 		"menuinput",
 		"menuinput_keyboard",
@@ -667,6 +707,7 @@ function motif.setBaseTrialsInfo()
 		"characterchange",
 		"exit",
 	}
+
 	hook.run("motif.setBaseTrialsInfo")
 end
 
@@ -888,6 +929,7 @@ function start.f_trialsBuilder()
 	end
 
 	-- Build list out all of the available trials for Pause menu
+	menu.t_trialslist = {}
 	menu.t_valuename.trialslist = {}
 	menu.t_itemname.trialslist = {}
 	local t_pos = {}
@@ -896,7 +938,8 @@ function start.f_trialsBuilder()
 
 	for i = 1, #start.trials.trial, 1 do
 		table.insert(menu.t_valuename.trialslist, {itemname = tostring(i), displayname = start.trials.trial[i].name})
-		menu.t_itemname.trialslist[start.trials.trial[i].name] = function(t, item, cursorPosY, moveTxt)
+		local tempname = start.trials.trial[i].name:gsub('[%s+%.]', '')
+		menu.t_itemname[tempname] = function(t, item, cursorPosY, moveTxt)
 			if main.f_input(main.t_players, {'pal', 's'}) then
 				sndPlay(motif.files.snd_data, motif.trials_info.cursor_done_snd[1], motif.trials_info.cursor_done_snd[2])
 				start.trials.currenttrial = tonumber(menu.t_valuename.trialslist[menu.trialslist or 1].itemname)
@@ -911,9 +954,9 @@ function start.f_trialsBuilder()
 		end
 		table.insert(t_pos.items, 1, {
 			data = text:create({window = t_menuWindow}),
-			itemname = tostring(i),
+			itemname = tempname,
 			displayname = start.trials.trial[i].name,
-			paramname = 'menu_itemname_menutrials_trialslist_' .. start.trials.trial[i].name,
+			paramname = 'menu_itemname_' .. tempname,
 			vardata = text:create({window = t_menuWindow}),
 			vardisplay = menu.f_vardisplay('back'),
 			selected = false,
@@ -1538,14 +1581,26 @@ menu.t_valuename.trialslayout = {
 	{itemname = "Vertical", displayname = motif.trials_info.menu_valuename_trialslayout_vertical},
 	{itemname = "Horizontal", displayname = motif.trials_info.menu_valuename_trialslayout_horizontal}
 }
-menu.t_itemname['trialslist'] = function(t, item, cursorPosY, moveTxt, section)
-	if menu.f_valueChanged(t.items[item], motif[section]) then
-		start.trials.currenttrial = menu.trialslist
-		start.trials.trial[start.trials.currenttrial].complete = false
-		start.trials.trial[start.trials.currenttrial].active = false
-		start.trials.active = false
-		start.trials.displaytimers.totaltimer = false
-		start.trials.trial[start.trials.currenttrial].starttick = tickcount()
+
+menu.t_itemname['trialslist'] = function(t, item, cursorPosY, moveTxt)
+	if main.f_input(main.t_players, {'$F', '$B', 'pal', 's'}) then
+		sndPlay(motif.files.snd_data, motif.option_info.cursor_move_snd[1], motif.option_info.cursor_move_snd[2])
+		local tempname = start.trials.trial[start.trials.currenttrial].name:gsub('[%s+%.]', '')
+		for k, v in ipairs(t.submenu[t.items[item].itemname].items) do
+			if tempname == v.itemname then
+				v.selected = true
+			else
+				v.selected = false
+			end
+		end
+		t.submenu[t.items[item].itemname].loop()
+		t.items[item].vardisplay = start.trials.trial[start.trials.currenttrial].name
+		-- start.trials.currenttrial = menu.trialslist
+		-- start.trials.trial[start.trials.currenttrial].complete = false
+		-- start.trials.trial[start.trials.currenttrial].active = false
+		-- start.trials.active = false
+		-- start.trials.displaytimers.totaltimer = false
+		-- start.trials.trial[start.trials.currenttrial].starttick = tickcount()
 	end
 	return true
 end
