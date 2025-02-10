@@ -3,7 +3,10 @@
 
 > Module developed by two4teezee
 ---
-This external module offers a universal solution for Trials Mode. This markdown file is best viewed in Github or your favorite markdown file viewer. For greater detail on how to create trials definitions, or the customization options supported, please consult this readme, or [the wiki](https://github.com/two4teezee/Ikemen-GO-Trials-Mode/wiki). You can find sample trials files in [this repo](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files).
+This external module offers a universal solution for Trials Mode. 
+This markdown file is best viewed in Github or your favorite markdown file viewer. 
+For greater detail on how to create trials definitions, or the customization options supported, please consult this readme, or [the wiki](https://github.com/two4teezee/Ikemen-GO-Trials-Mode/wiki). 
+You can find sample trials files from some of my favorite characters in [this repo](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files).
 
 ## Installation
 1. Extract archive content into "./external/mods/trials" directory
@@ -11,18 +14,24 @@ This external module offers a universal solution for Trials Mode. This markdown 
 3. Add "external/mods/trials/trials.zss" to `CommonStates` in "./save/config.json".
 4. Add sprites to system.sff, or alternatively, create a `trials.sff`, as required.
 5. Add sounds to system.snd, as required.
-6. Create new trials for your character(s). As a starting point, you can use the templates found in the trials mode readme to create a `trials.def` file and edit `kfmZ.def`, both in `"./chars/kfmZ"`. You can follow the instructions in the template to create trials for any character you would like. I also have created some trials and am sharing them [here](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files).
+6. Create new trials for your character(s). As a starting point, you can use the templates found in the trials mode readme to create a `trials.def` file and edit `kfmZ.def`, both in `"./chars/kfmZ"`. 
+You can follow the instructions in the readme to create trials for any character you would like. I also often create new trials files for my favorite characters and am sharing them [here](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files).
 7. Share your trials definition files with others!
 
 ## General info
-The Trials Mode provides new screenpack features and engine features so that creators can create trials for their character creations, and fully customize the way the trials are presented. The Trials Mode ships with several options for display of trials data inside the game mode, a variety of pause menu options to navigate the trials for each character, and the ability to apply palfx to character portraits in the Select Screen to easily convey which characters have valid Trials definition files.
+The Trials Mode provides new screenpack features and engine features so that creators can create trials for their character creations, and fully customize the way the trials are presented. 
+The Trials Mode ships with several options for display of trials data inside the game mode, a variety of pause menu options to navigate the trials for each character, and the ability to apply palfx to character portraits in the Select Screen to easily convey which characters have valid Trials definition files.
 
 ## system.def Template and Customization
-Using this external module allows full customization of the trials mode in system.def, with sprites in `system.sff` or in `trials.sff`, if so desired. If you are using `trials.sff`, make sure you point to it in the system.def's [Files] section as `trialsbgdef = trials.sff`.
+Using this external module allows full customization of the trials mode in `system.def`, with sprites in `system.sff` or in `trials.sff`, if so desired. 
+If you are using `trials.sff`, make sure you point to it in the system.def's [Files] section as `trialsbgdef = trials.sff`.
 
-The universal trials mode supports **vertical** trials readouts, and **horizontal** readouts as seen in KOF XIV, among other games. The sample `system.def` included in this file can be configured to support either or both layouts, but shared in this readme, it should work "out of the box" with the `mugen1` screenpack found [here](https://github.com/ikemen-engine/Ikemen_GO-Elecbyte-Screenpack). Below you'll find a brief summary of screenpack features supported by trials mode. For more detail, please consult the example `system.def` templates provided in this file for both vertical and horizontal layouts.
+The universal trials mode supports **vertical** trials readouts, and **horizontal** readouts as seen in KOF XIV, among other games. 
+The sample `system.def` included in this file can be configured to support either or both layouts, but shared in this readme, it should work "out of the box" with the `mugen1` screenpack found [here](https://github.com/ikemen-engine/Ikemen_GO-Elecbyte-Screenpack). 
+Below you'll find a brief summary of screenpack features supported by trials mode. For more detail, please consult the example `system.def` templates provided in this file for both vertical and horizontal layouts.
 
-You can make the trials mode look as fancy or as basic as you want. The `system.def` trials mode example included in this readme only leverage "stock" Ikemen fonts and sprites in the most minimal way possible.
+You can make the trials mode look as fancy or as basic as you want. 
+The `system.def` trials mode example included in this readme only leverage "stock" Ikemen fonts and sprites in the most minimal way possible.
 
 - A window must be specified in which the trial steps are drawn. This feature enables long trial lists that need to scroll (for vertical layouts) or have line returns and potentially scrolling (for horizontal layouts).
 - The trial title name can optionally be displayed. Text and two background elements (bg and front) can be specified.
@@ -576,7 +585,8 @@ trialstep.5.hitcount = 3
 
 ## Editing the Character's Def File
 
-Finally, you'll want to modify the character's definition file so that Ikemen knows to read the trials data for that character. In the character's definition file (i.e. `kfmZ.def` for kfmZ), under `[Files]`, add the line `trials = trials.def`.
+Finally, you'll want to modify the character's definition file so that Ikemen knows to read the trials data for that character. 
+In the character's definition file (i.e. `kfmZ.def` for kfmZ), under `[Files]`, add the line `trials = trials.def`.
 
 ```
 [Files]
