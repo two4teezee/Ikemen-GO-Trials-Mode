@@ -6,7 +6,7 @@
 This external module offers a universal solution for Trials Mode. 
 This markdown file is best viewed in Github or your favorite markdown file viewer. 
 For greater detail on how to create trials definitions, or the customization options supported, please consult this readme, or [the wiki](https://github.com/two4teezee/Ikemen-GO-Trials-Mode/wiki). 
-You can find sample trials files from some of my favorite characters in [this repo](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files).
+You can find sample trials files for some of my favorite characters in [this repo](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files).
 
 ## Installation
 1. Extract archive content into "./external/mods/trials" directory
@@ -15,7 +15,8 @@ You can find sample trials files from some of my favorite characters in [this re
 4. Add sprites to system.sff, or alternatively, create a `trials.sff`, as required.
 5. Add sounds to system.snd, as required.
 6. Create new trials for your character(s). As a starting point, you can use the templates found in the trials mode readme to create a `trials.def` file and edit `kfmZ.def`, both in `"./chars/kfmZ"`. 
-You can follow the instructions in the readme to create trials for any character you would like. I also often create new trials files for my favorite characters and am sharing them [here](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files).
+You can follow the instructions in the readme to create trials for any character you would like. 
+I also often create new trials files for my favorite characters and am sharing them [here](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files).
 7. Share your trials definition files with others!
 
 ## General info
