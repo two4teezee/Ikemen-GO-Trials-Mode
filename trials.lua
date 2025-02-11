@@ -22,7 +22,7 @@
 
 local function f_timeConvert(value)
 	-- converts ticks to time
-	local totalSec = value / config.GameFramerate
+	local totalSec = value / 60 --used to be framerate
 	local h = tostring(math.floor(totalSec / 3600))
 	local m = tostring(math.floor((totalSec / 3600 - h) * 60))
 	local s = tostring(math.floor(((totalSec / 3600 - h) * 60 - m) * 60))
@@ -98,9 +98,9 @@ main.t_itemname.trials = function()
 	setHomeTeam(1)
 	main.f_playerInput(main.playerInput, 1)
 	main.t_pIn[2] = 1
-	if main.t_charDef[config.TrainingChar:lower()] ~= nil then
-		main.forceChar[2] = {main.t_charDef[config.TrainingChar:lower()]}
-	end
+	if main.t_charDef[gameOption('Config.TrainingChar'):lower()] ~= nil then
+		main.forceChar[2] = {main.t_charDef[gameOption('Config.TrainingChar'):lower()]}
+  	end
 	--main.lifebar.p1score = false
 	--main.lifebar.p2aiLevel = true
 	main.roundTime = -1
@@ -689,7 +689,7 @@ function start.f_inittrialsData()
 		validfortickcount = 0,
 		combocounter = 0,
 		maxsteps = 0,
-		starttick = tickcount(),
+		starttick = roundtime(),
 		elapsedtime = 0,
 		trial = f_deepCopy(start.f_getCharData(start.p[1].t_selected[1].ref).trialsdata),
 		bgelemdata = {
@@ -975,7 +975,7 @@ function start.f_trialsDrawer()
 			--Logic for the stopwatches: total time spent in trial, and time spent on this current trial
 			if start.trials.displaytimers.totaltimer then
 				local totaltimertext = motif.trials_mode.totaltrialtimer_text
-				start.trials.elapsedtime = tickcount() - start.trials.starttick
+				start.trials.elapsedtime = roundtime() - start.trials.starttick
 				local m, s, x = f_timeConvert(start.trials.elapsedtime)
 				totaltimertext = totaltimertext:gsub('%%s', m .. ":" .. s .. ":" .. x)
 				start.trials.draw.totaltrialtimer:update({text = totaltimertext})
@@ -986,7 +986,7 @@ function start.f_trialsDrawer()
 			end
 			if start.trials.displaytimers.trialtimer then
 				local currenttimertext = motif.trials_mode.currenttrialtimer_text
-				start.trials.trial[ct].elapsedtime = tickcount() - start.trials.trial[ct].starttick
+				start.trials.trial[ct].elapsedtime = roundtime() - start.trials.trial[ct].starttick
 				local m, s, x = f_timeConvert(start.trials.trial[ct].elapsedtime)
 				currenttimertext = currenttimertext:gsub('%%s', m .. ":" .. s .. ":" .. x)
 				start.trials.draw.currenttrialtimer:update({text = currenttimertext})
@@ -1386,10 +1386,10 @@ function start.f_trialsSuccess(successstring, index)
 	start.trials.trial[index].active = false
 	start.trials.active = false
 	if not start.trials.trialadvancement then
-		start.trials.trial[index].starttick = tickcount()
+		start.trials.trial[index].starttick = roundtime()
 	end
 	if index ~= #start.trials.trial then
-		start.trials.trial[index+1].starttick = tickcount()
+		start.trials.trial[index+1].starttick = roundtime()
 	end
 end
 
@@ -1513,7 +1513,7 @@ menu.t_itemname['trialslist'] = function(t, item, cursorPosY, moveTxt, section)
 		start.trials.trial[start.trials.currenttrial].active = false
 		start.trials.active = false
 		start.trials.displaytimers.totaltimer = false
-		start.trials.trial[start.trials.currenttrial].starttick = tickcount()
+		start.trials.trial[start.trials.currenttrial].starttick = roundtime()
 	end
 	return true
 end
@@ -1571,7 +1571,7 @@ menu.t_itemname['nexttrial'] = function(t, item, cursorPosY, moveTxt, section)
 		start.trials.trial[start.trials.currenttrial].active = false
 		start.trials.active = false
 		start.trials.displaytimers.totaltimer = false
-		start.trials.trial[start.trials.currenttrial].starttick = tickcount()
+		start.trials.trial[start.trials.currenttrial].starttick = roundtime()
 	end
 	return true
 end
@@ -1584,7 +1584,7 @@ menu.t_itemname['previoustrial'] = function(t, item, cursorPosY, moveTxt, sectio
 		start.trials.trial[start.trials.currenttrial].active = false
 		start.trials.active = false
 		start.trials.displaytimers.totaltimer = false
-		start.trials.trial[start.trials.currenttrial].starttick = tickcount()
+		start.trials.trial[start.trials.currenttrial].starttick = roundtime()
 	end
 	return true
 end
@@ -1701,7 +1701,7 @@ for row = 1, #main.t_selChars, 1 do
 						showforvar = {nil},
 						showforval = {nil},
 						elapsedtime = 0,
-						starttick = tickcount()+1,
+						starttick = roundtime()+1,
 						trialstep = {},
 					}
 					temp = {}
