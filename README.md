@@ -13,7 +13,7 @@ You can find sample trials files for some of my favorite characters in [this rep
 ## Installation
 1. Extract archive content into "./external/mods/trials" directory
 2. Add DEF code to your screenpack's `system.def`. Use the sample DEF code additions from this file to your `system.def`.
-3. Add "external/mods/trials/trials.zss" to `CommonStates` in "./save/config.json".
+3. Add "external/mods/trials/trials.zss" to `States` under `[Common]` in "./save/config.ini".
 4. Add sprites to system.sff, or alternatively, create a `trials.sff`, as required.
 5. Add sounds to system.snd, as required.
 6. Create new trials for your character(s). As a starting point, you can use the templates found in the trials mode readme to create a `trials.def` file and edit `kfmZ.def`, both in `"./chars/kfmZ"`. 
