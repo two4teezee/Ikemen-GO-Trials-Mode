@@ -58,6 +58,8 @@ The `system.def` trials mode example included in this readme only leverage "stoc
 
 ```
 [Trials Mode]
+; NOTE: Values provided in this sample meant for `mugen1` screenpack, 1280x720 resolution.
+;
 ; GENERAL TRIALS OPTIONS ---------------------------------------------------
 ; trialsresetonsuccess: set to "true" to reset character positions after each trial success (except the final one). Can optionally specify fadein and fadeout parameters - will default to shown values.
 ; trialslayout: "vertical" or "horizontal" are the only valid values. Defaults to "vertical" if not specified. Affects scrolling logic, as stated above, also enables dynamic step width. Can be changed via the pause menu if screenpack author leaves the option in.
