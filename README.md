@@ -16,7 +16,7 @@ You can find sample trials files for some of my favorite characters in [this rep
 Use the sample DEF code additions from this file to your `system.def`. 
 The sample settings from this readme works with the `mugen1` screenpack included with the [base asset pack for Ikemen GO](https://github.com/ikemen-engine/Ikemen_GO-Elecbyte-Screenpack).
 Note that `mugen1` was made for a 1280x720 resolution.
-3. Add "external/mods/trials/trials.zss" to `CommonStates` in "./save/config.json".
+3. Add `external/mods/trials/trials.zss` to `States` under `[Common]` in "./save/config.ini".
 4. Add sprites to system.sff, or alternatively, create a `trials.sff`, as required.
 5. Add sounds to system.snd, as required.
 6. Create new trials for your character(s). 
