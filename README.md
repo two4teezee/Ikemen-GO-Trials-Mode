@@ -12,11 +12,15 @@ You can find sample trials files for some of my favorite characters in [this rep
 
 ## Installation
 1. Extract archive content into "./external/mods/trials" directory
-2. Add DEF code to your screenpack's `system.def`. Use the sample DEF code additions from this file to your `system.def`.
+2. Add DEF code to your screenpack's `system.def`. 
+Use the sample DEF code additions from this file to your `system.def`. 
+The sample settings from this readme works with the `mugen1` screenpack included with the [base asset pack for Ikemen GO](https://github.com/ikemen-engine/Ikemen_GO-Elecbyte-Screenpack).
+Note that `mugen1` was made for a 1280x720 resolution.
 3. Add "external/mods/trials/trials.zss" to `CommonStates` in "./save/config.json".
 4. Add sprites to system.sff, or alternatively, create a `trials.sff`, as required.
 5. Add sounds to system.snd, as required.
-6. Create new trials for your character(s). As a starting point, you can use the templates found in the trials mode readme to create a `trials.def` file and edit `kfmZ.def`, both in `"./chars/kfmZ"`. 
+6. Create new trials for your character(s). 
+As a starting point, you can use the templates found in the trials mode readme to create a `trials.def` file and edit `kfmZ.def`, both in `"./chars/kfmZ"`. 
 You can follow the instructions in the readme to create trials for any character you would like. 
 I also often create new trials files for my favorite characters and am sharing them [here](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files).
 7. Share your trials definition files with others!
@@ -58,8 +62,8 @@ The `system.def` trials mode example included in this readme only leverage "stoc
 ; trialsresetonsuccess: set to "true" to reset character positions after each trial success (except the final one). Can optionally specify fadein and fadeout parameters - will default to shown values.
 ; trialslayout: "vertical" or "horizontal" are the only valid values. Defaults to "vertical" if not specified. Affects scrolling logic, as stated above, also enables dynamic step width. Can be changed via the pause menu if screenpack author leaves the option in.
 ; --------------------------------------------------------------------------
-trialsresetonsuccess = "false"
-trialslayout = "vertical"
+trialsresetonsuccess = false
+trialslayout = vertical
 
 ; SELSCREENPALFX -----------------------------------------------------------
 ; Sets specified palfx color to character portraits WITHOUT trials files in the trials select screen. See definition for palfx for different fields and options.
