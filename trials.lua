@@ -130,13 +130,13 @@ local t_base = {
     trialslayout = "vertical",
 	trialsteps_vertical_pos = {0, 0},
     trialsteps_vertical_spacing = {0, 0},
-    trialsteps_vertical_window = {0,0,0,0},
-	trialsteps_vertical_window_withtextbox = {0,0,0,0},
+    trialsteps_vertical_window = {},
+	trialsteps_vertical_window_withtextbox = {},
 	trialsteps_horizontal_pos = {0, 0},
     trialsteps_horizontal_spacing = {0, 0},
 	trialsteps_horizontal_padding = 0,
-    trialsteps_horizontal_window = {0,0,0,0},
-	trialsteps_horizontal_window_withtextbox = {0,0,0,0},
+    trialsteps_horizontal_window = {},
+	trialsteps_horizontal_window_withtextbox = {},
 	trialsteps_vertical_bg_anim = -1,
     trialsteps_vertical_bg_spr = {},
     trialsteps_vertical_bg_offset = {0, 0},
@@ -144,8 +144,8 @@ local t_base = {
     trialsteps_vertical_bg_scale = {1.0, 1.0},
     trialsteps_vertical_bg_displaytime = 0,
 	trialsteps_vertical_bg_overlay_visible = "false",
-	trialsteps_vertical_bg_overlay_window = {0,0,0,0},
-	trialsteps_vertical_bg_overlay_window_withtextbox = {0,0,0,0},
+	trialsteps_vertical_bg_overlay_window = {},
+	trialsteps_vertical_bg_overlay_window_withtextbox = {},
 	trialsteps_vertical_bg_overlay_col = {0, 0, 0},
 	trialsteps_vertical_bg_overlay_alpha = {0, 128},
 	trialsteps_horizontal_bg_anim = -1,
@@ -155,8 +155,8 @@ local t_base = {
     trialsteps_horizontal_bg_scale = {1.0, 1.0},
     trialsteps_horizontal_bg_displaytime = 0,
 	trialsteps_horizontal_bg_overlay_visible = "false",
-	trialsteps_horizontal_bg_overlay_window = {0,0,0,0},
-	trialsteps_horizontal_bg_overlay_window_withtextbox = {0,0,0,0},
+	trialsteps_horizontal_bg_overlay_window = {},
+	trialsteps_horizontal_bg_overlay_window_withtextbox = {},
 	trialsteps_horizontal_bg_overlay_col = {0, 0, 0},
 	trialsteps_horizontal_bg_overlay_alpha = {0, 128},
 	selscreenpalfx_add = {},
@@ -438,7 +438,7 @@ local t_base = {
 	textbox_title_text = '',
 	textbox_title_font_height = -1,
 	textbox_title_scale = {1.0, 1.0},
-	textbox_text_window = {0,0,0,0},
+	textbox_text_window = {},
 	textbox_text_offset = {0,0},
 	textbox_text_font = {},
 	textbox_text_text = '',
@@ -451,7 +451,7 @@ local t_base = {
 	textbox_bg_scale = {1.0, 1.0},
 	textbox_bg_displaytime = -1,
 	textbox_overlay_visible = "false",
-	textbox_overlay_window = {0,0,0,0},
+	textbox_overlay_window = {},
 	textbox_overlay_col = {0, 0, 0},
 	textbox_overlay_alpha = {0, 128},
 	textbox_front_anim = -1,
@@ -460,6 +460,12 @@ local t_base = {
 	textbox_front_facing = 1,
 	textbox_front_scale = {1.0, 1.0},
 	textbox_front_displaytime = -1,
+	textbox_portrait_source = "system",
+	textbox_portrait_spr = {},
+	textbox_portrait_offset = {0, 0},
+	textbox_portrait_facing = 1,
+	textbox_portrait_scale = {1.0, 1.0},
+	textbox_portrait_window = {},
 }
 
 -- Merge trials data into table
@@ -597,6 +603,43 @@ motif.f_loadSprData(motif.trials_info, {s = 'menu_arrow_down_', x = motif.trials
 motif.f_loadSprData(motif.trials_info, {s = 'movelist_arrow_up_',   x = motif.trials_info.movelist_pos[1], y = motif.trials_info.movelist_pos[2]})
 motif.f_loadSprData(motif.trials_info, {s = 'movelist_arrow_down_', x = motif.trials_info.movelist_pos[1], y = motif.trials_info.movelist_pos[2]})
 
+-- --adjust windows
+-- for k, v in pairs({
+-- 	trials_mode = {
+-- 		'trialsteps_vertical_window',
+-- 		'trialsteps_vertical_window_withtextbox',
+-- 		'trialsteps_horizontal_window',
+-- 		'trialsteps_horizontal_window_withtextbox',
+-- 		'trialsteps_vertical_bg_overlay_window',
+-- 		'trialsteps_vertical_bg_overlay_window_withtextbox',
+-- 		'trialsteps_horizontal_bg_overlay_window',
+-- 		'trialsteps_horizontal_bg_overlay_window_withtextbox',
+-- 		'textbox_text_window',
+-- 		'textbox_overlay_window',
+-- 		'textbox_portrait_window',
+-- 	},
+-- }) do
+-- 	for _, param in ipairs(v) do
+-- 		--convert mugen style window coordinate system to the one used in engine
+-- 		if t[k] == nil or t[k][param] == nil then
+-- 			motif[k][param] = {0, 0, motif.info.localcoord[1], motif.info.localcoord[2]}
+-- 		-- else
+-- 		-- 	motif[k][param][1] = tonumber(motif[k][param][1]) or 0
+-- 		-- 	motif[k][param][2] = tonumber(motif[k][param][2]) or 0
+-- 		-- 	motif[k][param][3] = tonumber(motif[k][param][3]) or motif.info.localcoord[1]
+-- 		-- 	motif[k][param][4] = tonumber(motif[k][param][4]) or motif.info.localcoord[2]
+-- 		end
+-- 		local window = main.f_tableCopy(motif[k][param])
+-- 		if window[3] < window[1] then
+-- 			motif[k][param][3] = window[1]
+-- 			motif[k][param][1] = window[3]
+-- 		end
+-- 		if window[4] < window[2] then
+-- 			motif[k][param][4] = window[2]
+-- 			motif[k][param][2] = window[4]
+-- 		end
+-- 	end
+-- end
 
 -- This code creates data out of optional [trialsbgdef] sff file.
 -- Defaults to motif.files.spr_data, defined in screenpack, if not declared.
@@ -1096,8 +1139,8 @@ function start.f_trialsDrawer()
 					start.trials.draw.textbox_text,
 					start.trials.trial[ct].textbox,
 					start.trials.trial[ct].textcnt,
-					motif.trials_mode.textbox_text_window[1],
-					motif.trials_mode.textbox_text_window[2],
+					motif.trials_mode.textbox_text_window[1]+motif.trials_mode.textbox_text_offset[1],
+					motif.trials_mode.textbox_text_window[2]+motif.trials_mode.textbox_text_offset[2],
 					0,
 					0,
 					main.font_def[motif.trials_mode.textbox_text_font[1] .. motif.trials_mode.textbox_text_font[7]],
@@ -1110,6 +1153,24 @@ function start.f_trialsDrawer()
 						true
 					)
 				)
+				if motif.trials_mode.textbox_portrait_source == "system" then
+
+				elseif motif.trials_mode.textbox_portrait_source == "char" then
+					charSpriteDraw(
+						-- pn, spr_tbl (1 or more pairs), x, y, scaleX, scaleY, facing, window
+						1,
+						motif.trials_mode.textbox_portrait_spr,
+						motif.trials_mode.textbox_pos[1] + motif.trials_mode.textbox_portrait_offset[1],
+						motif.trials_mode.textbox_pos[2] + motif.trials_mode.textbox_portrait_offset[2],
+						motif.trials_mode.textbox_portrait_scale[1],
+						motif.trials_mode.textbox_portrait_scale[2],
+						motif.trials_mode.textbox_portrait_facing,
+						motif.trials_mode.textbox_pos[1] + motif.trials_mode.textbox_portrait_offset[1] + motif.trials_mode.textbox_portrait_window[1],
+						motif.trials_mode.textbox_pos[2] + motif.trials_mode.textbox_portrait_offset[2] + motif.trials_mode.textbox_portrait_window[2],
+						motif.trials_mode.textbox_portrait_window[3],
+						motif.trials_mode.textbox_portrait_window[4]
+					)
+				end
 				-- start.trials.draw.textbox_text:update({text = start.trials.trial[ct].textbox})
 				-- start.trials.draw.textbox_text:draw()
 				animUpdate(motif.trials_mode.textbox_front_data)
