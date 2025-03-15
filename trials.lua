@@ -1092,6 +1092,29 @@ function start.f_trialsDrawer()
 				--start.trials.draw.currenttrialtimer:draw()
 			end
 
+			-- Draw overlay if enabled
+			if motif.trials_mode['trialsteps_' .. layout .. '_bg_overlay_visible'] == 'true' then
+				local windowKey = 'trialsteps_' .. layout .. '_bg_overlay_window'
+				if motif.trials_mode.textbox_visible == 'true' and start.trials.trial[ct].textbox ~= '' then
+					windowKey = 'trialsteps_' .. layout .. '_bg_overlay_window_withtextbox'
+				end
+				
+				local bgoverlay = rect:create({})
+				bgoverlay:update({
+					x1 = motif.trials_mode[windowKey][1],
+					y1 = motif.trials_mode[windowKey][2],
+					x2 = motif.trials_mode[windowKey][3],
+					y2 = motif.trials_mode[windowKey][4],
+					r = motif.trials_mode['trialsteps_' .. layout .. '_bg_overlay_col'][1],
+					g = motif.trials_mode['trialsteps_' .. layout .. '_bg_overlay_col'][2],
+					b = motif.trials_mode['trialsteps_' .. layout .. '_bg_overlay_col'][3],
+					src = motif.trials_mode['trialsteps_' .. layout .. '_bg_overlay_alpha'][1],
+					dst = motif.trials_mode['trialsteps_' .. layout .. '_bg_overlay_alpha'][2],
+					defsc = false,
+				})
+				bgoverlay:draw()
+			end
+
 			-- Draw trialstep background
 			animUpdate(motif.trials_mode['trialsteps_' .. layout .. '_bg_data'])
 			animDraw(motif.trials_mode['trialsteps_' .. layout .. '_bg_data'])
