@@ -130,13 +130,13 @@ local t_base = {
     trialslayout = "vertical",
 	trialsteps_vertical_pos = {0, 0},
     trialsteps_vertical_spacing = {0, 0},
-    trialsteps_vertical_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},,
-	trialsteps_vertical_window_withtextbox = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},,
+    trialsteps_vertical_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
+	trialsteps_vertical_window_withtextbox = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
 	trialsteps_horizontal_pos = {0, 0},
     trialsteps_horizontal_spacing = {0, 0},
 	trialsteps_horizontal_padding = 0,
-    trialsteps_horizontal_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},,
-	trialsteps_horizontal_window_withtextbox = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},,
+    trialsteps_horizontal_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
+	trialsteps_horizontal_window_withtextbox = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
 	trialsteps_vertical_bg_anim = -1,
     trialsteps_vertical_bg_spr = {},
     trialsteps_vertical_bg_offset = {0, 0},
@@ -144,8 +144,8 @@ local t_base = {
     trialsteps_vertical_bg_scale = {1.0, 1.0},
     trialsteps_vertical_bg_displaytime = 0,
 	trialsteps_vertical_bg_overlay_visible = "false",
-	trialsteps_vertical_bg_overlay_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},,
-	trialsteps_vertical_bg_overlay_window_withtextbox = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},,
+	trialsteps_vertical_bg_overlay_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
+	trialsteps_vertical_bg_overlay_window_withtextbox = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
 	trialsteps_vertical_bg_overlay_col = {0, 0, 0},
 	trialsteps_vertical_bg_overlay_alpha = {0, 128},
 	trialsteps_horizontal_bg_anim = -1,
@@ -155,8 +155,8 @@ local t_base = {
     trialsteps_horizontal_bg_scale = {1.0, 1.0},
     trialsteps_horizontal_bg_displaytime = 0,
 	trialsteps_horizontal_bg_overlay_visible = "false",
-	trialsteps_horizontal_bg_overlay_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},,
-	trialsteps_horizontal_bg_overlay_window_withtextbox = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},,
+	trialsteps_horizontal_bg_overlay_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
+	trialsteps_horizontal_bg_overlay_window_withtextbox = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
 	trialsteps_horizontal_bg_overlay_col = {0, 0, 0},
 	trialsteps_horizontal_bg_overlay_alpha = {0, 128},
 	selscreenpalfx_add = {},
@@ -438,7 +438,7 @@ local t_base = {
 	textbox_title_text = '',
 	textbox_title_font_height = -1,
 	textbox_title_scale = {1.0, 1.0},
-	textbox_text_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},,
+	textbox_text_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
 	textbox_text_offset = {0,0},
 	textbox_text_font = {'f-6x9.def', 0, 0, 255, 255, 255, -1},
 	textbox_text_text = '',
@@ -452,7 +452,7 @@ local t_base = {
 	textbox_bg_scale = {1.0, 1.0},
 	textbox_bg_displaytime = -1,
 	textbox_overlay_visible = "false",
-	textbox_overlay_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},,
+	textbox_overlay_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
 	textbox_overlay_col = {0, 0, 0},
 	textbox_overlay_alpha = {0, 128},
 	textbox_front_anim = -1,
@@ -466,7 +466,7 @@ local t_base = {
 	textbox_portrait_offset = {0, 0},
 	textbox_portrait_facing = 1,
 	textbox_portrait_scale = {1.0, 1.0},
-	textbox_portrait_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},,
+	textbox_portrait_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
 }
 
 -- Merge trials data into table
@@ -1105,8 +1105,7 @@ function start.f_trialsDrawer()
 			if motif.trials_mode.textbox_visible == 'true' and start.trials.trial[ct].textbox ~= '' then
 				windowYrange = start.trials.draw[layout].windowYrangeWtext
 				windowXrange = start.trials.draw[layout].windowXrangeWtext
-				animUpdate(motif.trials_mode.textbox_bg_data)
-				animDraw(motif.trials_mode.textbox_bg_data)
+
 				if motif.trials_mode.textbox_overlay_visible == 'true' then
 					textboxoverlay = rect:create({})
 					textboxoverlay:update({
@@ -1123,6 +1122,16 @@ function start.f_trialsDrawer()
 					})
 					textboxoverlay:draw()
 				end
+
+				animUpdate(motif.trials_mode.textbox_bg_data)
+				animDraw(motif.trials_mode.textbox_bg_data)
+
+				-- Draw text
+				local trtext = motif.trials_mode.textbox_title_text
+				trtext = trtext:gsub('%%s', tostring(ct)):gsub('%%n', start.trials.trial[ct].name)
+				start.trials.draw.textbox_title:update({text = trtext})
+				start.trials.draw.textbox_title:draw()
+
 				if not start.trials.draw.draw_textbox_text then
 					start.trials.trial[ct].textcnt = start.trials.trial[ct].textcnt + 1
 				end
@@ -1144,6 +1153,8 @@ function start.f_trialsDrawer()
 						true
 					)
 				)
+
+				-- Draw portrait depending on desired source
 				if motif.trials_mode.textbox_portrait_source == "system" then
 					animUpdate(motif.trials_mode.textbox_portrait_data)
 					animDraw(motif.trials_mode.textbox_portrait_data)
@@ -1163,8 +1174,8 @@ function start.f_trialsDrawer()
 						motif.trials_mode.textbox_portrait_window[4]
 					)
 				end
-				-- start.trials.draw.textbox_text:update({text = start.trials.trial[ct].textbox})
-				-- start.trials.draw.textbox_text:draw()
+
+				-- Draw textbox front
 				animUpdate(motif.trials_mode.textbox_front_data)
 				animDraw(motif.trials_mode.textbox_front_data)
 			else
