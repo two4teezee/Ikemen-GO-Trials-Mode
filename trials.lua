@@ -130,13 +130,13 @@ local t_base = {
     trialslayout = "vertical",
 	trialsteps_vertical_pos = {0, 0},
     trialsteps_vertical_spacing = {0, 0},
-    trialsteps_vertical_window = {},
-	trialsteps_vertical_window_withtextbox = {},
+    trialsteps_vertical_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},,
+	trialsteps_vertical_window_withtextbox = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},,
 	trialsteps_horizontal_pos = {0, 0},
     trialsteps_horizontal_spacing = {0, 0},
 	trialsteps_horizontal_padding = 0,
-    trialsteps_horizontal_window = {},
-	trialsteps_horizontal_window_withtextbox = {},
+    trialsteps_horizontal_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},,
+	trialsteps_horizontal_window_withtextbox = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},,
 	trialsteps_vertical_bg_anim = -1,
     trialsteps_vertical_bg_spr = {},
     trialsteps_vertical_bg_offset = {0, 0},
@@ -144,8 +144,8 @@ local t_base = {
     trialsteps_vertical_bg_scale = {1.0, 1.0},
     trialsteps_vertical_bg_displaytime = 0,
 	trialsteps_vertical_bg_overlay_visible = "false",
-	trialsteps_vertical_bg_overlay_window = {},
-	trialsteps_vertical_bg_overlay_window_withtextbox = {},
+	trialsteps_vertical_bg_overlay_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},,
+	trialsteps_vertical_bg_overlay_window_withtextbox = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},,
 	trialsteps_vertical_bg_overlay_col = {0, 0, 0},
 	trialsteps_vertical_bg_overlay_alpha = {0, 128},
 	trialsteps_horizontal_bg_anim = -1,
@@ -155,8 +155,8 @@ local t_base = {
     trialsteps_horizontal_bg_scale = {1.0, 1.0},
     trialsteps_horizontal_bg_displaytime = 0,
 	trialsteps_horizontal_bg_overlay_visible = "false",
-	trialsteps_horizontal_bg_overlay_window = {},
-	trialsteps_horizontal_bg_overlay_window_withtextbox = {},
+	trialsteps_horizontal_bg_overlay_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},,
+	trialsteps_horizontal_bg_overlay_window_withtextbox = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},,
 	trialsteps_horizontal_bg_overlay_col = {0, 0, 0},
 	trialsteps_horizontal_bg_overlay_alpha = {0, 128},
 	selscreenpalfx_add = {},
@@ -172,7 +172,7 @@ local t_base = {
 	fadeout_anim = -1, --Ikemen feature
 	trialtitle_vertical_pos = {0,0},
 	trialtitle_vertical_text_offset = {0,0},
-    trialtitle_vertical_text_font = {},
+    trialtitle_vertical_text_font = {'f-6x9.def', 0, 0, 255, 255, 255, -1},
     trialtitle_vertical_text_font_height = -1,
     trialtitle_vertical_text_text = '',
 	trialtitle_vertical_text_scale = {1.0, 1.0},
@@ -190,7 +190,7 @@ local t_base = {
     trialtitle_vertical_front_displaytime = -1,
 	trialtitle_horizontal_pos = {0,0},
 	trialtitle_horizontal_text_offset = {0,0},
-    trialtitle_horizontal_text_font = {},
+    trialtitle_horizontal_text_font = {'f-6x9.def', 0, 0, 255, 255, 255, -1},
     trialtitle_horizontal_text_font_height = -1,
     trialtitle_horizontal_text_text = '',
 	trialtitle_horizontal_text_scale = {1.0, 1.0},
@@ -207,7 +207,7 @@ local t_base = {
     trialtitle_horizontal_front_scale = {1.0, 1.0},
     trialtitle_horizontal_front_displaytime = -1,
 	upcomingstep_vertical_text_offset = {0,0},
-    upcomingstep_vertical_text_font = {},
+    upcomingstep_vertical_text_font = {'f-6x9.def', 0, 0, 255, 255, 255, -1},
     upcomingstep_vertical_text_font_height = -1,
     upcomingstep_vertical_text_text = '',
 	upcomingstep_vertical_text_scale = {1.0, 1.0},
@@ -260,7 +260,7 @@ local t_base = {
 	upcomingstep_horizontal_glyphs_palfx_invertall = 0,
 	upcomingstep_horizontal_glyphs_palfx_color = 256,
 	currentstep_vertical_text_offset = {0,0},
-    currentstep_vertical_text_font = {},
+    currentstep_vertical_text_font = {'f-6x9.def', 0, 0, 255, 255, 255, -1},
     currentstep_vertical_text_font_height = -1,
     currentstep_vertical_text_text = '',
 	currentstep_vertical_text_scale = {1.0, 1.0},
@@ -313,7 +313,7 @@ local t_base = {
 	currentstep_horizontal_glyphs_palfx_invertall = 0,
 	currentstep_horizontal_glyphs_palfx_color = 256,
 	completedstep_vertical_text_offset = {0,0},
-    completedstep_vertical_text_font = {},
+    completedstep_vertical_text_font = {'f-6x9.def', 0, 0, 255, 255, 255, -1},
     completedstep_vertical_text_font_height = -1,
     completedstep_vertical_text_text = '',
 	completedstep_vertical_text_scale = {1.0, 1.0},
@@ -375,19 +375,19 @@ local t_base = {
     glyphs_horizontal_spacing = {0,0},
     glyphs_horizontal_align = 1,
 	trialcounter_pos = {0,0},
-    trialcounter_font = {},
+    trialcounter_font = {'f-6x9.def', 0, 0, 255, 255, 255, -1},
     trialcounter_scale = {1.0, 1.0},
     trialcounter_font_height = -1,
     trialcounter_text = '',
 	trialcounter_allclear_text = '',
 	trialcounter_notrialsdata_text = 'No Trials Data Found',
 	totaltrialtimer_pos = {0,0},
-    totaltrialtimer_font = {},
+    totaltrialtimer_font = {'f-6x9.def', 0, 0, 255, 255, 255, -1},
     totaltrialtimer_scale = {1.0, 1.0},
     totaltrialtimer_font_height = -1,
     totaltrialtimer_text = '',
     currenttrialtimer_pos = {0,0},
-    currenttrialtimer_font = {},
+    currenttrialtimer_font = {'f-6x9.def', 0, 0, 255, 255, 255, -1},
     currenttrialtimer_scale = {1.0, 1.0},
     currenttrialtimer_font_height = -1,
     currenttrialtimer_text = '',
@@ -407,7 +407,7 @@ local t_base = {
     success_front_displaytime = -1,
 	success_text_displaytime = -1,
     success_text_offset = {0,0},
-    success_text_font = {},
+    success_text_font = {'f-6x9.def', 0, 0, 255, 255, 255, -1},
     success_text_font_height = -1,
     success_text_text = '',
 	success_text_scale = {1.0, 1.0},
@@ -427,20 +427,20 @@ local t_base = {
     allclear_front_displaytime = -1,
 	allclear_text_displaytime = -1,
     allclear_text_offset = {0,0},
-    allclear_text_font = {},
+    allclear_text_font = {'f-6x9.def', 0, 0, 255, 255, 255, -1},
     allclear_text_font_height = -1,
     allclear_text_text = '',
 	allclear_text_scale = {1.0, 1.0},
-	textbox_visible = "true",
+	textbox_visible = "false",
 	textbox_pos = {0,0},
 	textbox_title_offset = {0,0},
-	textbox_title_font = {},
+	textbox_title_font = {'f-6x9.def', 0, 0, 255, 255, 255, -1},
 	textbox_title_text = '',
 	textbox_title_font_height = -1,
 	textbox_title_scale = {1.0, 1.0},
-	textbox_text_window = {},
+	textbox_text_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},,
 	textbox_text_offset = {0,0},
-	textbox_text_font = {},
+	textbox_text_font = {'f-6x9.def', 0, 0, 255, 255, 255, -1},
 	textbox_text_text = '',
 	textbox_text_font_height = -1,
 	textbox_text_scale = {1.0, 1.0},
@@ -452,7 +452,7 @@ local t_base = {
 	textbox_bg_scale = {1.0, 1.0},
 	textbox_bg_displaytime = -1,
 	textbox_overlay_visible = "false",
-	textbox_overlay_window = {},
+	textbox_overlay_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},,
 	textbox_overlay_col = {0, 0, 0},
 	textbox_overlay_alpha = {0, 128},
 	textbox_front_anim = -1,
@@ -466,7 +466,7 @@ local t_base = {
 	textbox_portrait_offset = {0, 0},
 	textbox_portrait_facing = 1,
 	textbox_portrait_scale = {1.0, 1.0},
-	textbox_portrait_window = {},
+	textbox_portrait_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},,
 }
 
 -- Merge trials data into table
@@ -603,44 +603,6 @@ motif.f_loadSprData(motif.trials_info, {s = 'menu_arrow_up_',   x = motif.trials
 motif.f_loadSprData(motif.trials_info, {s = 'menu_arrow_down_', x = motif.trials_info.menu_pos[1], y = motif.trials_info.menu_pos[2]})
 motif.f_loadSprData(motif.trials_info, {s = 'movelist_arrow_up_',   x = motif.trials_info.movelist_pos[1], y = motif.trials_info.movelist_pos[2]})
 motif.f_loadSprData(motif.trials_info, {s = 'movelist_arrow_down_', x = motif.trials_info.movelist_pos[1], y = motif.trials_info.movelist_pos[2]})
-
--- --adjust windows
--- for k, v in pairs({
--- 	trials_mode = {
--- 		'trialsteps_vertical_window',
--- 		'trialsteps_vertical_window_withtextbox',
--- 		'trialsteps_horizontal_window',
--- 		'trialsteps_horizontal_window_withtextbox',
--- 		'trialsteps_vertical_bg_overlay_window',
--- 		'trialsteps_vertical_bg_overlay_window_withtextbox',
--- 		'trialsteps_horizontal_bg_overlay_window',
--- 		'trialsteps_horizontal_bg_overlay_window_withtextbox',
--- 		'textbox_text_window',
--- 		'textbox_overlay_window',
--- 		'textbox_portrait_window',
--- 	},
--- }) do
--- 	for _, param in ipairs(v) do
--- 		--convert mugen style window coordinate system to the one used in engine
--- 		if t[k] == nil or t[k][param] == nil then
--- 			motif[k][param] = {0, 0, motif.info.localcoord[1], motif.info.localcoord[2]}
--- 		-- else
--- 		-- 	motif[k][param][1] = tonumber(motif[k][param][1]) or 0
--- 		-- 	motif[k][param][2] = tonumber(motif[k][param][2]) or 0
--- 		-- 	motif[k][param][3] = tonumber(motif[k][param][3]) or motif.info.localcoord[1]
--- 		-- 	motif[k][param][4] = tonumber(motif[k][param][4]) or motif.info.localcoord[2]
--- 		end
--- 		local window = main.f_tableCopy(motif[k][param])
--- 		if window[3] < window[1] then
--- 			motif[k][param][3] = window[1]
--- 			motif[k][param][1] = window[3]
--- 		end
--- 		if window[4] < window[2] then
--- 			motif[k][param][4] = window[2]
--- 			motif[k][param][2] = window[4]
--- 		end
--- 	end
--- end
 
 -- This code creates data out of optional [trialsbgdef] sff file.
 -- Defaults to motif.files.spr_data, defined in screenpack, if not declared.
@@ -1834,6 +1796,11 @@ function menu.f_trialsReset()
 		menu.trialslayout = 1
 	else
 		menu.trialslayout = 2
+	end
+	if motif.trials_mode.textbox_visible == "true" then
+		menu.trialstextboxes = 1
+	else
+		menu.trialstextboxes = 2
 	end
 	for _, v in ipairs(menu.t_vardisplayPointers) do
 		v.vardisplay = menu.f_vardisplay(v.itemname)
