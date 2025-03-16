@@ -357,6 +357,54 @@ currenttrialtimer.scale = 2,2
 ; currenttrialtimer.font.height	=
 currenttrialtimer.text = "Current Trial: %s"
 
+; TRIALS TEXT BOX ----------------------------------------------------------
+; A textbox can accompany each trial if it is specified within the trials definition file.
+; The only element defined within the trials definition file is the text to be displayed for that trial.
+; textbox.pos: local origin from which other textbox elements are drawn. 
+; textbox.text.<options>: specify text window, offset, font type, and drawspeed
+; textbox.title.<options>: specify text, offset, font type, scale
+; textbox.overlay.<options>: draw an overlay behind any other bg, text or front element
+; textbox.bg.<options>: optional background displayed behind text but over overlay; standard options for background elements, etc.
+; textbox.front.<options>: optional background displayed in front of text; standard options for background elements, etc.
+; textbox.portrait.<options>: allows a portrait to be drawn with or in the textbox. Sprite can be sourced from the character or the screenpack.
+; --------------------------------------------------------------------------
+
+textbox.visible = true
+textbox.pos = 740,150
+textbox.text.window = 790,150, 390,50
+textbox.text.offset = 10,10
+textbox.text.font = 4,0,1
+textbox.text.drawspeed = 2
+; textbox.text.font.height = -1
+textbox.text.scale = 1.0, 1.0
+textbox.title.offset = 0,0
+textbox.title.font = 4,0,1
+textbox.title.text = ''
+; textbox.title.font.height = -1
+textbox.title.scale = 1.0, 1.0
+textbox.overlay.visible = true
+textbox.overlay.window = 740,150, 440,50
+textbox.overlay.col = 0, 0, 0
+textbox.overlay.alpha = 0, 128
+textbox.bg.anim = -1
+textbox.bg.spr = 
+textbox.bg.offset = 0, 0
+textbox.bg.facing = 1
+textbox.bg.scale = 1.0, 1.0
+textbox.bg.displaytime = -1
+textbox.front.anim = -1
+textbox.front.spr = 
+textbox.front.offset = 0, 0
+textbox.front.facing = 1
+textbox.front.scale = 1.0, 1.0
+textbox.front.displaytime = -1
+textbox.portrait.source = "system" ; valid options are "system" or "char"
+textbox.portrait.spr = 180, 0
+textbox.portrait.offset = 5,5
+textbox.portrait.window = 0,0, 40, 40
+textbox.portrait.facing = 1
+; textbox.portrait.scale = .45,.45
+
 ; TRIAL SUCCESS BANNER -----------------------------------------------------
 ; --------------------------------------------------------------------------
 success.pos	= 640,360
@@ -409,6 +457,8 @@ menu.valuename.trialresetonsuccess.yes = "Yes"
 menu.valuename.trialresetonsuccess.no = "No"
 menu.valuename.trialslayout.vertical = "Vertical"
 menu.valuename.trialslayout.horizontal = "Horizontal"
+menu.valuename.trialstextboxes.show = "Show"
+menu.valuename.trialstextboxes.hide = "Hide"
 
 ; https://github.com/ikemen-engine/Ikemen-GO/wiki/Screenpack-features#submenus
 ; If custom menu is not declared, following menu is loaded by default:

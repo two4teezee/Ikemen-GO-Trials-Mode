@@ -444,6 +444,7 @@ local t_base = {
 	textbox_text_text = '',
 	textbox_text_font_height = -1,
 	textbox_text_scale = {1.0, 1.0},
+	textbox_text_drawspeed = 2,
 	textbox_bg_anim = -1,
 	textbox_bg_spr = {},
 	textbox_bg_offset = {0, 0},
@@ -701,6 +702,10 @@ for _, v in ipairs({
 	else
 	 	motif.f_loadSprData(motif.trials_mode, v)
 	end
+end
+
+if motif.trials_mode.textbox_portrait_source == "system" and motif.trials_mode.textbox_portrait_spr ~= nil then
+	motif.f_loadSprData(motif.trials_mode, {s = 'textbox_portrait_', x = motif.trials_mode.textbox_pos[1] + motif.trials_mode.textbox_portrait_offset[1], y = motif.trials_mode.textbox_pos[2] + motif.trials_mode.textbox_portrait_offset[2]})
 end
 
 -- fadein/fadeout anim data generation.
@@ -1092,7 +1097,8 @@ function start.f_trialsDrawer()
 				--start.trials.draw.currenttrialtimer:draw()
 			end
 
-			-- Draw overlay if enabled
+			-- Draw trialsteps bg overlay if enabled
+			-- TODO: use the dynamic scaling in the draw loop to adjust the overlay size (new x2, y2 values)
 			if motif.trials_mode['trialsteps_' .. layout .. '_bg_overlay_visible'] == 'true' then
 				local windowKey = 'trialsteps_' .. layout .. '_bg_overlay_window'
 				if motif.trials_mode.textbox_visible == 'true' and start.trials.trial[ct].textbox ~= '' then
@@ -1155,10 +1161,10 @@ function start.f_trialsDrawer()
 					})
 					textboxoverlay:draw()
 				end
-				if not start.trials.draw.textbox_textend then
+				if not start.trials.draw.draw_textbox_text then
 					start.trials.trial[ct].textcnt = start.trials.trial[ct].textcnt + 1
 				end
-				start.trials.draw.textbox_textend = main.f_textRender(
+				start.trials.draw.draw_textbox_text = main.f_textRender(
 					start.trials.draw.textbox_text,
 					start.trials.trial[ct].textbox,
 					start.trials.trial[ct].textcnt,
@@ -1167,7 +1173,7 @@ function start.f_trialsDrawer()
 					0,
 					0,
 					main.font_def[motif.trials_mode.textbox_text_font[1] .. motif.trials_mode.textbox_text_font[7]],
-					2,
+					motif.trials_mode.textbox_text_drawspeed,
 					main.f_lineLength(
 						motif.trials_mode.textbox_text_offset[1],
 						motif.info.localcoord[1],
@@ -1177,7 +1183,8 @@ function start.f_trialsDrawer()
 					)
 				)
 				if motif.trials_mode.textbox_portrait_source == "system" then
-
+					animUpdate(motif.trials_mode.textbox_portrait_data)
+					animDraw(motif.trials_mode.textbox_portrait_data)
 				elseif motif.trials_mode.textbox_portrait_source == "char" then
 					charSpriteDraw(
 						-- pn, spr_tbl (1 or more pairs), x, y, scaleX, scaleY, facing, window
@@ -1713,6 +1720,10 @@ menu.t_valuename.trialslayout = {
 	{itemname = "Vertical", displayname = motif.trials_info.menu_valuename_trialslayout_vertical},
 	{itemname = "Horizontal", displayname = motif.trials_info.menu_valuename_trialslayout_horizontal}
 }
+menu.t_valuename.trialstextboxes = {
+	{itemname = "Show", displayname = motif.trials_info.menu_valuename_trialstextboxes_show},
+	{itemname = "Hide", displayname = motif.trials_info.menu_valuename_trialstextboxes_hide}
+}
 menu.t_itemname['trialslist'] = function(t, item, cursorPosY, moveTxt, section)
 	if menu.f_valueChanged(t.items[item], motif[section]) then
 		start.trials.currenttrial = menu.trialslist
@@ -1768,6 +1779,20 @@ menu.t_itemname['trialresetonsuccess'] = function(t, item, cursorPosY, moveTxt, 
 end
 menu.t_vardisplay['trialresetonsuccess'] = function()
 	return menu.t_valuename.trialresetonsuccess[menu.trialresetonsuccess or 1].displayname
+end
+
+menu.t_itemname['trialstextboxes'] = function(t, item, cursorPosY, moveTxt, section)
+	if menu.f_valueChanged(t.items[item], motif[section]) then
+		if menu.t_valuename.trialstextboxes[menu.trialstextboxes or 1].itemname == "Show" then
+			motif.trials_mode.textbox_visible = "true"
+		else
+			motif.trials_mode.textbox_visible = "false"
+		end
+	end
+	return true
+end
+menu.t_vardisplay['trialstextboxes'] = function()
+	return menu.t_valuename.trialstextboxes[menu.trialstextboxes or 1].displayname
 end
 
 menu.t_itemname['nexttrial'] = function(t, item, cursorPosY, moveTxt, section)
