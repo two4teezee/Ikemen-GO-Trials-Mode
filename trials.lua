@@ -568,7 +568,7 @@ end
 -- Background data generation.
 -- Refer to official Elecbyte docs for information how to define backgrounds.
 -- http://www.elecbyte.com/mugendocs/bgs.html#description-of-background-elements
-motif.trialsbgdef.bg = bgNew(motif.trialsbgdef.spr_data, motif.def, 'trialsbg')
+motif.trialsbgdef.bg = bgNew(motif.trialsbgdef.spr_data, '', motif.def, 'trialsbg')
 
 --trials spr/anim data
 local tr_pos = motif.trials_mode
