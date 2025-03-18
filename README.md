@@ -368,22 +368,21 @@ currenttrialtimer.text = "Current Trial: %s"
 ; textbox.front.<options>: optional background displayed in front of text; standard options for background elements, etc.
 ; textbox.portrait.<options>: allows a portrait to be drawn with or in the textbox. Sprite can be sourced from the character or the screenpack.
 ; --------------------------------------------------------------------------
-
 textbox.visible = true
-textbox.pos = 740,150
-textbox.text.window = 790,150, 390,50
+textbox.pos = 740,120
+textbox.text.window = 790,120, 300,50
 textbox.text.offset = 10,10
-textbox.text.font = 4,0,1
+textbox.text.font = 1,0,1
 textbox.text.drawspeed = 2
 ; textbox.text.font.height = -1
-textbox.text.scale = 1.0, 1.0
+textbox.text.scale = 2,2
 textbox.title.offset = 0,0
-textbox.title.font = 4,0,1
-textbox.title.text = ''
+textbox.title.font = 2,0,1
+textbox.title.text = ;%s is  trial number, %n is trial name
 ; textbox.title.font.height = -1
-textbox.title.scale = 1.0, 1.0
+textbox.title.scale = 1,1
 textbox.overlay.visible = true
-textbox.overlay.window = 740,150, 440,50
+textbox.overlay.window = 740,120, 350,50
 textbox.overlay.col = 0, 0, 0
 textbox.overlay.alpha = 0, 128
 textbox.bg.anim = -1
@@ -398,12 +397,12 @@ textbox.front.offset = 0, 0
 textbox.front.facing = 1
 textbox.front.scale = 1.0, 1.0
 textbox.front.displaytime = -1
-textbox.portrait.source = "system" ; valid options are "system" or "char"
-textbox.portrait.spr = 180, 0
+textbox.portrait.source = "char" ; valid options are "system" or "char"
+textbox.portrait.spr = 9000, 0
 textbox.portrait.offset = 5,5
 textbox.portrait.window = 0,0, 40, 40
 textbox.portrait.facing = 1
-; textbox.portrait.scale = .45,.45
+textbox.portrait.scale = 0.5, 0.5
 
 ; TRIAL SUCCESS BANNER -----------------------------------------------------
 ; --------------------------------------------------------------------------
@@ -501,6 +500,8 @@ trial.dummymode = stand
 trial.guardmode = none
 trial.dummybuttonjam = none
 ; trial.showforvarvalpairs = 
+
+; trial.textbox = This is KFM's first trial. Good luck!
 
 trialstep.1.text = Strong Kung Fu Palm
 trialstep.1.glyphs = _QDF^Y
