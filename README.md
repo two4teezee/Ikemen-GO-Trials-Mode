@@ -370,7 +370,7 @@ currenttrialtimer.text = "Current Trial: %s"
 ; --------------------------------------------------------------------------
 textbox.visible = true
 textbox.pos = 740,120
-textbox.text.window = 790,120, 300,50
+textbox.text.window = 50,0, 300,50
 textbox.text.offset = 10,10
 textbox.text.font = 1,0,1
 textbox.text.drawspeed = 2
@@ -382,7 +382,7 @@ textbox.title.text = ;%s is  trial number, %n is trial name
 ; textbox.title.font.height = -1
 textbox.title.scale = 1,1
 textbox.overlay.visible = true
-textbox.overlay.window = 740,120, 350,50
+textbox.overlay.window = 0,0, 350,50
 textbox.overlay.col = 0, 0, 0
 textbox.overlay.alpha = 0, 128
 textbox.bg.anim = -1

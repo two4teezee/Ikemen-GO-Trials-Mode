@@ -924,7 +924,7 @@ function start.f_trialsBuilder()
 		currenttrialtimer = main.f_createTextImg(motif.trials_mode, 'currenttrialtimer'),
 	}
 	start.trials.draw.textbox_title:update({x = motif.trials_mode.textbox_pos[1]+motif.trials_mode.textbox_title_offset[1], y = motif.trials_mode.textbox_pos[2]+motif.trials_mode.textbox_title_offset[1],})
-	start.trials.draw.textbox_text:update({x = motif.trials_mode.textbox_text_offset[1]+motif.trials_mode.textbox_text_window[1], y = motif.trials_mode.textbox_text_offset[2]+motif.trials_mode.textbox_text_window[2],})
+	start.trials.draw.textbox_text:update({x = motif.trials_mode.textbox_pos[1]+motif.trials_mode.textbox_text_offset[1]+motif.trials_mode.textbox_text_window[1], y = motif.trials_mode.textbox_pos[2]+motif.trials_mode.textbox_text_offset[2]+motif.trials_mode.textbox_text_window[2],})
 	start.trials.draw.success_text:update({x = motif.trials_mode.success_pos[1]+motif.trials_mode.success_text_offset[1], y = motif.trials_mode.success_pos[2]+motif.trials_mode.success_text_offset[2],})
 	start.trials.draw.allclear_text:update({x = motif.trials_mode.allclear_pos[1]+motif.trials_mode.allclear_text_offset[1], y = motif.trials_mode.allclear_pos[2]+motif.trials_mode.allclear_text_offset[2],})
 	start.trials.draw.trialcounter:update({x = motif.trials_mode.trialcounter_pos[1], y = motif.trials_mode.trialcounter_pos[2],})
@@ -1109,10 +1109,10 @@ function start.f_trialsDrawer()
 				if motif.trials_mode.textbox_overlay_visible == 'true' then
 					textboxoverlay = rect:create({})
 					textboxoverlay:update({
-						x1 =    motif.trials_mode.textbox_overlay_window[1],
-						y1 =    motif.trials_mode.textbox_overlay_window[2],
-						x2 =    motif.trials_mode.textbox_overlay_window[3],
-						y2 =    motif.trials_mode.textbox_overlay_window[4],
+						x1 =    motif.trials_mode.textbox_pos[1]+motif.trials_mode.textbox_overlay_window[1],
+						y1 =    motif.trials_mode.textbox_pos[2]+motif.trials_mode.textbox_overlay_window[2],
+						x2 =    motif.trials_mode.textbox_pos[1]+motif.trials_mode.textbox_overlay_window[3],
+						y2 =    motif.trials_mode.textbox_pos[2]+motif.trials_mode.textbox_overlay_window[4],
 						r =     motif.trials_mode.textbox_overlay_col[1],
 						g =     motif.trials_mode.textbox_overlay_col[2],
 						b =     motif.trials_mode.textbox_overlay_col[3],
