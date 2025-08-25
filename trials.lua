@@ -730,6 +730,7 @@ end
 --;===========================================================
 --; start.lua
 --;===========================================================
+start.selectScreenPalMod = 'normal'
 
 function start.f_inittrialsData()
 	start.trials = {
@@ -1603,38 +1604,28 @@ function start.f_trialsFade()
 end
 
 function start.f_trialsSelectScreen()
-	-- Grays out portaits on the trial select screen for characters without trials files
-	if gamemode("trials") then
-		-- for row = 1, motif.select_info.rows do
-		-- 	for col = 1, motif.select_info.columns do
-		-- 		local cellIndex = (row - 1) * motif.select_info.columns + col
-		-- 		local t = start.t_grid[row][col]
-		-- 		if t.skip ~= 1 then
-		-- 			local charData = start.f_selGrid(cellIndex)
-		-- 			--draw random cell
-		-- 			if charData and (charData.char == 'randomselect' or charData.hidden == 3) then
-		-- 				-- animSetPalFX(motif.select_info.cell_random_data, {
-		-- 				-- 	time = 1,
-		-- 				-- 	add = motif.trials_mode.selscreenpalfx_add,
-		-- 				-- 	mul = motif.trials_mode.selscreenpalfx_mul,
-		-- 				-- 	sinadd = motif.trials_mode.selscreenpalfx_sinadd,
-		-- 				-- 	invertall = motif.trials_mode.selscreenpalfx_invertall,
-		-- 				-- 	color = motif.trials_mode.selscreenpalfx_color
-		-- 				-- })
-		-- 			--draw face cell
-		-- 			elseif charData and charData.char_ref ~= nil and charData.hidden == 0 then
-		-- 				animSetPalFX(start.f_getCharData(t.char_ref).cell_data, {
-		-- 					time = 1,
-		-- 					add = motif.trials_mode.selscreenpalfx_add,
-		-- 					mul = motif.trials_mode.selscreenpalfx_mul,
-		-- 					sinadd = motif.trials_mode.selscreenpalfx_sinadd,
-		-- 					invertall = motif.trials_mode.selscreenpalfx_invertall,
-		-- 					color = motif.trials_mode.selscreenpalfx_color
-		-- 				})
-		-- 			end
-		-- 		end
-		-- 	end
-		-- end
+-- Grays out portaits on the trial select screen for characters without trials files
+	local selectScreenPalMod = false
+
+	if gamemode("trials") and start.selectScreenPalMod == 'normal' then
+		paladd = motif.trials_mode.selscreenpalfx_add
+		palmul = motif.trials_mode.selscreenpalfx_mul
+		palsinadd = motif.trials_mode.selscreenpalfx_sinadd
+		palinvertall = motif.trials_mode.selscreenpalfx_invertall
+		palcolor = motif.trials_mode.selscreenpalfx_color
+		start.selectScreenPalMod = 'darkened'
+		selectScreenPalMod = true
+	elseif not gamemode("trials") and start.selectScreenPalMod == 'darkened' then
+		paladd = {0,0,0}
+		palmul = {256,256,256}
+		palsinadd = {0,0,0}
+		palinvertall = 0
+		palcolor = 256
+		start.selectScreenPalMod = 'normal'
+		selectScreenPalMod = true
+	end
+
+	if selectScreenPalMod then
 		for row = 1, motif.select_info.rows do
 			for col = 1, motif.select_info.columns do
 				local cellIndex = (row - 1) * motif.select_info.columns + col
@@ -1653,28 +1644,19 @@ function start.f_trialsSelectScreen()
 						-- })
 					--draw face cell
 					elseif charData and charData.char_ref ~= nil and charData.hidden == 0 and charData.trialsdef == "" then
-						print("invalid trials char: " .. charData.char)
-						-- animSetPalFX(charData.cell_data, {
-						-- 	time = 1,
-						-- 	add = motif.trials_mode.selscreenpalfx_add,
-						-- 	mul = motif.trials_mode.selscreenpalfx_mul,
-						-- 	sinadd = motif.trials_mode.selscreenpalfx_sinadd,
-						-- 	invertall = motif.trials_mode.selscreenpalfx_invertall,
-						-- 	color = motif.trials_mode.selscreenpalfx_color
-						-- })
-						animSetPalFX(staticDrawList[cellIndex].anim, {
-							time = 1,
-							add = motif.trials_mode.selscreenpalfx_add,
-							mul = motif.trials_mode.selscreenpalfx_mul,
-							sinadd = motif.trials_mode.selscreenpalfx_sinadd,
-							invertall = motif.trials_mode.selscreenpalfx_invertall,
-							color = motif.trials_mode.selscreenpalfx_color
+						animSetPalFX(charData.cell_data, {
+							time = -1,
+							add = paladd,
+							mul = palmul,
+							sinadd = palsinadd,
+							invertall = palinvertall,
+							color = palcolor,
 						})
+						animUpdate(charData.cell_data)
 					end
 				end
 			end
 		end
-
 	end
 end
 
