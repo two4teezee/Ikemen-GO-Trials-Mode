@@ -1605,12 +1605,44 @@ end
 function start.f_trialsSelectScreen()
 	-- Grays out portaits on the trial select screen for characters without trials files
 	if gamemode("trials") then
+		-- for row = 1, motif.select_info.rows do
+		-- 	for col = 1, motif.select_info.columns do
+		-- 		local cellIndex = (row - 1) * motif.select_info.columns + col
+		-- 		local t = start.t_grid[row][col]
+		-- 		if t.skip ~= 1 then
+		-- 			local charData = start.f_selGrid(cellIndex)
+		-- 			--draw random cell
+		-- 			if charData and (charData.char == 'randomselect' or charData.hidden == 3) then
+		-- 				-- animSetPalFX(motif.select_info.cell_random_data, {
+		-- 				-- 	time = 1,
+		-- 				-- 	add = motif.trials_mode.selscreenpalfx_add,
+		-- 				-- 	mul = motif.trials_mode.selscreenpalfx_mul,
+		-- 				-- 	sinadd = motif.trials_mode.selscreenpalfx_sinadd,
+		-- 				-- 	invertall = motif.trials_mode.selscreenpalfx_invertall,
+		-- 				-- 	color = motif.trials_mode.selscreenpalfx_color
+		-- 				-- })
+		-- 			--draw face cell
+		-- 			elseif charData and charData.char_ref ~= nil and charData.hidden == 0 then
+		-- 				animSetPalFX(start.f_getCharData(t.char_ref).cell_data, {
+		-- 					time = 1,
+		-- 					add = motif.trials_mode.selscreenpalfx_add,
+		-- 					mul = motif.trials_mode.selscreenpalfx_mul,
+		-- 					sinadd = motif.trials_mode.selscreenpalfx_sinadd,
+		-- 					invertall = motif.trials_mode.selscreenpalfx_invertall,
+		-- 					color = motif.trials_mode.selscreenpalfx_color
+		-- 				})
+		-- 			end
+		-- 		end
+		-- 	end
+		-- end
 		for row = 1, motif.select_info.rows do
 			for col = 1, motif.select_info.columns do
+				local cellIndex = (row - 1) * motif.select_info.columns + col
 				local t = start.t_grid[row][col]
 				if t.skip ~= 1 then
+					local charData = start.f_selGrid(cellIndex)
 					--draw random cell
-					if t.char == 'randomselect' or t.hidden == 3 then
+					if charData and (charData.char == 'randomselect' or charData.hidden == 3) then
 						-- animSetPalFX(motif.select_info.cell_random_data, {
 						-- 	time = 1,
 						-- 	add = motif.trials_mode.selscreenpalfx_add,
@@ -1620,8 +1652,17 @@ function start.f_trialsSelectScreen()
 						-- 	color = motif.trials_mode.selscreenpalfx_color
 						-- })
 					--draw face cell
-					elseif t.char ~= nil and t.hidden == 0 and start.f_getCharData(t.char_ref).trialsdef == ""  then
-						animSetPalFX(start.f_getCharData(t.char_ref).cell_data, {
+					elseif charData and charData.char_ref ~= nil and charData.hidden == 0 and charData.trialsdef == "" then
+						print("invalid trials char: " .. charData.char)
+						-- animSetPalFX(charData.cell_data, {
+						-- 	time = 1,
+						-- 	add = motif.trials_mode.selscreenpalfx_add,
+						-- 	mul = motif.trials_mode.selscreenpalfx_mul,
+						-- 	sinadd = motif.trials_mode.selscreenpalfx_sinadd,
+						-- 	invertall = motif.trials_mode.selscreenpalfx_invertall,
+						-- 	color = motif.trials_mode.selscreenpalfx_color
+						-- })
+						animSetPalFX(staticDrawList[cellIndex].anim, {
 							time = 1,
 							add = motif.trials_mode.selscreenpalfx_add,
 							mul = motif.trials_mode.selscreenpalfx_mul,
@@ -1633,6 +1674,7 @@ function start.f_trialsSelectScreen()
 				end
 			end
 		end
+
 	end
 end
 
@@ -1836,23 +1878,23 @@ end
 for row = 1, #main.t_selChars, 1 do
 	if main.t_selChars[row].def ~= nil then
 		main.t_selChars[row].trialsdef = ""
-		local deffile = io.open(main.t_selChars[row].def, "r")
-		for line in deffile:lines() do
+		local deffile = loadText(main.t_selChars[row].def)
+		for line in deffile:gmatch("([^\r\n]*)[\r\n]?") do
 			line = line:gsub('%s*;.*$', '')
 			lcline = string.lower(line)
 			if lcline:match('trials') then
-				main.t_selChars[row].trialsdef = main.t_selChars[row].dir .. "/" .. f_trimafterchar(line, "=")
+				main.t_selChars[row].trialsdef = main.t_selChars[row].dir .. f_trimafterchar(line, "=")
+				break
 			end
 		end
-		deffile:close()
 	end
 	if  main.t_selChars[row].def ~= nil and main.t_selChars[row].trialsdef ~= "" then
 		i = 0 --Trial number
 		j = 0 --TrialStep number
 		trial = {}
-		local trialsFile = io.open(main.t_selChars[row].trialsdef, "r")
+		local trialsFile = loadText(main.t_selChars[row].trialsdef)
 
-		for line in trialsFile:lines() do
+		for line in trialsFile:gmatch("([^\r\n]*)[\r\n]?") do
 			line = line:gsub('%s*;.*$', '')
 			lcline = string.lower(line)
 
@@ -1996,7 +2038,6 @@ for row = 1, #main.t_selChars, 1 do
 				end
 			end
 		end
-		trialsFile:close()
 
 		main.t_selChars[row].trialsdata = trial
 	end
