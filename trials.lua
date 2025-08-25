@@ -730,6 +730,7 @@ end
 --;===========================================================
 --; start.lua
 --;===========================================================
+start.selectScreenPalMod = 'normal'
 
 function start.f_inittrialsData()
 	start.trials = {
@@ -1603,14 +1604,36 @@ function start.f_trialsFade()
 end
 
 function start.f_trialsSelectScreen()
-	-- Grays out portaits on the trial select screen for characters without trials files
-	if gamemode("trials") then
+-- Grays out portaits on the trial select screen for characters without trials files
+	local selectScreenPalMod = false
+
+	if gamemode("trials") and start.selectScreenPalMod == 'normal' then
+		paladd = motif.trials_mode.selscreenpalfx_add
+		palmul = motif.trials_mode.selscreenpalfx_mul
+		palsinadd = motif.trials_mode.selscreenpalfx_sinadd
+		palinvertall = motif.trials_mode.selscreenpalfx_invertall
+		palcolor = motif.trials_mode.selscreenpalfx_color
+		start.selectScreenPalMod = 'darkened'
+		selectScreenPalMod = true
+	elseif not gamemode("trials") and start.selectScreenPalMod == 'darkened' then
+		paladd = {0,0,0}
+		palmul = {256,256,256}
+		palsinadd = {0,0,0}
+		palinvertall = 0
+		palcolor = 256
+		start.selectScreenPalMod = 'normal'
+		selectScreenPalMod = true
+	end
+
+	if selectScreenPalMod then
 		for row = 1, motif.select_info.rows do
 			for col = 1, motif.select_info.columns do
+				local cellIndex = (row - 1) * motif.select_info.columns + col
 				local t = start.t_grid[row][col]
 				if t.skip ~= 1 then
+					local charData = start.f_selGrid(cellIndex)
 					--draw random cell
-					if t.char == 'randomselect' or t.hidden == 3 then
+					if charData and (charData.char == 'randomselect' or charData.hidden == 3) then
 						-- animSetPalFX(motif.select_info.cell_random_data, {
 						-- 	time = 1,
 						-- 	add = motif.trials_mode.selscreenpalfx_add,
@@ -1620,15 +1643,16 @@ function start.f_trialsSelectScreen()
 						-- 	color = motif.trials_mode.selscreenpalfx_color
 						-- })
 					--draw face cell
-					elseif t.char ~= nil and t.hidden == 0 and start.f_getCharData(t.char_ref).trialsdef == ""  then
-						animSetPalFX(start.f_getCharData(t.char_ref).cell_data, {
-							time = 1,
-							add = motif.trials_mode.selscreenpalfx_add,
-							mul = motif.trials_mode.selscreenpalfx_mul,
-							sinadd = motif.trials_mode.selscreenpalfx_sinadd,
-							invertall = motif.trials_mode.selscreenpalfx_invertall,
-							color = motif.trials_mode.selscreenpalfx_color
+					elseif charData and charData.char_ref ~= nil and charData.hidden == 0 and charData.trialsdef == "" then
+						animSetPalFX(charData.cell_data, {
+							time = -1,
+							add = paladd,
+							mul = palmul,
+							sinadd = palsinadd,
+							invertall = palinvertall,
+							color = palcolor,
 						})
+						animUpdate(charData.cell_data)
 					end
 				end
 			end
@@ -1836,23 +1860,23 @@ end
 for row = 1, #main.t_selChars, 1 do
 	if main.t_selChars[row].def ~= nil then
 		main.t_selChars[row].trialsdef = ""
-		local deffile = io.open(main.t_selChars[row].def, "r")
-		for line in deffile:lines() do
+		local deffile = loadText(main.t_selChars[row].def)
+		for line in deffile:gmatch("([^\r\n]*)[\r\n]?") do
 			line = line:gsub('%s*;.*$', '')
 			lcline = string.lower(line)
 			if lcline:match('trials') then
-				main.t_selChars[row].trialsdef = main.t_selChars[row].dir .. "/" .. f_trimafterchar(line, "=")
+				main.t_selChars[row].trialsdef = main.t_selChars[row].dir .. f_trimafterchar(line, "=")
+				break
 			end
 		end
-		deffile:close()
 	end
 	if  main.t_selChars[row].def ~= nil and main.t_selChars[row].trialsdef ~= "" then
 		i = 0 --Trial number
 		j = 0 --TrialStep number
 		trial = {}
-		local trialsFile = io.open(main.t_selChars[row].trialsdef, "r")
+		local trialsFile = loadText(main.t_selChars[row].trialsdef)
 
-		for line in trialsFile:lines() do
+		for line in trialsFile:gmatch("([^\r\n]*)[\r\n]?") do
 			line = line:gsub('%s*;.*$', '')
 			lcline = string.lower(line)
 
@@ -1996,7 +2020,6 @@ for row = 1, #main.t_selChars, 1 do
 				end
 			end
 		end
-		trialsFile:close()
 
 		main.t_selChars[row].trialsdata = trial
 	end
