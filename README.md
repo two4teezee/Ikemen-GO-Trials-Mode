@@ -1,7 +1,7 @@
 # Ikemen GO Trials Mode
 > Last tested on Ikemen GO v0.99 and Nightly Build (08/24/2025).
 
-> Note: for older Ikemen GO Night Builds older than 12/27/2024, check releases tab for an appropriate Trials Mode release .
+> Note: for older Ikemen GO Night Builds, check releases tab for a compatible release of Trials Mode .
 
 > Module developed by two4teezee
 ---
