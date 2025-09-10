@@ -1723,6 +1723,8 @@ menu.t_valuename.trialstextboxes = {
 }
 menu.t_itemname['trialslist'] = function(t, item, cursorPosY, moveTxt, section)
 	if menu.f_valueChanged(t.items[item], motif[section]) then
+		start.trials.currenttrialstep = 1
+		start.trials.currenttrialmicrostep = 1
 		start.trials.currenttrial = menu.trialslist
 		start.trials.trial[start.trials.currenttrial].complete = false
 		start.trials.trial[start.trials.currenttrial].active = false
@@ -1794,6 +1796,8 @@ end
 
 menu.t_itemname['nexttrial'] = function(t, item, cursorPosY, moveTxt, section)
 	if main.f_input(main.t_players, {'pal', 's'}) then
+		start.trials.currenttrialstep = 1
+		start.trials.currenttrialmicrostep = 1
 		sndPlay(motif.files.snd_data, motif[section].cursor_done_snd[1], motif[section].cursor_done_snd[2])
 		start.trials.currenttrial = math.min(start.trials.currenttrial + 1, #start.trials.trial)
 		start.trials.trial[start.trials.currenttrial].complete = false
@@ -1807,6 +1811,8 @@ end
 
 menu.t_itemname['previoustrial'] = function(t, item, cursorPosY, moveTxt, section)
 	if main.f_input(main.t_players, {'pal', 's'}) then
+		start.trials.currenttrialstep = 1
+		start.trials.currenttrialmicrostep = 1
 		sndPlay(motif.files.snd_data, motif[section].cursor_done_snd[1], motif[section].cursor_done_snd[2])
 		start.trials.currenttrial = math.max(start.trials.currenttrial - 1, 1)
 		start.trials.trial[start.trials.currenttrial].complete = false
