@@ -1411,7 +1411,7 @@ function start.f_trialsChecker()
 		local projcheck = false
 		local maincharcheck = false
 		local statecheck = false
-		local animcheck = false
+		local animcheck = true
 		player(2)
 		local attackerid = gethitvar('id')
 		player(1)
