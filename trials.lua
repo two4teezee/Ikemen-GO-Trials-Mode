@@ -2015,11 +2015,11 @@ for row = 1, #main.t_selChars, 1 do
 				end
 			elseif lcline:find("trialstep." .. j .. ".animno") then
 				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].animno = f_str2number(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
-				end
-				for k = 1, #trial[i].trialstep[j].animno, 1 do
-					local temp = trial[i].trialstep[j].animno[k]
-					trial[i].trialstep[j].animno[k] = f_str2number(main.f_strsplit('|', temp))
+					trial[i].trialstep[j].animno = main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", ""))
+					for k = 1, #trial[i].trialstep[j].animno, 1 do
+						local temp = trial[i].trialstep[j].animno[k]
+						trial[i].trialstep[j].animno[k] = f_str2number(main.f_strsplit('|', temp))
+					end
 				end
 			elseif lcline:find("trialstep." .. j .. ".hitcount") then
 				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
