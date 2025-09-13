@@ -1410,6 +1410,8 @@ function start.f_trialsChecker()
 		local helpercheck = false
 		local projcheck = false
 		local maincharcheck = false
+		local statecheck = false
+		local animcheck = false
 		player(2)
 		local attackerid = gethitvar('id')
 		player(1)
@@ -1427,7 +1429,6 @@ function start.f_trialsChecker()
 		end
 
 		-- Check states and anims; iterate over 'or' operand if multiple states and/or anims are provided
-		statecheck = false
 		local desiredstates = start.trials.trial[ct].trialstep[cts].stateno[ctms]
 		for k = 1, #desiredstates, 1 do
 			if attackerstate == desiredstates[k] then
@@ -1435,7 +1436,6 @@ function start.f_trialsChecker()
 				break
 			end
 		end
-		animcheck = true
 		if start.trials.trial[ct].trialstep[cts].animno[ctms] ~= nil then
 			animcheck = false
 			local desiredanims = start.trials.trial[ct].trialstep[cts].animno[ctms]
