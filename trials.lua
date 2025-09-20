@@ -1410,6 +1410,8 @@ function start.f_trialsChecker()
 		local helpercheck = false
 		local projcheck = false
 		local maincharcheck = false
+		local statecheck = false
+		local animcheck = true
 		player(2)
 		local attackerid = gethitvar('id')
 		player(1)
@@ -1426,7 +1428,26 @@ function start.f_trialsChecker()
 			-- print("Anim: " .. attackeranim)
 		end
 
-		if (start.trials.trial[ct].trialstep[cts].ishelper[ctms] and start.trials.trial[ct].trialstep[cts].stateno[ctms] == attackerstate) and (attackeranim == start.trials.trial[ct].trialstep[cts].animno[ctms] or start.trials.trial[ct].trialstep[cts].animno[ctms] == nil) then
+		-- Check states and anims; iterate over 'or' operand if multiple states and/or anims are provided
+		local desiredstates = start.trials.trial[ct].trialstep[cts].stateno[ctms]
+		for k = 1, #desiredstates, 1 do
+			if attackerstate == desiredstates[k] then
+				statecheck = true
+				break
+			end
+		end
+		if start.trials.trial[ct].trialstep[cts].animno[ctms] ~= nil then
+			animcheck = false
+			local desiredanims = start.trials.trial[ct].trialstep[cts].animno[ctms]
+			for k = 1, #desiredanims, 1 do
+				if attackeranim == desiredanims[k] then
+					animcheck = true
+					break
+				end
+			end
+		end
+
+		if (start.trials.trial[ct].trialstep[cts].ishelper[ctms] and statecheck) and animcheck then
 			helpercheck = true
 			if start.trials.trial[ct].trialstep[cts].validforvar ~= nil and helpercheck then
 				for i = 1, #start.trials.trial[ct].trialstep[cts].validforvar, 1 do
@@ -1437,7 +1458,7 @@ function start.f_trialsChecker()
 			end
 		end
 
-		if (start.trials.trial[ct].trialstep[cts].isproj[ctms] and start.trials.trial[ct].trialstep[cts].stateno[ctms] == attackerstate) and (attackeranim == start.trials.trial[ct].trialstep[cts].animno[ctms] or start.trials.trial[ct].trialstep[cts].animno[ctms] == nil) then
+		if (start.trials.trial[ct].trialstep[cts].isproj[ctms] and statecheck) and animcheck then
 			projcheck = true
 			if start.trials.trial[ct].trialstep[cts].validforvar ~= nil and projcheck then
 				for i = 1, #start.trials.trial[ct].trialstep[cts].validforvar, 1 do
@@ -1448,7 +1469,7 @@ function start.f_trialsChecker()
 			end
 		end
 
-		maincharcheck = (stateno() == start.trials.trial[ct].trialstep[cts].stateno[ctms] and not(start.trials.trial[ct].trialstep[cts].isproj[ctms]) and not(start.trials.trial[ct].trialstep[cts].ishelper[ctms]) and (anim() == start.trials.trial[ct].trialstep[cts].animno[ctms] or start.trials.trial[ct].trialstep[cts].animno[ctms] == nil) and ((hitpausetime() > 1 and movehit() and combocount() > start.trials.combocounter) or start.trials.trial[ct].trialstep[cts].isthrow[ctms] or start.trials.trial[ct].trialstep[cts].hitcount[ctms] == 0))
+		maincharcheck = (statecheck and not(start.trials.trial[ct].trialstep[cts].isproj[ctms]) and not(start.trials.trial[ct].trialstep[cts].ishelper[ctms]) and animcheck and ((hitpausetime() > 1 and movehit() and combocount() > start.trials.combocounter) or start.trials.trial[ct].trialstep[cts].isthrow[ctms] or start.trials.trial[ct].trialstep[cts].hitcount[ctms] == 0))
 		if start.trials.trial[ct].trialstep[cts].validforvar ~= nil and maincharcheck then
 			for i = 1, #start.trials.trial[ct].trialstep[cts].validforvar, 1 do
 				if maincharcheck then
@@ -1974,7 +1995,11 @@ for row = 1, #main.t_selChars, 1 do
 			elseif lcline:find("trialstep." .. j .. ".glyphs") then
 				trial[i].trialstep[j].glyphs = f_trimafterchar(line, "=")
 			elseif lcline:find("trialstep." .. j .. ".stateno") then
-				trial[i].trialstep[j].stateno = f_str2number(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+				trial[i].trialstep[j].stateno = main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", ""))
+				for k = 1, #trial[i].trialstep[j].stateno, 1 do
+					local temp = trial[i].trialstep[j].stateno[k]
+					trial[i].trialstep[j].stateno[k] = f_str2number(main.f_strsplit('|', temp))
+				end
 				trial[i].trialstep[j].numofmicrosteps = #trial[i].trialstep[j].stateno
 				for k = 1, trial[i].trialstep[j].numofmicrosteps, 1 do
 					trial[i].trialstep[j].stephitscount[k] = 0
@@ -1990,7 +2015,11 @@ for row = 1, #main.t_selChars, 1 do
 				end
 			elseif lcline:find("trialstep." .. j .. ".animno") then
 				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].animno = f_str2number(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+					trial[i].trialstep[j].animno = main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", ""))
+					for k = 1, #trial[i].trialstep[j].animno, 1 do
+						local temp = trial[i].trialstep[j].animno[k]
+						trial[i].trialstep[j].animno[k] = f_str2number(main.f_strsplit('|', temp))
+					end
 				end
 			elseif lcline:find("trialstep." .. j .. ".hitcount") then
 				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
