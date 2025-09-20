@@ -588,6 +588,15 @@ trialstep.1.hitcount = 1, 1
 
 ;---------------------------------------------
 
+[TrialDef, KFM Kung Fu Palm]
+; In this trial, we use the "or" operand, specified by using the | character, to let the user specify multiple different stateno or animno for which the trialstep or microstep is valid.
+
+trialstep.1.text = Kung Fu Palm
+trialstep.1.glyphs = _QDF^P
+trialstep.1.stateno = 1000|1010
+
+;---------------------------------------------
+
 [TrialDef, Kung Fu Juggle Combo]
 trialstep.1.text = Kung Fu Knee and Extra Kick
 trialstep.1.glyphs = _F_F_+^K_.^K
