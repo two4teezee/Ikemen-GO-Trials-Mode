@@ -53,6 +53,20 @@ local function f_trimafterchar(line, char)
 	return line
 end
 
+local function f_trimbeforechar(line, char)
+	-- trims a string before a specified character.
+	-- also trims leading and trailing whitespace
+	x = string.find(line, char)
+	if x ~= nil then
+		line = string.sub(line, 1, x-1)
+		line = string.gsub(line, '^%s*(.-)%s*$', '%1')
+		line = string.gsub(line, '[ \t]+%f[\r\n%z]', '')
+	else
+		line = ""
+	end
+	return line
+end
+
 local function f_str2boolean(str)
 	-- converts a table of "true" and "false" strings to bool
     local bool = {}
@@ -1909,6 +1923,7 @@ for row = 1, #main.t_selChars, 1 do
 
 			if lcline:find("trialstep." .. j+1 .. ".") then
 				j = j + 1
+				trialsteplangfound = false
 				trial[i].trialstep[j] = {
 					numofmicrosteps = 1,
 					text = "",
@@ -1952,6 +1967,8 @@ for row = 1, #main.t_selChars, 1 do
 				if lcline:match('^trialdef') then --matched trialdef block
 					i = i + 1 -- increment Trial number
 					j = 0 -- reset trialstep number
+					triallangfound = false
+					lang = gameOption('Config.Language'):lower()
 					trial[i] = {
 						name = "",
 						dummymode = "stand",
@@ -1964,7 +1981,6 @@ for row = 1, #main.t_selChars, 1 do
 						elapsedtime = 0,
 						textcnt = 0,
 						starttick = roundtime()+1,
-						lang = gameOption('Config.Language'):lower(),
 						trialstep = {},
 					}
 					temp = {}
@@ -1981,19 +1997,7 @@ for row = 1, #main.t_selChars, 1 do
 			elseif lcline:find("dummybuttonjam") then
 				trial[i].buttonjam = f_trimafterchar(lcline, "=")
 			elseif lcline:find("showforvarvalpairs") then
--- 				local text = "hello.world.en"
-
--- -- This will match "hello" because it's a partial match at the beginning
--- local partial_match = string.match(text, "hello")
--- print(partial_match) -- Output: hello
-
--- -- This will *not* match because "hello" is not the full string
--- local full_string_no_match = string.match(text, "^hello$")
--- print(full_string_no_match) -- Output: nil
-
--- -- This will match because the entire string "hello world" matches the pattern
--- local full_string_match = string.match(text, "^hello.world.en$")
--- print(full_string_match) -- Output: hello world
+				showforvarvalpairsfound = false
 				temp = main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", ""))
 				trial[i].showforvar = {}
 				trial[i].showforval = {}
@@ -2001,17 +2005,26 @@ for row = 1, #main.t_selChars, 1 do
 					trial[i].showforvar[#trial[i].showforvar+1] = tonumber(temp[k])
 					trial[i].showforval[#trial[i].showforval+1] = f_str2number(main.f_strsplit('|', temp[k+1]))
 				end
-			elseif lcline:find("textbox." .. trial[i].lang) and not trial[i].langfound then
-				trial[i].textbox = f_trimafterchar(lcline, "=")
-				trial[i].langfound = true
-				if lcline:find("textbox." .. trial[i].lang) then
+			elseif lcline:find("textbox") and not triallangfound then
+				if lcline:find("textbox." .. lang) then
 					trial[i].textbox = f_trimafterchar(lcline, "=")
-				elseif lcline:find("textbox.en") then
+					triallangfound = true
+				elseif string.match(lcline, "trial.textbox.en") then
 					trial[i].textbox = f_trimafterchar(lcline, "=")
-				elseif lcline:find("textbox") then
+				elseif string.match(f_trimbeforechar(lcline, "="), "^trial.textbox$") then
 					trial[i].textbox = f_trimafterchar(lcline, "=")
+					triallangfound = true
 				end
-			elseif lcline:find("trialstep." .. j .. ".text") then
+			elseif lcline:find("trialstep." .. j .. ".text") and not trialsteplangfound then
+				if lcline:find("trialstep." .. j .. ".text." .. lang) then
+					trial[i].trialstep[j].text = f_trimafterchar(line, "=")
+					trialsteplangfound = true
+				elseif string.match(lcline, "trialstep." .. j .. ".text.en") then
+					trial[i].trialstep[j].text = f_trimafterchar(line, "=")
+				elseif string.match(f_trimbeforechar(lcline, "="), "^trialstep." .. j .. ".text$") then
+					trial[i].trialstep[j].text = f_trimafterchar(line, "=")
+					trialsteplangfound = true
+				end
 				trial[i].trialstep[j].text = f_trimafterchar(line, "=")
 			elseif lcline:find("trialstep." .. j .. ".glyphs") then
 				trial[i].trialstep[j].glyphs = f_trimafterchar(line, "=")
