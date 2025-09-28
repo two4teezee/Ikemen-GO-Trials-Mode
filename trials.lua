@@ -39,26 +39,16 @@ local function f_timeConvert(value)
 	return m, s, x
 end
 
-local function f_trimafterchar(line, char)
-	-- trims a string after a specified character.
+local function f_trimforchar(line, char, when)
+	-- trims a string before or after a specified character.
 	-- also trims leading and trailing whitespace
 	x = string.find(line, char)
 	if x ~= nil then
-		line = string.sub(line, x+1, #line)
-		line = string.gsub(line, '^%s*(.-)%s*$', '%1')
-		line = string.gsub(line, '[ \t]+%f[\r\n%z]', '')
-	else
-		line = ""
-	end
-	return line
-end
-
-local function f_trimbeforechar(line, char)
-	-- trims a string before a specified character.
-	-- also trims leading and trailing whitespace
-	x = string.find(line, char)
-	if x ~= nil then
-		line = string.sub(line, 1, x-1)
+		if when == "after" then
+			line = string.sub(line, x+1, #line)
+		elseif when == "before" then
+			line = string.sub(line, 1, x-1)
+		end
 		line = string.gsub(line, '^%s*(.-)%s*$', '%1')
 		line = string.gsub(line, '[ \t]+%f[\r\n%z]', '')
 	else
@@ -1906,7 +1896,7 @@ for row = 1, #main.t_selChars, 1 do
 			line = line:gsub('%s*;.*$', '')
 			lcline = string.lower(line)
 			if lcline:match('trials') then
-				main.t_selChars[row].trialsdef = main.t_selChars[row].dir .. f_trimafterchar(line, "=")
+				main.t_selChars[row].trialsdef = main.t_selChars[row].dir .. f_trimforchar(line, "=", "after")
 				break
 			end
 		end
@@ -1985,21 +1975,21 @@ for row = 1, #main.t_selChars, 1 do
 						trialstep = {},
 					}
 					temp = {}
-					line = f_trimafterchar(line, ",")
+					line = f_trimforchar(line, ",", "after")
 					if line == "" then
 						line = "Trial " .. tostring(i)
 					end
 					trial[i].name = line
 				end
 			elseif lcline:find("dummymode") then
-				trial[i].dummymode = f_trimafterchar(lcline, "=")
+				trial[i].dummymode = f_trimforchar(lcline, "=", "after")
 			elseif lcline:find("guardmode") then
-				trial[i].guardmode = f_trimafterchar(lcline, "=")
+				trial[i].guardmode = f_trimforchar(lcline, "=", "after")
 			elseif lcline:find("dummybuttonjam") then
-				trial[i].buttonjam = f_trimafterchar(lcline, "=")
+				trial[i].buttonjam = f_trimforchar(lcline, "=", "after")
 			elseif lcline:find("showforvarvalpairs") then
 				showforvarvalpairsfound = false
-				temp = main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", ""))
+				temp = main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", ""))
 				trial[i].showforvar = {}
 				trial[i].showforval = {}
 				for k = 1, #temp, 2 do
@@ -2008,29 +1998,29 @@ for row = 1, #main.t_selChars, 1 do
 				end
 			elseif lcline:find("textbox") and not triallangfound then
 				if lcline:find("textbox." .. lang) then
-					trial[i].textbox = f_trimafterchar(lcline, "=")
+					trial[i].textbox = f_trimforchar(lcline, "=", "after")
 					triallangfound = true
 				elseif string.match(lcline, "trial.textbox.en") then
-					trial[i].textbox = f_trimafterchar(lcline, "=")
-				elseif string.match(f_trimbeforechar(lcline, "="), "^trial.textbox$") then
-					trial[i].textbox = f_trimafterchar(lcline, "=")
+					trial[i].textbox = f_trimforchar(lcline, "=", "after")
+				elseif string.match(f_trimforchar(lcline, "=", "before"), "^trial.textbox$") then
+					trial[i].textbox = f_trimforchar(lcline, "=", "after")
 					triallangfound = true
 				end
 			elseif lcline:find("trialstep." .. j .. ".text") and not trialsteplangfound then
 				if lcline:find("trialstep." .. j .. ".text." .. lang) then
-					trial[i].trialstep[j].text = f_trimafterchar(line, "=")
+					trial[i].trialstep[j].text = f_trimforchar(line, "=", "after")
 					trialsteplangfound = true
 				elseif string.match(lcline, "trialstep." .. j .. ".text.en") then
-					trial[i].trialstep[j].text = f_trimafterchar(line, "=")
-				elseif string.match(f_trimbeforechar(lcline, "="), "^trialstep." .. j .. ".text$") then
-					trial[i].trialstep[j].text = f_trimafterchar(line, "=")
+					trial[i].trialstep[j].text = f_trimforchar(line, "=", "after")
+				elseif string.match(f_trimforchar(lcline, "=", "before"), "^trialstep." .. j .. ".text$") then
+					trial[i].trialstep[j].text = f_trimforchar(line, "=", "after")
 					trialsteplangfound = true
 				end
-				trial[i].trialstep[j].text = f_trimafterchar(line, "=")
+				trial[i].trialstep[j].text = f_trimforchar(line, "=", "after")
 			elseif lcline:find("trialstep." .. j .. ".glyphs") then
-				trial[i].trialstep[j].glyphs = f_trimafterchar(line, "=")
+				trial[i].trialstep[j].glyphs = f_trimforchar(line, "=", "after")
 			elseif lcline:find("trialstep." .. j .. ".stateno") then
-				trial[i].trialstep[j].stateno = main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", ""))
+				trial[i].trialstep[j].stateno = main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", ""))
 				for k = 1, #trial[i].trialstep[j].stateno, 1 do
 					local temp = trial[i].trialstep[j].stateno[k]
 					trial[i].trialstep[j].stateno[k] = f_str2number(main.f_strsplit('|', temp))
@@ -2049,44 +2039,44 @@ for row = 1, #main.t_selChars, 1 do
 					trial[i].trialstep[j].validfortickcount[k] = nil
 				end
 			elseif lcline:find("trialstep." .. j .. ".animno") then
-				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].animno = main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", ""))
+				if string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "") ~= "" then
+					trial[i].trialstep[j].animno = main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", ""))
 					for k = 1, #trial[i].trialstep[j].animno, 1 do
 						local temp = trial[i].trialstep[j].animno[k]
 						trial[i].trialstep[j].animno[k] = f_str2number(main.f_strsplit('|', temp))
 					end
 				end
 			elseif lcline:find("trialstep." .. j .. ".hitcount") then
-				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].hitcount = f_str2number(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+				if string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "") ~= "" then
+					trial[i].trialstep[j].hitcount = f_str2number(main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "")))
 				end
 			elseif lcline:find("trialstep." .. j .. ".isthrow") then
-				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].isthrow = f_str2boolean(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+				if string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "") ~= "" then
+					trial[i].trialstep[j].isthrow = f_str2boolean(main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "")))
 				end
 			elseif lcline:find("trialstep." .. j .. ".iscounterhit") then
-				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].iscounterhit = f_str2boolean(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+				if string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "") ~= "" then
+					trial[i].trialstep[j].iscounterhit = f_str2boolean(main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "")))
 				end
 			elseif lcline:find("trialstep." .. j .. ".ishelper") then
-				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].ishelper = f_str2boolean(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+				if string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "") ~= "" then
+					trial[i].trialstep[j].ishelper = f_str2boolean(main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "")))
 				end
 			elseif lcline:find("trialstep." .. j .. ".isproj") then
-				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].isproj = f_str2boolean(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+				if string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "") ~= "" then
+					trial[i].trialstep[j].isproj = f_str2boolean(main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "")))
 				end
 			elseif lcline:find("trialstep." .. j .. ".validforvarvalpairs") then
-				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					local varvalpairs = f_str2number(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+				if string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "") ~= "" then
+					local varvalpairs = f_str2number(main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "")))
 					for ii = 1, #varvalpairs, 2 do
 						trial[i].trialstep[j].validforvar[ii] = varvalpairs[ii]
 						trial[i].trialstep[j].validforval[ii] = varvalpairs[ii+1]
 					end
 				end
 			elseif lcline:find("trialstep." .. j .. ".validfortickcount") then
-				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].validfortickcount = f_str2number(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+				if string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "") ~= "" then
+					trial[i].trialstep[j].validfortickcount = f_str2number(main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "")))
 				end
 			end
 		end
