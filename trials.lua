@@ -1979,6 +1979,7 @@ for row = 1, #main.t_selChars, 1 do
 						showforvar = {nil},
 						showforval = {nil},
 						elapsedtime = 0,
+						textbox = "",
 						textcnt = 0,
 						starttick = roundtime()+1,
 						trialstep = {},
