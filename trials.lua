@@ -968,7 +968,22 @@ function start.f_trialsDummySetup()
 	--If the trials initializer was successful and the round animation is completed, we will start drawing trials on the screen
 	player(2)
 	setAILevel(0)
+	if start.trials.trial[start.trials.currenttrial].p2life ~= nil then
+		charMapSet(2, '_iksys_trialsSetLife', start.trials.trial[start.trials.currenttrial].p2life)
+		setLife(start.trials.trial[start.trials.currenttrial].p2life)
+	else
+		charMapSet(2, '_iksys_trialsSetLife', lifemax())
+		setLife(lifemax())
+	end
 	player(1)
+	--Set life for P1 and P2 if specified in the trial
+	if start.trials.trial[start.trials.currenttrial].p1life ~= nil then
+		charMapSet(1, '_iksys_trialsSetLife', start.trials.trial[start.trials.currenttrial].p1life)
+		setLife(start.trials.trial[start.trials.currenttrial].p1life)
+	else
+		charMapSet(1, '_iksys_trialsSetLife', lifemax())
+		setLife(lifemax())
+	end
 	charMapSet(2, '_iksys_trialsDummyControl', 0)
 	if not start.trials.allclear and not start.trials.trial[start.trials.currenttrial].active then
 		if start.trials.trial[start.trials.currenttrial].dummymode == 'stand' then
@@ -1586,6 +1601,10 @@ function start.f_trialsSuccess(successstring, index)
 	charMapSet(2, '_iksys_trialsDummyMode', 0)
 	charMapSet(2, '_iksys_trialsGuardMode', 0)
 	charMapSet(2, '_iksys_trialsButtonJam', 0)
+	charMapSet(1, '_iksys_trialsSetLife', lifemax())
+	player(2)
+	charMapSet(2, '_iksys_trialsSetLife', lifemax())
+	player(1)
 	if not start.trials.trial[index].complete or (successstring == "allclear" and not start.trials.allclear) then
 		-- Play sound only once
 		sndPlay(motif.files.snd_data, motif.trials_mode[successstring .. '_snd'][1], motif.trials_mode[successstring .. '_snd'][2])
@@ -1710,8 +1729,10 @@ function start.f_trialsMode()
 		-- No trials present!
 		player(2)
 		setAILevel(0)
+		charMapSet(2, '_iksys_trialsSetLife', lifemax())
 		player(1)
 		charMapSet(2, '_iksys_trialsDummyControl', 0)
+		charMapSet(1, '_iksys_trialsSetLife', lifemax())
 		trialcounter = main.f_createTextImg(motif.trials_mode, 'trialcounter')
 		trialcounter:update({x = motif.trials_mode.trialcounter_pos[1], y = motif.trials_mode.trialcounter_pos[2], text = motif.trials_mode.trialcounter_notrialsdata_text})
 		trialcounter:draw()
@@ -1881,7 +1902,9 @@ function menu.f_trialsReset()
 	charMapSet(2, '_iksys_trialsDistance', 0)
 	charMapSet(2, '_iksys_trialsButtonJam', 0)
 	charMapSet(2, '_iksys_trialsReposition', 0)
+	charMapSet(2, '_iksys_trialsSetLife', lifemax())
 	player(1)
+	charMapSet(1, '_iksys_trialsSetLife', lifemax())
 end
 
 --;===========================================================
@@ -1967,6 +1990,8 @@ for row = 1, #main.t_selChars, 1 do
 						buttonjam = "none",
 						active = false,
 						complete = false,
+						p1life = nil,
+						p2life = nil,
 						showforvar = {nil},
 						showforval = {nil},
 						elapsedtime = 0,
@@ -1988,6 +2013,10 @@ for row = 1, #main.t_selChars, 1 do
 				trial[i].guardmode = f_trimforchar(lcline, "=", "after")
 			elseif lcline:find("dummybuttonjam") then
 				trial[i].buttonjam = f_trimforchar(lcline, "=", "after")
+			elseif lcline:find("p1life") then
+				trial[i].p1life = tonumber(f_trimforchar(lcline, "=", "after"))
+			elseif lcline:find("p2life") then
+				trial[i].p2life = tonumber(f_trimforchar(lcline, "=", "after"))
 			elseif lcline:find("showforvarvalpairs") then
 				showforvarvalpairsfound = false
 				temp = main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", ""))

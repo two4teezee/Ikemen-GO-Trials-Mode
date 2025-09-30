@@ -16,8 +16,8 @@
 if player($pn),moveType = H || player($pn),dizzy {
 	mapSet{map: "_iksys_trialsLifeTimer"; value: 0; redirectid: player($pn),id}
 } else if player($pn),map(_iksys_trialsLifeTimer) >= 60 {
-	lifeSet{value: player($pn),lifeMax; redirectid: player($pn),id}
-	redLifeSet{value: player($pn),lifeMax; redirectid: player($pn),id}
+	lifeSet{value: player($pn),map(_iksys_trialsSetLife); redirectid: player($pn),id}
+	redLifeSet{value: player($pn),map(_iksys_trialsSetLife); redirectid: player($pn),id}
 	mapSet{map: "_iksys_trialsLifeTimer"; value: 0; redirectid: player($pn),id}
 } else {
 	mapAdd{map: "_iksys_trialsLifeTimer"; value: 1; redirectid: player($pn),id}
