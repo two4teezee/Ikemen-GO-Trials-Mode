@@ -1416,6 +1416,7 @@ function start.f_trialsChecker()
 		local maincharcheck = false
 		local statecheck = false
 		local animcheck = true
+
 		player(2)
 		local attackerid = gethitvar('id')
 		player(1)
@@ -1435,7 +1436,7 @@ function start.f_trialsChecker()
 		-- Check states and anims; iterate over 'or' operand if multiple states and/or anims are provided
 		local desiredstates = start.trials.trial[ct].trialstep[cts].stateno[ctms]
 		for k = 1, #desiredstates, 1 do
-			if attackerstate == desiredstates[k] then
+			if stateno() == desiredstates[k] or attackerstate == desiredstates[k] then
 				statecheck = true
 				break
 			end
@@ -1444,7 +1445,7 @@ function start.f_trialsChecker()
 			animcheck = false
 			local desiredanims = start.trials.trial[ct].trialstep[cts].animno[ctms]
 			for k = 1, #desiredanims, 1 do
-				if attackeranim == desiredanims[k] then
+				if anim() == desiredanims[k] or attackeranim == desiredanims[k] then
 					animcheck = true
 					break
 				end

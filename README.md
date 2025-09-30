@@ -526,10 +526,11 @@ trialstep.1.stateno = 1010
 ; trial.guardmode - optional - valid options are none, auto. Defaults to none if unspecified.
 ; trial.dummybuttonjam - optional - valid options are none, a, b, c, x, y, z, start, d, w. Defaults to none if unspecified.
 ; trial.showvarvalpairs - optional - (comma-separated integers, specified in pairs, can specify 0..n pairs). Used to determine whether a trial should be displayed based on the specified variable and value pair(s) in this field. Useful if a trial should only be displayed when character has a specific variable/value pair set, such as being in a specific groove or mode. If specified, the trial will only be displayed if all variable-value pairs return true. These variable-value pairs should only be for the character (not for helpers). Finally, variables can have multiple specified values to test against, which should be separated by the "|" character (e.g. `trial.showforvarvalpairs = 12, 0|2|4` would test var(12) for values 0, 2, and 4).
+; trial.textbox - optional - multilingual - displays specified text in a box specified in the textbox settings in system.def under [Trials Mode]. Supports specification as trial.textbox, or trial.textbox.en, trial.textbox.es, etc. for multilingual support. Will default to trial.textbox.en (or trial.textbox) if selected language cannot be matched.
 
 ; dummymode, guardmode, and dummybuttonjam are defined once per trial. The other parameters can be defined for each trial step - notice the syntax, where X is the trial number.
 
-; trialstep.X.text - optional - (string). Text for trial step (only displayed in vertical trials layout).
+; trialstep.X.text - optional - multilingual - (string). Text for trial step (only displayed in vertical trials layout). Supports specification as trialstep.X.text, or trialstep.X.text.en, trialstep.X.text.es, etc. for multilingual support. Will default to trialstep.X.text.en (or trialstep.X.text) if selected language cannot be matched.
 ; trialstep.X.glyphs - optional - (string, see Glyph documentation [https://github.com/ikemen-engine/Ikemen-GO/wiki/Miscellaneous-info#movelists] for syntax). Same syntax as movelist glyphs. Glyphs are displayed in vertical and horizontal trials layouts.
 ; trialstep.X.stateno - mandatory - (integer or comma-separated integers). State to be checked to pass trial. This is the state whether it's the main character, a helper, or even a projectile.
 
@@ -553,7 +554,11 @@ trialstep.1.isthrow = true
 ;---------------------------------------------
 
 [TrialDef, Kung Fu Taunt]
-trialstep.1.text = Kung Fu Taunt
+trial.textbox.en = This is an English textbox!
+trial.textbox.es = Este es un cuadro de texto en español.
+
+trialstep.1.text.en = Kung Fu Taunt
+trialstep.1.text.es = Kung Fu Pulla
 trialstep.1.glyphs = ^S
 trialstep.1.stateno = 195
 trialstep.1.hitcount = 0
