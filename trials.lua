@@ -968,58 +968,62 @@ function start.f_trialsDummySetup()
 	--If the trials initializer was successful and the round animation is completed, we will start drawing trials on the screen
 	player(2)
 	setAILevel(0)
-	if start.trials.trial[start.trials.currenttrial].p2life ~= nil then
-		charMapSet(2, '_iksys_trialsSetLife', start.trials.trial[start.trials.currenttrial].p2life)
+	if start.trials.trial[start.trials.currenttrial].p2life > 0 then
+		mapSet(2, '_iksys_trialsSetLife', start.trials.trial[start.trials.currenttrial].p2life)
 		setLife(start.trials.trial[start.trials.currenttrial].p2life)
 	else
-		charMapSet(2, '_iksys_trialsSetLife', lifemax())
-		setLife(lifemax())
+		if map('_iksys_trialsSetLife') < lifemax() then
+			mapSet(2, '_iksys_trialsSetLife', lifemax())
+			--setLife(lifemax())
+		end
 	end
 	player(1)
 	--Set life for P1 and P2 if specified in the trial
-	if start.trials.trial[start.trials.currenttrial].p1life ~= nil then
-		charMapSet(1, '_iksys_trialsSetLife', start.trials.trial[start.trials.currenttrial].p1life)
+	if start.trials.trial[start.trials.currenttrial].p1life > 0 then
+		mapSet(1, '_iksys_trialsSetLife', start.trials.trial[start.trials.currenttrial].p1life)
 		setLife(start.trials.trial[start.trials.currenttrial].p1life)
 	else
-		charMapSet(1, '_iksys_trialsSetLife', lifemax())
-		setLife(lifemax())
+		if map('_iksys_trialsSetLife') < lifemax() then
+			mapSet(1, '_iksys_trialsSetLife', lifemax())
+			--setLife(lifemax())
+		end
 	end
-	charMapSet(2, '_iksys_trialsDummyControl', 0)
+	mapSet(2, '_iksys_trialsDummyControl', 0)
 	if not start.trials.allclear and not start.trials.trial[start.trials.currenttrial].active then
 		if start.trials.trial[start.trials.currenttrial].dummymode == 'stand' then
-			charMapSet(2, '_iksys_trialsDummyMode', 0)
+			mapSet(2, '_iksys_trialsDummyMode', 0)
 		elseif start.trials.trial[start.trials.currenttrial].dummymode == 'crouch' then
-			charMapSet(2, '_iksys_trialsDummyMode', 1)
+			mapSet(2, '_iksys_trialsDummyMode', 1)
 		elseif start.trials.trial[start.trials.currenttrial].dummymode == 'jump' then
-			charMapSet(2, '_iksys_trialsDummyMode', 2)
+			mapSet(2, '_iksys_trialsDummyMode', 2)
 		elseif start.trials.trial[start.trials.currenttrial].dummymode == 'wjump' then
-			charMapSet(2, '_iksys_trialsDummyMode', 3)
+			mapSet(2, '_iksys_trialsDummyMode', 3)
 		end
 		if start.trials.trial[start.trials.currenttrial].guardmode == 'none' then
-			charMapSet(2, '_iksys_trialsGuardMode', 0)
+			mapSet(2, '_iksys_trialsGuardMode', 0)
 		elseif start.trials.trial[start.trials.currenttrial].guardmode == 'auto' then
-			charMapSet(2, '_iksys_trialsGuardMode', 2)
+			mapSet(2, '_iksys_trialsGuardMode', 2)
 		end
 		if start.trials.trial[start.trials.currenttrial].buttonjam == 'none' then
-			charMapSet(2, '_iksys_trialsButtonJam', 0)
+			mapSet(2, '_iksys_trialsButtonJam', 0)
 		elseif start.trials.trial[start.trials.currenttrial].buttonjam == 'a' then
-			charMapSet(2, '_iksys_trialsButtonJam', 1)
+			mapSet(2, '_iksys_trialsButtonJam', 1)
 		elseif start.trials.trial[start.trials.currenttrial].buttonjam == 'b' then
-			charMapSet(2, '_iksys_trialsButtonJam', 2)
+			mapSet(2, '_iksys_trialsButtonJam', 2)
 		elseif start.trials.trial[start.trials.currenttrial].buttonjam == 'c' then
-			charMapSet(2, '_iksys_trialsButtonJam', 3)
+			mapSet(2, '_iksys_trialsButtonJam', 3)
 		elseif start.trials.trial[start.trials.currenttrial].buttonjam == 'x' then
-			charMapSet(2, '_iksys_trialsButtonJam', 4)
+			mapSet(2, '_iksys_trialsButtonJam', 4)
 		elseif start.trials.trial[start.trials.currenttrial].buttonjam == 'y' then
-			charMapSet(2, '_iksys_trialsButtonJam', 5)
+			mapSet(2, '_iksys_trialsButtonJam', 5)
 		elseif start.trials.trial[start.trials.currenttrial].buttonjam == 'z' then
-			charMapSet(2, '_iksys_trialsButtonJam', 6)
+			mapSet(2, '_iksys_trialsButtonJam', 6)
 		elseif start.trials.trial[start.trials.currenttrial].buttonjam == 'start' then
-			charMapSet(2, '_iksys_trialsButtonJam', 7)
+			mapSet(2, '_iksys_trialsButtonJam', 7)
 		elseif start.trials.trial[start.trials.currenttrial].buttonjam == 'd' then
-			charMapSet(2, '_iksys_trialsButtonJam', 8)
+			mapSet(2, '_iksys_trialsButtonJam', 8)
 		elseif start.trials.trial[start.trials.currenttrial].buttonjam == 'w' then
-			charMapSet(2, '_iksys_trialsButtonJam', 9)
+			mapSet(2, '_iksys_trialsButtonJam', 9)
 		end
 		start.trials.trial[start.trials.currenttrial].active = true
 	end
@@ -1598,12 +1602,12 @@ end
 
 function start.f_trialsSuccess(successstring, index)
 	-- This function is responsible for drawing the Success or All Clear banners after a trial is completed successfully.
-	charMapSet(2, '_iksys_trialsDummyMode', 0)
-	charMapSet(2, '_iksys_trialsGuardMode', 0)
-	charMapSet(2, '_iksys_trialsButtonJam', 0)
-	charMapSet(1, '_iksys_trialsSetLife', lifemax())
+	mapSet(2, '_iksys_trialsDummyMode', 0)
+	mapSet(2, '_iksys_trialsGuardMode', 0)
+	mapSet(2, '_iksys_trialsButtonJam', 0)
+	mapSet(1, '_iksys_trialsSetLife', lifemax())
 	player(2)
-	charMapSet(2, '_iksys_trialsSetLife', lifemax())
+	mapSet(2, '_iksys_trialsSetLife', lifemax())
 	player(1)
 	if not start.trials.trial[index].complete or (successstring == "allclear" and not start.trials.allclear) then
 		-- Play sound only once
@@ -1636,10 +1640,10 @@ function start.f_trialsFade()
 		start.trials.draw.fadeout = start.trials.draw.fadeout - 1
 	elseif start.trials.draw.fadein > 0 then
 		if main.fadeType == 'fadeout' then
-			charMapSet(2, '_iksys_trialsReposition', 1)
+			mapSet(2, '_iksys_trialsReposition', 1)
 			main.f_fadeReset('fadein',motif.trials_mode)
 		elseif main.fadeType == 'fadein' then
-			charMapSet(2, '_iksys_trialsCameraReset', 1)
+			mapSet(2, '_iksys_trialsCameraReset', 1)
 		end
 		main.f_fadeAnim(motif.trials_mode)
 		start.trials.draw.fadein = start.trials.draw.fadein - 1
@@ -1729,10 +1733,10 @@ function start.f_trialsMode()
 		-- No trials present!
 		player(2)
 		setAILevel(0)
-		charMapSet(2, '_iksys_trialsSetLife', lifemax())
+		mapSet(2, '_iksys_trialsSetLife', lifemax())
 		player(1)
-		charMapSet(2, '_iksys_trialsDummyControl', 0)
-		charMapSet(1, '_iksys_trialsSetLife', lifemax())
+		mapSet(2, '_iksys_trialsDummyControl', 0)
+		mapSet(1, '_iksys_trialsSetLife', lifemax())
 		trialcounter = main.f_createTextImg(motif.trials_mode, 'trialcounter')
 		trialcounter:update({x = motif.trials_mode.trialcounter_pos[1], y = motif.trials_mode.trialcounter_pos[2], text = motif.trials_mode.trialcounter_notrialsdata_text})
 		trialcounter:draw()
@@ -1895,16 +1899,16 @@ function menu.f_trialsReset()
 	end
 	player(2)
 	setAILevel(0)
-	charMapSet(2, '_iksys_trialsDummyControl', 0)
-	charMapSet(2, '_iksys_trialsDummyMode', 0)
-	charMapSet(2, '_iksys_trialsGuardMode', 0)
-	charMapSet(2, '_iksys_trialsFallRecovery', 0)
-	charMapSet(2, '_iksys_trialsDistance', 0)
-	charMapSet(2, '_iksys_trialsButtonJam', 0)
-	charMapSet(2, '_iksys_trialsReposition', 0)
-	charMapSet(2, '_iksys_trialsSetLife', lifemax())
+	mapSet(2, '_iksys_trialsDummyControl', 0)
+	mapSet(2, '_iksys_trialsDummyMode', 0)
+	mapSet(2, '_iksys_trialsGuardMode', 0)
+	mapSet(2, '_iksys_trialsFallRecovery', 0)
+	mapSet(2, '_iksys_trialsDistance', 0)
+	mapSet(2, '_iksys_trialsButtonJam', 0)
+	mapSet(2, '_iksys_trialsReposition', 0)
+	mapSet(2, '_iksys_trialsSetLife', lifemax())
 	player(1)
-	charMapSet(1, '_iksys_trialsSetLife', lifemax())
+	mapSet(1, '_iksys_trialsSetLife', lifemax())
 end
 
 --;===========================================================
@@ -1990,8 +1994,8 @@ for row = 1, #main.t_selChars, 1 do
 						buttonjam = "none",
 						active = false,
 						complete = false,
-						p1life = nil,
-						p2life = nil,
+						p1life = -1,
+						p2life = -1,
 						showforvar = {nil},
 						showforval = {nil},
 						elapsedtime = 0,
