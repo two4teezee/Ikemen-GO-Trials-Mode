@@ -6,7 +6,8 @@
 # _iksys_trialsDummyMode: 0 - stand, 1 - crouch, 2 - jump, 3 - wjump
 # _iksys_trialsDistance: 0 - any, 1 - close, 2 - medium, 3 - far
 # _iksys_trialsButtonJam: 0 - none, 1-9 - a/b/c/x/y/z/s/d/w
-# _iksys_trialsPosX: value: 
+# _iksys_trialsInitPosX: value: 
+# _iksys_trialsInitPosY: value: 
 
 #===============================================================================
 # Functions
@@ -14,8 +15,8 @@
 [Function TrialsInitialPosition()]
 # Get initial positions
 for pn = 1; 2; 1 {
-	mapSet{map:"_iksys_trialsPosX"; value: player($pn),Pos x; redirectID: player($pn),id;}
-	mapSet{map:"_iksys_trialsPosY"; value: player($pn),Pos y; redirectID: player($pn),id;}
+	mapSet{map:"_iksys_trialsInitPosX"; value: player($pn),Pos x; redirectID: player($pn),id;}
+	mapSet{map:"_iksys_trialsInitPosY"; value: player($pn),Pos y; redirectID: player($pn),id;}
 	mapSet{map:"_iksys_trialsCameraPosX"; value: player($pn),CameraPos x; redirectID: player($pn),id;}
 	mapSet{map:"_iksys_trialsCameraPosY"; value: player($pn),CameraPos y; redirectID: player($pn),id;}
 	mapSet{map:"_iksys_trialsScreenPosX"; value: player($pn),ScreenPos x; redirectID: player($pn),id;}
@@ -25,8 +26,14 @@ for pn = 1; 2; 1 {
 [Function TrialsReposition()]
 Camera{view: free; pos:0,0;}
 for pn = 1; 2; 1 {
-	if player($pn), map(_iksys_trialsPosX) != 0 {PosSet{x:player($pn), map(_iksys_trialsPosX); y:player($pn), map(_iksys_trialsPosY); redirectID: player($pn),id;}}
+	if player($pn), map(_iksys_trialsInitPosX) != 0 {
+		PosSet{x:player($pn), map(_iksys_trialsInitPosX); y:player($pn), map(_iksys_trialsInitPosY); redirectID: player($pn),id;}
+	}
 }
+# if map(_iksys_trialsInitPosX) != 0 {
+# 	PosSet{x: player(1), map(_iksys_trialsInitPosX); y:player(1) , map(_iksys_trialsInitPosY); redirectID: player(1),id;}
+# 	PosSet{x: player(2), map(_iksys_trialsInitPosX); y:player(2) , map(_iksys_trialsInitPosY); redirectID: player(2),id;}
+# }
 
 [Function TrialsResetCamera()]
 Camera{view: fighting}

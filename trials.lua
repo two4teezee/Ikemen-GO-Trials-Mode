@@ -1633,6 +1633,51 @@ function start.f_trialsSuccess(successstring, index)
 end
 
 function start.f_trialsFade()
+	player(2)
+	local dummyposx = posX()
+	local dummyposy = posY()
+	player(1)
+	local playerposx = posX()
+	local playerposy = posY()
+
+    if start.trials.trial[start.trials.currenttrial].dummypos ~= nil then
+		player(2)
+		if start.trials.trial[start.trials.currenttrial].dummypos == "left-corner" then
+			dummyposx = stagevar("playerinfo.leftbound")
+		elseif start.trials.trial[start.trials.currenttrial].dummypos == "right-corner" then
+			dummyposx = stagevar("playerinfo.rightbound")
+		elseif start.trials.trial[start.trials.currenttrial].dummypos == "close" then
+			dummyposx = posX() + const240p(10)*-facing()
+		elseif start.trials.trial[start.trials.currenttrial].dummypos == "medium" then
+			dummyposx = posX() + const240p(130)*-facing()
+		elseif start.trials.trial[start.trials.currenttrial].dummypos == "far" then
+			dummyposx = posX() + const240p(260)*-facing()
+		end
+		player(1)
+		mapSet('_iksys_trialsDummyPosX', dummyposx)
+	else
+		mapSet('_iksys_trialsDummyPosX', stagevar("playerinfo.p2startx"))
+	end
+
+	if start.trials.trial[start.trials.currenttrial].playerpos ~= nil then
+		if start.trials.trial[start.trials.currenttrial].playerpos == "left-corner" then
+			playerposx = stagevar("playerinfo.leftbound")
+		elseif start.trials.trial[start.trials.currenttrial].playerpos == "right-corner" then
+			playerposx = stagevar("playerinfo.rightbound")
+		elseif start.trials.trial[start.trials.currenttrial].playerpos == "close" then
+			playerposx = posX() + const240p(10)*-facing()
+		elseif start.trials.trial[start.trials.currenttrial].playerpos == "medium" then
+			playerposx = posX() + const240p(130)*-facing()
+		elseif start.trials.trial[start.trials.currenttrial].playerpos == "far" then
+			playerposx = posX() + const240p(260)*-facing()
+		end
+		mapSet('_iksys_trialsPlayerPosX', playerposx)
+	elseif start.trials.trial[start.trials.currenttrial].dummypos ~= nil then
+		mapSet('_iksys_trialsPlayerPosX', dummyposx + const240p(130) * -facing())
+	else
+		mapSet('_iksys_trialsPlayerPosX', stagevar("playerinfo.p1startx"))
+	end
+	
 	-- This function is responsible for fadein/fadeout if trialsresetonsuccess is set to true.
 	if start.trials.draw.fadeout > 0 then
 		if not main.fadeActive then
@@ -1642,10 +1687,10 @@ function start.f_trialsFade()
 		start.trials.draw.fadeout = start.trials.draw.fadeout - 1
 	elseif start.trials.draw.fadein > 0 then
 		if main.fadeType == 'fadeout' then
-			mapSet('_iksys_trialsReposition', 1)
+			charMapSet(2, '_iksys_trialsReposition', 1)
 			main.f_fadeReset('fadein',motif.trials_mode)
 		elseif main.fadeType == 'fadein' then
-			mapSet('_iksys_trialsCameraReset', 1)
+			charMapSet(2, '_iksys_trialsCameraReset', 1)
 		end
 		main.f_fadeAnim(motif.trials_mode)
 		start.trials.draw.fadein = start.trials.draw.fadein - 1
@@ -1998,6 +2043,8 @@ for row = 1, #main.t_selChars, 1 do
 						complete = false,
 						p1life = -1,
 						p2life = -1,
+						playerpos = nil,
+						dummypos = nil,
 						showforvar = {nil},
 						showforval = {nil},
 						elapsedtime = 0,
@@ -2023,6 +2070,10 @@ for row = 1, #main.t_selChars, 1 do
 				trial[i].p1life = tonumber(f_trimforchar(lcline, "=", "after"))
 			elseif lcline:find("p2life") then
 				trial[i].p2life = tonumber(f_trimforchar(lcline, "=", "after"))
+			elseif lcline:find("playerpos") then
+				trial[i].playerpos = f_trimforchar(lcline, "=", "after")
+			elseif lcline:find("dummypos") then
+				trial[i].dummypos = f_trimforchar(lcline, "=", "after")
 			elseif lcline:find("showforvarvalpairs") then
 				showforvarvalpairsfound = false
 				temp = main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", ""))
