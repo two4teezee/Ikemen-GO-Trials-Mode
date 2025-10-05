@@ -1633,12 +1633,10 @@ function start.f_trialsSuccess(successstring, index)
 end
 
 function start.f_trialsFade()
-	player(2)
-	local dummyposx = posX()
-	local dummyposy = posY()
-	player(1)
-	local playerposx = posX()
-	local playerposy = posY()
+	local dummyposx = stagevar("playerinfo.p2startx")
+	local dummyposy = stagevar("playerinfo.p2starty")
+	local playerposx = stagevar("playerinfo.p1startx")
+	local playerposy = stagevar("playerinfo.p1starty")
 
     if start.trials.trial[start.trials.currenttrial].dummypos ~= nil then
 		player(2)
@@ -1654,9 +1652,6 @@ function start.f_trialsFade()
 			dummyposx = posX() + const240p(260)*-facing()
 		end
 		player(1)
-		mapSet('_iksys_trialsDummyPosX', dummyposx)
-	else
-		mapSet('_iksys_trialsDummyPosX', stagevar("playerinfo.p2startx"))
 	end
 
 	if start.trials.trial[start.trials.currenttrial].playerpos ~= nil then
@@ -1671,12 +1666,15 @@ function start.f_trialsFade()
 		elseif start.trials.trial[start.trials.currenttrial].playerpos == "far" then
 			playerposx = posX() + const240p(260)*-facing()
 		end
-		mapSet('_iksys_trialsPlayerPosX', playerposx)
 	elseif start.trials.trial[start.trials.currenttrial].dummypos ~= nil then
-		mapSet('_iksys_trialsPlayerPosX', dummyposx + const240p(130) * -facing())
-	else
-		mapSet('_iksys_trialsPlayerPosX', stagevar("playerinfo.p1startx"))
+		playerpox = dummyposx + const240p(130) * -facing()
 	end
+	print("dummyposX = " .. dummyposx .. ", playerposX = " .. playerposx)
+	mapSet('_iksys_trialsDummyPosX', dummyposx)
+	mapSet('_iksys_trialsDummyPosY', dummyposy)
+	-- mapSet('_iksys_trialsPlayerPosX', playerposx)
+	mapSet('_iksys_trialsPlayerPosX', dummyposx)
+	mapSet('_iksys_trialsPlayerPosY', playerposy)
 	
 	-- This function is responsible for fadein/fadeout if trialsresetonsuccess is set to true.
 	if start.trials.draw.fadeout > 0 then
