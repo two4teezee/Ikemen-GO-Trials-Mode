@@ -12,27 +12,26 @@
 #===============================================================================
 # Functions
 #===============================================================================
-# [Function TrialsInitialPosition()]
-# # Get initial positions
-# for pn = 1; 2; 1 {
-# 	mapSet{map:"_iksys_trialsInitPosX"; value: player($pn),Pos x; redirectID: player($pn),id;}
-# 	mapSet{map:"_iksys_trialsInitPosY"; value: player($pn),Pos y; redirectID: player($pn),id;}
-# 	mapSet{map:"_iksys_trialsCameraPosX"; value: player($pn),CameraPos x; redirectID: player($pn),id;}
-# 	mapSet{map:"_iksys_trialsCameraPosY"; value: player($pn),CameraPos y; redirectID: player($pn),id;}
-# 	mapSet{map:"_iksys_trialsScreenPosX"; value: player($pn),ScreenPos x; redirectID: player($pn),id;}
-# 	mapSet{map:"_iksys_trialsScreenPosY"; value: player($pn),ScreenPos y; redirectID: player($pn),id;}
-# }
-
 [Function TrialsReposition()]
-Camera{view: free; pos:0,0;}
-# for pn = 1; 2; 1 {
-# 	if player($pn), map(_iksys_trialsInitPosX) != 0 {
-# 		PosSet{x:player($pn), map(_iksys_trialsInitPosX); y:player($pn), map(_iksys_trialsInitPosY); redirectID: player($pn),id;}
-# 	}
-# }
 if map(_iksys_trialsReposition) != 0 {
-	PosSet{x: player(1), map(_iksys_trialsPlayerPosX); y: player(1), map(_iksys_trialsPlayerPosY); redirectID: player(1),id;}
-	PosSet{x: player(2), map(_iksys_trialsDummyPosX); y: player(2), map(_iksys_trialsDummyPosY); redirectID: player(2),id;}
+	PrintToConsole{
+		text: "player1posx: %f, dummyposx: %f";
+		params: map(_iksys_trialsPlayerPosX), map(_iksys_trialsDummyPosX);
+	}
+	Camera{
+		view: free; 
+		pos: (map(_iksys_trialsPlayerPosX) + map(_iksys_trialsDummyPosX))/2, (map(_iksys_trialsPlayerPosY) + map(_iksys_trialsDummyPosY))/2;
+	}
+	PosSet{
+		x: map(_iksys_trialsPlayerPosX); 
+		y: map(_iksys_trialsPlayerPosY); 
+		redirectID: player(1),id;
+	}
+	PosSet{
+		x: map(_iksys_trialsDummyPosX);
+		y: map(_iksys_trialsDummyPosY);
+		redirectID: player(2),id;
+	}
 }
 
 [Function TrialsResetCamera()]
@@ -50,7 +49,6 @@ ignoreHitPause if gameMode = "trials" {
 		map(_iksys_trialsLifeTimer) := 0;
 		map(_iksys_trialsPowerTimer) := 0;
 		map(_iksys_trialsReposition) := 0;
-		# call TrialsInitialPosition();
 	}
 	# Life and Power recovery
 	if !isHelper {
