@@ -134,13 +134,13 @@ local t_base = {
     trialslayout = "vertical",
 	trialsteps_vertical_pos = {0, 0},
     trialsteps_vertical_spacing = {0, 0},
-    trialsteps_vertical_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
-	trialsteps_vertical_window_withtextbox = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
+    trialsteps_vertical_window = {0, 0, motifLocalcoord(0), motifLocalcoord(1)},
+	trialsteps_vertical_window_withtextbox = {0, 0, motifLocalcoord(0), motifLocalcoord(1)},
 	trialsteps_horizontal_pos = {0, 0},
     trialsteps_horizontal_spacing = {0, 0},
 	trialsteps_horizontal_padding = 0,
-    trialsteps_horizontal_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
-	trialsteps_horizontal_window_withtextbox = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
+    trialsteps_horizontal_window = {0, 0, motifLocalcoord(0), motifLocalcoord(1)},
+	trialsteps_horizontal_window_withtextbox = {0, 0, motifLocalcoord(0), motifLocalcoord(1)},
 	trialsteps_vertical_bg_anim = -1,
     trialsteps_vertical_bg_spr = {},
     trialsteps_vertical_bg_offset = {0, 0},
@@ -148,8 +148,8 @@ local t_base = {
     trialsteps_vertical_bg_scale = {1.0, 1.0},
     trialsteps_vertical_bg_displaytime = 0,
 	-- trialsteps_vertical_bg_overlay_visible = "false",
-	-- trialsteps_vertical_bg_overlay_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
-	-- trialsteps_vertical_bg_overlay_window_withtextbox = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
+	-- trialsteps_vertical_bg_overlay_window = {0, 0, motifLocalcoord(0), motifLocalcoord(1)},
+	-- trialsteps_vertical_bg_overlay_window_withtextbox = {0, 0, motifLocalcoord(0), motifLocalcoord(1)},
 	-- trialsteps_vertical_bg_overlay_col = {0, 0, 0},
 	-- trialsteps_vertical_bg_overlay_alpha = {0, 128},
 	trialsteps_horizontal_bg_anim = -1,
@@ -159,8 +159,8 @@ local t_base = {
     trialsteps_horizontal_bg_scale = {1.0, 1.0},
     trialsteps_horizontal_bg_displaytime = 0,
 	-- trialsteps_horizontal_bg_overlay_visible = "false",
-	-- trialsteps_horizontal_bg_overlay_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
-	-- trialsteps_horizontal_bg_overlay_window_withtextbox = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
+	-- trialsteps_horizontal_bg_overlay_window = {0, 0, motifLocalcoord(0), motifLocalcoord(1)},
+	-- trialsteps_horizontal_bg_overlay_window_withtextbox = {0, 0, motifLocalcoord(0), motifLocalcoord(1)},
 	-- trialsteps_horizontal_bg_overlay_col = {0, 0, 0},
 	-- trialsteps_horizontal_bg_overlay_alpha = {0, 128},
 	selscreenpalfx_add = {},
@@ -442,7 +442,7 @@ local t_base = {
 	textbox_title_text = '',
 	textbox_title_font_height = -1,
 	textbox_title_scale = {1.0, 1.0},
-	textbox_text_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
+	textbox_text_window = {0, 0, motifLocalcoord(0), motifLocalcoord(1)},
 	textbox_text_offset = {0,0},
 	textbox_text_font = {'f-6x9.def', 0, 0, 255, 255, 255, -1},
 	textbox_text_text = '',
@@ -456,7 +456,7 @@ local t_base = {
 	textbox_bg_scale = {1.0, 1.0},
 	textbox_bg_displaytime = -1,
 	textbox_overlay_visible = "false",
-	textbox_overlay_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
+	textbox_overlay_window = {0, 0, motifLocalcoord(0), motifLocalcoord(1)},
 	textbox_overlay_col = {0, 0, 0},
 	textbox_overlay_alpha = {0, 128},
 	textbox_front_anim = -1,
@@ -470,7 +470,7 @@ local t_base = {
 	textbox_portrait_offset = {0, 0},
 	textbox_portrait_facing = 1,
 	textbox_portrait_scale = {1.0, 1.0},
-	textbox_portrait_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
+	textbox_portrait_window = {0, 0, motifLocalcoord(0), motifLocalcoord(1)},
 }
 
 -- Merge trials data into table
@@ -532,7 +532,7 @@ local t_base_info = {
 	menu_arrow_down_facing = 1, --Ikemen feature
 	menu_arrow_down_scale = {1.0, 1.0}, --Ikemen feature
 	menu_title_uppercase = 1, --Ikemen feature
-	overlay_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]}, --Ikemen feature (0, 0, 320, 240)
+	overlay_window = {0, 0, motifLocalcoord(0), motifLocalcoord(1)}, --Ikemen feature (0, 0, 320, 240)
 	overlay_col = {0, 0, 0}, --Ikemen feature
 	overlay_alpha = {0, 128}, --Ikemen feature
 	cursor_move_snd = {100, 0}, --Ikemen feature
@@ -556,7 +556,7 @@ local t_base_info = {
 	movelist_window_width = 300, --Ikemen feature
 	movelist_window_margins_y = {20, 1}, --Ikemen feature
 	movelist_window_visibleitems = 18, --Ikemen feature
-	movelist_overlay_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]}, --Ikemen feature (0, 0, 320, 240)
+	movelist_overlay_window = {0, 0, motifLocalcoord(0), motifLocalcoord(1)}, --Ikemen feature (0, 0, 320, 240)	
 	movelist_overlay_col = {0, 0, 0}, --Ikemen feature
 	movelist_overlay_alpha = {0, 128}, --Ikemen feature
 	movelist_arrow_up_anim = -1, --Ikemen feature
@@ -919,6 +919,7 @@ function start.f_trialsBuilder()
 		fade = 0,
 		fadein = 0,
 		fadeout = 0,
+		fadetriggered = false,
 		textbox_text = main.f_createTextImg(motif.trials_mode, 'textbox_text'),
 		textbox_title = main.f_createTextImg(motif.trials_mode, 'textbox_title'),
 		success_text = main.f_createTextImg(motif.trials_mode, 'success_text'),
@@ -1592,7 +1593,7 @@ function start.f_trialsChecker()
 	--If the trial was completed successfully, draw the trials success
 	if start.trials.draw.success > 0 then
 		start.f_trialsSuccess('success', ct)
-	elseif start.trials.draw.fade > 0 and motif.trials_mode.trialsresetonsuccess == "true" then
+	elseif start.trials.draw.fade > 0 and (motif.trials_mode.trialsresetonsuccess == "true" or start.trials.draw.fadetriggered) then
 		if start.trials.draw.fade < start.trials.draw.fadein + start.trials.draw.fadeout then
 			start.f_trialsFade()
 		else
@@ -1602,6 +1603,13 @@ function start.f_trialsChecker()
 			end
 			player(1)
 		end
+	elseif inputtime('d') > 0 and inputtime('w') > 0 and start.trials.draw.fade == 0 then
+		start.trials.draw.fadein = motif.trials_mode.fadein_time
+		start.trials.draw.fadeout = motif.trials_mode.fadeout_time
+		start.trials.draw.fade = start.trials.draw.fadein + start.trials.draw.fadeout
+		start.trials.draw.fadetriggered = true
+	else
+		start.trials.draw.fadetriggered = false
 	end
 end
 
@@ -1656,8 +1664,6 @@ function start.f_trialsFade()
 	local p2posy = posY()
 	local p1posx = posX()
 	local p1posy = posY()
-	local currentCameraPosX = cameraposX()
-	local currentCameraPosY = cameraposY()
 
     if start.trials.trial[start.trials.currenttrial].dummypos ~= nil then
 		if start.trials.trial[start.trials.currenttrial].dummypos == 'left-corner' then
@@ -1730,7 +1736,6 @@ function start.f_trialsFade()
 	elseif start.trials.draw.fadein > 0 then
 		if main.fadeType == 'fadeout' then
 			mapSet('_iksys_trialsReposition', 1)
-			print("flag set, ct = " .. start.trials.currenttrial)
 			main.f_fadeReset('fadein',motif.trials_mode)
 		elseif main.fadeType == 'fadein' then
 			mapSet('_iksys_trialsCameraReset', 1)
