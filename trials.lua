@@ -1633,40 +1633,88 @@ function start.f_trialsSuccess(successstring, index)
 end
 
 function start.f_trialsFade()
-	local dummyposx = stagevar("playerinfo.p2startx")
-	local dummyposy = stagevar("playerinfo.p2starty")
-	local playerposx = stagevar("playerinfo.p1startx")
-	local playerposy = stagevar("playerinfo.p1starty")
+	local stagelocalcoordX = stagevar("stageinfo.localcoord.x")
+	local stagelocalcoordY = stagevar("stageinfo.localcoord.y")
+	local stageboundleft = stagevar("bound.screenleft")
+	local stageboundright = stagevar("bound.screenright")
+
+	local dummyposx = stagevar("playerinfo.p2startx") / (stagelocalcoordX/320)
+	local dummyposy = stagevar("playerinfo.p2starty") / (stagelocalcoordX/320)
+	local playerposx = stagevar("playerinfo.p1startx") / (stagelocalcoordX/320)
+	local playerposy = stagevar("playerinfo.p1starty") / (stagelocalcoordX/320)
+
+	local leftbound = stagevar("camera.boundleft")
+	local rightbound = stagevar("camera.boundright")
+
+	local cameraPosX = 0
+	local p1facing = 1
+	local p2facing = -1
+
+	player(2)
+	local p2posx = posX()
+	player(2)
+	local p2posy = posY()
+	local p1posx = posX()
+	local p1posy = posY()
+	local currentCameraPosX = cameraposX()
+	local currentCameraPosY = cameraposY()
+
     if start.trials.trial[start.trials.currenttrial].dummypos ~= nil then
-		player(2)
-		if start.trials.trial[start.trials.currenttrial].dummypos == "left-corner" then
-			dummyposx = stagevar("playerinfo.leftbound")
-		elseif start.trials.trial[start.trials.currenttrial].dummypos == "right-corner" then
-			dummyposx = stagevar("playerinfo.rightbound")
-		elseif start.trials.trial[start.trials.currenttrial].dummypos == "close" then
-			dummyposx = posX() + const240p(10) * facing()
-		elseif start.trials.trial[start.trials.currenttrial].dummypos == "medium" then
-			dummyposx = posX() + const240p(130) * facing()
-		elseif start.trials.trial[start.trials.currenttrial].dummypos == "far" then
-			dummyposx = posX() + const240p(260) * facing()
+		if start.trials.trial[start.trials.currenttrial].dummypos == 'left-corner' then
+			dummyposx = -(stagelocalcoordX/2 - stageboundleft) / (stagelocalcoordX/320)
+			p1facing = -1
+			p2facing = 1
+			cameraPosX = leftbound / (stagelocalcoordX/320)
+		elseif start.trials.trial[start.trials.currenttrial].dummypos == 'right-corner' then
+			dummyposx = (stagelocalcoordX/2 - stageboundright) / (stagelocalcoordX/320)
+			cameraPosX = rightbound / (stagelocalcoordX/320)
+		elseif start.trials.trial[start.trials.currenttrial].dummypos == 'close' then
+			dummyposx = p2posx + 10 * p1facing
+		elseif start.trials.trial[start.trials.currenttrial].dummypos == 'medium' then
+			dummyposx = p2posx + 130 * p1facing
+		elseif start.trials.trial[start.trials.currenttrial].dummypos == 'far' then
+			dummyposx = p2posx + 260 * p1facing
 		end
-		player(1)
 	end
 	if start.trials.trial[start.trials.currenttrial].playerpos ~= nil then
-		if start.trials.trial[start.trials.currenttrial].playerpos == "left-corner" then
-			playerposx = stagevar("playerinfo.leftbound")
-		elseif start.trials.trial[start.trials.currenttrial].playerpos == "right-corner" then
-			playerposx = stagevar("playerinfo.rightbound")
-		elseif start.trials.trial[start.trials.currenttrial].playerpos == "close" then
-			playerposx = posX() + const240p(10) * facing()
-		elseif start.trials.trial[start.trials.currenttrial].playerpos == "medium" then
-			playerposx = posX() + const240p(130) * facing()
-		elseif start.trials.trial[start.trials.currenttrial].playerpos == "far" then
-			playerposx = posX() + const240p(260) * facing()
+		if start.trials.trial[start.trials.currenttrial].playerpos == 'left-corner' then
+			playerposx = -(stagelocalcoordX/2 - stageboundleft) / (stagelocalcoordX/320)
+			p1facing = -1
+			p2facing = 1
+			cameraPosX = leftbound / (stagelocalcoordX/320)
+			if start.trials.trial[start.trials.currenttrial].dummypos == 'close' then
+				dummyposx = playerposx + 10 * p1facing
+			elseif start.trials.trial[start.trials.currenttrial].dummypos == 'medium' then
+				dummyposx = playerposx + 130 * p1facing
+			elseif start.trials.trial[start.trials.currenttrial].dummypos == 'far' then
+				dummyposx = playerposx + 260 * p1facing
+			else
+				dummyposx = playerposx + 130 * p1facing
+			end
+		elseif start.trials.trial[start.trials.currenttrial].playerpos == 'right-corner' then
+			playerposx = (stagelocalcoordX/2 - stageboundright) / (stagelocalcoordX/320)
+			cameraPosX = rightbound / (stagelocalcoordX/320)
+			if start.trials.trial[start.trials.currenttrial].dummypos == 'close' then
+				dummyposx = playerposx - 10 * p1facing
+			elseif start.trials.trial[start.trials.currenttrial].dummypos == 'medium' then
+				dummyposx = playerposx - 130 * p1facing
+			elseif start.trials.trial[start.trials.currenttrial].dummypos == 'far' then
+				dummyposx = playerposx - 260 * p1facing
+			else
+				dummyposx = playerposx - 130 * p1facing
+			end
+		elseif start.trials.trial[start.trials.currenttrial].playerpos == 'close' then
+			playerposx = dummyposx + 10 * p2facing
+		elseif start.trials.trial[start.trials.currenttrial].playerpos == 'medium' then
+			playerposx = dummyposx + 130 * p2facing
+		elseif start.trials.trial[start.trials.currenttrial].playerpos == 'far' then
+			playerposx = dummyposx + 260 * p2facing
 		end
 	elseif start.trials.trial[start.trials.currenttrial].dummypos ~= nil then
-		playerposx = dummyposx + const240p(130) * -facing()
+		playerposx = dummyposx + 130 * p2facing
 	end
+
+	mapSet('_iksys_trialsCameraPosX', cameraPosX)
 	mapSet('_iksys_trialsDummyPosX', dummyposx)
 	mapSet('_iksys_trialsDummyPosY', dummyposy)
 	mapSet('_iksys_trialsPlayerPosX', playerposx)
