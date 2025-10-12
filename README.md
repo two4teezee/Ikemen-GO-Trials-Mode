@@ -1,5 +1,5 @@
-# Ikemen GO Trials Mode v0.99.4
-> Compatible with Ikemen GO Nightly Builds newer than 08/24/2025.
+# Ikemen GO Trials Mode v0.99.5
+> Compatible with Ikemen GO Nightly Builds newer than 10/10/2025.
 
 > Note: for older Ikemen GO Builds, check releases tab for a compatible release of Trials Mode .
 
@@ -35,24 +35,9 @@ If you are using `trials.sff`, make sure you point to it in the system.def's [Fi
 
 The universal trials mode supports **vertical** trials readouts, and **horizontal** readouts as seen in KOF XIV, among other games. 
 The sample `system.def` included in this file can be configured to support either or both layouts, but shared in this readme, it should work "out of the box" with the `mugen1` screenpack found [here](https://github.com/ikemen-engine/Ikemen_GO-Elecbyte-Screenpack). 
-Below you'll find a brief summary of screenpack features supported by trials mode. For more detail, please consult the example `system.def` templates provided in this file for both vertical and horizontal layouts.
-
-You can make the trials mode look as fancy or as basic as you want. 
-The `system.def` trials mode example included in this readme only leverage "stock" Ikemen fonts and sprites in the most minimal way possible.
-
-- A window must be specified in which the trial steps are drawn. This feature enables long trial lists that need to scroll (for vertical layouts) or have line returns and potentially scrolling (for horizontal layouts).
-- The trial title name can optionally be displayed. Text and two background elements (bg and front) can be specified.
-- Trial steps come in three flavors: Upcoming, Current, and Completed. Text and background elements can be specified for each type. 
-	- For horizontal layouts, the background elements are handled differently. Background elements are tiled dynamically to fit the width and height of the glyphs and desired padding around the glyph for that step. Each trial step type has "tail" and a "head" that sandwiches the main background element. Tail, head, and background elements are specified for Upcoming, Current, and Completed steps. Note that trial step text is not displayed in horizontal layouts.
-	- palFX can be specified for Upcoming, Current, and Completed steps, as well as for the displayed glyphs associated with each step type.
-- A static or animated background can be displayed for all trial steps. This background is independent of all trial step backgrounds, and is only displayed when a trial is active.
-- Glyphs can be automatically scaled according to the font used (especially useful for vertical layouts).
-	- Glyphs are optional for vertical layouts, but they are mandatory for horizontal layouts as text is not displayed in horizontal layouts. Trials definition files with missing glyphs will crash horizontal layouts.
-- For Success and All Clear events, text and sound elements, as well as two background elements (bg and front) can be specified.
-- Two timers are available: one keeps track of the entire time spent on the trials, while the other keeps track of the time spent on the current trial. Display of the timers is optional. Utilization of the various pause menu functions (such as skipping to the nex trial) will void the total timer, for instance.
-- A text string that shows the current trial can optionally be displayed.
-- Other features:
-	- The user can choose to apply palFX in the Trials Select Screen to portraits of characters who do not have trials definition files.
+Below you'll find a brief summary of screenpack features supported by trials mode. 
+For more detail, please consult the example `system.def` templates provided in this file for both vertical and horizontal layouts.
+The [Trials Mode wiki](https://github.com/two4teezee/Ikemen-GO-Trials-Mode/wiki) goes into great depth on all supported features.
 
 ## system.def Example
 
@@ -341,7 +326,7 @@ glyphs.horizontal.spacing = 0,0
 ; totaltrialtimer shows the total time for the trial. It is erased if the pause menu is used to skip or rewind.
 ; currenttrialtimer shows the time spent on the current trial attempt.
 ; --------------------------------------------------------------------------
-trialcounter.pos = 10,710
+trialcounter.pos = 10,690
 trialcounter.font = 1,0,1
 trialcounter.scale = 2,2
 ; trialcounter.font.height	=
@@ -358,6 +343,17 @@ currenttrialtimer.font = 1,0,-1
 currenttrialtimer.scale = 2,2
 ; currenttrialtimer.font.height	=
 currenttrialtimer.text = "Current Trial: %s"
+
+; TRIAL RESET REMINDER AND SWITCH ------------------------------------------
+; trialresetenabled allows the user to reset the player and dummy position to center stage (or specified trials position) when the d and w keys are pressed simultaneously
+; trialresetreminder displays a string that reminds the player they can reset the trial position with the specified key input
+; --------------------------------------------------------------------------
+trialresetenabled = true
+trialresetreminder.pos = 10,710
+trialresetreminder.font = 1,0,1
+trialresetreminder.scale = 2,2
+; trialresetreminder.font.height	=
+trialresetreminder.text = "Hit d + w to reset position"
 
 ; TRIALS TEXT BOX ----------------------------------------------------------
 ; A textbox can accompany each trial if it is specified within the trials definition file.
@@ -501,8 +497,11 @@ A sample `trials.def` for kfmZ is provided below. The trials are presented to th
 trial.dummymode = stand
 trial.guardmode = none
 trial.dummybuttonjam = none
+; trial.dummylife =
+; trial.playerlife =
+; trial.dummypos =
+; trial.playerpos =
 ; trial.showforvarvalpairs = 
-
 ; trial.textbox = This is KFM's first trial. Good luck!
 
 trialstep.1.text = Strong Kung Fu Palm
@@ -525,11 +524,16 @@ trialstep.1.stateno = 1010
 ; trial.dummymode - optional - valid options are stand (default), crouch, jump, wjump. Defaults to stand if unspecified.
 ; trial.guardmode - optional - valid options are none, auto. Defaults to none if unspecified.
 ; trial.dummybuttonjam - optional - valid options are none, a, b, c, x, y, z, start, d, w. Defaults to none if unspecified.
+; trial.dummylife - optional - sets the dummy's life total.
+; trial.playerlife - optional - sets the player's life total. Useful for trials that involve desparation moves or require a specific life state.
+; trial.dummypos - optional - sets the dummy's position on the stage. Valid options are left-corner, right-corner, far, medium, close. If enabled, the player can reset positioning according to this information by hitting the d and w keys simultaneously. Defaults to center stage.
+; trial.playerpos - optional - sets the player's position on the stage. Valid options are left-corner, right-corner, far, medium, close. If enabled, the player can reset positioning according to this information by hitting the d and w keys simultaneously. Defaults to center stage.
 ; trial.showvarvalpairs - optional - (comma-separated integers, specified in pairs, can specify 0..n pairs). Used to determine whether a trial should be displayed based on the specified variable and value pair(s) in this field. Useful if a trial should only be displayed when character has a specific variable/value pair set, such as being in a specific groove or mode. If specified, the trial will only be displayed if all variable-value pairs return true. These variable-value pairs should only be for the character (not for helpers). Finally, variables can have multiple specified values to test against, which should be separated by the "|" character (e.g. `trial.showforvarvalpairs = 12, 0|2|4` would test var(12) for values 0, 2, and 4).
+; trial.textbox - optional - multilingual - displays specified text in a box specified in the textbox settings in system.def under [Trials Mode]. Supports specification as trial.textbox, or trial.textbox.en, trial.textbox.es, etc. for multilingual support. Will default to trial.textbox.en (or trial.textbox) if selected language cannot be matched.
 
-; dummymode, guardmode, and dummybuttonjam are defined once per trial. The other parameters can be defined for each trial step - notice the syntax, where X is the trial number.
+; The options above are defined once per trial. The other parameters can be defined for each trial step - notice the syntax, where X is the trial number.
 
-; trialstep.X.text - optional - (string). Text for trial step (only displayed in vertical trials layout).
+; trialstep.X.text - optional - multilingual - (string). Text for trial step (only displayed in vertical trials layout). Supports specification as trialstep.X.text, or trialstep.X.text.en, trialstep.X.text.es, etc. for multilingual support. Will default to trialstep.X.text.en (or trialstep.X.text) if selected language cannot be matched.
 ; trialstep.X.glyphs - optional - (string, see Glyph documentation [https://github.com/ikemen-engine/Ikemen-GO/wiki/Miscellaneous-info#movelists] for syntax). Same syntax as movelist glyphs. Glyphs are displayed in vertical and horizontal trials layouts.
 ; trialstep.X.stateno - mandatory - (integer or comma-separated integers). State to be checked to pass trial. This is the state whether it's the main character, a helper, or even a projectile.
 
@@ -553,7 +557,11 @@ trialstep.1.isthrow = true
 ;---------------------------------------------
 
 [TrialDef, Kung Fu Taunt]
-trialstep.1.text = Kung Fu Taunt
+trial.textbox.en = This is an English textbox!
+trial.textbox.es = Este es un cuadro de texto en español.
+
+trialstep.1.text.en = Kung Fu Taunt
+trialstep.1.text.es = Kung Fu Pulla
 trialstep.1.glyphs = ^S
 trialstep.1.stateno = 195
 trialstep.1.hitcount = 0
@@ -598,6 +606,9 @@ trialstep.1.stateno = 1000|1010
 ;---------------------------------------------
 
 [TrialDef, Kung Fu Juggle Combo]
+; In this trial, the position for the dummy on the stage is set. The player can reset positioning by hitting d + w.
+trial.dummypos = right-corner 
+
 trialstep.1.text = Kung Fu Knee and Extra Kick
 trialstep.1.glyphs = _F_F_+^K_.^K
 trialstep.1.stateno = 1060, 1055
@@ -671,5 +682,5 @@ Trials Mode ships with the several pause menu options. Customizing the pause men
 - **Previous Trial**: return to the previous trial
 - **Trials List**: view a list of the trials, and select which one to activate
 - **Trial Advancement**: toggles between either Auto-Advance or Repeat, allows the player to play a single trial on repeat if desired
-- **Reset on Success**: resets the players to center stage when the trial is cleared. This can be set in the `system.def`, but the player can modify it in-game as well.
+- **Reset on Success**: resets the players to center stage when the trial is cleared. This can be set in the `system.def`, but the player can modify it in-game as well. If dummy and/or player positions are specified, the dummy and player will be moved accordingly.
 - **Trials Layout**: toggles between Vertical and Horizontal trials layout. This can be set in the `system.def`, but the player can modify it in-game as well.
