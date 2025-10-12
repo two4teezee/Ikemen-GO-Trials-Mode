@@ -39,12 +39,16 @@ local function f_timeConvert(value)
 	return m, s, x
 end
 
-local function f_trimafterchar(line, char)
-	-- trims a string after a specified character.
+local function f_trimforchar(line, char, when)
+	-- trims a string before or after a specified character.
 	-- also trims leading and trailing whitespace
 	x = string.find(line, char)
 	if x ~= nil then
-		line = string.sub(line, x+1, #line)
+		if when == "after" then
+			line = string.sub(line, x+1, #line)
+		elseif when == "before" then
+			line = string.sub(line, 1, x-1)
+		end
 		line = string.gsub(line, '^%s*(.-)%s*$', '%1')
 		line = string.gsub(line, '[ \t]+%f[\r\n%z]', '')
 	else
@@ -130,13 +134,13 @@ local t_base = {
     trialslayout = "vertical",
 	trialsteps_vertical_pos = {0, 0},
     trialsteps_vertical_spacing = {0, 0},
-    trialsteps_vertical_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
-	trialsteps_vertical_window_withtextbox = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
+    trialsteps_vertical_window = {0, 0, motifLocalcoord(0), motifLocalcoord(1)},
+	trialsteps_vertical_window_withtextbox = {0, 0, motifLocalcoord(0), motifLocalcoord(1)},
 	trialsteps_horizontal_pos = {0, 0},
     trialsteps_horizontal_spacing = {0, 0},
 	trialsteps_horizontal_padding = 0,
-    trialsteps_horizontal_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
-	trialsteps_horizontal_window_withtextbox = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
+    trialsteps_horizontal_window = {0, 0, motifLocalcoord(0), motifLocalcoord(1)},
+	trialsteps_horizontal_window_withtextbox = {0, 0, motifLocalcoord(0), motifLocalcoord(1)},
 	trialsteps_vertical_bg_anim = -1,
     trialsteps_vertical_bg_spr = {},
     trialsteps_vertical_bg_offset = {0, 0},
@@ -144,8 +148,8 @@ local t_base = {
     trialsteps_vertical_bg_scale = {1.0, 1.0},
     trialsteps_vertical_bg_displaytime = 0,
 	-- trialsteps_vertical_bg_overlay_visible = "false",
-	-- trialsteps_vertical_bg_overlay_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
-	-- trialsteps_vertical_bg_overlay_window_withtextbox = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
+	-- trialsteps_vertical_bg_overlay_window = {0, 0, motifLocalcoord(0), motifLocalcoord(1)},
+	-- trialsteps_vertical_bg_overlay_window_withtextbox = {0, 0, motifLocalcoord(0), motifLocalcoord(1)},
 	-- trialsteps_vertical_bg_overlay_col = {0, 0, 0},
 	-- trialsteps_vertical_bg_overlay_alpha = {0, 128},
 	trialsteps_horizontal_bg_anim = -1,
@@ -155,8 +159,8 @@ local t_base = {
     trialsteps_horizontal_bg_scale = {1.0, 1.0},
     trialsteps_horizontal_bg_displaytime = 0,
 	-- trialsteps_horizontal_bg_overlay_visible = "false",
-	-- trialsteps_horizontal_bg_overlay_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
-	-- trialsteps_horizontal_bg_overlay_window_withtextbox = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
+	-- trialsteps_horizontal_bg_overlay_window = {0, 0, motifLocalcoord(0), motifLocalcoord(1)},
+	-- trialsteps_horizontal_bg_overlay_window_withtextbox = {0, 0, motifLocalcoord(0), motifLocalcoord(1)},
 	-- trialsteps_horizontal_bg_overlay_col = {0, 0, 0},
 	-- trialsteps_horizontal_bg_overlay_alpha = {0, 128},
 	selscreenpalfx_add = {},
@@ -391,6 +395,12 @@ local t_base = {
     currenttrialtimer_scale = {1.0, 1.0},
     currenttrialtimer_font_height = -1,
     currenttrialtimer_text = '',
+	trialresetenabled = "true",
+    trialresetreminder_pos = {0,0},
+    trialresetreminder_font = {'f-6x9.def', 0, 0, 255, 255, 255, -1},
+    trialresetreminder_scale = {1.0, 1.0},
+    trialresetreminder_font_height = -1,
+    trialresetreminder_text = '',
     success_pos = {0, 0},
     success_snd = {-1, 0},
     success_bg_anim = -1,
@@ -438,7 +448,7 @@ local t_base = {
 	textbox_title_text = '',
 	textbox_title_font_height = -1,
 	textbox_title_scale = {1.0, 1.0},
-	textbox_text_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
+	textbox_text_window = {0, 0, motifLocalcoord(0), motifLocalcoord(1)},
 	textbox_text_offset = {0,0},
 	textbox_text_font = {'f-6x9.def', 0, 0, 255, 255, 255, -1},
 	textbox_text_text = '',
@@ -452,7 +462,7 @@ local t_base = {
 	textbox_bg_scale = {1.0, 1.0},
 	textbox_bg_displaytime = -1,
 	textbox_overlay_visible = "false",
-	textbox_overlay_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
+	textbox_overlay_window = {0, 0, motifLocalcoord(0), motifLocalcoord(1)},
 	textbox_overlay_col = {0, 0, 0},
 	textbox_overlay_alpha = {0, 128},
 	textbox_front_anim = -1,
@@ -466,7 +476,7 @@ local t_base = {
 	textbox_portrait_offset = {0, 0},
 	textbox_portrait_facing = 1,
 	textbox_portrait_scale = {1.0, 1.0},
-	textbox_portrait_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]},
+	textbox_portrait_window = {0, 0, motifLocalcoord(0), motifLocalcoord(1)},
 }
 
 -- Merge trials data into table
@@ -528,7 +538,7 @@ local t_base_info = {
 	menu_arrow_down_facing = 1, --Ikemen feature
 	menu_arrow_down_scale = {1.0, 1.0}, --Ikemen feature
 	menu_title_uppercase = 1, --Ikemen feature
-	overlay_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]}, --Ikemen feature (0, 0, 320, 240)
+	overlay_window = {0, 0, motifLocalcoord(0), motifLocalcoord(1)}, --Ikemen feature (0, 0, 320, 240)
 	overlay_col = {0, 0, 0}, --Ikemen feature
 	overlay_alpha = {0, 128}, --Ikemen feature
 	cursor_move_snd = {100, 0}, --Ikemen feature
@@ -552,7 +562,7 @@ local t_base_info = {
 	movelist_window_width = 300, --Ikemen feature
 	movelist_window_margins_y = {20, 1}, --Ikemen feature
 	movelist_window_visibleitems = 18, --Ikemen feature
-	movelist_overlay_window = {0, 0, main.SP_Localcoord[1], main.SP_Localcoord[2]}, --Ikemen feature (0, 0, 320, 240)
+	movelist_overlay_window = {0, 0, motifLocalcoord(0), motifLocalcoord(1)}, --Ikemen feature (0, 0, 320, 240)	
 	movelist_overlay_col = {0, 0, 0}, --Ikemen feature
 	movelist_overlay_alpha = {0, 128}, --Ikemen feature
 	movelist_arrow_up_anim = -1, --Ikemen feature
@@ -915,6 +925,7 @@ function start.f_trialsBuilder()
 		fade = 0,
 		fadein = 0,
 		fadeout = 0,
+		fadetriggered = false,
 		textbox_text = main.f_createTextImg(motif.trials_mode, 'textbox_text'),
 		textbox_title = main.f_createTextImg(motif.trials_mode, 'textbox_title'),
 		success_text = main.f_createTextImg(motif.trials_mode, 'success_text'),
@@ -923,6 +934,7 @@ function start.f_trialsBuilder()
 		trialcounter = main.f_createTextImg(motif.trials_mode, 'trialcounter'),
 		totaltrialtimer = main.f_createTextImg(motif.trials_mode, 'totaltrialtimer'),
 		currenttrialtimer = main.f_createTextImg(motif.trials_mode, 'currenttrialtimer'),
+		trialresetreminder = main.f_createTextImg(motif.trials_mode, 'trialresetreminder'),
 	}
 	start.trials.draw.textbox_title:update({x = motif.trials_mode.textbox_pos[1]+motif.trials_mode.textbox_title_offset[1], y = motif.trials_mode.textbox_pos[2]+motif.trials_mode.textbox_title_offset[1],})
 	start.trials.draw.textbox_text:update({x = motif.trials_mode.textbox_pos[1]+motif.trials_mode.textbox_text_offset[1]+motif.trials_mode.textbox_text_window[1], y = motif.trials_mode.textbox_pos[2]+motif.trials_mode.textbox_text_offset[2]+motif.trials_mode.textbox_text_window[2],})
@@ -931,6 +943,7 @@ function start.f_trialsBuilder()
 	start.trials.draw.trialcounter:update({x = motif.trials_mode.trialcounter_pos[1], y = motif.trials_mode.trialcounter_pos[2],})
 	start.trials.draw.totaltrialtimer:update({x = motif.trials_mode.totaltrialtimer_pos[1], y = motif.trials_mode.totaltrialtimer_pos[2],})
 	start.trials.draw.currenttrialtimer:update({x = motif.trials_mode.currenttrialtimer_pos[1], y = motif.trials_mode.currenttrialtimer_pos[2],})
+	start.trials.draw.trialresetreminder:update({x = motif.trials_mode.trialresetreminder_pos[1], y = motif.trials_mode.trialresetreminder_pos[2], text = motif.trials_mode.trialresetreminder_text})
 	for _, v in ipairs({'vertical','horizontal'}) do
 		start.trials.draw[v] = {
 			upcomingtextline = {},
@@ -964,46 +977,72 @@ function start.f_trialsDummySetup()
 	--If the trials initializer was successful and the round animation is completed, we will start drawing trials on the screen
 	player(2)
 	setAILevel(0)
+	if start.trials.currenttrial <= #start.trials.trial then
+		if start.trials.trial[start.trials.currenttrial].p2life > 0 then
+			mapSet('_iksys_trialsSetLife', start.trials.trial[start.trials.currenttrial].p2life)
+			setLife(start.trials.trial[start.trials.currenttrial].p2life)
+		elseif map('_iksys_trialsSetLife') < lifemax() then
+			mapSet('_iksys_trialsSetLife', lifemax())
+			setLife(lifemax())
+		end
+	else
+		mapSet('_iksys_trialsSetLife', lifemax())
+		setLife(lifemax())
+	end
 	player(1)
-	charMapSet(2, '_iksys_trialsDummyControl', 0)
+	if start.trials.currenttrial <= #start.trials.trial then
+		if start.trials.trial[start.trials.currenttrial].p1life > 0 then
+			mapSet('_iksys_trialsSetLife', start.trials.trial[start.trials.currenttrial].p1life)
+			setLife(start.trials.trial[start.trials.currenttrial].p1life)
+		elseif map('_iksys_trialsSetLife') < lifemax() then
+			mapSet('_iksys_trialsSetLife', lifemax())
+			setLife(lifemax())
+		end
+	else
+		mapSet('_iksys_trialsSetLife', lifemax())
+		setLife(lifemax())
+	end
+	player(2)
+	mapSet('_iksys_trialsDummyControl', 0)
 	if not start.trials.allclear and not start.trials.trial[start.trials.currenttrial].active then
 		if start.trials.trial[start.trials.currenttrial].dummymode == 'stand' then
-			charMapSet(2, '_iksys_trialsDummyMode', 0)
+			mapSet('_iksys_trialsDummyMode', 0)
 		elseif start.trials.trial[start.trials.currenttrial].dummymode == 'crouch' then
-			charMapSet(2, '_iksys_trialsDummyMode', 1)
+			mapSet('_iksys_trialsDummyMode', 1)
 		elseif start.trials.trial[start.trials.currenttrial].dummymode == 'jump' then
-			charMapSet(2, '_iksys_trialsDummyMode', 2)
+			mapSet('_iksys_trialsDummyMode', 2)
 		elseif start.trials.trial[start.trials.currenttrial].dummymode == 'wjump' then
-			charMapSet(2, '_iksys_trialsDummyMode', 3)
+			mapSet('_iksys_trialsDummyMode', 3)
 		end
 		if start.trials.trial[start.trials.currenttrial].guardmode == 'none' then
-			charMapSet(2, '_iksys_trialsGuardMode', 0)
+			mapSet('_iksys_trialsGuardMode', 0)
 		elseif start.trials.trial[start.trials.currenttrial].guardmode == 'auto' then
-			charMapSet(2, '_iksys_trialsGuardMode', 2)
+			mapSet('_iksys_trialsGuardMode', 2)
 		end
 		if start.trials.trial[start.trials.currenttrial].buttonjam == 'none' then
-			charMapSet(2, '_iksys_trialsButtonJam', 0)
+			mapSet('_iksys_trialsButtonJam', 0)
 		elseif start.trials.trial[start.trials.currenttrial].buttonjam == 'a' then
-			charMapSet(2, '_iksys_trialsButtonJam', 1)
+			mapSet('_iksys_trialsButtonJam', 1)
 		elseif start.trials.trial[start.trials.currenttrial].buttonjam == 'b' then
-			charMapSet(2, '_iksys_trialsButtonJam', 2)
+			mapSet('_iksys_trialsButtonJam', 2)
 		elseif start.trials.trial[start.trials.currenttrial].buttonjam == 'c' then
-			charMapSet(2, '_iksys_trialsButtonJam', 3)
+			mapSet('_iksys_trialsButtonJam', 3)
 		elseif start.trials.trial[start.trials.currenttrial].buttonjam == 'x' then
-			charMapSet(2, '_iksys_trialsButtonJam', 4)
+			mapSet('_iksys_trialsButtonJam', 4)
 		elseif start.trials.trial[start.trials.currenttrial].buttonjam == 'y' then
-			charMapSet(2, '_iksys_trialsButtonJam', 5)
+			mapSet('_iksys_trialsButtonJam', 5)
 		elseif start.trials.trial[start.trials.currenttrial].buttonjam == 'z' then
-			charMapSet(2, '_iksys_trialsButtonJam', 6)
+			mapSet('_iksys_trialsButtonJam', 6)
 		elseif start.trials.trial[start.trials.currenttrial].buttonjam == 'start' then
-			charMapSet(2, '_iksys_trialsButtonJam', 7)
+			mapSet('_iksys_trialsButtonJam', 7)
 		elseif start.trials.trial[start.trials.currenttrial].buttonjam == 'd' then
-			charMapSet(2, '_iksys_trialsButtonJam', 8)
+			mapSet('_iksys_trialsButtonJam', 8)
 		elseif start.trials.trial[start.trials.currenttrial].buttonjam == 'w' then
-			charMapSet(2, '_iksys_trialsButtonJam', 9)
+			mapSet('_iksys_trialsButtonJam', 9)
 		end
 		start.trials.trial[start.trials.currenttrial].active = true
 	end
+	player(1)
 end
 
 function start.f_trialsDrawer()
@@ -1058,6 +1097,12 @@ function start.f_trialsDrawer()
 			else
 				--start.trials.draw.currenttrialtimer:update({text = "Timer Disabled"})
 				--start.trials.draw.currenttrialtimer:draw()
+			end
+
+			-- Draw trial reset reminder if enabled
+			if motif.trials_mode.trialresetenabled == "true" then
+				--start.trials.draw.trialresetreminder:update({text = motif.trials_mode.trialresetreminder_text})
+				start.trials.draw.trialresetreminder:draw()
 			end
 
 			-- Draw trialsteps bg overlay if enabled
@@ -1412,6 +1457,7 @@ function start.f_trialsChecker()
 		local maincharcheck = false
 		local statecheck = false
 		local animcheck = true
+
 		player(2)
 		local attackerid = gethitvar('id')
 		player(1)
@@ -1431,7 +1477,7 @@ function start.f_trialsChecker()
 		-- Check states and anims; iterate over 'or' operand if multiple states and/or anims are provided
 		local desiredstates = start.trials.trial[ct].trialstep[cts].stateno[ctms]
 		for k = 1, #desiredstates, 1 do
-			if attackerstate == desiredstates[k] then
+			if stateno() == desiredstates[k] or attackerstate == desiredstates[k] then
 				statecheck = true
 				break
 			end
@@ -1440,7 +1486,7 @@ function start.f_trialsChecker()
 			animcheck = false
 			local desiredanims = start.trials.trial[ct].trialstep[cts].animno[ctms]
 			for k = 1, #desiredanims, 1 do
-				if attackeranim == desiredanims[k] then
+				if anim() == desiredanims[k] or attackeranim == desiredanims[k] then
 					animcheck = true
 					break
 				end
@@ -1563,7 +1609,7 @@ function start.f_trialsChecker()
 	--If the trial was completed successfully, draw the trials success
 	if start.trials.draw.success > 0 then
 		start.f_trialsSuccess('success', ct)
-	elseif start.trials.draw.fade > 0 and motif.trials_mode.trialsresetonsuccess == "true" then
+	elseif start.trials.draw.fade > 0 and (motif.trials_mode.trialsresetonsuccess == "true" or start.trials.draw.fadetriggered) then
 		if start.trials.draw.fade < start.trials.draw.fadein + start.trials.draw.fadeout then
 			start.f_trialsFade()
 		else
@@ -1573,14 +1619,22 @@ function start.f_trialsChecker()
 			end
 			player(1)
 		end
+	elseif inputtime('d') > 0 and inputtime('w') > 0 and start.trials.draw.fade == 0 and motif.trials_mode.trialresetenabled == "true" then
+		start.trials.draw.fadein = motif.trials_mode.fadein_time
+		start.trials.draw.fadeout = motif.trials_mode.fadeout_time
+		start.trials.draw.fade = start.trials.draw.fadein + start.trials.draw.fadeout
+		start.trials.draw.fadetriggered = true
+	else
+		start.trials.draw.fadetriggered = false
 	end
 end
 
 function start.f_trialsSuccess(successstring, index)
 	-- This function is responsible for drawing the Success or All Clear banners after a trial is completed successfully.
-	charMapSet(2, '_iksys_trialsDummyMode', 0)
-	charMapSet(2, '_iksys_trialsGuardMode', 0)
-	charMapSet(2, '_iksys_trialsButtonJam', 0)
+	mapSet('_iksys_trialsDummyMode', 0)
+	mapSet('_iksys_trialsGuardMode', 0)
+	mapSet('_iksys_trialsButtonJam', 0)
+	player(1)
 	if not start.trials.trial[index].complete or (successstring == "allclear" and not start.trials.allclear) then
 		-- Play sound only once
 		sndPlay(motif.files.snd_data, motif.trials_mode[successstring .. '_snd'][1], motif.trials_mode[successstring .. '_snd'][2])
@@ -1603,6 +1657,70 @@ function start.f_trialsSuccess(successstring, index)
 end
 
 function start.f_trialsFade()
+	local stagelocalcoordX = stagevar("stageinfo.localcoord.x")
+	local stageboundleft = stagevar("bound.screenleft")
+	local stageboundright = stagevar("bound.screenright")
+	local dummyposx = stagevar("playerinfo.p2startx") / (stagelocalcoordX/320)
+	local dummyposy = stagevar("playerinfo.p2starty") / (stagelocalcoordX/320)
+	local playerposx = stagevar("playerinfo.p1startx") / (stagelocalcoordX/320)
+	local playerposy = stagevar("playerinfo.p1starty") / (stagelocalcoordX/320)
+	local leftbound = stagevar("camera.boundleft")
+	local rightbound = stagevar("camera.boundright")
+	local cameraPosX = 0
+	local posx = 0
+	local oppx = 0
+
+	if start.trials.trial[start.trials.currenttrial].dummypos == 'left-corner' or start.trials.trial[start.trials.currenttrial].playerpos == 'left-corner' then
+		cameraPosX = leftbound / (stagelocalcoordX/320)
+		posx = - (stagelocalcoordX/2 - stageboundleft) / (stagelocalcoordX/320)
+		if start.trials.trial[start.trials.currenttrial].dummypos == 'close' or start.trials.trial[start.trials.currenttrial].playerpos == 'close' then
+			oppx = posx + 10
+		elseif start.trials.trial[start.trials.currenttrial].dummypos == 'far' or start.trials.trial[start.trials.currenttrial].playerpos == 'far' then
+			oppx = posx + 260
+		else --medium or nil
+			oppx = posx + 130
+		end
+		if start.trials.trial[start.trials.currenttrial].dummypos == 'left-corner' then
+			dummyposx = posx
+			playerposx = oppx
+		else
+			playerposx = posx
+			dummyposx = oppx
+		end
+	elseif start.trials.trial[start.trials.currenttrial].dummypos == 'right-corner' or start.trials.trial[start.trials.currenttrial].playerpos == 'right-corner' then
+		cameraPosX = rightbound / (stagelocalcoordX/320)
+		posx = (stagelocalcoordX/2 - stageboundright) / (stagelocalcoordX/320)
+		if start.trials.trial[start.trials.currenttrial].dummypos == 'close' or start.trials.trial[start.trials.currenttrial].playerpos == 'close' then
+			oppx = posx - 10
+		elseif start.trials.trial[start.trials.currenttrial].dummypos == 'far' or start.trials.trial[start.trials.currenttrial].playerpos == 'far' then
+			oppx = posx - 260
+		else --medium or nil
+			oppx = posx - 130
+		end
+		if start.trials.trial[start.trials.currenttrial].dummypos == 'right-corner' then
+			dummyposx = posx
+			playerposx = oppx
+		else
+			playerposx = posx
+			dummyposx = oppx
+		end
+	elseif start.trials.trial[start.trials.currenttrial].dummypos == 'close' or start.trials.trial[start.trials.currenttrial].playerpos == 'close' then
+		dummyposx = 5
+		playerposx = -5
+	elseif start.trials.trial[start.trials.currenttrial].dummypos == 'medium' or start.trials.trial[start.trials.currenttrial].playerpos == 'medium' then
+		dummyposx = 65
+		playerposx = -65
+	elseif start.trials.trial[start.trials.currenttrial].dummypos == 'far' or start.trials.trial[start.trials.currenttrial].playerpos == 'far' then
+		dummyposx = 130
+		playerposx = -130
+	end
+
+	mapSet('_iksys_trialsCameraPosX', cameraPosX)
+	mapSet('_iksys_trialsDummyPosX', dummyposx)
+	mapSet('_iksys_trialsDummyPosY', dummyposy)
+	mapSet('_iksys_trialsPlayerPosX', playerposx)
+	mapSet('_iksys_trialsPlayerPosY', playerposy)
+	
 	-- This function is responsible for fadein/fadeout if trialsresetonsuccess is set to true.
 	if start.trials.draw.fadeout > 0 then
 		if not main.fadeActive then
@@ -1612,10 +1730,10 @@ function start.f_trialsFade()
 		start.trials.draw.fadeout = start.trials.draw.fadeout - 1
 	elseif start.trials.draw.fadein > 0 then
 		if main.fadeType == 'fadeout' then
-			charMapSet(2, '_iksys_trialsReposition', 1)
+			mapSet('_iksys_trialsReposition', 1)
 			main.f_fadeReset('fadein',motif.trials_mode)
 		elseif main.fadeType == 'fadein' then
-			charMapSet(2, '_iksys_trialsCameraReset', 1)
+			mapSet('_iksys_trialsCameraReset', 1)
 		end
 		main.f_fadeAnim(motif.trials_mode)
 		start.trials.draw.fadein = start.trials.draw.fadein - 1
@@ -1705,8 +1823,10 @@ function start.f_trialsMode()
 		-- No trials present!
 		player(2)
 		setAILevel(0)
+		mapSet('_iksys_trialsSetLife', lifemax())
 		player(1)
-		charMapSet(2, '_iksys_trialsDummyControl', 0)
+		mapSet('_iksys_trialsDummyControl', 0)
+		mapSet('_iksys_trialsSetLife', lifemax())
 		trialcounter = main.f_createTextImg(motif.trials_mode, 'trialcounter')
 		trialcounter:update({x = motif.trials_mode.trialcounter_pos[1], y = motif.trials_mode.trialcounter_pos[2], text = motif.trials_mode.trialcounter_notrialsdata_text})
 		trialcounter:draw()
@@ -1869,14 +1989,16 @@ function menu.f_trialsReset()
 	end
 	player(2)
 	setAILevel(0)
-	charMapSet(2, '_iksys_trialsDummyControl', 0)
-	charMapSet(2, '_iksys_trialsDummyMode', 0)
-	charMapSet(2, '_iksys_trialsGuardMode', 0)
-	charMapSet(2, '_iksys_trialsFallRecovery', 0)
-	charMapSet(2, '_iksys_trialsDistance', 0)
-	charMapSet(2, '_iksys_trialsButtonJam', 0)
-	charMapSet(2, '_iksys_trialsReposition', 0)
+	mapSet('_iksys_trialsDummyControl', 0)
+	mapSet('_iksys_trialsDummyMode', 0)
+	mapSet('_iksys_trialsGuardMode', 0)
+	mapSet('_iksys_trialsFallRecovery', 0)
+	mapSet('_iksys_trialsDistance', 0)
+	mapSet('_iksys_trialsButtonJam', 0)
+	mapSet('_iksys_trialsReposition', 0)
+	mapSet('_iksys_trialsSetLife', lifemax())
 	player(1)
+	mapSet('_iksys_trialsSetLife', lifemax())
 end
 
 --;===========================================================
@@ -1892,7 +2014,7 @@ for row = 1, #main.t_selChars, 1 do
 			line = line:gsub('%s*;.*$', '')
 			lcline = string.lower(line)
 			if lcline:match('trials') then
-				main.t_selChars[row].trialsdef = main.t_selChars[row].dir .. f_trimafterchar(line, "=")
+				main.t_selChars[row].trialsdef = main.t_selChars[row].dir .. f_trimforchar(line, "=", "after")
 				break
 			end
 		end
@@ -1909,6 +2031,7 @@ for row = 1, #main.t_selChars, 1 do
 
 			if lcline:find("trialstep." .. j+1 .. ".") then
 				j = j + 1
+				trialsteplangfound = false
 				trial[i].trialstep[j] = {
 					numofmicrosteps = 1,
 					text = "",
@@ -1952,6 +2075,8 @@ for row = 1, #main.t_selChars, 1 do
 				if lcline:match('^trialdef') then --matched trialdef block
 					i = i + 1 -- increment Trial number
 					j = 0 -- reset trialstep number
+					triallangfound = false
+					lang = gameOption('Config.Language'):lower()
 					trial[i] = {
 						name = "",
 						dummymode = "stand",
@@ -1959,6 +2084,10 @@ for row = 1, #main.t_selChars, 1 do
 						buttonjam = "none",
 						active = false,
 						complete = false,
+						p1life = -1,
+						p2life = -1,
+						playerpos = nil,
+						dummypos = nil,
 						showforvar = {nil},
 						showforval = {nil},
 						elapsedtime = 0,
@@ -1968,34 +2097,60 @@ for row = 1, #main.t_selChars, 1 do
 						trialstep = {},
 					}
 					temp = {}
-					line = f_trimafterchar(line, ",")
+					line = f_trimforchar(line, ",", "after")
 					if line == "" then
 						line = "Trial " .. tostring(i)
 					end
 					trial[i].name = line
 				end
 			elseif lcline:find("dummymode") then
-				trial[i].dummymode = f_trimafterchar(lcline, "=")
+				trial[i].dummymode = f_trimforchar(lcline, "=", "after")
 			elseif lcline:find("guardmode") then
-				trial[i].guardmode = f_trimafterchar(lcline, "=")
+				trial[i].guardmode = f_trimforchar(lcline, "=", "after")
 			elseif lcline:find("dummybuttonjam") then
-				trial[i].buttonjam = f_trimafterchar(lcline, "=")
+				trial[i].buttonjam = f_trimforchar(lcline, "=", "after")
+			elseif lcline:find("playerlife") then
+				trial[i].p1life = tonumber(f_trimforchar(lcline, "=", "after"))
+			elseif lcline:find("dummylife") then
+				trial[i].p2life = tonumber(f_trimforchar(lcline, "=", "after"))
+			elseif lcline:find("playerpos") then
+				trial[i].playerpos = f_trimforchar(lcline, "=", "after")
+			elseif lcline:find("dummypos") then
+				trial[i].dummypos = f_trimforchar(lcline, "=", "after")
 			elseif lcline:find("showforvarvalpairs") then
-				temp = main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", ""))
+				showforvarvalpairsfound = false
+				temp = main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", ""))
 				trial[i].showforvar = {}
 				trial[i].showforval = {}
 				for k = 1, #temp, 2 do
 					trial[i].showforvar[#trial[i].showforvar+1] = tonumber(temp[k])
 					trial[i].showforval[#trial[i].showforval+1] = f_str2number(main.f_strsplit('|', temp[k+1]))
 				end
-			elseif lcline:find("textbox") then
-				trial[i].textbox = f_trimafterchar(lcline, "=")
-			elseif lcline:find("trialstep." .. j .. ".text") then
-				trial[i].trialstep[j].text = f_trimafterchar(line, "=")
+			elseif lcline:find("textbox") and not triallangfound then
+				if lcline:find("textbox." .. lang) then
+					trial[i].textbox = f_trimforchar(lcline, "=", "after")
+					triallangfound = true
+				elseif string.match(lcline, "trial.textbox.en") then
+					trial[i].textbox = f_trimforchar(lcline, "=", "after")
+				elseif string.match(f_trimforchar(lcline, "=", "before"), "^trial.textbox$") then
+					trial[i].textbox = f_trimforchar(lcline, "=", "after")
+					triallangfound = true
+				end
+			elseif lcline:find("trialstep." .. j .. ".text") and not trialsteplangfound then
+				if lcline:find("trialstep." .. j .. ".text." .. lang) then
+					trial[i].trialstep[j].text = f_trimforchar(line, "=", "after")
+					trialsteplangfound = true
+				elseif string.match(lcline, "trialstep." .. j .. ".text.en") then
+					trial[i].trialstep[j].text = f_trimforchar(line, "=", "after")
+				elseif string.match(f_trimforchar(lcline, "=", "before"), "^trialstep." .. j .. ".text$") then
+					trial[i].trialstep[j].text = f_trimforchar(line, "=", "after")
+					trialsteplangfound = true
+				end
+				trial[i].trialstep[j].text = f_trimforchar(line, "=", "after")
 			elseif lcline:find("trialstep." .. j .. ".glyphs") then
-				trial[i].trialstep[j].glyphs = f_trimafterchar(line, "=")
+				trial[i].trialstep[j].glyphs = f_trimforchar(line, "=", "after")
 			elseif lcline:find("trialstep." .. j .. ".stateno") then
-				trial[i].trialstep[j].stateno = main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", ""))
+				trial[i].trialstep[j].stateno = main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", ""))
 				for k = 1, #trial[i].trialstep[j].stateno, 1 do
 					local temp = trial[i].trialstep[j].stateno[k]
 					trial[i].trialstep[j].stateno[k] = f_str2number(main.f_strsplit('|', temp))
@@ -2014,44 +2169,44 @@ for row = 1, #main.t_selChars, 1 do
 					trial[i].trialstep[j].validfortickcount[k] = nil
 				end
 			elseif lcline:find("trialstep." .. j .. ".animno") then
-				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].animno = main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", ""))
+				if string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "") ~= "" then
+					trial[i].trialstep[j].animno = main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", ""))
 					for k = 1, #trial[i].trialstep[j].animno, 1 do
 						local temp = trial[i].trialstep[j].animno[k]
 						trial[i].trialstep[j].animno[k] = f_str2number(main.f_strsplit('|', temp))
 					end
 				end
 			elseif lcline:find("trialstep." .. j .. ".hitcount") then
-				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].hitcount = f_str2number(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+				if string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "") ~= "" then
+					trial[i].trialstep[j].hitcount = f_str2number(main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "")))
 				end
 			elseif lcline:find("trialstep." .. j .. ".isthrow") then
-				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].isthrow = f_str2boolean(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+				if string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "") ~= "" then
+					trial[i].trialstep[j].isthrow = f_str2boolean(main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "")))
 				end
 			elseif lcline:find("trialstep." .. j .. ".iscounterhit") then
-				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].iscounterhit = f_str2boolean(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+				if string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "") ~= "" then
+					trial[i].trialstep[j].iscounterhit = f_str2boolean(main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "")))
 				end
 			elseif lcline:find("trialstep." .. j .. ".ishelper") then
-				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].ishelper = f_str2boolean(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+				if string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "") ~= "" then
+					trial[i].trialstep[j].ishelper = f_str2boolean(main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "")))
 				end
 			elseif lcline:find("trialstep." .. j .. ".isproj") then
-				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].isproj = f_str2boolean(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+				if string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "") ~= "" then
+					trial[i].trialstep[j].isproj = f_str2boolean(main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "")))
 				end
 			elseif lcline:find("trialstep." .. j .. ".validforvarvalpairs") then
-				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					local varvalpairs = f_str2number(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+				if string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "") ~= "" then
+					local varvalpairs = f_str2number(main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "")))
 					for ii = 1, #varvalpairs, 2 do
 						trial[i].trialstep[j].validforvar[ii] = varvalpairs[ii]
 						trial[i].trialstep[j].validforval[ii] = varvalpairs[ii+1]
 					end
 				end
 			elseif lcline:find("trialstep." .. j .. ".validfortickcount") then
-				if string.gsub(f_trimafterchar(lcline, "="),"%s+", "") ~= "" then
-					trial[i].trialstep[j].validfortickcount = f_str2number(main.f_strsplit(',', string.gsub(f_trimafterchar(lcline, "="),"%s+", "")))
+				if string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "") ~= "" then
+					trial[i].trialstep[j].validfortickcount = f_str2number(main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "")))
 				end
 			end
 		end
