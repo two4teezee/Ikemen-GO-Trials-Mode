@@ -14,10 +14,6 @@
 #===============================================================================
 [Function TrialsReposition()]
 if map(_iksys_trialsReposition) != 0 {
-	PrintToConsole{
-		text: "player1posx: %f, dummyposx: %f";
-		params: map(_iksys_trialsPlayerPosX), map(_iksys_trialsDummyPosX);
-	}
 	Camera{
 		view: free; 
 		pos: map(_iksys_trialsCameraPosX), (map(_iksys_trialsPlayerPosY) + map(_iksys_trialsDummyPosY))/2;
@@ -107,11 +103,6 @@ ignoreHitPause if gameMode = "trials" {
 			map(_iksys_trialsGuardMode) := 0;
 		}
 		if roundState = 2 {
-			# PrintToConsole{
-			# 	text: "p1posX = %f, p2posX = %f";
-			# 	params: player(1), pos x, player(2), pos x;
-			# }
-
 			# Dummy Control: Cooperative
 			if aiLevel = 0 && map(_iksys_trialsDummyControl) = 0 {
 				# Guard mode: Random

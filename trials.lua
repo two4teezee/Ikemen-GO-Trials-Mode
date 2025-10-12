@@ -395,6 +395,12 @@ local t_base = {
     currenttrialtimer_scale = {1.0, 1.0},
     currenttrialtimer_font_height = -1,
     currenttrialtimer_text = '',
+	trialresetenabled = "true",
+    trialresetreminder_pos = {0,0},
+    trialresetreminder_font = {'f-6x9.def', 0, 0, 255, 255, 255, -1},
+    trialresetreminder_scale = {1.0, 1.0},
+    trialresetreminder_font_height = -1,
+    trialresetreminder_text = '',
     success_pos = {0, 0},
     success_snd = {-1, 0},
     success_bg_anim = -1,
@@ -928,6 +934,7 @@ function start.f_trialsBuilder()
 		trialcounter = main.f_createTextImg(motif.trials_mode, 'trialcounter'),
 		totaltrialtimer = main.f_createTextImg(motif.trials_mode, 'totaltrialtimer'),
 		currenttrialtimer = main.f_createTextImg(motif.trials_mode, 'currenttrialtimer'),
+		trialresetreminder = main.f_createTextImg(motif.trials_mode, 'trialresetreminder'),
 	}
 	start.trials.draw.textbox_title:update({x = motif.trials_mode.textbox_pos[1]+motif.trials_mode.textbox_title_offset[1], y = motif.trials_mode.textbox_pos[2]+motif.trials_mode.textbox_title_offset[1],})
 	start.trials.draw.textbox_text:update({x = motif.trials_mode.textbox_pos[1]+motif.trials_mode.textbox_text_offset[1]+motif.trials_mode.textbox_text_window[1], y = motif.trials_mode.textbox_pos[2]+motif.trials_mode.textbox_text_offset[2]+motif.trials_mode.textbox_text_window[2],})
@@ -936,6 +943,7 @@ function start.f_trialsBuilder()
 	start.trials.draw.trialcounter:update({x = motif.trials_mode.trialcounter_pos[1], y = motif.trials_mode.trialcounter_pos[2],})
 	start.trials.draw.totaltrialtimer:update({x = motif.trials_mode.totaltrialtimer_pos[1], y = motif.trials_mode.totaltrialtimer_pos[2],})
 	start.trials.draw.currenttrialtimer:update({x = motif.trials_mode.currenttrialtimer_pos[1], y = motif.trials_mode.currenttrialtimer_pos[2],})
+	start.trials.draw.trialresetreminder:update({x = motif.trials_mode.trialresetreminder_pos[1], y = motif.trials_mode.trialresetreminder_pos[2], text = motif.trials_mode.trialresetreminder_text})
 	for _, v in ipairs({'vertical','horizontal'}) do
 		start.trials.draw[v] = {
 			upcomingtextline = {},
@@ -1087,6 +1095,12 @@ function start.f_trialsDrawer()
 			else
 				--start.trials.draw.currenttrialtimer:update({text = "Timer Disabled"})
 				--start.trials.draw.currenttrialtimer:draw()
+			end
+
+			-- Draw trial reset reminder if enabled
+			if motif.trials_mode.trialresetenabled == "true" then
+				--start.trials.draw.trialresetreminder:update({text = motif.trials_mode.trialresetreminder_text})
+				start.trials.draw.trialresetreminder:draw()
 			end
 
 			-- Draw trialsteps bg overlay if enabled
@@ -1603,7 +1617,7 @@ function start.f_trialsChecker()
 			end
 			player(1)
 		end
-	elseif inputtime('d') > 0 and inputtime('w') > 0 and start.trials.draw.fade == 0 then
+	elseif inputtime('d') > 0 and inputtime('w') > 0 and start.trials.draw.fade == 0 and motif.trials_mode.trialresetenabled == "true" then
 		start.trials.draw.fadein = motif.trials_mode.fadein_time
 		start.trials.draw.fadeout = motif.trials_mode.fadeout_time
 		start.trials.draw.fade = start.trials.draw.fadein + start.trials.draw.fadeout
@@ -1642,82 +1656,61 @@ end
 
 function start.f_trialsFade()
 	local stagelocalcoordX = stagevar("stageinfo.localcoord.x")
-	local stagelocalcoordY = stagevar("stageinfo.localcoord.y")
 	local stageboundleft = stagevar("bound.screenleft")
 	local stageboundright = stagevar("bound.screenright")
-
 	local dummyposx = stagevar("playerinfo.p2startx") / (stagelocalcoordX/320)
 	local dummyposy = stagevar("playerinfo.p2starty") / (stagelocalcoordX/320)
 	local playerposx = stagevar("playerinfo.p1startx") / (stagelocalcoordX/320)
 	local playerposy = stagevar("playerinfo.p1starty") / (stagelocalcoordX/320)
-
 	local leftbound = stagevar("camera.boundleft")
 	local rightbound = stagevar("camera.boundright")
-
 	local cameraPosX = 0
-	local p1facing = 1
-	local p2facing = -1
+	local posx = 0
+	local oppx = 0
 
-	player(2)
-	local p2posx = posX()
-	player(2)
-	local p2posy = posY()
-	local p1posx = posX()
-	local p1posy = posY()
-
-    if start.trials.trial[start.trials.currenttrial].dummypos ~= nil then
+	if start.trials.trial[start.trials.currenttrial].dummypos == 'left-corner' or start.trials.trial[start.trials.currenttrial].playerpos == 'left-corner' then
+		cameraPosX = leftbound / (stagelocalcoordX/320)
+		posx = - (stagelocalcoordX/2 - stageboundleft) / (stagelocalcoordX/320)
+		if start.trials.trial[start.trials.currenttrial].dummypos == 'close' or start.trials.trial[start.trials.currenttrial].playerpos == 'close' then
+			oppx = posx + 10
+		elseif start.trials.trial[start.trials.currenttrial].dummypos == 'far' or start.trials.trial[start.trials.currenttrial].playerpos == 'far' then
+			oppx = posx + 260
+		else --medium or nil
+			oppx = posx + 130
+		end
 		if start.trials.trial[start.trials.currenttrial].dummypos == 'left-corner' then
-			dummyposx = -(stagelocalcoordX/2 - stageboundleft) / (stagelocalcoordX/320)
-			p1facing = -1
-			p2facing = 1
-			cameraPosX = leftbound / (stagelocalcoordX/320)
-		elseif start.trials.trial[start.trials.currenttrial].dummypos == 'right-corner' then
-			dummyposx = (stagelocalcoordX/2 - stageboundright) / (stagelocalcoordX/320)
-			cameraPosX = rightbound / (stagelocalcoordX/320)
-		elseif start.trials.trial[start.trials.currenttrial].dummypos == 'close' then
-			dummyposx = p2posx + 10 * p1facing
-		elseif start.trials.trial[start.trials.currenttrial].dummypos == 'medium' then
-			dummyposx = p2posx + 130 * p1facing
-		elseif start.trials.trial[start.trials.currenttrial].dummypos == 'far' then
-			dummyposx = p2posx + 260 * p1facing
+			dummyposx = posx
+			playerposx = oppx
+		else
+			playerposx = posx
+			dummyposx = oppx
 		end
-	end
-	if start.trials.trial[start.trials.currenttrial].playerpos ~= nil then
-		if start.trials.trial[start.trials.currenttrial].playerpos == 'left-corner' then
-			playerposx = -(stagelocalcoordX/2 - stageboundleft) / (stagelocalcoordX/320)
-			p1facing = -1
-			p2facing = 1
-			cameraPosX = leftbound / (stagelocalcoordX/320)
-			if start.trials.trial[start.trials.currenttrial].dummypos == 'close' then
-				dummyposx = playerposx + 10 * p1facing
-			elseif start.trials.trial[start.trials.currenttrial].dummypos == 'medium' then
-				dummyposx = playerposx + 130 * p1facing
-			elseif start.trials.trial[start.trials.currenttrial].dummypos == 'far' then
-				dummyposx = playerposx + 260 * p1facing
-			else
-				dummyposx = playerposx + 130 * p1facing
-			end
-		elseif start.trials.trial[start.trials.currenttrial].playerpos == 'right-corner' then
-			playerposx = (stagelocalcoordX/2 - stageboundright) / (stagelocalcoordX/320)
-			cameraPosX = rightbound / (stagelocalcoordX/320)
-			if start.trials.trial[start.trials.currenttrial].dummypos == 'close' then
-				dummyposx = playerposx - 10 * p1facing
-			elseif start.trials.trial[start.trials.currenttrial].dummypos == 'medium' then
-				dummyposx = playerposx - 130 * p1facing
-			elseif start.trials.trial[start.trials.currenttrial].dummypos == 'far' then
-				dummyposx = playerposx - 260 * p1facing
-			else
-				dummyposx = playerposx - 130 * p1facing
-			end
-		elseif start.trials.trial[start.trials.currenttrial].playerpos == 'close' then
-			playerposx = dummyposx + 10 * p2facing
-		elseif start.trials.trial[start.trials.currenttrial].playerpos == 'medium' then
-			playerposx = dummyposx + 130 * p2facing
-		elseif start.trials.trial[start.trials.currenttrial].playerpos == 'far' then
-			playerposx = dummyposx + 260 * p2facing
+	elseif start.trials.trial[start.trials.currenttrial].dummypos == 'right-corner' or start.trials.trial[start.trials.currenttrial].playerpos == 'right-corner' then
+		cameraPosX = rightbound / (stagelocalcoordX/320)
+		posx = (stagelocalcoordX/2 - stageboundright) / (stagelocalcoordX/320)
+		if start.trials.trial[start.trials.currenttrial].dummypos == 'close' or start.trials.trial[start.trials.currenttrial].playerpos == 'close' then
+			oppx = posx - 10
+		elseif start.trials.trial[start.trials.currenttrial].dummypos == 'far' or start.trials.trial[start.trials.currenttrial].playerpos == 'far' then
+			oppx = posx - 260
+		else --medium or nil
+			oppx = posx - 130
 		end
-	elseif start.trials.trial[start.trials.currenttrial].dummypos ~= nil then
-		playerposx = dummyposx + 130 * p2facing
+		if start.trials.trial[start.trials.currenttrial].dummypos == 'right-corner' then
+			dummyposx = posx
+			playerposx = oppx
+		else
+			playerposx = posx
+			dummyposx = oppx
+		end
+	elseif start.trials.trial[start.trials.currenttrial].dummypos == 'close' or start.trials.trial[start.trials.currenttrial].playerpos == 'close' then
+		dummyposx = 5
+		playerposx = -5
+	elseif start.trials.trial[start.trials.currenttrial].dummypos == 'medium' or start.trials.trial[start.trials.currenttrial].playerpos == 'medium' then
+		dummyposx = 65
+		playerposx = -65
+	elseif start.trials.trial[start.trials.currenttrial].dummypos == 'far' or start.trials.trial[start.trials.currenttrial].playerpos == 'far' then
+		dummyposx = 130
+		playerposx = -130
 	end
 
 	mapSet('_iksys_trialsCameraPosX', cameraPosX)
@@ -2114,9 +2107,9 @@ for row = 1, #main.t_selChars, 1 do
 				trial[i].guardmode = f_trimforchar(lcline, "=", "after")
 			elseif lcline:find("dummybuttonjam") then
 				trial[i].buttonjam = f_trimforchar(lcline, "=", "after")
-			elseif lcline:find("p1life") then
+			elseif lcline:find("playerlife") then
 				trial[i].p1life = tonumber(f_trimforchar(lcline, "=", "after"))
-			elseif lcline:find("p2life") then
+			elseif lcline:find("dummylife") then
 				trial[i].p2life = tonumber(f_trimforchar(lcline, "=", "after"))
 			elseif lcline:find("playerpos") then
 				trial[i].playerpos = f_trimforchar(lcline, "=", "after")
