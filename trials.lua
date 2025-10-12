@@ -1002,6 +1002,7 @@ function start.f_trialsDummySetup()
 		mapSet('_iksys_trialsSetLife', lifemax())
 		setLife(lifemax())
 	end
+	player(2)
 	mapSet('_iksys_trialsDummyControl', 0)
 	if not start.trials.allclear and not start.trials.trial[start.trials.currenttrial].active then
 		if start.trials.trial[start.trials.currenttrial].dummymode == 'stand' then
@@ -1041,6 +1042,7 @@ function start.f_trialsDummySetup()
 		end
 		start.trials.trial[start.trials.currenttrial].active = true
 	end
+	player(1)
 end
 
 function start.f_trialsDrawer()
