@@ -19,6 +19,25 @@
 --;===========================================================
 --; Local Functions
 --;===========================================================
+-- Helper function to check if all keys in a combination are pressed
+local function f_checkKeyCombo(keyCombo)
+	if not keyCombo or keyCombo == "" then
+		return false
+	end
+	
+	local keys = {}
+	for key in string.gmatch(keyCombo, "([^&]+)") do
+		table.insert(keys, key)
+	end
+	
+	for _, key in ipairs(keys) do
+		if inputtime(key) <= 0 then
+			return false
+		end
+	end
+	
+	return #keys > 0
+end
 
 local function f_timeConvert(value)
 	-- converts ticks to time
@@ -395,12 +414,13 @@ local t_base = {
     currenttrialtimer_scale = {1.0, 1.0},
     currenttrialtimer_font_height = -1,
     currenttrialtimer_text = '',
-	trialresetenabled = "true",
-    trialresetreminder_pos = {0,0},
-    trialresetreminder_font = {'f-6x9.def', 0, 0, 255, 255, 255, -1},
-    trialresetreminder_scale = {1.0, 1.0},
-    trialresetreminder_font_height = -1,
-    trialresetreminder_text = '',
+	trialreset_enabled = "true",
+	trialreset_buttonpress = "d&w",
+    trialreset_text_pos = {0,0},
+    trialreset_text_font = {'f-6x9.def', 0, 0, 255, 255, 255, -1},
+    trialreset_text_scale = {1.0, 1.0},
+    trialreset_text_font_height = -1,
+    trialreset_text_text = '',
     success_pos = {0, 0},
     success_snd = {-1, 0},
     success_bg_anim = -1,
@@ -934,7 +954,7 @@ function start.f_trialsBuilder()
 		trialcounter = main.f_createTextImg(motif.trials_mode, 'trialcounter'),
 		totaltrialtimer = main.f_createTextImg(motif.trials_mode, 'totaltrialtimer'),
 		currenttrialtimer = main.f_createTextImg(motif.trials_mode, 'currenttrialtimer'),
-		trialresetreminder = main.f_createTextImg(motif.trials_mode, 'trialresetreminder'),
+		trialreset_text = main.f_createTextImg(motif.trials_mode, 'trialreset_text'),
 	}
 	start.trials.draw.textbox_title:update({x = motif.trials_mode.textbox_pos[1]+motif.trials_mode.textbox_title_offset[1], y = motif.trials_mode.textbox_pos[2]+motif.trials_mode.textbox_title_offset[1],})
 	start.trials.draw.textbox_text:update({x = motif.trials_mode.textbox_pos[1]+motif.trials_mode.textbox_text_offset[1]+motif.trials_mode.textbox_text_window[1], y = motif.trials_mode.textbox_pos[2]+motif.trials_mode.textbox_text_offset[2]+motif.trials_mode.textbox_text_window[2],})
@@ -943,7 +963,7 @@ function start.f_trialsBuilder()
 	start.trials.draw.trialcounter:update({x = motif.trials_mode.trialcounter_pos[1], y = motif.trials_mode.trialcounter_pos[2],})
 	start.trials.draw.totaltrialtimer:update({x = motif.trials_mode.totaltrialtimer_pos[1], y = motif.trials_mode.totaltrialtimer_pos[2],})
 	start.trials.draw.currenttrialtimer:update({x = motif.trials_mode.currenttrialtimer_pos[1], y = motif.trials_mode.currenttrialtimer_pos[2],})
-	start.trials.draw.trialresetreminder:update({x = motif.trials_mode.trialresetreminder_pos[1], y = motif.trials_mode.trialresetreminder_pos[2], text = motif.trials_mode.trialresetreminder_text})
+	start.trials.draw.trialreset_text:update({x = motif.trials_mode.trialreset_text_pos[1], y = motif.trials_mode.trialreset_text_pos[2], text = motif.trials_mode.trialreset_text_text})
 	for _, v in ipairs({'vertical','horizontal'}) do
 		start.trials.draw[v] = {
 			upcomingtextline = {},
@@ -1100,9 +1120,8 @@ function start.f_trialsDrawer()
 			end
 
 			-- Draw trial reset reminder if enabled
-			if motif.trials_mode.trialresetenabled == "true" then
-				--start.trials.draw.trialresetreminder:update({text = motif.trials_mode.trialresetreminder_text})
-				start.trials.draw.trialresetreminder:draw()
+			if motif.trials_mode.trialreset_enabled == "true" then
+				start.trials.draw.trialreset_text:draw()
 			end
 
 			-- Draw trialsteps bg overlay if enabled
@@ -1619,7 +1638,7 @@ function start.f_trialsChecker()
 			end
 			player(1)
 		end
-	elseif inputtime('d') > 0 and inputtime('w') > 0 and start.trials.draw.fade == 0 and motif.trials_mode.trialresetenabled == "true" then
+	elseif f_checkKeyCombo(motif.trials_mode.trialreset_buttonpress) and start.trials.draw.fade == 0 and motif.trials_mode.trialreset_enabled == "true" then
 		start.trials.draw.fadein = motif.trials_mode.fadein_time
 		start.trials.draw.fadeout = motif.trials_mode.fadeout_time
 		start.trials.draw.fade = start.trials.draw.fadein + start.trials.draw.fadeout

@@ -345,15 +345,17 @@ currenttrialtimer.scale = 2,2
 currenttrialtimer.text = "Current Trial: %s"
 
 ; TRIAL RESET REMINDER AND SWITCH ------------------------------------------
-; trialresetenabled allows the user to reset the player and dummy position to center stage (or specified trials position) when the d and w keys are pressed simultaneously
-; trialresetreminder displays a string that reminds the player they can reset the trial position with the specified key input
+; trialreset.enabled allows the user to reset the player and dummy position to center stage (or specified trials position) when the desired keys are pressed simultaneously
+; trialreset.buttonpress: specify key combination for the user to reset the trial position
+; trialreset.text displays a string that reminds the player they can reset the trial position with the specified key input
 ; --------------------------------------------------------------------------
-trialresetenabled = true
-trialresetreminder.pos = 10,710
-trialresetreminder.font = 1,0,1
-trialresetreminder.scale = 2,2
-; trialresetreminder.font.height	=
-trialresetreminder.text = "Hit d + w to reset position"
+trialreset.enabled = true
+trialreset.buttonpress = d&w
+trialreset.text.pos = 10,710
+trialreset.text.font = 1,0,1
+trialreset.text.scale = 2,2
+; trialreset.text.font.height	=
+trialreset.text.text = "Hit d + w to reset position"
 
 ; TRIALS TEXT BOX ----------------------------------------------------------
 ; A textbox can accompany each trial if it is specified within the trials definition file.
