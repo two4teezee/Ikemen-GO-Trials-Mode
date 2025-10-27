@@ -1,4 +1,4 @@
-# Ikemen GO Trials Mode v0.99.5
+# Ikemen GO Trials Mode v0.99.6
 > Compatible with Ikemen GO Nightly Builds newer than 10/10/2025.
 
 > Note: for older Ikemen GO Builds, check releases tab for a compatible release of Trials Mode .
