@@ -1,0 +1,31 @@
+[Title Info]
+; You need to add itemname to the main system.def so menu items keep the expected order. Grouping rules:
+; https://github.com/ikemen-engine/Ikemen-GO/wiki/Screenpack-features#menus
+;menu.itemname.bossrush = "BOSS RUSH"
+
+[Select Info]
+title.trials.text = "Trials Mode"
+
+[Trials Pause Menu]
+menu.itemname.back = "Continue"
+menu.itemname.nexttrial = "Next Trial"
+menu.itemname.previoustrial = "Previous Trial"
+menu.itemname.menutrials = "Trials Menu"
+menu.itemname.menutrials.trialslist = "Trials List"
+menu.itemname.menutrials.trialadvancement = "Trials Advancement"
+menu.itemname.menutrials.trialresetonsuccess = "Reset to Center on Success"
+menu.itemname.menutrials.trialslayout = "Trials Layout"
+menu.itemname.menutrials.back = "Back"
+menu.itemname.menuinput = "Button Config"
+menu.itemname.menuinput.keyboard = "Key Config"
+menu.itemname.menuinput.gamepad = "Joystick Config"
+menu.itemname.menuinput.empty = ""
+menu.itemname.menuinput.inputdefault = "Default"
+menu.itemname.menuinput.back = "Back"
+menu.itemname.commandlist = "Command List"
+menu.itemname.characterchange = "Character Change"
+menu.itemname.exit = "Exit"
+
+[TrialsPauseMenuBgDef]
+spr = ""
+bgclearcolor = 0, 0, 0
