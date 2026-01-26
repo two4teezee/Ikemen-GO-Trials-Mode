@@ -10,7 +10,7 @@
 -------------------------------------------------------------------------
 
 trials = {}
-trials.ui_def = loadIni('external/mods/trials/config.def')
+trials = loadIni('external/mods/trials/config.def')
 
 --;===========================================================
 --; Local Functions
@@ -182,16 +182,16 @@ end
 -- motif.trialsbgdef.bg = bgNew(motif.trialsbgdef.spr_data, motif.def, 'trialsbg')
 
 --trials spr/anim data
-local tr_pos = trials.ui_def
+local tr_pos = trials.trials_mode
 for _, v in ipairs({
-	{s = 'trialsteps_vertical_bg_',				x = tr_pos.trialsteps_vertical_pos[1] + tr_pos.trialsteps_vertical_bg_offset[1],		y = tr_pos.trialsteps_vertical_pos[2] + tr_pos.trialsteps_vertical_bg_offset[2],		},
-	{s = 'trialsteps_horizontal_bg_',			x = tr_pos.trialsteps_horizontal_pos[1] + tr_pos.trialsteps_horizontal_bg_offset[1],	y = tr_pos.trialsteps_horizontal_pos[2] + tr_pos.trialsteps_horizontal_bg_offset[2],	},
-	{s = 'success_bg_',    						x = tr_pos.success_pos[1] + tr_pos.success_bg_offset[1],								y = tr_pos.success_pos[2] + tr_pos.success_bg_offset[2],								},
-	{s = 'allclear_bg_',	   					x = tr_pos.allclear_pos[1] + tr_pos.allclear_bg_offset[1],								y = tr_pos.allclear_pos[2] + tr_pos.allclear_bg_offset[2],								},
-	{s = 'textbox_bg_',	   						x = tr_pos.textbox_pos[1] + tr_pos.textbox_bg_offset[1],								y = tr_pos.textbox_pos[2] + tr_pos.textbox_bg_offset[2],								},
-	{s = 'success_front_',  	  				x = tr_pos.success_pos[1] + tr_pos.success_front_offset[1],								y = tr_pos.success_pos[2] + tr_pos.success_front_offset[2],								},
-	{s = 'allclear_front_',   					x = tr_pos.allclear_pos[1] + tr_pos.allclear_front_offset[1],							y = tr_pos.allclear_pos[2] + tr_pos.allclear_front_offset[2],							},
-	{s = 'textbox_front_',	   					x = tr_pos.textbox_pos[1] + tr_pos.textbox_front_offset[1],								y = tr_pos.textbox_pos[2] + tr_pos.textbox_front_offset[2],								},
+	{s = 'trialsteps_vertical_bg_',				x = tr_pos.trialsteps.vertical.pos[1] + tr_pos.trialsteps.vertical.bg.offset[1],		y = tr_pos.trialsteps.vertical.pos[2] + tr_pos.trialsteps.vertical.bg.offset[2],		},
+	{s = 'trialsteps_horizontal_bg_',			x = tr_pos.trialsteps.horizontal.pos[1] + tr_pos.trialsteps.horizontal.bg.offset[1],	y = tr_pos.trialsteps.horizontal.pos[2] + tr_pos.trialsteps.horizontal.bg.offset[2],	},
+	{s = 'success_bg_',    						x = tr_pos.success.pos[1] + tr_pos.success.bg.offset[1],								y = tr_pos.success.pos[2] + tr_pos.success.bg.offset[2],								},
+	{s = 'allclear_bg_',	   					x = tr_pos.allclear.pos[1] + tr_pos.allclear.bg.offset[1],								y = tr_pos.allclear.pos[2] + tr_pos.allclear.bg.offset[2],								},
+	{s = 'textbox_bg_',	   						x = tr_pos.textbox.pos[1] + tr_pos.textbox.bg.offset[1],								y = tr_pos.textbox.pos[2] + tr_pos.textbox.bg.offset[2],								},
+	{s = 'success_front_',  	  				x = tr_pos.success.pos[1] + tr_pos.success.front.offset[1],								y = tr_pos.success.pos[2] + tr_pos.success.front.offset[2],								},
+	{s = 'allclear_front_',   					x = tr_pos.allclear.pos[1] + tr_pos.allclear.front.offset[1],							y = tr_pos.allclear.pos[2] + tr_pos.allclear.front.offset[2],							},
+	{s = 'textbox_front_',	   					x = tr_pos.textbox.pos[1] + tr_pos.textbox.front.offset[1],								y = tr_pos.textbox.pos[2] + tr_pos.textbox.front.offset[2],								},
 	{s = 'upcomingstep_vertical_bg_',			x = 0,																					y = 0,																					},
 	{s = 'upcomingstep_vertical_bg_tail_',		x = 0,																					y = 0,																					},
 	{s = 'upcomingstep_vertical_bg_head_',		x = 0,																					y = 0,																					},
@@ -210,34 +210,34 @@ for _, v in ipairs({
 	{s = 'completedstep_horizontal_bg_',		x = 0,																					y = 0,																					},
 	{s = 'completedstep_horizontal_bg_tail_',	x = 0,																					y = 0,																					},
 	{s = 'completedstep_horizontal_bg_head_',	x = 0,																					y = 0,																					},
-	{s = 'trialtitle_vertical_bg_',    			x = tr_pos.trialtitle_vertical_pos[1] + tr_pos.trialtitle_vertical_bg_offset[1],		y = tr_pos.trialtitle_vertical_pos[2] + tr_pos.trialtitle_vertical_bg_offset[2],		},
-	{s = 'trialtitle_vertical_front_',    		x = tr_pos.trialtitle_vertical_pos[1] + tr_pos.trialtitle_vertical_front_offset[1],		y = tr_pos.trialtitle_vertical_pos[2] + tr_pos.trialtitle_vertical_front_offset[2],		},
-    {s = 'trialtitle_horizontal_bg_',    		x = tr_pos.trialtitle_horizontal_pos[1] + tr_pos.trialtitle_horizontal_bg_offset[1],	y = tr_pos.trialtitle_horizontal_pos[2] + tr_pos.trialtitle_horizontal_bg_offset[2],	},
-	{s = 'trialtitle_horizontal_front_',    	x = tr_pos.trialtitle_horizontal_pos[1] + tr_pos.trialtitle_horizontal_front_offset[1],	y = tr_pos.trialtitle_horizontal_pos[2] + tr_pos.trialtitle_horizontal_front_offset[2],	},
+	{s = 'trialtitle_vertical_bg_',    			x = tr_pos.trialtitle.vertical.pos[1] + tr_pos.trialtitle.vertical.bg.offset[1],		y = tr_pos.trialtitle.vertical.pos[2] + tr_pos.trialtitle.vertical.bg.offset[2],		},
+	{s = 'trialtitle_vertical_front_',    		x = tr_pos.trialtitle.vertical.pos[1] + tr_pos.trialtitle.vertical.front.offset[1],		y = tr_pos.trialtitle.vertical.pos[2] + tr_pos.trialtitle.vertical.front.offset[2],		},
+    {s = 'trialtitle_horizontal_bg_',    		x = tr_pos.trialtitle.horizontal.pos[1] + tr_pos.trialtitle.horizontal.bg.offset[1],	y = tr_pos.trialtitle.horizontal.pos[2] + tr_pos.trialtitle.horizontal.bg.offset[2],	},
+	{s = 'trialtitle_horizontal_front_',    	x = tr_pos.trialtitle.horizontal.pos[1] + tr_pos.trialtitle.horizontal.front.offset[1],	y = tr_pos.trialtitle.horizontal.pos[2] + tr_pos.trialtitle.horizontal.front.offset[2],	},
 }) do
 	if motif.files.trials ~= nil and motif.files.trials ~= '' then
 	 	motif.files.data = sffNew(searchFile(motif.files.trials, {motif.fileDir, '', 'data/'}))
 	 	main.f_loadingRefresh()
-	 	motif.f_loadSprData(trials.ui_def, v, motif.files.data)
-	elseif main.f_fileExists('external/mods/trials/trials.sff') then
-		motif.files.data = sffNew(searchFile('external/mods/trials/trials.sff', {motif.fileDir, '', 'data/'}))
-	 	main.f_loadingRefresh()
-	 	motif.f_loadSprData(trials.ui_def, v, motif.files.data)
+	 	motif.f_loadSprData(trials.trials_mode, v, motif.files.data)
+	-- elseif main.f_fileExists('external/mods/trials/trials.sff') then
+	-- 	motif.files.data = sffNew(searchFile('external/mods/trials/trials.sff', {motif.fileDir, '', 'data/'}))
+	--  	main.f_loadingRefresh()
+	--  	motif.f_loadSprData(trials.trials_mode, v, motif.files.data)
 	else
-	 	motif.f_loadSprData(trials.ui_def, v)
+		animGetSpriteInfo(trials.trials_mode, v)
 	end
 end
 
-if trials.ui_def.textbox_portrait_source == "system" and trials.ui_def.textbox_portrait_spr ~= nil then
-	motif.f_loadSprData(trials.ui_def, {s = 'textbox_portrait_', x = trials.ui_def.textbox_pos[1] + trials.ui_def.textbox_portrait_offset[1], y = trials.ui_def.textbox_pos[2] + trials.ui_def.textbox_portrait_offset[2]})
+if trials.trials_mode.textbox_portrait_source == "system" and trials.trials_mode.textbox_portrait_spr ~= nil then
+	motif.f_loadSprData(trials.trials_mode, {s = 'textbox_portrait_', x = trials.trials_mode.textbox_pos[1] + trials.trials_mode.textbox_portrait_offset[1], y = trials.trials_mode.textbox_pos[2] + trials.trials_mode.textbox_portrait_offset[2]})
 end
 
 -- fadein/fadeout anim data generation.
-if trials.ui_def.fadein_anim ~= -1 then
-	motif.f_loadSprData(trials.ui_def, {s = 'fadein_'})
+if trials.trials_mode.fadein_anim ~= -1 then
+	motif.f_loadSprData(trials.trials_mode, {s = 'fadein_'})
 end
-if trials.ui_def.fadeout_anim ~= -1 then
-	motif.f_loadSprData(trials.ui_def, {s = 'fadeout_'})
+if trials.trials_mode.fadeout_anim ~= -1 then
+	motif.f_loadSprData(trials.trials_mode, {s = 'fadeout_'})
 end
 
 --;===========================================================
@@ -287,10 +287,10 @@ function start.f_trialsBuilder()
 	--Populate background elements information
 	for _, v in ipairs({'vertical','horizontal'}) do
 		for _, k in ipairs({'currentstep_','upcomingstep_','completedstep_'}) do
-			trials.data.bgelemdata[v][k .. 'bgsize'] = animGetSpriteInfo(trials.ui_def[k .. v .. '_bg_data'])
+			trials.data.bgelemdata[v][k .. 'bgsize'] = animGetSpriteInfo(trials.trials_mode[k .. v .. '_bg_data'])
 			if v == 'horizontal' then
-				trials.data.bgelemdata[v][k .. 'bgtailwidth'] = animGetSpriteInfo(trials.ui_def[k .. v .. '_bg_tail_data'])
-				trials.data.bgelemdata[v][k .. 'bgheadwidth'] = animGetSpriteInfo(trials.ui_def[k .. v .. '_bg_tail_data'])
+				trials.data.bgelemdata[v][k .. 'bgtailwidth'] = animGetSpriteInfo(trials.trials_mode[k .. v .. '_bg_tail_data'])
+				trials.data.bgelemdata[v][k .. 'bgheadwidth'] = animGetSpriteInfo(trials.trials_mode[k .. v .. '_bg_tail_data'])
 			end
 		end
 	end
@@ -344,7 +344,7 @@ function start.f_trialsBuilder()
 					end
 				end
 				for _, layout in ipairs({'vertical','horizontal'}) do
-					if trials.ui_def['glyphs_' .. layout .. '_align'] == -1 then
+					if trials.trials_mode['glyphs_' .. layout .. '_align'] == -1 then
 						for m = #tempglyphs, 1, -1 do
 							trials.data.trial[i].trialstep[j].glyphline[layout].glyph[#trials.data.trial[i].trialstep[j].glyphline[layout].glyph+1] = tempglyphs[m]
 							trials.data.trial[i].trialstep[j].glyphline[layout].pos[#trials.data.trial[i].trialstep[j].glyphline[layout].glyph+1] = {0,0}
@@ -372,45 +372,45 @@ function start.f_trialsBuilder()
 				local width = 0
 				local font_def = 0
 				--Some fonts won't give us the data we need to scale glyphs from, but sometimes that doesn't matter anyway
-				if layout == "vertical" and trials.ui_def.currentstep_vertical_text_font[7] == nil and trials.ui_def.glyphs_vertical_scalewithtext == "true" then
-					font_def = main.font_def[trials.ui_def.currentstep_vertical_text_font[1] .. trials.ui_def.currentstep_vertical_text_font_height]
-				elseif layout == "vertical" and trials.ui_def.glyphs_vertical_scalewithtext == "true" then
-					font_def = main.font_def[trials.ui_def.currentstep_vertical_text_font[1] .. trials.ui_def.currentstep_vertical_text_font[7]]
+				if layout == "vertical" and trials.trials_mode.currentstep_vertical_text_font[7] == nil and trials.trials_mode.glyphs_vertical_scalewithtext == "true" then
+					font_def = main.font_def[trials.trials_mode.currentstep_vertical_text_font[1] .. trials.trials_mode.currentstep_vertical_text_font_height]
+				elseif layout == "vertical" and trials.trials_mode.glyphs_vertical_scalewithtext == "true" then
+					font_def = main.font_def[trials.trials_mode.currentstep_vertical_text_font[1] .. trials.trials_mode.currentstep_vertical_text_font[7]]
 				end
 				for m in pairs(trials.data.trial[i].trialstep[j].glyphline[layout].glyph) do
 					if motif.glyphs_data[trials.data.trial[i].trialstep[j].glyphline[layout].glyph[m]] ~= nil then
-						if trials.ui_def['glyphs_' .. layout .. '_align'] == 0 then --center align
-							alignOffset = trials.ui_def['glyphs_' .. layout .. '_offset'][1] * 0.5
-						elseif trials.ui_def['glyphs_' .. layout .. '_align'] == -1 then --right align
-							alignOffset = trials.ui_def['glyphs_' .. layout .. '_offset'][1]
+						if trials.trials_mode['glyphs_' .. layout .. '_align'] == 0 then --center align
+							alignOffset = trials.trials_mode['glyphs_' .. layout .. '_offset'][1] * 0.5
+						elseif trials.trials_mode['glyphs_' .. layout .. '_align'] == -1 then --right align
+							alignOffset = trials.trials_mode['glyphs_' .. layout .. '_offset'][1]
 						end
-						if trials.ui_def['glyphs_' .. layout .. '_align'] ~= align then
+						if trials.trials_mode['glyphs_' .. layout .. '_align'] ~= align then
 							lengthOffset = 0
-							align = trials.ui_def['glyphs_' .. layout .. '_align']
+							align = trials.trials_mode['glyphs_' .. layout .. '_align']
 						end
-						local scaleX = trials.ui_def['glyphs_' .. layout .. '_scale'][1]
-						local scaleY = trials.ui_def['glyphs_' .. layout .. '_scale'][2]
-						if trials.ui_def['glyphs_' .. layout .. '_align'] == -1 then
+						local scaleX = trials.trials_mode['glyphs_' .. layout .. '_scale'][1]
+						local scaleY = trials.trials_mode['glyphs_' .. layout .. '_scale'][2]
+						if trials.trials_mode['glyphs_' .. layout .. '_align'] == -1 then
 							alignOffset = alignOffset - motif.glyphs_data[trials.data.trial[i].trialstep[j].glyphline[layout].glyph[m]].info.Size[1] * scaleX
 						end
 						trials.data.trial[i].trialstep[j].glyphline[layout].alignOffset[m] = alignOffset
-						if layout == "vertical" and trials.ui_def.glyphs_vertical_scalewithtext == "true" then
-							scaleY = font_def.Size[2] * trials.ui_def.currentstep_vertical_text_scale[2] / motif.glyphs_data[trials.data.trial[i].trialstep[j].glyphline[layout].glyph[m]].info.Size[2]
+						if layout == "vertical" and trials.trials_mode.glyphs_vertical_scalewithtext == "true" then
+							scaleY = font_def.Size[2] * trials.trials_mode.currentstep_vertical_text_scale[2] / motif.glyphs_data[trials.data.trial[i].trialstep[j].glyphline[layout].glyph[m]].info.Size[2]
 							scaleX = scaleY
 						end
 						trials.data.trial[i].trialstep[j].glyphline[layout].scale[m] = {scaleX, scaleY}
-						trials.data.trial[i].trialstep[j].glyphline[layout].width[m] = math.floor(motif.glyphs_data[trials.data.trial[i].trialstep[j].glyphline[layout].glyph[m]].info.Size[1] * scaleX + trials.ui_def['glyphs_' .. layout .. '_spacing'][1])
-						if trials.ui_def['glyphs_' .. layout .. '_align'] == 1 then
+						trials.data.trial[i].trialstep[j].glyphline[layout].width[m] = math.floor(motif.glyphs_data[trials.data.trial[i].trialstep[j].glyphline[layout].glyph[m]].info.Size[1] * scaleX + trials.trials_mode['glyphs_' .. layout .. '_spacing'][1])
+						if trials.trials_mode['glyphs_' .. layout .. '_align'] == 1 then
 							lengthOffset = lengthOffset + trials.data.trial[i].trialstep[j].glyphline[layout].width[m]
-						elseif trials.ui_def['glyphs_' .. layout .. '_align'] == -1 then
+						elseif trials.trials_mode['glyphs_' .. layout .. '_align'] == -1 then
 							lengthOffset = lengthOffset - trials.data.trial[i].trialstep[j].glyphline[layout].width[m]
 						else
 							lengthOffset = lengthOffset + trials.data.trial[i].trialstep[j].glyphline[layout].width[m] / 2
 						end
 						trials.data.trial[i].trialstep[j].glyphline[layout].lengthOffset[m] = lengthOffset
 						trials.data.trial[i].trialstep[j].glyphline[layout].pos[m] = {
-							math.floor(trials.ui_def['trialsteps_' .. layout .. '_pos'][1] + trials.ui_def['glyphs_' .. layout .. '_offset'][1] + alignOffset + lengthOffset),
-							trials.ui_def['trialsteps_' .. layout .. '_pos'][2] + trials.ui_def['glyphs_' .. layout .. '_offset'][2]
+							math.floor(trials.trials_mode['trialsteps_' .. layout .. '_pos'][1] + trials.trials_mode['glyphs_' .. layout .. '_offset'][1] + alignOffset + lengthOffset),
+							trials.trials_mode['trialsteps_' .. layout .. '_pos'][2] + trials.trials_mode['glyphs_' .. layout .. '_offset'][2]
 						}
 					end
 				end
@@ -429,41 +429,41 @@ function start.f_trialsBuilder()
 		fadein = 0,
 		fadeout = 0,
 		fadetriggered = false,
-		textbox_text = main.f_createTextImg(trials.ui_def, 'textbox_text'),
-		textbox_title = main.f_createTextImg(trials.ui_def, 'textbox_title'),
-		success_text = main.f_createTextImg(trials.ui_def, 'success_text'),
-		allclear = math.max(animGetLength(trials.ui_def.allclear_front_data), animGetLength(trials.ui_def.allclear_bg_data), trials.ui_def.allclear_text_displaytime),
-		allclear_text = main.f_createTextImg(trials.ui_def, 'allclear_text'),
-		trialcounter = main.f_createTextImg(trials.ui_def, 'trialcounter'),
-		totaltrialtimer = main.f_createTextImg(trials.ui_def, 'totaltrialtimer'),
-		currenttrialtimer = main.f_createTextImg(trials.ui_def, 'currenttrialtimer'),
-		trialreset_text = main.f_createTextImg(trials.ui_def, 'trialreset_text'),
+		textbox_text = main.f_createTextImg(trials.trials_mode, 'textbox_text'),
+		textbox_title = main.f_createTextImg(trials.trials_mode, 'textbox_title'),
+		success_text = main.f_createTextImg(trials.trials_mode, 'success_text'),
+		allclear = math.max(animGetLength(trials.trials_mode.allclear_front_data), animGetLength(trials.trials_mode.allclear_bg_data), trials.trials_mode.allclear_text_displaytime),
+		allclear_text = main.f_createTextImg(trials.trials_mode, 'allclear_text'),
+		trialcounter = main.f_createTextImg(trials.trials_mode, 'trialcounter'),
+		totaltrialtimer = main.f_createTextImg(trials.trials_mode, 'totaltrialtimer'),
+		currenttrialtimer = main.f_createTextImg(trials.trials_mode, 'currenttrialtimer'),
+		trialreset_text = main.f_createTextImg(trials.trials_mode, 'trialreset_text'),
 	}
-	trials.draw.textbox_title:update({x = trials.ui_def.textbox_pos[1]+trials.ui_def.textbox_title_offset[1], y = trials.ui_def.textbox_pos[2]+trials.ui_def.textbox_title_offset[1],})
-	trials.draw.textbox_text:update({x = trials.ui_def.textbox_pos[1]+trials.ui_def.textbox_text_offset[1]+trials.ui_def.textbox_text_window[1], y = trials.ui_def.textbox_pos[2]+trials.ui_def.textbox_text_offset[2]+trials.ui_def.textbox_text_window[2],})
-	trials.draw.success_text:update({x = trials.ui_def.success_pos[1]+trials.ui_def.success_text_offset[1], y = trials.ui_def.success_pos[2]+trials.ui_def.success_text_offset[2],})
-	trials.draw.allclear_text:update({x = trials.ui_def.allclear_pos[1]+trials.ui_def.allclear_text_offset[1], y = trials.ui_def.allclear_pos[2]+trials.ui_def.allclear_text_offset[2],})
-	trials.draw.trialcounter:update({x = trials.ui_def.trialcounter_pos[1], y = trials.ui_def.trialcounter_pos[2],})
-	trials.draw.totaltrialtimer:update({x = trials.ui_def.totaltrialtimer_pos[1], y = trials.ui_def.totaltrialtimer_pos[2],})
-	trials.draw.currenttrialtimer:update({x = trials.ui_def.currenttrialtimer_pos[1], y = trials.ui_def.currenttrialtimer_pos[2],})
-	trials.draw.trialreset_text:update({x = trials.ui_def.trialreset_text_pos[1], y = trials.ui_def.trialreset_text_pos[2], text = trials.ui_def.trialreset_text_text})
+	trials.draw.textbox_title:update({x = trials.trials_mode.textbox_pos[1]+trials.trials_mode.textbox_title_offset[1], y = trials.trials_mode.textbox_pos[2]+trials.trials_mode.textbox_title_offset[1],})
+	trials.draw.textbox_text:update({x = trials.trials_mode.textbox_pos[1]+trials.trials_mode.textbox_text_offset[1]+trials.trials_mode.textbox_text_window[1], y = trials.trials_mode.textbox_pos[2]+trials.trials_mode.textbox_text_offset[2]+trials.trials_mode.textbox_text_window[2],})
+	trials.draw.success_text:update({x = trials.trials_mode.success_pos[1]+trials.trials_mode.success_text_offset[1], y = trials.trials_mode.success_pos[2]+trials.trials_mode.success_text_offset[2],})
+	trials.draw.allclear_text:update({x = trials.trials_mode.allclear_pos[1]+trials.trials_mode.allclear_text_offset[1], y = trials.trials_mode.allclear_pos[2]+trials.trials_mode.allclear_text_offset[2],})
+	trials.draw.trialcounter:update({x = trials.trials_mode.trialcounter_pos[1], y = trials.trials_mode.trialcounter_pos[2],})
+	trials.draw.totaltrialtimer:update({x = trials.trials_mode.totaltrialtimer_pos[1], y = trials.trials_mode.totaltrialtimer_pos[2],})
+	trials.draw.currenttrialtimer:update({x = trials.trials_mode.currenttrialtimer_pos[1], y = trials.trials_mode.currenttrialtimer_pos[2],})
+	trials.draw.trialreset_text:update({x = trials.trials_mode.trialreset_text_pos[1], y = trials.trials_mode.trialreset_text_pos[2], text = trials.trials_mode.trialreset_text_text})
 	for _, v in ipairs({'vertical','horizontal'}) do
 		trials.draw[v] = {
 			upcomingtextline = {},
 			currenttextline = {},
 			completedtextline = {},
-			trialtitle = math.max(animGetLength(trials.ui_def['trialtitle_' .. v .. '_front_data']), animGetLength(trials.ui_def['trialtitle_' .. v .. '_bg_data'])),
-			trialtitle_text = main.f_createTextImg(trials.ui_def, 'trialtitle_' .. v .. '_text'),
-			windowXrange = trials.ui_def['trialsteps_' .. v .. '_window'][3] - trials.ui_def['trialsteps_' .. v .. '_window'][1],
-			windowYrange = trials.ui_def['trialsteps_' .. v .. '_window'][4] - trials.ui_def['trialsteps_' .. v .. '_window'][2],
-			windowXrangeWtext = trials.ui_def['trialsteps_' .. v .. '_window_withtextbox'][3] - trials.ui_def['trialsteps_' .. v .. '_window_withtextbox'][1],
-			windowYrangeWtext = trials.ui_def['trialsteps_' .. v .. '_window_withtextbox'][4] - trials.ui_def['trialsteps_' .. v .. '_window_withtextbox'][2],
+			trialtitle = math.max(animGetLength(trials.trials_mode['trialtitle_' .. v .. '_front_data']), animGetLength(trials.trials_mode['trialtitle_' .. v .. '_bg_data'])),
+			trialtitle_text = main.f_createTextImg(trials.trials_mode, 'trialtitle_' .. v .. '_text'),
+			windowXrange = trials.trials_mode['trialsteps_' .. v .. '_window'][3] - trials.trials_mode['trialsteps_' .. v .. '_window'][1],
+			windowYrange = trials.trials_mode['trialsteps_' .. v .. '_window'][4] - trials.trials_mode['trialsteps_' .. v .. '_window'][2],
+			windowXrangeWtext = trials.trials_mode['trialsteps_' .. v .. '_window_withtextbox'][3] - trials.trials_mode['trialsteps_' .. v .. '_window_withtextbox'][1],
+			windowYrangeWtext = trials.trials_mode['trialsteps_' .. v .. '_window_withtextbox'][4] - trials.trials_mode['trialsteps_' .. v .. '_window_withtextbox'][2],
 		}
-		trials.draw[v].trialtitle_text:update({x = trials.ui_def['trialtitle_' .. v .. '_pos'][1]+trials.ui_def['trialtitle_' .. v .. '_text_offset'][1], y = trials.ui_def['trialtitle_' .. v .. '_pos'][2]+trials.ui_def['trialtitle_' .. v .. '_text_offset'][2],})
+		trials.draw[v].trialtitle_text:update({x = trials.trials_mode['trialtitle_' .. v .. '_pos'][1]+trials.trials_mode['trialtitle_' .. v .. '_text_offset'][1], y = trials.trials_mode['trialtitle_' .. v .. '_pos'][2]+trials.trials_mode['trialtitle_' .. v .. '_text_offset'][2],})
 		for i = 1, trials.data.maxsteps, 1 do
-			trials.draw[v].upcomingtextline[i] = main.f_createTextImg(trials.ui_def, 'upcomingstep_' .. v .. '_text')
-			trials.draw[v].currenttextline[i] = main.f_createTextImg(trials.ui_def, 'currentstep_' .. v .. '_text')
-			trials.draw[v].completedtextline[i] = main.f_createTextImg(trials.ui_def, 'completedstep_' .. v .. '_text')
+			trials.draw[v].upcomingtextline[i] = main.f_createTextImg(trials.trials_mode, 'upcomingstep_' .. v .. '_text')
+			trials.draw[v].currenttextline[i] = main.f_createTextImg(trials.trials_mode, 'currentstep_' .. v .. '_text')
+			trials.draw[v].completedtextline[i] = main.f_createTextImg(trials.trials_mode, 'completedstep_' .. v .. '_text')
 		end
 	end
 
@@ -568,19 +568,19 @@ function start.f_trialsDrawer()
 	ct = trials.data.currenttrial
 	cts = trials.data.currenttrialstep
 	ctms = trials.data.currenttrialmicrostep
-	layout = trials.ui_def.trialslayout
+	layout = trials.trials_mode.trialslayout
 
 	if trials.data.active then
 		if ct <= #trials.data.trial and trials.draw.success == 0 then
 
 			--According to motif instructions, draw trials counter on screen
-			local trtext = trials.ui_def.trialcounter_text
+			local trtext = trials.trials_mode.trialcounter_text
 			trtext = trtext:gsub('%%s', tostring(ct)):gsub('%%t', tostring(#trials.data.trial))
 			trials.draw.trialcounter:update({text = trtext})
 			trials.draw.trialcounter:draw()
 			--Logic for the stopwatches: total time spent in trial, and time spent on this current trial
 			if trials.data.displaytimers.totaltimer then
-				local totaltimertext = trials.ui_def.totaltrialtimer_text
+				local totaltimertext = trials.trials_mode.totaltrialtimer_text
 				trials.data.elapsedtime = roundtime() - trials.data.starttick
 				local m, s, x = f_timeConvert(trials.data.elapsedtime)
 				totaltimertext = totaltimertext:gsub('%%s', m .. ":" .. s .. ":" .. x)
@@ -591,7 +591,7 @@ function start.f_trialsDrawer()
 				--trials.draw.totaltrialtimer:draw()
 			end
 			if trials.data.displaytimers.trialtimer then
-				local currenttimertext = trials.ui_def.currenttrialtimer_text
+				local currenttimertext = trials.trials_mode.currenttrialtimer_text
 				trials.data.trial[ct].elapsedtime = roundtime() - trials.data.trial[ct].starttick
 				local m, s, x = f_timeConvert(trials.data.trial[ct].elapsedtime)
 				currenttimertext = currenttimertext:gsub('%%s', m .. ":" .. s .. ":" .. x)
@@ -603,79 +603,79 @@ function start.f_trialsDrawer()
 			end
 
 			-- Draw trial reset reminder if enabled
-			if trials.ui_def.trialreset_enabled == "true" then
+			if trials.trials_mode.trialreset_enabled == "true" then
 				trials.draw.trialreset_text:draw()
 			end
 
 			-- Draw trialsteps bg overlay if enabled
 			-- TODO: use the dynamic scaling in the draw loop to adjust the overlay size (new x2, y2 values)
-			if trials.ui_def['trialsteps_' .. layout .. '_bg_overlay_visible'] == 'true' then
+			if trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_visible'] == 'true' then
 				local windowKey = 'trialsteps_' .. layout .. '_bg_overlay_window'
-				if trials.ui_def.textbox_visible == 'true' and trials.data.trial[ct].textbox ~= '' then
+				if trials.trials_mode.textbox_visible == 'true' and trials.data.trial[ct].textbox ~= '' then
 					windowKey = 'trialsteps_' .. layout .. '_bg_overlay_window_withtextbox'
 				end
 				
 				local bgoverlay = rect:create({})
 				bgoverlay:update({
-					x1 = trials.ui_def[windowKey][1],
-					y1 = trials.ui_def[windowKey][2],
-					x2 = trials.ui_def[windowKey][3],
-					y2 = trials.ui_def[windowKey][4],
-					r = trials.ui_def['trialsteps_' .. layout .. '_bg_overlay_col'][1],
-					g = trials.ui_def['trialsteps_' .. layout .. '_bg_overlay_col'][2],
-					b = trials.ui_def['trialsteps_' .. layout .. '_bg_overlay_col'][3],
-					src = trials.ui_def['trialsteps_' .. layout .. '_bg_overlay_alpha'][1],
-					dst = trials.ui_def['trialsteps_' .. layout .. '_bg_overlay_alpha'][2],
+					x1 = trials.trials_mode[windowKey][1],
+					y1 = trials.trials_mode[windowKey][2],
+					x2 = trials.trials_mode[windowKey][3],
+					y2 = trials.trials_mode[windowKey][4],
+					r = trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_col'][1],
+					g = trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_col'][2],
+					b = trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_col'][3],
+					src = trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_alpha'][1],
+					dst = trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_alpha'][2],
 					defsc = false,
 				})
 				bgoverlay:draw()
 			end
 
 			-- Draw trialstep background
-			animUpdate(trials.ui_def['trialsteps_' .. layout .. '_bg_data'])
-			animDraw(trials.ui_def['trialsteps_' .. layout .. '_bg_data'])
-			animUpdate(trials.ui_def['trialsteps_' .. layout .. '_bg_data'])
-			animDraw(trials.ui_def['trialsteps_' .. layout .. '_bg_data'])
+			animUpdate(trials.trials_mode['trialsteps_' .. layout .. '_bg_data'])
+			animDraw(trials.trials_mode['trialsteps_' .. layout .. '_bg_data'])
+			animUpdate(trials.trials_mode['trialsteps_' .. layout .. '_bg_data'])
+			animDraw(trials.trials_mode['trialsteps_' .. layout .. '_bg_data'])
 
 			-- Draw trial title
-			animUpdate(trials.ui_def['trialtitle_' .. layout .. '_bg_data'])
-			animDraw(trials.ui_def['trialtitle_' .. layout .. '_bg_data'])
+			animUpdate(trials.trials_mode['trialtitle_' .. layout .. '_bg_data'])
+			animDraw(trials.trials_mode['trialtitle_' .. layout .. '_bg_data'])
 			trials.draw[layout].trialtitle_text:update({text = trials.data.trial[ct].name})
 			trials.draw[layout].trialtitle_text:draw()
-			animUpdate(trials.ui_def['trialtitle_' .. layout .. '_front_data'])
-			animDraw(trials.ui_def['trialtitle_' .. layout .. '_front_data'])
+			animUpdate(trials.trials_mode['trialtitle_' .. layout .. '_front_data'])
+			animDraw(trials.trials_mode['trialtitle_' .. layout .. '_front_data'])
 
 			local startonstep = 1
 			local drawtothisstep = #trials.data.trial[ct].trialstep
 
 			--Determine whether textboxes are being shown and whether the current trial has a textbox to display, and if so, draw them!
 			--Also adjust the window range to account for the textbox as specified in the motif
-			if trials.ui_def.textbox_visible == 'true' and trials.data.trial[ct].textbox ~= '' then
+			if trials.trials_mode.textbox_visible == 'true' and trials.data.trial[ct].textbox ~= '' then
 				windowYrange = trials.draw[layout].windowYrangeWtext
 				windowXrange = trials.draw[layout].windowXrangeWtext
 
-				if trials.ui_def.textbox_overlay_visible == 'true' then
+				if trials.trials_mode.textbox_overlay_visible == 'true' then
 					textboxoverlay = rect:create({})
 					textboxoverlay:update({
-						x1 =    trials.ui_def.textbox_pos[1]+trials.ui_def.textbox_overlay_window[1],
-						y1 =    trials.ui_def.textbox_pos[2]+trials.ui_def.textbox_overlay_window[2],
-						x2 =    trials.ui_def.textbox_pos[1]+trials.ui_def.textbox_overlay_window[3],
-						y2 =    trials.ui_def.textbox_pos[2]+trials.ui_def.textbox_overlay_window[4],
-						r =     trials.ui_def.textbox_overlay_col[1],
-						g =     trials.ui_def.textbox_overlay_col[2],
-						b =     trials.ui_def.textbox_overlay_col[3],
-						src =   trials.ui_def.textbox_overlay_alpha[1],
-						dst =   trials.ui_def.textbox_overlay_alpha[2],
+						x1 =    trials.trials_mode.textbox_pos[1]+trials.trials_mode.textbox_overlay_window[1],
+						y1 =    trials.trials_mode.textbox_pos[2]+trials.trials_mode.textbox_overlay_window[2],
+						x2 =    trials.trials_mode.textbox_pos[1]+trials.trials_mode.textbox_overlay_window[3],
+						y2 =    trials.trials_mode.textbox_pos[2]+trials.trials_mode.textbox_overlay_window[4],
+						r =     trials.trials_mode.textbox_overlay_col[1],
+						g =     trials.trials_mode.textbox_overlay_col[2],
+						b =     trials.trials_mode.textbox_overlay_col[3],
+						src =   trials.trials_mode.textbox_overlay_alpha[1],
+						dst =   trials.trials_mode.textbox_overlay_alpha[2],
 						defsc = false,
 					})
 					textboxoverlay:draw()
 				end
 
-				animUpdate(trials.ui_def.textbox_bg_data)
-				animDraw(trials.ui_def.textbox_bg_data)
+				animUpdate(trials.trials_mode.textbox_bg_data)
+				animDraw(trials.trials_mode.textbox_bg_data)
 
 				-- Draw text
-				local trtext = trials.ui_def.textbox_title_text
+				local trtext = trials.trials_mode.textbox_title_text
 				trtext = trtext:gsub('%%s', tostring(ct)):gsub('%%n', trials.data.trial[ct].name)
 				trials.draw.textbox_title:update({text = trtext})
 				trials.draw.textbox_title:draw()
@@ -687,45 +687,45 @@ function start.f_trialsDrawer()
 					trials.draw.textbox_text,
 					trials.data.trial[ct].textbox,
 					trials.data.trial[ct].textcnt,
-					trials.ui_def.textbox_text_window[1]+trials.ui_def.textbox_text_offset[1],
-					trials.ui_def.textbox_text_window[2]+trials.ui_def.textbox_text_offset[2],
+					trials.trials_mode.textbox_text_window[1]+trials.trials_mode.textbox_text_offset[1],
+					trials.trials_mode.textbox_text_window[2]+trials.trials_mode.textbox_text_offset[2],
 					0,
 					0,
-					main.font_def[trials.ui_def.textbox_text_font[1] .. trials.ui_def.textbox_text_font[7]],
-					trials.ui_def.textbox_text_drawspeed,
+					main.font_def[trials.trials_mode.textbox_text_font[1] .. trials.trials_mode.textbox_text_font[7]],
+					trials.trials_mode.textbox_text_drawspeed,
 					main.f_lineLength(
-						trials.ui_def.textbox_text_offset[1],
+						trials.trials_mode.textbox_text_offset[1],
 						motif.info.localcoord[1],
-						trials.ui_def.textbox_text_font[3],
-						trials.ui_def.textbox_text_window,
+						trials.trials_mode.textbox_text_font[3],
+						trials.trials_mode.textbox_text_window,
 						true
 					)
 				)
 
 				-- Draw portrait depending on desired source
-				if trials.ui_def.textbox_portrait_source == "system" then
-					animUpdate(trials.ui_def.textbox_portrait_data)
-					animDraw(trials.ui_def.textbox_portrait_data)
-				elseif trials.ui_def.textbox_portrait_source == "char" then
+				if trials.trials_mode.textbox_portrait_source == "system" then
+					animUpdate(trials.trials_mode.textbox_portrait_data)
+					animDraw(trials.trials_mode.textbox_portrait_data)
+				elseif trials.trials_mode.textbox_portrait_source == "char" then
 					charSpriteDraw(
 						-- pn, spr_tbl (1 or more pairs), x, y, scaleX, scaleY, facing, window
 						1,
-						trials.ui_def.textbox_portrait_spr,
-						trials.ui_def.textbox_pos[1] + trials.ui_def.textbox_portrait_offset[1],
-						trials.ui_def.textbox_pos[2] + trials.ui_def.textbox_portrait_offset[2],
-						trials.ui_def.textbox_portrait_scale[1],
-						trials.ui_def.textbox_portrait_scale[2],
-						trials.ui_def.textbox_portrait_facing,
-						trials.ui_def.textbox_pos[1] + trials.ui_def.textbox_portrait_offset[1] + trials.ui_def.textbox_portrait_window[1],
-						trials.ui_def.textbox_pos[2] + trials.ui_def.textbox_portrait_offset[2] + trials.ui_def.textbox_portrait_window[2],
-						trials.ui_def.textbox_portrait_window[3],
-						trials.ui_def.textbox_portrait_window[4]
+						trials.trials_mode.textbox_portrait_spr,
+						trials.trials_mode.textbox_pos[1] + trials.trials_mode.textbox_portrait_offset[1],
+						trials.trials_mode.textbox_pos[2] + trials.trials_mode.textbox_portrait_offset[2],
+						trials.trials_mode.textbox_portrait_scale[1],
+						trials.trials_mode.textbox_portrait_scale[2],
+						trials.trials_mode.textbox_portrait_facing,
+						trials.trials_mode.textbox_pos[1] + trials.trials_mode.textbox_portrait_offset[1] + trials.trials_mode.textbox_portrait_window[1],
+						trials.trials_mode.textbox_pos[2] + trials.trials_mode.textbox_portrait_offset[2] + trials.trials_mode.textbox_portrait_window[2],
+						trials.trials_mode.textbox_portrait_window[3],
+						trials.trials_mode.textbox_portrait_window[4]
 					)
 				end
 
 				-- Draw textbox front
-				animUpdate(trials.ui_def.textbox_front_data)
-				animDraw(trials.ui_def.textbox_front_data)
+				animUpdate(trials.trials_mode.textbox_front_data)
+				animDraw(trials.trials_mode.textbox_front_data)
 			else
 				windowYrange = trials.draw[layout].windowYrange
 				windowXrange = trials.draw[layout].windowXrange
@@ -733,16 +733,16 @@ function start.f_trialsDrawer()
 
 			--For vertical trial layouts, determine if all assets will be drawn within the trials window range, or if scrolling needs to be enabled. For horizontal layouts, we will figure it out
 			--when we determine glyph and incrementor widths (see notes below). We do this step outside of the draw loop to speed things up.
-			if #trials.data.trial[ct].trialstep*trials.ui_def['trialsteps_' .. layout .. '_spacing'][2] > windowYrange and layout == "vertical" then
+			if #trials.data.trial[ct].trialstep*trials.trials_mode['trialsteps_' .. layout .. '_spacing'][2] > windowYrange and layout == "vertical" then
 				startonstep = math.max(cts-2, 1)
-				if (drawtothisstep - startonstep)*trials.ui_def['trialsteps_' .. layout .. '_spacing'][2] > windowYrange then
-					drawtothisstep = math.min(startonstep+math.floor(windowYrange/trials.ui_def['trialsteps_' .. layout .. '_spacing'][2]),#trials.data.trial[ct].trialstep)
+				if (drawtothisstep - startonstep)*trials.trials_mode['trialsteps_' .. layout .. '_spacing'][2] > windowYrange then
+					drawtothisstep = math.min(startonstep+math.floor(windowYrange/trials.trials_mode['trialsteps_' .. layout .. '_spacing'][2]),#trials.data.trial[ct].trialstep)
 				end
 			end
 
 			--This is the draw loop
 			for i = startonstep, drawtothisstep, 1 do
-				local tempoffset = {trials.ui_def['trialsteps_' .. layout .. '_spacing'][1]*(i-startonstep),trials.ui_def['trialsteps_' .. layout .. '_spacing'][2]*(i-startonstep)}
+				local tempoffset = {trials.trials_mode['trialsteps_' .. layout .. '_spacing'][1]*(i-startonstep),trials.trials_mode['trialsteps_' .. layout .. '_spacing'][2]*(i-startonstep)}
 				--sub = 'current'
 				if i < cts then
 					sub = 'completed'
@@ -759,18 +759,18 @@ function start.f_trialsDrawer()
 				local bgtailwidth = 0 --only used for horizontal layouts
 				local bgheadwidth = 0 --only used for horizontal layouts
 
-				-- if trials.ui_def['trialsteps_' .. layout .. '_bg_overlay_visible'] == 'true' then
+				-- if trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_visible'] == 'true' then
 				-- 	bgoverlay = rect:create({})
 				-- 	bgoverlay:update({
-				-- 		x1 =    trials.ui_def['trialsteps_' .. layout .. '_bg_overlay_visible'][1],
-				-- 		y1 =    trials.ui_def['trialsteps_' .. layout .. '_bg_overlay_visible'][2],
-				-- 		x2 =    trials.ui_def['trialsteps_' .. layout .. '_bg_overlay_visible'][3],
-				-- 		y2 =    trials.ui_def['trialsteps_' .. layout .. '_bg_overlay_visible'][4],
-				-- 		r =     trials.ui_def['trialsteps_' .. layout .. '_bg_overlay_visible'][1],
-				-- 		g =     trials.ui_def['trialsteps_' .. layout .. '_bg_overlay_visible'][2],
-				-- 		b =     trials.ui_def['trialsteps_' .. layout .. '_bg_overlay_visible'][3],
-				-- 		src =   trials.ui_def['trialsteps_' .. layout .. '_bg_overlay_visible'][1],
-				-- 		dst =   trials.ui_def['trialsteps_' .. layout .. '_bg_overlay_visible'][2],
+				-- 		x1 =    trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_visible'][1],
+				-- 		y1 =    trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_visible'][2],
+				-- 		x2 =    trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_visible'][3],
+				-- 		y2 =    trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_visible'][4],
+				-- 		r =     trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_visible'][1],
+				-- 		g =     trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_visible'][2],
+				-- 		b =     trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_visible'][3],
+				-- 		src =   trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_visible'][1],
+				-- 		dst =   trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_visible'][2],
 				-- 		defsc = false,
 				-- 	})
 				-- 	bgoverlay:draw()
@@ -780,26 +780,26 @@ function start.f_trialsDrawer()
 					--Vertical layouts are the simplest - they have a constant width sprite or anim that the text is drawn on top of, and the glyphs are displayed wherever specified.
 					--The vertical layouts do NOT support incrementors (see notes below for horizontal layout).
 					animSetPos(
-						trials.ui_def[sub .. 'step_vertical_bg_data'],
-						trials.ui_def.trialsteps_vertical_pos[1] + trials.ui_def[sub .. 'step_vertical_bg_offset'][1] + tempoffset[1],
-						trials.ui_def.trialsteps_vertical_pos[2] + trials.ui_def[sub .. 'step_vertical_bg_offset'][2] + tempoffset[2]
+						trials.trials_mode[sub .. 'step_vertical_bg_data'],
+						trials.trials_mode.trialsteps_vertical_pos[1] + trials.trials_mode[sub .. 'step_vertical_bg_offset'][1] + tempoffset[1],
+						trials.trials_mode.trialsteps_vertical_pos[2] + trials.trials_mode[sub .. 'step_vertical_bg_offset'][2] + tempoffset[2]
 					)
 					trials.draw.vertical[sub .. 'textline'][i]:update({
-						x = trials.ui_def.trialsteps_vertical_pos[1]+trials.ui_def[sub .. 'step_vertical_text_offset'][1]+trials.ui_def.trialsteps_vertical_spacing[1]*(i-startonstep),
-						y = trials.ui_def.trialsteps_vertical_pos[2]+trials.ui_def[sub .. 'step_vertical_text_offset'][2]+trials.ui_def.trialsteps_vertical_spacing[2]*(i-startonstep),
+						x = trials.trials_mode.trialsteps_vertical_pos[1]+trials.trials_mode[sub .. 'step_vertical_text_offset'][1]+trials.trials_mode.trialsteps_vertical_spacing[1]*(i-startonstep),
+						y = trials.trials_mode.trialsteps_vertical_pos[2]+trials.trials_mode[sub .. 'step_vertical_text_offset'][2]+trials.trials_mode.trialsteps_vertical_spacing[2]*(i-startonstep),
 						text = trials.data.trial[ct].trialstep[i].text
 					})
-					animSetPalFX(trials.ui_def[sub .. 'step_vertical_bg_data'], {
+					animSetPalFX(trials.trials_mode[sub .. 'step_vertical_bg_data'], {
 						time = 1,
-						add = trials.ui_def[sub .. 'step_vertical_bg_palfx_add'],
-						mul = trials.ui_def[sub .. 'step_vertical_bg_palfx_mul'],
-						sinadd = trials.ui_def[sub .. 'step_vertical_bg_palfx_sinadd'],
-						invertall = trials.ui_def[sub .. 'step_vertical_bg_palfx_invertall'],
-						color = trials.ui_def[sub .. 'step_vertical_bg_palfx_color']
+						add = trials.trials_mode[sub .. 'step_vertical_bg_palfx_add'],
+						mul = trials.trials_mode[sub .. 'step_vertical_bg_palfx_mul'],
+						sinadd = trials.trials_mode[sub .. 'step_vertical_bg_palfx_sinadd'],
+						invertall = trials.trials_mode[sub .. 'step_vertical_bg_palfx_invertall'],
+						color = trials.trials_mode[sub .. 'step_vertical_bg_palfx_color']
 					})
-					animReset(trials.ui_def[sub .. 'step_vertical_bg_data'])
-					animUpdate(trials.ui_def[sub .. 'step_vertical_bg_data'])
-					animDraw(trials.ui_def[sub .. 'step_vertical_bg_data'])
+					animReset(trials.trials_mode[sub .. 'step_vertical_bg_data'])
+					animUpdate(trials.trials_mode[sub .. 'step_vertical_bg_data'])
+					animDraw(trials.trials_mode[sub .. 'step_vertical_bg_data'])
 					trials.draw.vertical[sub .. 'textline'][i]:draw()
 				elseif layout == "horizontal" then
 					--Horizontal layouts are much more complicated. Text is not drawn in horizontal mode, instead we only display the glyphs. A small sprite is dynamically tiled to the width of the
@@ -814,41 +814,41 @@ function start.f_trialsDrawer()
 					if trials.data.bgelemdata.horizontal[sub .. 'step_bgsize'] ~= nil then bgsize = trials.data.bgelemdata.horizontal[sub .. 'step_bgsize'].Size end
 
 					totalglyphlength = trials.data.trial[ct].trialstep[i].glyphline.horizontal.lengthOffset[#trials.data.trial[ct].trialstep[i].glyphline.horizontal.lengthOffset]
-					local tailoffset = trials.ui_def[sub .. 'step_horizontal_bg_tail_offset'][1]
-					padding = trials.ui_def.trialsteps_horizontal_padding
-					spacing = trials.ui_def.trialsteps_horizontal_spacing[1]
+					local tailoffset = trials.trials_mode[sub .. 'step_horizontal_bg_tail_offset'][1]
+					padding = trials.trials_mode.trialsteps_horizontal_padding
+					spacing = trials.trials_mode.trialsteps_horizontal_spacing[1]
 
 					local tempwidth = spacing + bgtailwidth + padding + totalglyphlength + padding + bgheadwidth + accwidth
-					if tempwidth - trials.ui_def.trialsteps_horizontal_spacing[1] > windowXrange then
+					if tempwidth - trials.trials_mode.trialsteps_horizontal_spacing[1] > windowXrange then
 						accwidth = 0
 						addrow = addrow + 1
 					end
 
-					tempoffset[2] = trials.ui_def.trialsteps_horizontal_spacing[2]*(addrow)
+					tempoffset[2] = trials.trials_mode.trialsteps_horizontal_spacing[2]*(addrow)
 
 					-- Calculate initial positions
 					if accwidth == 0 then
-						bgcomponentposX = trials.ui_def.trialsteps_horizontal_pos[1]
+						bgcomponentposX = trials.trials_mode.trialsteps_horizontal_pos[1]
 					else
 						bgcomponentposX = accwidth + spacing -- + bgheadwidth 
 					end
 					
 					-- Draw tail
-					animSetPos(trials.ui_def[sub .. 'step_horizontal_bg_tail_data'], 
-						bgcomponentposX + trials.ui_def[sub .. 'step_horizontal_bg_tail_offset'][1], 
-						trials.data.trial[ct].trialstep[i].glyphline.horizontal.pos[1][2] + trials.ui_def[sub .. 'step_horizontal_bg_tail_offset'][2] + tempoffset[2]
+					animSetPos(trials.trials_mode[sub .. 'step_horizontal_bg_tail_data'], 
+						bgcomponentposX + trials.trials_mode[sub .. 'step_horizontal_bg_tail_offset'][1], 
+						trials.data.trial[ct].trialstep[i].glyphline.horizontal.pos[1][2] + trials.trials_mode[sub .. 'step_horizontal_bg_tail_offset'][2] + tempoffset[2]
 					)
-					animSetPalFX(trials.ui_def[sub .. 'step_horizontal_bg_tail_data'], {
+					animSetPalFX(trials.trials_mode[sub .. 'step_horizontal_bg_tail_data'], {
 						time = 1,
-						add = trials.ui_def[sub .. 'step_horizontal_bg_palfx_add'],
-						mul = trials.ui_def[sub .. 'step_horizontal_bg_palfx_mul'],
-						sinadd = trials.ui_def[sub .. 'step_horizontal_bg_palfx_sinadd'],
-						invertall = trials.ui_def[sub .. 'step_horizontal_bg_palfx_invertall'],
-						color = trials.ui_def[sub .. 'step_horizontal_bg_palfx_color']
+						add = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_add'],
+						mul = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_mul'],
+						sinadd = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_sinadd'],
+						invertall = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_invertall'],
+						color = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_color']
 					})
-					animReset(trials.ui_def[sub .. 'step_horizontal_bg_tail_data'])
-					animUpdate(trials.ui_def[sub .. 'step_horizontal_bg_tail_data'])
-					animDraw(trials.ui_def[sub .. 'step_horizontal_bg_tail_data'])
+					animReset(trials.trials_mode[sub .. 'step_horizontal_bg_tail_data'])
+					animUpdate(trials.trials_mode[sub .. 'step_horizontal_bg_tail_data'])
+					animDraw(trials.trials_mode[sub .. 'step_horizontal_bg_tail_data'])
 					
 					-- Draw BG for Glyphs - scale to length, start from tail pos
 					bgtargetscale = {(padding + totalglyphlength + padding)/bgsize[1], 1}
@@ -856,57 +856,57 @@ function start.f_trialsDrawer()
 					local gpoffset = 0
 					for m in pairs(trials.data.trial[ct].trialstep[i].glyphline.horizontal.glyph) do
 						if m > 1 then gpoffset = trials.data.trial[ct].trialstep[i].glyphline.horizontal.lengthOffset[m-1] end
-						trials.data.trial[ct].trialstep[i].glyphline.horizontal.pos[m][1] = bgcomponentposX + padding + gpoffset -- trials.ui_def.trialsteps_pos[1] + trials.data.trial[ct].trialstep[i].glyphline.alignOffset[m] +
+						trials.data.trial[ct].trialstep[i].glyphline.horizontal.pos[m][1] = bgcomponentposX + padding + gpoffset -- trials.trials_mode.trialsteps_pos[1] + trials.data.trial[ct].trialstep[i].glyphline.alignOffset[m] +
 					end
 
-					animSetScale(trials.ui_def[sub .. 'step_horizontal_bg_data'], bgtargetscale[1], bgtargetscale[2])
-					animSetPos(trials.ui_def[sub .. 'step_horizontal_bg_data'], 
-						bgcomponentposX + trials.ui_def[sub .. 'step_horizontal_bg_offset'][1], 
-						trials.data.trial[ct].trialstep[i].glyphline.horizontal.pos[1][2] + trials.ui_def[sub .. 'step_horizontal_bg_offset'][2] + tempoffset[2]
+					animSetScale(trials.trials_mode[sub .. 'step_horizontal_bg_data'], bgtargetscale[1], bgtargetscale[2])
+					animSetPos(trials.trials_mode[sub .. 'step_horizontal_bg_data'], 
+						bgcomponentposX + trials.trials_mode[sub .. 'step_horizontal_bg_offset'][1], 
+						trials.data.trial[ct].trialstep[i].glyphline.horizontal.pos[1][2] + trials.trials_mode[sub .. 'step_horizontal_bg_offset'][2] + tempoffset[2]
 					)
-					animSetPalFX(trials.ui_def[sub .. 'step_horizontal_bg_data'], {
+					animSetPalFX(trials.trials_mode[sub .. 'step_horizontal_bg_data'], {
 						time = 1,
-						add = trials.ui_def[sub .. 'step_horizontal_bg_palfx_add'],
-						mul = trials.ui_def[sub .. 'step_horizontal_bg_palfx_mul'],
-						sinadd = trials.ui_def[sub .. 'step_horizontal_bg_palfx_sinadd'],
-						invertall = trials.ui_def[sub .. 'step_horizontal_bg_palfx_invertall'],
-						color = trials.ui_def[sub .. 'step_horizontal_bg_palfx_color']
+						add = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_add'],
+						mul = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_mul'],
+						sinadd = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_sinadd'],
+						invertall = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_invertall'],
+						color = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_color']
 					})
-					animReset(trials.ui_def[sub .. 'step_horizontal_bg_data'])
-					animUpdate(trials.ui_def[sub .. 'step_horizontal_bg_data'])
-					animDraw(trials.ui_def[sub .. 'step_horizontal_bg_data'])
+					animReset(trials.trials_mode[sub .. 'step_horizontal_bg_data'])
+					animUpdate(trials.trials_mode[sub .. 'step_horizontal_bg_data'])
+					animDraw(trials.trials_mode[sub .. 'step_horizontal_bg_data'])
 					
 					-- Draw head
 					bgcomponentposX = bgcomponentposX + (totalglyphlength + 2*padding)
-					animSetPos(trials.ui_def[sub .. 'step_horizontal_bg_head_data'], 
-						bgcomponentposX + trials.ui_def[sub .. 'step_horizontal_bg_head_offset'][1] + trials.data.trial[ct].trialstep[i].glyphline.horizontal.alignOffset[1], 
-						trials.data.trial[ct].trialstep[i].glyphline.horizontal.pos[1][2] + trials.ui_def[sub .. 'step_horizontal_bg_head_offset'][2] + tempoffset[2]
+					animSetPos(trials.trials_mode[sub .. 'step_horizontal_bg_head_data'], 
+						bgcomponentposX + trials.trials_mode[sub .. 'step_horizontal_bg_head_offset'][1] + trials.data.trial[ct].trialstep[i].glyphline.horizontal.alignOffset[1], 
+						trials.data.trial[ct].trialstep[i].glyphline.horizontal.pos[1][2] + trials.trials_mode[sub .. 'step_horizontal_bg_head_offset'][2] + tempoffset[2]
 					)
-					animSetPalFX(trials.ui_def[sub .. 'step_horizontal_bg_head_data'], {
+					animSetPalFX(trials.trials_mode[sub .. 'step_horizontal_bg_head_data'], {
 						time = 1,
-						add = trials.ui_def[sub .. 'step_horizontal_bg_palfx_add'],
-						mul = trials.ui_def[sub .. 'step_horizontal_bg_palfx_mul'],
-						sinadd = trials.ui_def[sub .. 'step_horizontal_bg_palfx_sinadd'],
-						invertall = trials.ui_def[sub .. 'step_horizontal_bg_palfx_invertall'],
-						color = trials.ui_def[sub .. 'step_horizontal_bg_palfx_color']
+						add = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_add'],
+						mul = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_mul'],
+						sinadd = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_sinadd'],
+						invertall = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_invertall'],
+						color = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_color']
 					})
-					animReset(trials.ui_def[sub .. 'step_horizontal_bg_head_data'])
-					animUpdate(trials.ui_def[sub .. 'step_horizontal_bg_head_data'])
-					animDraw(trials.ui_def[sub .. 'step_horizontal_bg_head_data'])
+					animReset(trials.trials_mode[sub .. 'step_horizontal_bg_head_data'])
+					animUpdate(trials.trials_mode[sub .. 'step_horizontal_bg_head_data'])
+					animDraw(trials.trials_mode[sub .. 'step_horizontal_bg_head_data'])
 				end
 				for m = 1, #trials.data.trial[ct].trialstep[i].glyphline[layout].glyph, 1 do
 					animSetScale(motif.glyphs_data[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim, trials.data.trial[ct].trialstep[i].glyphline[layout].scale[m][1], trials.data.trial[ct].trialstep[i].glyphline[layout].scale[m][2])
 					animSetPos(motif.glyphs_data[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim, 
 						trials.data.trial[ct].trialstep[i].glyphline[layout].pos[m][1], 
-						trials.data.trial[ct].trialstep[i].glyphline[layout].pos[m][2] + tempoffset[2] + trials.ui_def['glyphs_' .. layout .. '_offset'][2]
+						trials.data.trial[ct].trialstep[i].glyphline[layout].pos[m][2] + tempoffset[2] + trials.trials_mode['glyphs_' .. layout .. '_offset'][2]
 					)
 					animSetPalFX(motif.glyphs_data[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim, {
 						time = 1,
-						add = trials.ui_def[sub .. 'step_' .. layout .. '_glyphs_palfx_add'],
-						mul = trials.ui_def[sub .. 'step_' .. layout .. '_glyphs_palfx_mul'],
-						sinadd = trials.ui_def[sub .. 'step_' .. layout .. '_glyphs_palfx_sinadd'],
-						invertall = trials.ui_def[sub .. 'step_' .. layout .. '_glyphs_palfx_invertall'],
-						color = trials.ui_def[sub .. 'step_' .. layout .. '_glyphs_palfx_color']
+						add = trials.trials_mode[sub .. 'step_' .. layout .. '_glyphs_palfx_add'],
+						mul = trials.trials_mode[sub .. 'step_' .. layout .. '_glyphs_palfx_mul'],
+						sinadd = trials.trials_mode[sub .. 'step_' .. layout .. '_glyphs_palfx_sinadd'],
+						invertall = trials.trials_mode[sub .. 'step_' .. layout .. '_glyphs_palfx_invertall'],
+						color = trials.trials_mode[sub .. 'step_' .. layout .. '_glyphs_palfx_color']
 					})
 					animReset(motif.glyphs_data[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim)
 					animUpdate(motif.glyphs_data[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim)
@@ -918,16 +918,16 @@ function start.f_trialsDrawer()
 			-- All trials have been completed, draw the all clear and freeze the timer
 			if trials.draw.allclear ~= 0 then
 				start.f_trialsSuccess('allclear', ct-1)
-				main.f_createTextImg(trials.ui_def, 'allclear_text')
+				main.f_createTextImg(trials.trials_mode, 'allclear_text')
 			end
 
 			trials.data.allclear = true
 			trials.draw.success = 0
-			trials.draw.trialcounter:update({text = trials.ui_def.trialcounter_allclear_text})
+			trials.draw.trialcounter:update({text = trials.trials_mode.trialcounter_allclear_text})
 			trials.draw.trialcounter:draw()
 
 			if trials.data.displaytimers.totaltimer then
-				local totaltimertext = trials.ui_def.totaltrialtimer_text
+				local totaltimertext = trials.trials_mode.totaltrialtimer_text
 				local m, s, x = f_timeConvert(trials.data.elapsedtime)
 				totaltimertext = totaltimertext:gsub('%%s', m .. ":" .. s .. ":" .. x)
 				trials.draw.totaltrialtimer:update({text = totaltimertext})
@@ -937,7 +937,7 @@ function start.f_trialsDrawer()
 				--trials.draw.totaltrialtimer:draw()
 			end
 			if trials.data.displaytimers.trialtimer then
-				local currenttimertext = trials.ui_def.currenttrialtimer_text
+				local currenttimertext = trials.trials_mode.currenttrialtimer_text
 				local m, s, x = f_timeConvert(trials.data.trial[ct-1].elapsedtime)
 				currenttimertext = currenttimertext:gsub('%%s', m .. ":" .. s .. ":" .. x)
 				trials.draw.currenttrialtimer:update({text = currenttimertext})
@@ -1085,14 +1085,14 @@ function start.f_trialsChecker()
 						trials.data.currenttrialstep = 1
 						trials.data.combocounter = 0
 						if ct < #trials.data.trial or (not trials.data.trialadvancement and ct == #trials.data.trial) then
-							if (trials.ui_def.success_front_displaytime == -1) and (trials.ui_def.success_bg_displaytime == -1) then
-								trials.draw.success = math.max(animGetLength(trials.ui_def.success_front_data), animGetLength(trials.ui_def.success_bg_data), trials.ui_def.success_text_displaytime)
+							if (trials.trials_mode.success_front_displaytime == -1) and (trials.trials_mode.success_bg_displaytime == -1) then
+								trials.draw.success = math.max(animGetLength(trials.trials_mode.success_front_data), animGetLength(trials.trials_mode.success_bg_data), trials.trials_mode.success_text_displaytime)
 							else
-								trials.draw.success = math.max(trials.ui_def.success_front_displaytime, trials.ui_def.success_bg_displaytime, trials.ui_def.success_text_displaytime)
+								trials.draw.success = math.max(trials.trials_mode.success_front_displaytime, trials.trials_mode.success_bg_displaytime, trials.trials_mode.success_text_displaytime)
 							end
-							if trials.ui_def.trialsresetonsuccess == "true" then
-								trials.draw.fadein = trials.ui_def.fadein_time
-								trials.draw.fadeout = trials.ui_def.fadeout_time
+							if trials.trials_mode.trialsresetonsuccess == "true" then
+								trials.draw.fadein = trials.trials_mode.fadein_time
+								trials.draw.fadeout = trials.trials_mode.fadeout_time
 								trials.draw.fade = trials.draw.fadein + trials.draw.fadeout
 							end
 						end
@@ -1111,7 +1111,7 @@ function start.f_trialsChecker()
 	--If the trial was completed successfully, draw the trials success
 	if trials.draw.success > 0 then
 		start.f_trialsSuccess('success', ct)
-	elseif trials.draw.fade > 0 and (trials.ui_def.trialsresetonsuccess == "true" or trials.draw.fadetriggered) then
+	elseif trials.draw.fade > 0 and (trials.trials_mode.trialsresetonsuccess == "true" or trials.draw.fadetriggered) then
 		if trials.draw.fade < trials.draw.fadein + trials.draw.fadeout then
 			start.f_trialsFade()
 		else
@@ -1121,9 +1121,9 @@ function start.f_trialsChecker()
 			end
 			player(1)
 		end
-	elseif f_checkKeyCombo(trials.ui_def.trialreset_buttonpress) and trials.draw.fade == 0 and trials.ui_def.trialreset_enabled == "true" then
-		trials.draw.fadein = trials.ui_def.fadein_time
-		trials.draw.fadeout = trials.ui_def.fadeout_time
+	elseif f_checkKeyCombo(trials.trials_mode.trialreset_buttonpress) and trials.draw.fade == 0 and trials.trials_mode.trialreset_enabled == "true" then
+		trials.draw.fadein = trials.trials_mode.fadein_time
+		trials.draw.fadeout = trials.trials_mode.fadeout_time
 		trials.draw.fade = trials.draw.fadein + trials.draw.fadeout
 		trials.draw.fadetriggered = true
 	else
@@ -1139,13 +1139,13 @@ function start.f_trialsSuccess(successstring, index)
 	player(1)
 	if not trials.data.trial[index].complete or (successstring == "allclear" and not trials.data.allclear) then
 		-- Play sound only once
-		sndPlay(motif.files.snd_data, trials.ui_def[successstring .. '_snd'][1], trials.ui_def[successstring .. '_snd'][2])
+		sndPlay(motif.files.snd_data, trials.trials_mode[successstring .. '_snd'][1], trials.trials_mode[successstring .. '_snd'][2])
 	end
-	animUpdate(trials.ui_def[successstring .. '_bg_data'])
-	animDraw(trials.ui_def[successstring .. '_bg_data'])
+	animUpdate(trials.trials_mode[successstring .. '_bg_data'])
+	animDraw(trials.trials_mode[successstring .. '_bg_data'])
 	trials.draw[successstring .. '_text']:draw()
-	animUpdate(trials.ui_def[successstring .. '_front_data'])
-	animDraw(trials.ui_def[successstring .. '_front_data'])
+	animUpdate(trials.trials_mode[successstring .. '_front_data'])
+	animDraw(trials.trials_mode[successstring .. '_front_data'])
 	trials.draw[successstring] = trials.draw[successstring] - 1
 	trials.data.trial[index].complete = true
 	trials.data.trial[index].active = false
@@ -1226,18 +1226,18 @@ function start.f_trialsFade()
 	-- This function is responsible for fadein/fadeout if trialsresetonsuccess is set to true.
 	if trials.draw.fadeout > 0 then
 		if not main.fadeActive then
-			main.f_fadeReset('fadeout',trials.ui_def)
+			main.f_fadeReset('fadeout',trials.trials_mode)
 		end
-		main.f_fadeAnim(trials.ui_def)
+		main.f_fadeAnim(trials.trials_mode)
 		trials.draw.fadeout = trials.draw.fadeout - 1
 	elseif trials.draw.fadein > 0 then
 		if main.fadeType == 'fadeout' then
 			mapSet('_iksys_trialsReposition', 1)
-			main.f_fadeReset('fadein',trials.ui_def)
+			main.f_fadeReset('fadein',trials.trials_mode)
 		elseif main.fadeType == 'fadein' then
 			mapSet('_iksys_trialsCameraReset', 1)
 		end
-		main.f_fadeAnim(trials.ui_def)
+		main.f_fadeAnim(trials.trials_mode)
 		trials.draw.fadein = trials.draw.fadein - 1
 	end
 
@@ -1249,11 +1249,11 @@ function start.f_trialsSelectScreen()
 	local selectScreenPalMod = false
 
 	if gamemode("trials") and start.selectScreenPalMod == 'normal' then
-		paladd = trials.ui_def.selscreenpalfx_add
-		palmul = trials.ui_def.selscreenpalfx_mul
-		palsinadd = trials.ui_def.selscreenpalfx_sinadd
-		palinvertall = trials.ui_def.selscreenpalfx_invertall
-		palcolor = trials.ui_def.selscreenpalfx_color
+		paladd = trials.trials_mode.selscreenpalfx_add
+		palmul = trials.trials_mode.selscreenpalfx_mul
+		palsinadd = trials.trials_mode.selscreenpalfx_sinadd
+		palinvertall = trials.trials_mode.selscreenpalfx_invertall
+		palcolor = trials.trials_mode.selscreenpalfx_color
 		start.selectScreenPalMod = 'darkened'
 		selectScreenPalMod = true
 	elseif not gamemode("trials") and start.selectScreenPalMod == 'darkened' then
@@ -1277,11 +1277,11 @@ function start.f_trialsSelectScreen()
 					if charData and (charData.char == 'randomselect' or charData.hidden == 3) then
 						-- animSetPalFX(motif.select_info.cell_random_data, {
 						-- 	time = 1,
-						-- 	add = trials.ui_def.selscreenpalfx_add,
-						-- 	mul = trials.ui_def.selscreenpalfx_mul,
-						-- 	sinadd = trials.ui_def.selscreenpalfx_sinadd,
-						-- 	invertall = trials.ui_def.selscreenpalfx_invertall,
-						-- 	color = trials.ui_def.selscreenpalfx_color
+						-- 	add = trials.trials_mode.selscreenpalfx_add,
+						-- 	mul = trials.trials_mode.selscreenpalfx_mul,
+						-- 	sinadd = trials.trials_mode.selscreenpalfx_sinadd,
+						-- 	invertall = trials.trials_mode.selscreenpalfx_invertall,
+						-- 	color = trials.trials_mode.selscreenpalfx_color
 						-- })
 					--draw face cell
 					elseif charData and charData.char_ref ~= nil and charData.hidden == 0 and charData.trialsdef == "" then
@@ -1329,8 +1329,8 @@ function start.f_trialsMode()
 		player(1)
 		mapSet('_iksys_trialsDummyControl', 0)
 		mapSet('_iksys_trialsSetLife', lifemax())
-		trialcounter = main.f_createTextImg(trials.ui_def, 'trialcounter')
-		trialcounter:update({x = trials.ui_def.trialcounter_pos[1], y = trials.ui_def.trialcounter_pos[2], text = trials.ui_def.trialcounter_notrialsdata_text})
+		trialcounter = main.f_createTextImg(trials.trials_mode, 'trialcounter')
+		trialcounter:update({x = trials.trials_mode.trialcounter_pos[1], y = trials.trials_mode.trialcounter_pos[2], text = trials.trials_mode.trialcounter_notrialsdata_text})
 		trialcounter:draw()
 	end
 end
@@ -1391,9 +1391,9 @@ end
 menu.t_itemname['trialslayout'] = function(t, item, cursorPosY, moveTxt, section)
 	if menu.f_valueChanged(t.items[item], motif[section]) then
 		if menu.t_valuename.trialslayout[menu.trialslayout or 1].itemname == "Vertical" then
-			trials.ui_def.trialslayout = "vertical"
+			trials.trials_mode.trialslayout = "vertical"
 		else
-			trials.ui_def.trialslayout = "horizontal"
+			trials.trials_mode.trialslayout = "horizontal"
 		end
 	end
 	return true
@@ -1405,9 +1405,9 @@ end
 menu.t_itemname['trialresetonsuccess'] = function(t, item, cursorPosY, moveTxt, section)
 	if menu.f_valueChanged(t.items[item], motif[section]) then
 		if menu.t_valuename.trialresetonsuccess[menu.trialresetonsuccess or 1].itemname == "Yes" then
-			trials.ui_def.trialsresetonsuccess = "true"
+			trials.trials_mode.trialsresetonsuccess = "true"
 		else
-			trials.ui_def.trialsresetonsuccess = "false"
+			trials.trials_mode.trialsresetonsuccess = "false"
 		end
 	end
 	return true
@@ -1419,9 +1419,9 @@ end
 menu.t_itemname['trialstextboxes'] = function(t, item, cursorPosY, moveTxt, section)
 	if menu.f_valueChanged(t.items[item], motif[section]) then
 		if menu.t_valuename.trialstextboxes[menu.trialstextboxes or 1].itemname == "Show" then
-			trials.ui_def.textbox_visible = "true"
+			trials.trials_mode.textbox_visible = "true"
 		else
-			trials.ui_def.textbox_visible = "false"
+			trials.trials_mode.textbox_visible = "false"
 		end
 	end
 	return true
@@ -1464,17 +1464,17 @@ function menu.f_trialsReset()
 	for k, _ in pairs(menu.t_valuename) do
 		menu[k] = 1
 	end
-	if trials.ui_def.trialsresetonsuccess == "true" then
+	if trials.trials_mode.trialsresetonsuccess == "true" then
 		menu.trialresetonsuccess = 1
 	else
 		menu.trialresetonsuccess = 2
 	end
-	if trials.ui_def.trialslayout == "vertical" then
+	if trials.trials_mode.trialslayout == "vertical" then
 		menu.trialslayout = 1
 	else
 		menu.trialslayout = 2
 	end
-	if trials.ui_def.textbox_visible == "true" then
+	if trials.trials_mode.textbox_visible == "true" then
 		menu.trialstextboxes = 1
 	else
 		menu.trialstextboxes = 2

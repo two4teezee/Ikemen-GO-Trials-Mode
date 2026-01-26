@@ -29,3 +29,44 @@ menu.itemname.exit = "Exit"
 [TrialsPauseMenuBgDef]
 spr = ""
 bgclearcolor = 0, 0, 0
+
+;Trials Splotch Animation
+[Begin Action 650]
+650,0, 0,0, 10, ,AS0D256
+Interpolate Blend
+650,0, 0,0, 72, ,AS256D0
+650,0, 0,0, 20, ,AS256D0
+Interpolate Blend
+650,0, 0,0,  1, ,AS0D256
+
+;Trials Success Animation
+[Begin Action 651]
+650,1, 0,0, 10, ,AS0D256
+Interpolate Blend
+650,1, 0,0, 30, ,AS256D0
+650,2, 0,0,  2, ,AS256D0
+650,1, 0,0,  2, ,AS256D0
+650,2, 0,0,  2, ,AS256D0
+650,1, 0,0, 30, ,AS256D0
+650,2, 0,0,  2, ,AS256D0
+650,1, 0,0,  2, ,AS256D0
+650,2, 0,0,  2, ,AS256D0
+650,1, 0,0, 20, ,AS256D0
+Interpolate Blend
+650,1, 0,0,  1, ,AS0D256
+
+;Trials Allclear Animation
+[Begin Action 652]
+650,3, 0,0, 10, ,AS0D256
+Interpolate Blend
+650,3, 0,0, 30, ,AS256D0
+650,4, 0,0,  2, ,AS256D0
+650,3, 0,0,  2, ,AS256D0
+650,4, 0,0,  2, ,AS256D0
+650,3, 0,0, 30, ,AS256D0
+650,4, 0,0,  2, ,AS256D0
+650,3, 0,0,  2, ,AS256D0
+650,4, 0,0,  2, ,AS256D0
+650,3, 0,0, 20, ,AS256D0
+Interpolate Blend
+650,3, 0,0,  1, ,AS0D256
