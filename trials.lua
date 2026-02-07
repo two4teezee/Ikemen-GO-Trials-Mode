@@ -11,6 +11,7 @@
 
 trials = {}
 trials = loadIni('external/mods/trials/config.def')
+trials.sprData = {}
 
 --;===========================================================
 --; Local Functions
@@ -108,6 +109,131 @@ local function f_deepCopy(orig)
         copy = orig
     end
     return copy
+end
+
+--split strings
+local function f_strsplit(delimiter, text)
+	local list = {}
+	local pos = 1
+	if string.find('', delimiter, 1) then
+		if string.len(text) == 0 then
+			table.insert(list, text)
+		else
+			for i = 1, string.len(text) do
+				table.insert(list, string.sub(text, i, i))
+			end
+		end
+	else
+		while true do
+			local first, last = string.find(text, delimiter, pos)
+			if first then
+				table.insert(list, string.sub(text, pos, first - 1))
+				pos = last + 1
+			else
+				table.insert(list, string.sub(text, pos))
+				break
+			end
+		end
+	end
+	return list
+end
+
+--creates sprite data out of table values
+local anim = ''
+local facing = ''
+local function f_loadSprData(t, v)
+	local animParam = v.s .. 'anim'
+	local sprParam = v.s .. 'spr'
+	local data = v.s .. 'data'
+	-- optional prefix argument only changes parameter name for anim/spr numbers assignment
+	if v.prefix ~= nil then
+		animParam = v.s .. v.prefix .. 'anim'
+		sprParam = v.s .. v.prefix .. 'spr'
+		data = v.s .. v.prefix .. 'data'
+	end
+	if t[v.s .. 'offset'] == nil then t[v.s .. 'offset'] = {0, 0} end
+	if t[v.s .. 'scale'] == nil then t[v.s .. 'scale'] = {1.0, 1.0} end
+	if t[animParam] ~= nil and t[animParam] ~= -1 and motif.anim[t[animParam]] ~= nil then --create animation data
+		if t[v.s .. 'facing'] == nil then t[v.s .. 'facing'] = 1 end
+		t[data] = f_animFromTable(
+			trials.anim[t[animParam]],
+			motif.files.spr_data,
+			(t[v.s .. 'offset'][1] + (v.x or 0)) / t[v.s .. 'scale'][1],
+			(t[v.s .. 'offset'][2] + (v.y or 0)) / t[v.s .. 'scale'][2],
+			t[v.s .. 'scale'][1],
+			t[v.s .. 'scale'][2],
+			t[v.s .. 'facing']
+		)
+	elseif t[sprParam] ~= nil and #t[sprParam] > 0 then --create sprite data
+		if #t[sprParam] == 1 then --fix values
+			if type(t[sprParam][1]) == 'string' then
+				t[sprParam] = {tonumber(t[sprParam][1]:match('^([0-9]+)')), 0}
+			else
+				t[sprParam] = {t[sprParam][1], 0}
+			end
+		end
+		if t[v.s .. 'facing'] == -1 then facing = ', H' else facing = '' end
+		t[data] = animNew(motif.files.spr_data, t[sprParam][1] .. ', ' .. t[sprParam][2] .. ', ' .. (t[v.s .. 'offset'][1] + (v.x or 0)) / t[v.s .. 'scale'][1] .. ', ' .. (t[v.s .. 'offset'][2] + (v.y or 0)) / t[v.s .. 'scale'][2] .. ', -1' .. facing)
+		animSetScale(t[data], t[v.s .. 'scale'][1], t[v.s .. 'scale'][2])
+		animUpdate(t[data])
+	else --create dummy data
+		t[data] = animNew(motif.files.spr_data, '-1,0, 0,0, -1')
+		animUpdate(t[data])
+	end
+	animSetWindow(t[data], 0, 0, motif.info.localcoord[1], motif.info.localcoord[2])
+end
+
+--generate anim from table
+local function f_animFromTable(t, sff, x, y, scaleX, scaleY, facing, infFrame, defsc)
+	local t = t or {}
+	local x = x or 0
+	local y = y or 0
+	local scaleX = scaleX or 1.0
+	local scaleY = scaleY or 1.0
+	local facing = facing or '0'
+	local infFrame = infFrame or 1
+	local facing_sav = ''
+	local anim = ''
+	local length = 0
+	for i = 1, #t do
+		local t_anim = {}
+		for j, c in ipairs(f_strsplit(',', t[i])) do --split using "," delimiter
+			table.insert(t_anim, c)
+		end
+		if #t_anim > 1 then
+			--required parameters
+			t_anim[3] = tonumber(t_anim[3]) + x
+			t_anim[4] = tonumber(t_anim[4]) + y
+			if tonumber(t_anim[5]) == -1 then
+				length = length + infFrame
+			else
+				length = length + tonumber(t_anim[5])
+			end
+			--optional parameters
+			if t_anim[6] ~= nil and not t_anim[6]:match(facing) then --flip parameter not negated by repeated flipping
+				if t_anim[6]:match('[Hh]') then t_anim[3] = t_anim[3] + 1 end --fix for wrong offset after flipping sprites
+				if t_anim[6]:match('[Vv]') then t_anim[4] = t_anim[4] + 1 end --fix for wrong offset after flipping sprites
+				t_anim[6] = facing .. t_anim[6]
+			end
+		end
+		for j = 1, #t_anim do
+			if j == 1 then
+				anim = anim .. t_anim[j]
+			else
+				anim = anim .. ', ' .. t_anim[j]
+			end
+		end
+		anim = anim .. '\n'
+	end
+	if defsc then disableLuaScale() end
+	if anim == '' then
+		anim = '-1,0, 0,0, -1'
+	end
+	local data = animNew(sff, anim)
+	animSetScale(data, scaleX, scaleY)
+	animUpdate(data)
+	if defsc then setLuaScale() end
+	return data, length
 end
 
 --;===========================================================
@@ -218,7 +344,7 @@ for _, v in ipairs({
 	if motif.files.trials ~= nil and motif.files.trials ~= '' then
 	 	motif.files.data = sffNew(searchFile(motif.files.trials, {motif.fileDir, '', 'data/'}))
 	 	main.f_loadingRefresh()
-	 	motif.f_loadSprData(trials.trials_mode, v, motif.files.data)
+	 	f_loadSprData(trials.trials_mode, v, motif.files.data)
 	-- elseif main.f_fileExists('external/mods/trials/trials.sff') then
 	-- 	motif.files.data = sffNew(searchFile('external/mods/trials/trials.sff', {motif.fileDir, '', 'data/'}))
 	--  	main.f_loadingRefresh()
@@ -229,15 +355,15 @@ for _, v in ipairs({
 end
 
 if trials.trials_mode.textbox_portrait_source == "system" and trials.trials_mode.textbox_portrait_spr ~= nil then
-	motif.f_loadSprData(trials.trials_mode, {s = 'textbox_portrait_', x = trials.trials_mode.textbox_pos[1] + trials.trials_mode.textbox_portrait_offset[1], y = trials.trials_mode.textbox_pos[2] + trials.trials_mode.textbox_portrait_offset[2]})
+	f_loadSprData(trials.trials_mode, {s = 'textbox_portrait_', x = trials.trials_mode.textbox_pos[1] + trials.trials_mode.textbox_portrait_offset[1], y = trials.trials_mode.textbox_pos[2] + trials.trials_mode.textbox_portrait_offset[2]})
 end
 
 -- fadein/fadeout anim data generation.
 if trials.trials_mode.fadein_anim ~= -1 then
-	motif.f_loadSprData(trials.trials_mode, {s = 'fadein_'})
+	f_loadSprData(trials.trials_mode, {s = 'fadein_'})
 end
 if trials.trials_mode.fadeout_anim ~= -1 then
-	motif.f_loadSprData(trials.trials_mode, {s = 'fadeout_'})
+	f_loadSprData(trials.trials_mode, {s = 'fadeout_'})
 end
 
 --;===========================================================
