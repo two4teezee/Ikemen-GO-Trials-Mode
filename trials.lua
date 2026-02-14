@@ -138,10 +138,162 @@ local function f_strsplit(delimiter, text)
 	return list
 end
 
+text = {}
+--create text
+function text:create(t)
+	local t = t or {}
+	t.font = t.font or -1
+	t.bank = t.bank or 0
+	t.align = t.align or 0
+	t.text = t.text or ''
+	t.x = t.x or 0
+	t.y = t.y or 0
+	t.scaleX = t.scaleX or 1
+	t.scaleY = t.scaleY or 1
+	t.r = t.r or 255
+	t.g = t.g or 255
+	t.b = t.b or 255
+	t.a = t.a or 255
+	t.height = t.height or -1
+	if t.window == nil then t.window = {} end
+	t.window[1] = t.window[1] or 0
+	t.window[2] = t.window[2] or 0
+	t.window[3] = t.window[3] or motif.info.localcoord[1]
+	t.window[4] = t.window[4] or motif.info.localcoord[2]
+	t.xshear = t.xshear or 0
+	t.angle = t.angle or 0
+	t.defsc = t.defsc or false
+	t.ti = textImgNew()
+	setmetatable(t, self)
+	self.__index = self
+	if t.font ~= -1 then
+		if main.font[t.font .. t.height] == nil then
+			--main.f_loadingRefresh(main.txt_loading)
+			main.font[t.font .. t.height] = fontNew(t.font, t.height)
+			main.f_loadingRefresh(main.txt_loading)
+		end
+		if main.font_def[t.font .. t.height] == nil then
+			main.font_def[t.font .. t.height] = fontGetDef(main.font[t.font .. t.height])
+		end
+		textImgSetFont(t.ti, main.font[t.font .. t.height])
+	end
+	textImgSetBank(t.ti, t.bank)
+	textImgSetAlign(t.ti, t.align)
+	textImgSetText(t.ti, t.text)
+	textImgSetColor(t.ti, t.r, t.g, t.b, t.a)
+	if t.defsc then disableLuaScale() end
+	textImgSetPos(t.ti, t.x + f_alignOffset(t.align), t.y)
+	textImgSetScale(t.ti, t.scaleX, t.scaleY)
+	textImgSetWindow(t.ti, t.window[1], t.window[2], t.window[3] - t.window[1], t.window[4] - t.window[2])
+	textImgSetXShear(t.ti, t.xshear)
+	textImgSetAngle(t.ti, t.angle)
+	if t.defsc then setLuaScale() end
+	return t
+end
+
+text.new = text.create
+
+--align text
+function text:setAlign(align)
+	if align:lower() == "left" then
+		self.align = -1
+	elseif align:lower() == "center" or align:lower() == "middle" then
+		self.align = 0
+	elseif align:lower() == "right" then
+		self.align = 1
+	end
+	textImgSetAlign(self.ti,self.align)
+	return self
+end
+
+--update text
+function text:update(t)
+	if type(t) == "table" then
+		local ok = false
+		local fontChange = false
+		for k, v in pairs(t) do
+			if self[k] ~= v then
+				if k == 'font' or k == 'height' then
+					fontChange = true
+				end
+				self[k] = v
+				ok = true
+			end
+		end
+		if not ok then return end
+		if fontChange and self.font ~= -1 then
+			if main.font[self.font .. self.height] == nil then
+				main.font[self.font .. self.height] = fontNew(self.font, self.height)
+			end
+			if main.font_def[self.font .. self.height] == nil then
+				main.font_def[self.font .. self.height] = fontGetDef(main.font[self.font .. self.height])
+			end
+			textImgSetFont(self.ti, main.font[self.font .. self.height])
+		end
+		textImgSetBank(self.ti, self.bank)
+		textImgSetAlign(self.ti, self.align)
+		textImgSetText(self.ti, self.text)
+		textImgSetColor(self.ti, self.r, self.g, self.b, self.a)
+		--if self.defsc then disableLuaScale() end
+		textImgSetPos(self.ti, self.x + f_alignOffset(self.align), self.y)
+		textImgSetScale(self.ti, self.scaleX, self.scaleY)
+		textImgSetWindow(self.ti, self.window[1], self.window[2], self.window[3] - self.window[1], self.window[4] - self.window[2])
+		textImgSetXShear(self.ti, self.xshear)
+		textImgSetAngle(self.ti, self.angle)
+		--if self.defsc then setLuaScale() end
+	else
+		self.text = t
+		textImgSetText(self.ti, self.text)
+	end
+
+	return self
+end
+
+--draw text
+function text:draw()
+	if self.font == -1 then return end
+	textImgDraw(self.ti)
+	return self
+end
+
+--create textImg based on usual motif parameters
+function f_createTextImg(t, prefix, mod)
+	local mod = mod or {}
+	if t[prefix .. '.font'] == nil then t[prefix .. '.font'] = {} end
+	if t[prefix .. '.offset'] == nil then t[prefix .. '.offset'] = {} end
+	if t[prefix .. '.scale'] == nil then t[prefix .. '.scale'] = {} end
+	return text:create({
+		font =   t[prefix .. '.font'][1],
+		bank =   t[prefix .. '.font'][2],
+		align =  t[prefix .. '.font'][3],
+		text =   t[prefix .. '.text'],
+		x =      (t[prefix .. '.offset'][1] or 0) + (mod.x or 0),
+		y =      (t[prefix .. '.offset'][2] or 0) + (mod.y or 0),
+		scaleX = (t[prefix .. '.scale'][1] or 1) * (mod.scaleX or 1),
+		scaleY = (t[prefix .. '.scale'][2] or 1) * (mod.scaleY or 1),
+		r =      t[prefix .. '.font'][4],
+		g =      t[prefix .. '.font'][5],
+		b =      t[prefix .. '.font'][6],
+		a =      t[prefix .. '.font'][7],
+		height = t[prefix .. '.font'][8],
+		xshear = t[prefix .. '.xshear'] or 0,
+		angle  = t[prefix .. '.angle'] or 0,
+		window = t[prefix .. '.window'],
+		defsc = mod.defsc or false,
+	})
+end
+
+function f_alignOffset(align)
+	if align == -1 then
+		return 1
+	end
+	return 0
+end
+
 --creates sprite data out of table values
 local anim = ''
 local facing = ''
-local function f_loadSprData(t, v)
+function f_loadSprData(t, v)
 	local animParam = v.s .. 'anim'
 	local sprParam = v.s .. 'spr'
 	local data = v.s .. 'data'
@@ -284,7 +436,7 @@ main.t_itemname.trials = function()
 	main.selectMenu = {true, true}
 	main.stageMenu = true
 	textImgSetText(motif.select_info.title.TextSpriteData, motif.select_info.title.text.trials)
-	remapInput(main.playerInput, 1)
+	remapInput(1, getLastInputController())
 	setCommandInputSource(2, 1)
 	setGameMode('trials')
 	setHomeTeam(1)
@@ -310,60 +462,61 @@ end
 --trials spr/anim data
 local tr_pos = trials.trials_mode
 for _, v in ipairs({
-	{s = 'trialsteps_vertical_bg_',				x = tr_pos.trialsteps.vertical.pos[1] + tr_pos.trialsteps.vertical.bg.offset[1],		y = tr_pos.trialsteps.vertical.pos[2] + tr_pos.trialsteps.vertical.bg.offset[2],		},
-	{s = 'trialsteps_horizontal_bg_',			x = tr_pos.trialsteps.horizontal.pos[1] + tr_pos.trialsteps.horizontal.bg.offset[1],	y = tr_pos.trialsteps.horizontal.pos[2] + tr_pos.trialsteps.horizontal.bg.offset[2],	},
-	{s = 'success_bg_',    						x = tr_pos.success.pos[1] + tr_pos.success.bg.offset[1],								y = tr_pos.success.pos[2] + tr_pos.success.bg.offset[2],								},
-	{s = 'allclear_bg_',	   					x = tr_pos.allclear.pos[1] + tr_pos.allclear.bg.offset[1],								y = tr_pos.allclear.pos[2] + tr_pos.allclear.bg.offset[2],								},
-	{s = 'textbox_bg_',	   						x = tr_pos.textbox.pos[1] + tr_pos.textbox.bg.offset[1],								y = tr_pos.textbox.pos[2] + tr_pos.textbox.bg.offset[2],								},
-	{s = 'success_front_',  	  				x = tr_pos.success.pos[1] + tr_pos.success.front.offset[1],								y = tr_pos.success.pos[2] + tr_pos.success.front.offset[2],								},
-	{s = 'allclear_front_',   					x = tr_pos.allclear.pos[1] + tr_pos.allclear.front.offset[1],							y = tr_pos.allclear.pos[2] + tr_pos.allclear.front.offset[2],							},
-	{s = 'textbox_front_',	   					x = tr_pos.textbox.pos[1] + tr_pos.textbox.front.offset[1],								y = tr_pos.textbox.pos[2] + tr_pos.textbox.front.offset[2],								},
-	{s = 'upcomingstep_vertical_bg_',			x = 0,																					y = 0,																					},
-	{s = 'upcomingstep_vertical_bg_tail_',		x = 0,																					y = 0,																					},
-	{s = 'upcomingstep_vertical_bg_head_',		x = 0,																					y = 0,																					},
-	{s = 'currentstep_vertical_bg_',			x = 0,																					y = 0,																					},
-	{s = 'currentstep_vertical_bg_tail_',		x = 0,																					y = 0,																					},
-	{s = 'currentstep_vertical_bg_head_',		x = 0,																					y = 0,																					},
-	{s = 'completedstep_vertical_bg_',			x = 0,																					y = 0,																					},
-	{s = 'completedstep_vertical_bg_tail_',		x = 0,																					y = 0,																					},
-	{s = 'completedstep_vertical_bg_head_',		x = 0,																					y = 0,																					},
-    {s = 'upcomingstep_horizontal_bg_',			x = 0,																					y = 0,																					},
-	{s = 'upcomingstep_horizontal_bg_tail_',	x = 0,																					y = 0,																					},
-	{s = 'upcomingstep_horizontal_bg_head_',	x = 0,																					y = 0,																					},
-	{s = 'currentstep_horizontal_bg_',			x = 0,																					y = 0,																					},
-	{s = 'currentstep_horizontal_bg_tail_',		x = 0,																					y = 0,																					},
-	{s = 'currentstep_horizontal_bg_head_',		x = 0,																					y = 0,																					},
-	{s = 'completedstep_horizontal_bg_',		x = 0,																					y = 0,																					},
-	{s = 'completedstep_horizontal_bg_tail_',	x = 0,																					y = 0,																					},
-	{s = 'completedstep_horizontal_bg_head_',	x = 0,																					y = 0,																					},
-	{s = 'trialtitle_vertical_bg_',    			x = tr_pos.trialtitle.vertical.pos[1] + tr_pos.trialtitle.vertical.bg.offset[1],		y = tr_pos.trialtitle.vertical.pos[2] + tr_pos.trialtitle.vertical.bg.offset[2],		},
-	{s = 'trialtitle_vertical_front_',    		x = tr_pos.trialtitle.vertical.pos[1] + tr_pos.trialtitle.vertical.front.offset[1],		y = tr_pos.trialtitle.vertical.pos[2] + tr_pos.trialtitle.vertical.front.offset[2],		},
-    {s = 'trialtitle_horizontal_bg_',    		x = tr_pos.trialtitle.horizontal.pos[1] + tr_pos.trialtitle.horizontal.bg.offset[1],	y = tr_pos.trialtitle.horizontal.pos[2] + tr_pos.trialtitle.horizontal.bg.offset[2],	},
-	{s = 'trialtitle_horizontal_front_',    	x = tr_pos.trialtitle.horizontal.pos[1] + tr_pos.trialtitle.horizontal.front.offset[1],	y = tr_pos.trialtitle.horizontal.pos[2] + tr_pos.trialtitle.horizontal.front.offset[2],	},
+	{s = 'trialsteps.vertical.bg.',				x = tr_pos.trialsteps.vertical.pos[1] + tr_pos.trialsteps.vertical.bg.offset[1],		y = tr_pos.trialsteps.vertical.pos[2] + tr_pos.trialsteps.vertical.bg.offset[2],		},
+	{s = 'trialsteps.horizontal.bg.',			x = tr_pos.trialsteps.horizontal.pos[1] + tr_pos.trialsteps.horizontal.bg.offset[1],	y = tr_pos.trialsteps.horizontal.pos[2] + tr_pos.trialsteps.horizontal.bg.offset[2],	},
+	{s = 'success.bg.',    						x = tr_pos.success.pos[1] + tr_pos.success.bg.offset[1],								y = tr_pos.success.pos[2] + tr_pos.success.bg.offset[2],								},
+	{s = 'allclear.bg.',	   					x = tr_pos.allclear.pos[1] + tr_pos.allclear.bg.offset[1],								y = tr_pos.allclear.pos[2] + tr_pos.allclear.bg.offset[2],								},
+	{s = 'textbox.bg.',	   						x = tr_pos.textbox.pos[1] + tr_pos.textbox.bg.offset[1],								y = tr_pos.textbox.pos[2] + tr_pos.textbox.bg.offset[2],								},
+	{s = 'success.front.',  	  				x = tr_pos.success.pos[1] + tr_pos.success.front.offset[1],								y = tr_pos.success.pos[2] + tr_pos.success.front.offset[2],								},
+	{s = 'allclear.front.',   					x = tr_pos.allclear.pos[1] + tr_pos.allclear.front.offset[1],							y = tr_pos.allclear.pos[2] + tr_pos.allclear.front.offset[2],							},
+	{s = 'allclear.front_',   					x = tr_pos.allclear.pos[1] + tr_pos.allclear.front.offset[1],							y = tr_pos.allclear.pos[2] + tr_pos.allclear.front.offset[2],							},
+	{s = 'textbox.front',	   					x = tr_pos.textbox.pos[1] + tr_pos.textbox.front.offset[1],								y = tr_pos.textbox.pos[2] + tr_pos.textbox.front.offset[2],								},
+	{s = 'upcomingstep.vertical.bg.',			x = 0,																					y = 0,																					},
+	{s = 'upcomingstep.vertical.bg.tail.',		x = 0,																					y = 0,																					},
+	{s = 'upcomingstep.vertical.bg.head.',		x = 0,																					y = 0,																					},
+	{s = 'currentstep.vertical.bg.',			x = 0,																					y = 0,																					},
+	{s = 'currentstep.vertical.bg.tail.',		x = 0,																					y = 0,																					},
+	{s = 'currentstep.vertical.bg.head.',		x = 0,																					y = 0,																					},
+	{s = 'completedstep.vertical.bg.',			x = 0,																					y = 0,																					},
+	{s = 'completedstep.vertical.bg.tail.',		x = 0,																					y = 0,																					},
+	{s = 'completedstep.vertical.bg.head.',		x = 0,																					y = 0,																					},
+    {s = 'upcomingstep.horizontal.bg.',			x = 0,																					y = 0,																					},
+	{s = 'upcomingstep.horizontal.bg.tail.',	x = 0,																					y = 0,																					},
+	{s = 'upcomingstep.horizontal.bg.head.',	x = 0,																					y = 0,																					},
+	{s = 'currentstep.horizontal.bg.',			x = 0,																					y = 0,																					},
+	{s = 'currentstep.horizontal.bg.tail.',		x = 0,																					y = 0,																					},
+	{s = 'currentstep.horizontal.bg.head.',		x = 0,																					y = 0,																					},
+	{s = 'completedstep.horizontal.bg.',		x = 0,																					y = 0,																					},
+	{s = 'completedstep.horizontal.bg.tail.',	x = 0,																					y = 0,																					},
+	{s = 'completedstep.horizontal.bg.head.',	x = 0,																					y = 0,																					},
+	{s = 'trialtitle.vertical.bg.',    			x = tr_pos.trialtitle.vertical.pos[1] + tr_pos.trialtitle.vertical.bg.offset[1],		y = tr_pos.trialtitle.vertical.pos[2] + tr_pos.trialtitle.vertical.bg.offset[2],		},
+	{s = 'trialtitle.vertical.front.',    		x = tr_pos.trialtitle.vertical.pos[1] + tr_pos.trialtitle.vertical.front.offset[1],		y = tr_pos.trialtitle.vertical.pos[2] + tr_pos.trialtitle.vertical.front.offset[2],		},
+    {s = 'trialtitle.horizontal.bg.',    		x = tr_pos.trialtitle.horizontal.pos[1] + tr_pos.trialtitle.horizontal.bg.offset[1],	y = tr_pos.trialtitle.horizontal.pos[2] + tr_pos.trialtitle.horizontal.bg.offset[2],	},
+	{s = 'trialtitle.horizontal.front.',    	x = tr_pos.trialtitle.horizontal.pos[1] + tr_pos.trialtitle.horizontal.front.offset[1],	y = tr_pos.trialtitle.horizontal.pos[2] + tr_pos.trialtitle.horizontal.front.offset[2],	},
 }) do
 	if motif.files.trials ~= nil and motif.files.trials ~= '' then
 	 	motif.files.data = sffNew(searchFile(motif.files.trials, {motif.fileDir, '', 'data/'}))
-	 	main.f_loadingRefresh()
+	 	--main.f_loadingRefresh()
 	 	f_loadSprData(trials.trials_mode, v, motif.files.data)
-	-- elseif main.f_fileExists('external/mods/trials/trials.sff') then
-	-- 	motif.files.data = sffNew(searchFile('external/mods/trials/trials.sff', {motif.fileDir, '', 'data/'}))
-	--  	main.f_loadingRefresh()
-	--  	motif.f_loadSprData(trials.trials_mode, v, motif.files.data)
+	elseif main.f_fileExists('external/mods/trials/trials.sff') then
+		motif.files.data = sffNew(searchFile('external/mods/trials/trials.sff', {motif.fileDir, '', 'data/'}))
+	 	--main.f_loadingRefresh()
+	 	f_loadSprData(trials.trials_mode, v, motif.files.data)
 	else
-		animGetSpriteInfo(trials.trials_mode, v)
+		f_loadSprData(trials.trials_mode, v)
 	end
 end
 
-if trials.trials_mode.textbox_portrait_source == "system" and trials.trials_mode.textbox_portrait_spr ~= nil then
-	f_loadSprData(trials.trials_mode, {s = 'textbox_portrait_', x = trials.trials_mode.textbox_pos[1] + trials.trials_mode.textbox_portrait_offset[1], y = trials.trials_mode.textbox_pos[2] + trials.trials_mode.textbox_portrait_offset[2]})
+if trials.trials_mode.textbox.portrait.source == "system" and trials.trials_mode.textbox.portrait.spr ~= nil then
+	f_loadSprData(trials.trials_mode, {s = 'textbox.portrait_', x = trials.trials_mode.textbox.pos[1] + trials.trials_mode.textbox.portrait.offset[1], y = trials.trials_mode.textbox.pos[2] + trials.trials_mode.textbox.portrait.offset[2]})
 end
 
 -- fadein/fadeout anim data generation.
-if trials.trials_mode.fadein_anim ~= -1 then
-	f_loadSprData(trials.trials_mode, {s = 'fadein_'})
+if trials.trials_mode.fadein.anim ~= -1 then
+	f_loadSprData(trials.trials_mode, {s = 'fadein.'})
 end
-if trials.trials_mode.fadeout_anim ~= -1 then
-	f_loadSprData(trials.trials_mode, {s = 'fadeout_'})
+if trials.trials_mode.fadeout.anim ~= -1 then
+	f_loadSprData(trials.trials_mode, {s = 'fadeout.'})
 end
 
 --;===========================================================
@@ -412,11 +565,11 @@ function start.f_trialsBuilder()
 	--This function will initialize once to build all the trial tables based on the motif information and the trials information loaded when the char was selected
 	--Populate background elements information
 	for _, v in ipairs({'vertical','horizontal'}) do
-		for _, k in ipairs({'currentstep_','upcomingstep_','completedstep_'}) do
-			trials.data.bgelemdata[v][k .. 'bgsize'] = animGetSpriteInfo(trials.trials_mode[k .. v .. '_bg_data'])
+		for _, k in ipairs({'currentstep.','upcomingstep.','completedstep.'}) do
+			trials.data.bgelemdata[v][k .. 'bgsize'] = animGetSpriteInfo(trials.trials_mode[k .. v .. '.bg.data'])
 			if v == 'horizontal' then
-				trials.data.bgelemdata[v][k .. 'bgtailwidth'] = animGetSpriteInfo(trials.trials_mode[k .. v .. '_bg_tail_data'])
-				trials.data.bgelemdata[v][k .. 'bgheadwidth'] = animGetSpriteInfo(trials.trials_mode[k .. v .. '_bg_tail_data'])
+				trials.data.bgelemdata[v][k .. 'bgtailwidth'] = animGetSpriteInfo(trials.trials_mode[k .. v .. '.bg.tail.data'])
+				trials.data.bgelemdata[v][k .. 'bgheadwidth'] = animGetSpriteInfo(trials.trials_mode[k .. v .. '.bg.tail.data'])
 			end
 		end
 	end
@@ -458,7 +611,15 @@ function start.f_trialsBuilder()
 		for j = 1, #trials.data.trial[i].trialstep, 1 do
 			local movelistline = trials.data.trial[i].trialstep[j].glyphs
 			for kk, v in main.f_sortKeys(motif.glyphs, function(t, a, b) return string.len(a) > string.len(b) end) do
-				movelistline = movelistline:gsub(main.f_escapePattern(kk), '<' .. numberToRune(v[1] + 0xe000) .. '>')
+				local s = movelistline
+				movelistline = s:gsub('()' .. main.f_escapePattern(kk), function(pos)
+					-- If the match starts immediately after a '<', it's already inside a tag.
+					-- Leave it unchanged to prevent nested replacements.
+					if pos > 1 and s:sub(pos - 1, pos - 1) == '<' then
+						return kk
+					end
+					return '<' .. kk .. '>'
+				end)
 			end
 			movelistline = movelistline:gsub('%s+$', '')
 			for moves in movelistline:gmatch('(	*[^	]+)') do
@@ -470,7 +631,7 @@ function start.f_trialsBuilder()
 					end
 				end
 				for _, layout in ipairs({'vertical','horizontal'}) do
-					if trials.trials_mode['glyphs_' .. layout .. '_align'] == -1 then
+					if trials.trials_mode.glyphs[layout].align == -1 then
 						for m = #tempglyphs, 1, -1 do
 							trials.data.trial[i].trialstep[j].glyphline[layout].glyph[#trials.data.trial[i].trialstep[j].glyphline[layout].glyph+1] = tempglyphs[m]
 							trials.data.trial[i].trialstep[j].glyphline[layout].pos[#trials.data.trial[i].trialstep[j].glyphline[layout].glyph+1] = {0,0}
@@ -498,45 +659,45 @@ function start.f_trialsBuilder()
 				local width = 0
 				local font_def = 0
 				--Some fonts won't give us the data we need to scale glyphs from, but sometimes that doesn't matter anyway
-				if layout == "vertical" and trials.trials_mode.currentstep_vertical_text_font[7] == nil and trials.trials_mode.glyphs_vertical_scalewithtext == "true" then
-					font_def = main.font_def[trials.trials_mode.currentstep_vertical_text_font[1] .. trials.trials_mode.currentstep_vertical_text_font_height]
-				elseif layout == "vertical" and trials.trials_mode.glyphs_vertical_scalewithtext == "true" then
-					font_def = main.font_def[trials.trials_mode.currentstep_vertical_text_font[1] .. trials.trials_mode.currentstep_vertical_text_font[7]]
+				if layout == "vertical" and trials.trials_mode.currentstep.vertical.text.font[7] == nil and trials.trials_mode.glyphs.vertical.scalewithtext == "true" then
+					font_def = main.font_def[trials.trials_mode.currentstep.vertical.text.font[1] .. trials.trials_mode.currentstep.vertical.text.font.height]
+				elseif layout == "vertical" and trials.trials_mode.glyphs.vertical.scalewithtext == "true" then
+					font_def = main.font_def[trials.trials_mode.currentstep.vertical.text.font[1] .. trials.trials_mode.currentstep.vertical.text.font[7]]
 				end
 				for m in pairs(trials.data.trial[i].trialstep[j].glyphline[layout].glyph) do
-					if motif.glyphs_data[trials.data.trial[i].trialstep[j].glyphline[layout].glyph[m]] ~= nil then
-						if trials.trials_mode['glyphs_' .. layout .. '_align'] == 0 then --center align
-							alignOffset = trials.trials_mode['glyphs_' .. layout .. '_offset'][1] * 0.5
-						elseif trials.trials_mode['glyphs_' .. layout .. '_align'] == -1 then --right align
-							alignOffset = trials.trials_mode['glyphs_' .. layout .. '_offset'][1]
+					if motif.glyphs[trials.data.trial[i].trialstep[j].glyphline[layout].glyph[m]] ~= nil then
+						if trials.trials_mode.glyphs[layout].align == 0 then --center align
+							alignOffset = trials.trials_mode.glyphs[layout].offset[1] * 0.5
+						elseif trials.trials_mode.glyphs[layout].align == -1 then --right align
+							alignOffset = trials.trials_mode.glyphs[layout].offset[1]
 						end
-						if trials.trials_mode['glyphs_' .. layout .. '_align'] ~= align then
+						if trials.trials_mode.glyphs[layout].align ~= align then
 							lengthOffset = 0
-							align = trials.trials_mode['glyphs_' .. layout .. '_align']
+							align = trials.trials_mode.glyphs[layout].align
 						end
-						local scaleX = trials.trials_mode['glyphs_' .. layout .. '_scale'][1]
-						local scaleY = trials.trials_mode['glyphs_' .. layout .. '_scale'][2]
-						if trials.trials_mode['glyphs_' .. layout .. '_align'] == -1 then
-							alignOffset = alignOffset - motif.glyphs_data[trials.data.trial[i].trialstep[j].glyphline[layout].glyph[m]].info.Size[1] * scaleX
+						local scaleX = trials.trials_mode.glyphs[layout].scale[1]
+						local scaleY = trials.trials_mode.glyphs[layout].scale[2]
+						if trials.trials_mode.glyphs[layout].align == -1 then
+							alignOffset = alignOffset - motif.glyphs[trials.data.trial[i].trialstep[j].glyphline[layout].glyph[m]].Size[1] * scaleX
 						end
 						trials.data.trial[i].trialstep[j].glyphline[layout].alignOffset[m] = alignOffset
-						if layout == "vertical" and trials.trials_mode.glyphs_vertical_scalewithtext == "true" then
-							scaleY = font_def.Size[2] * trials.trials_mode.currentstep_vertical_text_scale[2] / motif.glyphs_data[trials.data.trial[i].trialstep[j].glyphline[layout].glyph[m]].info.Size[2]
+						if layout == "vertical" and trials.trials_mode.glyphs.vertical.scalewithtext == "true" then
+							scaleY = font_def.Size[2] * trials.trials_mode.currentstep.vertical.text.scale[2] / motif.glyphs[trials.data.trial[i].trialstep[j].glyphline[layout].glyph[m]].Size[2]
 							scaleX = scaleY
 						end
 						trials.data.trial[i].trialstep[j].glyphline[layout].scale[m] = {scaleX, scaleY}
-						trials.data.trial[i].trialstep[j].glyphline[layout].width[m] = math.floor(motif.glyphs_data[trials.data.trial[i].trialstep[j].glyphline[layout].glyph[m]].info.Size[1] * scaleX + trials.trials_mode['glyphs_' .. layout .. '_spacing'][1])
-						if trials.trials_mode['glyphs_' .. layout .. '_align'] == 1 then
+						trials.data.trial[i].trialstep[j].glyphline[layout].width[m] = math.floor(motif.glyphs[trials.data.trial[i].trialstep[j].glyphline[layout].glyph[m]].Size[1] * scaleX + trials.trials_mode.glyphs[layout].spacing[1])
+						if trials.trials_mode.glyphs[layout].align == 1 then
 							lengthOffset = lengthOffset + trials.data.trial[i].trialstep[j].glyphline[layout].width[m]
-						elseif trials.trials_mode['glyphs_' .. layout .. '_align'] == -1 then
+						elseif trials.trials_mode.glyphs[layout].align == -1 then
 							lengthOffset = lengthOffset - trials.data.trial[i].trialstep[j].glyphline[layout].width[m]
 						else
 							lengthOffset = lengthOffset + trials.data.trial[i].trialstep[j].glyphline[layout].width[m] / 2
 						end
 						trials.data.trial[i].trialstep[j].glyphline[layout].lengthOffset[m] = lengthOffset
 						trials.data.trial[i].trialstep[j].glyphline[layout].pos[m] = {
-							math.floor(trials.trials_mode['trialsteps_' .. layout .. '_pos'][1] + trials.trials_mode['glyphs_' .. layout .. '_offset'][1] + alignOffset + lengthOffset),
-							trials.trials_mode['trialsteps_' .. layout .. '_pos'][2] + trials.trials_mode['glyphs_' .. layout .. '_offset'][2]
+							math.floor(trials.trials_mode.trialsteps[layout].pos[1] + trials.trials_mode.glyphs[layout].offset[1] + alignOffset + lengthOffset),
+							trials.trials_mode.trialsteps[layout].pos[2] + trials.trials_mode.glyphs[layout].offset[2]
 						}
 					end
 				end
@@ -555,41 +716,61 @@ function start.f_trialsBuilder()
 		fadein = 0,
 		fadeout = 0,
 		fadetriggered = false,
-		textbox_text = main.f_createTextImg(trials.trials_mode, 'textbox_text'),
-		textbox_title = main.f_createTextImg(trials.trials_mode, 'textbox_title'),
-		success_text = main.f_createTextImg(trials.trials_mode, 'success_text'),
-		allclear = math.max(animGetLength(trials.trials_mode.allclear_front_data), animGetLength(trials.trials_mode.allclear_bg_data), trials.trials_mode.allclear_text_displaytime),
-		allclear_text = main.f_createTextImg(trials.trials_mode, 'allclear_text'),
-		trialcounter = main.f_createTextImg(trials.trials_mode, 'trialcounter'),
-		totaltrialtimer = main.f_createTextImg(trials.trials_mode, 'totaltrialtimer'),
-		currenttrialtimer = main.f_createTextImg(trials.trials_mode, 'currenttrialtimer'),
-		trialreset_text = main.f_createTextImg(trials.trials_mode, 'trialreset_text'),
+		textbox_text = f_createTextImg(trials.trials_mode, 'textbox.text'),
+		textbox_title = f_createTextImg(trials.trials_mode, 'textbox.title'),
+		success_text = f_createTextImg(trials.trials_mode, 'success.text'),
+		-- allclear = math.max(animGetLength(trials.trials_mode.allclear.front), animGetLength(trials.trials_mode.allclear.bg), trials.trials_mode.allclear.text.displaytime),
+		allclear = trials.trials_mode.allclear.text.displaytime,
+		allclear_text = f_createTextImg(trials.trials_mode, 'allclear.text'),
+		trialcounter = f_createTextImg(trials.trials_mode, 'trialcounter'),
+		totaltrialtimer = f_createTextImg(trials.trials_mode, 'totaltrialtimer'),
+		currenttrialtimer = f_createTextImg(trials.trials_mode, 'currenttrialtimer'),
+		trialreset_text = f_createTextImg(trials.trials_mode, 'trialreset.text'),
+		-- textbox_title = textImgNew(trials.trials_mode.textbox.title),
+		-- success_text = textImgNew(trials.trials_mode.success.text),
+		-- allclear = math.max(animGetLength(trials.trials_mode.allclear.front), animGetLength(trials.trials_mode.allclear.bg), trials.trials_mode.allclear.text.displaytime),
+		-- allclear = trials.trials_mode.allclear.text.displaytime,
+		-- allclear_text = textImgNew(trials.trials_mode.allclear.text),
+		-- trialcounter = textImgNew(trials.trials_mode.trialcounter),
+		-- totaltrialtimer = textImgNew(trials.trials_mode.totaltrialtimer),
+		-- currenttrialtimer = textImgNew(trials.trials_mode.currenttrialtimer),
+		-- trialreset_text = textImgNew(trials.trials_mode.trialreset.text),
 	}
-	trials.draw.textbox_title:update({x = trials.trials_mode.textbox_pos[1]+trials.trials_mode.textbox_title_offset[1], y = trials.trials_mode.textbox_pos[2]+trials.trials_mode.textbox_title_offset[1],})
-	trials.draw.textbox_text:update({x = trials.trials_mode.textbox_pos[1]+trials.trials_mode.textbox_text_offset[1]+trials.trials_mode.textbox_text_window[1], y = trials.trials_mode.textbox_pos[2]+trials.trials_mode.textbox_text_offset[2]+trials.trials_mode.textbox_text_window[2],})
-	trials.draw.success_text:update({x = trials.trials_mode.success_pos[1]+trials.trials_mode.success_text_offset[1], y = trials.trials_mode.success_pos[2]+trials.trials_mode.success_text_offset[2],})
-	trials.draw.allclear_text:update({x = trials.trials_mode.allclear_pos[1]+trials.trials_mode.allclear_text_offset[1], y = trials.trials_mode.allclear_pos[2]+trials.trials_mode.allclear_text_offset[2],})
-	trials.draw.trialcounter:update({x = trials.trials_mode.trialcounter_pos[1], y = trials.trials_mode.trialcounter_pos[2],})
-	trials.draw.totaltrialtimer:update({x = trials.trials_mode.totaltrialtimer_pos[1], y = trials.trials_mode.totaltrialtimer_pos[2],})
-	trials.draw.currenttrialtimer:update({x = trials.trials_mode.currenttrialtimer_pos[1], y = trials.trials_mode.currenttrialtimer_pos[2],})
-	trials.draw.trialreset_text:update({x = trials.trials_mode.trialreset_text_pos[1], y = trials.trials_mode.trialreset_text_pos[2], text = trials.trials_mode.trialreset_text_text})
+	-- textImgPos(trials.draw.textbox_text, trials.trials_mode.textbox.pos[1]+trials.trials_mode.textbox.text.offset[1], trials.trials_mode.textbox.pos[2]+trials.trials_mode.textbox.text.offset[2])
+	-- textImgPos(trials.draw.textbox_title, trials.trials_mode.textbox.pos[1]+trials.trials_mode.textbox.title.offset[1], trials.trials_mode.textbox.pos[2]+trials.trials_mode.textbox.title.offset[2])
+	-- textImgPos(trials.draw.success_text, trials.trials_mode.success.pos[1]+trials.trials_mode.success.text.offset[1], trials.trials_mode.success.pos[2]+trials.trials_mode.success.text.offset[2])
+	-- textImgPos(trials.draw.allclear_text, trials.trials_mode.allclear.pos[1]+trials.trials_mode.allclear.text.offset[1], trials.trials_mode.allclear.pos[2]+trials.trials_mode.allclear.text.offset[2])
+	-- textImgPos(trials.draw.trialcounter, trials.trials_mode.trialcounter.pos[1], trials.trials_mode.trialcounter.pos[2])
+	-- textImgPos(trials.draw.totaltrialtimer, trials.trials_mode.totaltrialtimer.pos[1], trials.trials_mode.totaltrialtimer.pos[2])
+	-- textImgPos(trials.draw.currenttrialtimer, trials.trials_mode.currenttrialtimer.pos[1], trials.trials_mode.currenttrialtimer.pos[2])
+	-- textImgPos(trials.draw.trialreset_text, trials.trials_mode.trialreset.text.pos[1], trials.trials_mode.trialreset.text.pos[2])
+
+	-- trials.draw.textbox_title:update({x = trials.trials_mode.textbox.pos[1]+trials.trials_mode.textbox.title.offset[1], y = trials.trials_mode.textbox.pos[2]+trials.trials_mode.textbox.title.offset[1],})
+	-- trials.draw.textbox_text:update({x = trials.trials_mode.textbox.pos[1]+trials.trials_mode.textbox.text.offset[1]+trials.trials_mode.textbox.text.window[1], y = trials.trials_mode.textbox.pos[2]+trials.trials_mode.textbox.text.offset[2]+trials.trials_mode.textbox.text.window[2],})
+	-- trials.draw.success_text:update({x = trials.trials_mode.success.pos[1]+trials.trials_mode.success.text.offset[1], y = trials.trials_mode.success.pos[2]+trials.trials_mode.success.text.offset[2],})
+	-- trials.draw.allclear_text:update({x = trials.trials_mode.allclear.pos[1]+trials.trials_mode.allclear.text.offset[1], y = trials.trials_mode.allclear.pos[2]+trials.trials_mode.allclear.text.offset[2],})
+	-- trials.draw.trialcounter:update({x = trials.trials_mode.trialcounter.pos[1], y = trials.trials_mode.trialcounter.pos[2],})
+	-- trials.draw.totaltrialtimer:update({x = trials.trials_mode.totaltrialtimer.pos[1], y = trials.trials_mode.totaltrialtimer.pos[2],})
+	-- trials.draw.currenttrialtimer:update({x = trials.trials_mode.currenttrialtimer.pos[1], y = trials.trials_mode.currenttrialtimer.pos[2],})
+	-- trials.draw.trialreset_text:update({x = trials.trials_mode.trialreset.text.pos[1], y = trials.trials_mode.trialreset.text.pos[2], text = trials.trials_mode.trialreset.text.text})
 	for _, v in ipairs({'vertical','horizontal'}) do
 		trials.draw[v] = {
 			upcomingtextline = {},
 			currenttextline = {},
 			completedtextline = {},
-			trialtitle = math.max(animGetLength(trials.trials_mode['trialtitle_' .. v .. '_front_data']), animGetLength(trials.trials_mode['trialtitle_' .. v .. '_bg_data'])),
-			trialtitle_text = main.f_createTextImg(trials.trials_mode, 'trialtitle_' .. v .. '_text'),
-			windowXrange = trials.trials_mode['trialsteps_' .. v .. '_window'][3] - trials.trials_mode['trialsteps_' .. v .. '_window'][1],
-			windowYrange = trials.trials_mode['trialsteps_' .. v .. '_window'][4] - trials.trials_mode['trialsteps_' .. v .. '_window'][2],
-			windowXrangeWtext = trials.trials_mode['trialsteps_' .. v .. '_window_withtextbox'][3] - trials.trials_mode['trialsteps_' .. v .. '_window_withtextbox'][1],
-			windowYrangeWtext = trials.trials_mode['trialsteps_' .. v .. '_window_withtextbox'][4] - trials.trials_mode['trialsteps_' .. v .. '_window_withtextbox'][2],
+			--trialtitle = math.max(animGetLength(trials.trials_mode.trialtitle[v].front.data), animGetLength(trials.trials_mode.trialtitle[v].bg.data)),
+			trialtitle = 100,
+			trialtitle_text = f_createTextImg(trials.trials_mode, 'trialtitle.' .. v .. '.text'),
+			windowXrange = trials.trials_mode.trialsteps[v].window[3] - trials.trials_mode.trialsteps[v].window[1],
+			windowYrange = trials.trials_mode.trialsteps[v].window[4] - trials.trials_mode.trialsteps[v].window[2],
+			windowXrangeWtext = trials.trials_mode.trialsteps[v].window.withtextbox[3] - trials.trials_mode.trialsteps[v].window.withtextbox[1],
+			windowYrangeWtext = trials.trials_mode.trialsteps[v].window.withtextbox[4] - trials.trials_mode.trialsteps[v].window.withtextbox[2],
 		}
-		trials.draw[v].trialtitle_text:update({x = trials.trials_mode['trialtitle_' .. v .. '_pos'][1]+trials.trials_mode['trialtitle_' .. v .. '_text_offset'][1], y = trials.trials_mode['trialtitle_' .. v .. '_pos'][2]+trials.trials_mode['trialtitle_' .. v .. '_text_offset'][2],})
+		trials.draw[v].trialtitle_text:update({x = trials.trials_mode.trialtitle[v].pos[1]+trials.trials_mode.trialtitle[v].text.offset[1], y = trials.trials_mode.trialtitle[v].pos[2]+trials.trials_mode.trialtitle[v].text.offset[2],})
 		for i = 1, trials.data.maxsteps, 1 do
-			trials.draw[v].upcomingtextline[i] = main.f_createTextImg(trials.trials_mode, 'upcomingstep_' .. v .. '_text')
-			trials.draw[v].currenttextline[i] = main.f_createTextImg(trials.trials_mode, 'currentstep_' .. v .. '_text')
-			trials.draw[v].completedtextline[i] = main.f_createTextImg(trials.trials_mode, 'completedstep_' .. v .. '_text')
+			trials.draw[v].upcomingtextline[i] = textImgNew(trials.trials_mode.upcomingstep[v].text)
+			trials.draw[v].currenttextline[i] = textImgNew(trials.trials_mode.currentstep[v].text)
+			trials.draw[v].completedtextline[i] = textImgNew(trials.trials_mode.completedstep[v].text)
 		end
 	end
 
@@ -1021,12 +1202,12 @@ function start.f_trialsDrawer()
 					animDraw(trials.trials_mode[sub .. 'step_horizontal_bg_head_data'])
 				end
 				for m = 1, #trials.data.trial[ct].trialstep[i].glyphline[layout].glyph, 1 do
-					animSetScale(motif.glyphs_data[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim, trials.data.trial[ct].trialstep[i].glyphline[layout].scale[m][1], trials.data.trial[ct].trialstep[i].glyphline[layout].scale[m][2])
-					animSetPos(motif.glyphs_data[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim, 
+					animSetScale(motif.glyphs[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim, trials.data.trial[ct].trialstep[i].glyphline[layout].scale[m][1], trials.data.trial[ct].trialstep[i].glyphline[layout].scale[m][2])
+					animSetPos(motif.glyphs[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim, 
 						trials.data.trial[ct].trialstep[i].glyphline[layout].pos[m][1], 
 						trials.data.trial[ct].trialstep[i].glyphline[layout].pos[m][2] + tempoffset[2] + trials.trials_mode['glyphs_' .. layout .. '_offset'][2]
 					)
-					animSetPalFX(motif.glyphs_data[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim, {
+					animSetPalFX(motif.glyphs[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim, {
 						time = 1,
 						add = trials.trials_mode[sub .. 'step_' .. layout .. '_glyphs_palfx_add'],
 						mul = trials.trials_mode[sub .. 'step_' .. layout .. '_glyphs_palfx_mul'],
@@ -1034,9 +1215,9 @@ function start.f_trialsDrawer()
 						invertall = trials.trials_mode[sub .. 'step_' .. layout .. '_glyphs_palfx_invertall'],
 						color = trials.trials_mode[sub .. 'step_' .. layout .. '_glyphs_palfx_color']
 					})
-					animReset(motif.glyphs_data[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim)
-					animUpdate(motif.glyphs_data[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim)
-					animDraw(motif.glyphs_data[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim)
+					animReset(motif.glyphs[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim)
+					animUpdate(motif.glyphs[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim)
+					animDraw(motif.glyphs[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].anim)
 				end
 				accwidth = bgcomponentposX
 			end
