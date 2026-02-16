@@ -122,7 +122,7 @@ trialtitle.horizontal.text.font = 2,0,1, 255, 200, 100
 ; TRIALSTEPS VERTICAL ------------------------------------------------------
 trialsteps.vertical.pos = 140,150
 trialsteps.vertical.spacing = 0,25
-trialsteps.vertical.window = 100,175, 1180,550
+trialsteps.vertical.window.withouttextbox = 100,175, 1180,550
 trialsteps.vertical.window.withtextbox = 100,175, 1180,550
 ; trialsteps.vertical.bg.offset = 
 ; trialsteps.vertical.bg.spr = 
@@ -133,7 +133,7 @@ trialsteps.vertical.window.withtextbox = 100,175, 1180,550
 ; TRIALSTEPS HORIZONTAL ----------------------------------------------------
 trialsteps.horizontal.pos = 140,175
 trialsteps.horizontal.spacing = 1,40
-trialsteps.horizontal.window = 100,175, 1180,550
+trialsteps.horizontal.window.withoutextbox = 100,175, 1180,550
 trialsteps.horizontal.window.withtextbox = 100,175, 780,550
 trialsteps.horizontal.padding = 10
 ; trialsteps.horizontal.bg.offset = 
