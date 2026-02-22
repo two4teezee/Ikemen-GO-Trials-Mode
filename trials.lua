@@ -1235,21 +1235,29 @@ function trials.f_trialsChecker()
 		local statecheck = false
 		local animcheck = true
 
-		player(2)
-		local attackerid = gethitvar('playerid')
-		player(1)
+		local attackerid = 0
 		local attackerstate = nil
 		local attackeranim = nil
-		if attackerid > 0 then
+
+		player(2)
+		if gethitvar('frame') then
+			attackerid = gethitvar('playerid')
+			-- local projid = gethitvar('projid')
+			-- if projid > 0 then
+			-- 	attackerid = projid
+			-- end
 			playerid(attackerid)
-			attackerstate = stateno()
-			--attackeranim = anim()
-			player(1)
-			-- Can uncomment this section to debug helper/proj data
 			print("ID: " .. attackerid)
-			--print("State: " .. attackerstate)
-			--print("Anim: " .. attackeranim)
+			attackerstate = stateno()
+			print("State: " .. attackerstate)
+			-- attackeranim = anim()
+			-- print("Anim: " .. attackeranim)
+			-- Can uncomment this section to debug helper/proj data
+			-- print("ID: " .. attackerid)
+			-- print("State: " .. attackerstate)
+			-- print("Anim: " .. attackeranim)
 		end
+		player(1)
 
 		-- Check states and anims; iterate over 'or' operand if multiple states and/or anims are provided
 		local desiredstates = trials.data.trial[ct].trialstep[cts].stateno[ctms]
