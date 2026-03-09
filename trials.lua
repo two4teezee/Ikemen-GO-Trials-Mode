@@ -111,6 +111,53 @@ local function f_deepCopy(orig)
     return copy
 end
 
+local function f_collectCompatKeys(node, path, aliases)
+	if type(node) ~= 'table' then
+		if #path > 0 then
+			aliases[table.concat(path, '.')] = node
+			aliases[table.concat(path, '_')] = node
+		end
+		return
+	end
+	local hasStringKeys = false
+	for k in pairs(node) do
+		if type(k) == 'string' then
+			hasStringKeys = true
+			break
+		end
+	end
+	if not hasStringKeys then
+		if #path > 0 then
+			aliases[table.concat(path, '.')] = node
+			aliases[table.concat(path, '_')] = node
+		end
+		return
+	end
+	for k, v in pairs(node) do
+		if type(k) == 'string' then
+			path[#path + 1] = k
+			f_collectCompatKeys(v, path, aliases)
+			path[#path] = nil
+		end
+	end
+end
+
+local function f_buildCompatConfig(root)
+	if type(root) ~= 'table' then
+		return root
+	end
+	local aliases = {}
+	f_collectCompatKeys(root, {}, aliases)
+	for k, v in pairs(aliases) do
+		if root[k] == nil then
+			root[k] = v
+		end
+	end
+	return root
+end
+
+trials.trials_mode = f_buildCompatConfig(trials.trials_mode or {})
+
 --split strings
 local function f_strsplit(delimiter, text)
 	local list = {}
@@ -291,45 +338,79 @@ function f_alignOffset(align)
 end
 
 --creates sprite data out of table values
-local anim = ''
 local facing = ''
-function f_loadSprData(t, v)
-	local animParam = v.s .. 'anim'
-	local sprParam = v.s .. 'spr'
-	local data = v.s .. 'data'
-	-- optional prefix argument only changes parameter name for anim/spr numbers assignment
-	if v.prefix ~= nil then
-		animParam = v.s .. v.prefix .. 'anim'
-		sprParam = v.s .. v.prefix .. 'spr'
-		data = v.s .. v.prefix .. 'data'
+local function f_getSprNode(t, path)
+	if type(t) ~= 'table' then
+		return nil
 	end
-	if t[v.s .. 'offset'] == nil then t[v.s .. 'offset'] = {0, 0} end
-	if t[v.s .. 'scale'] == nil then t[v.s .. 'scale'] = {1.0, 1.0} end
-	if t[animParam] ~= nil and t[animParam] ~= -1 and motif.anim[t[animParam]] ~= nil then --create animation data
-		if t[v.s .. 'facing'] == nil then t[v.s .. 'facing'] = 1 end
+	local node = t
+	local normalized = path:gsub('[_%.]$', ''):gsub('_', '.')
+	for part in normalized:gmatch('[^%.]+') do
+		if type(node) ~= 'table' then
+			return nil
+		end
+		node = node[part]
+	end
+	if type(node) ~= 'table' then
+		return nil
+	end
+	return node
+end
+
+function f_loadSprData(t, v, sff)
+	local data = v.s .. 'data'
+	local sprData = sff or motif.files.spr_data
+	local node = f_getSprNode(t, v.s) or {}
+	local offset = type(node.offset) == 'table' and node.offset or {0, 0}
+	local scale = type(node.scale) == 'table' and node.scale or {1.0, 1.0}
+	local animNo = node.anim
+	local spr = node.spr
+	local facingNo = node.facing
+	if v.prefix ~= nil then
+		data = v.s .. v.prefix .. 'data'
+		if type(node[v.prefix]) == 'table' then
+			node = node[v.prefix]
+			offset = type(node.offset) == 'table' and node.offset or offset
+			scale = type(node.scale) == 'table' and node.scale or scale
+			animNo = node.anim
+			spr = node.spr
+			facingNo = node.facing
+		end
+	end
+	if facingNo == nil then facingNo = 1 end
+	if type(animNo) == 'number' and animNo ~= -1 and type(motif.anim) == 'table' and motif.anim[animNo] ~= nil then --create animation data
 		t[data] = f_animFromTable(
-			trials.anim[t[animParam]],
-			motif.files.spr_data,
-			(t[v.s .. 'offset'][1] + (v.x or 0)) / t[v.s .. 'scale'][1],
-			(t[v.s .. 'offset'][2] + (v.y or 0)) / t[v.s .. 'scale'][2],
-			t[v.s .. 'scale'][1],
-			t[v.s .. 'scale'][2],
-			t[v.s .. 'facing']
+			motif.anim[animNo],
+			sprData,
+			(offset[1] + (v.x or 0)) / scale[1],
+			(offset[2] + (v.y or 0)) / scale[2],
+			scale[1],
+			scale[2],
+			facingNo
 		)
-	elseif t[sprParam] ~= nil and #t[sprParam] > 0 then --create sprite data
-		if #t[sprParam] == 1 then --fix values
-			if type(t[sprParam][1]) == 'string' then
-				t[sprParam] = {tonumber(t[sprParam][1]:match('^([0-9]+)')), 0}
+	else
+		if type(spr) == 'string' then
+			if spr == '' then
+				spr = nil
 			else
-				t[sprParam] = {t[sprParam][1], 0}
+				spr = {tonumber(spr:match('^([0-9]+)')), 0}
 			end
 		end
-		if t[v.s .. 'facing'] == -1 then facing = ', H' else facing = '' end
-		t[data] = animNew(motif.files.spr_data, t[sprParam][1] .. ', ' .. t[sprParam][2] .. ', ' .. (t[v.s .. 'offset'][1] + (v.x or 0)) / t[v.s .. 'scale'][1] .. ', ' .. (t[v.s .. 'offset'][2] + (v.y or 0)) / t[v.s .. 'scale'][2] .. ', -1' .. facing)
-		animSetScale(t[data], t[v.s .. 'scale'][1], t[v.s .. 'scale'][2])
+	end
+	if type(spr) == 'table' and #spr > 0 then --create sprite data
+		if #spr == 1 then --fix values
+			if type(spr[1]) == 'string' then
+				spr = {tonumber(spr[1]:match('^([0-9]+)')), 0}
+			else
+				spr = {spr[1], 0}
+			end
+		end
+		if facingNo == -1 then facing = ', H' else facing = '' end
+		t[data] = animNew(sprData, spr[1] .. ', ' .. spr[2] .. ', ' .. (offset[1] + (v.x or 0)) / scale[1] .. ', ' .. (offset[2] + (v.y or 0)) / scale[2] .. ', -1' .. facing)
+		animSetScale(t[data], scale[1], scale[2])
 		animUpdate(t[data])
 	else --create dummy data
-		t[data] = animNew(motif.files.spr_data, '-1,0, 0,0, -1')
+		t[data] = animNew(sprData, '-1,0, 0,0, -1')
 		animUpdate(t[data])
 	end
 	animSetWindow(t[data], 0, 0, motif.info.localcoord[1], motif.info.localcoord[2])
@@ -345,7 +426,7 @@ local function f_animFromTable(t, sff, x, y, scaleX, scaleY, facing, infFrame, d
 	local facing = facing or '0'
 	local infFrame = infFrame or 1
 	local facing_sav = ''
-	local anim = ''
+	local animText = ''
 	local length = 0
 	for i = 1, #t do
 		local t_anim = {}
@@ -370,18 +451,18 @@ local function f_animFromTable(t, sff, x, y, scaleX, scaleY, facing, infFrame, d
 		end
 		for j = 1, #t_anim do
 			if j == 1 then
-				anim = anim .. t_anim[j]
+				animText = animText .. t_anim[j]
 			else
-				anim = anim .. ', ' .. t_anim[j]
+				animText = animText .. ', ' .. t_anim[j]
 			end
 		end
 		anim = anim .. '\n'
 	end
 	if defsc then disableLuaScale() end
-	if anim == '' then
-		anim = '-1,0, 0,0, -1'
+	if animText == '' then
+		animText = '-1,0, 0,0, -1'
 	end
-	local data = animNew(sff, anim)
+	local data = animNew(sff, animText)
 	animSetScale(data, scaleX, scaleY)
 	animUpdate(data)
 	if defsc then setLuaScale() end
@@ -392,52 +473,29 @@ end
 --; main.lua
 --;===========================================================
 main.t_itemname.trials = function()
-	main.aiRamp = false
-	-- main.charparam.ai = false
-	-- main.charparam.music = true
-	-- main.charparam.single = true
-	-- main.charparam.stage = true
-	-- main.charparam.time = true
-	main.coop = false
-	main.cpuSide = {false, false}
-	main.elimination = true
-	main.exitSelect = true
-	main.lifebar = { --which lifebar elements should be rendered (these defaults are overwritten by fight.def, depending on game mode)
-		active = true,
-		bars = true,
-		match = false,
-		mode = true,
-		p1ailevel = false,
-		p1score = false,
-		p1wincount = false,
-		p2ailevel = false,
-		p2score = false,
-		p2wincount = false,
-		timer = false,
-		guardbar = gameOption('Options.GuardBreak'),
-		stunbar = gameOption('Options.Dizzy'),
-		redlifebar = gameOption('Options.RedLife'),
-	}
-	main.lifebar.p2ailevel = false
-	main.makeRoster = false
-	main.motif.hiscore = false
-	main.motif.losescreen = false
-	main.motif.victoryscreen = false
-	main.motif.winscreen = false
-	main.orderSelect = {true, true}
-	main.rotationChars = true
-	main.storyboard.credits = false
-	main.storyboard.gameover = false
-	main.teamMenu = {
-		{ratio = false, simul = false, single = true, tag = false, turns = false}, --which team modes should be selectable by P1 side
-		{ratio = false, simul = false, single = true, tag = false, turns = false}, --which team modes should be selectable by P2 side
-	}
+	if main.t_charDef[gameOption('Config.TrainingChar'):lower()] ~= nil then
+		main.forceChar[2] = {main.t_charDef[gameOption('Config.TrainingChar'):lower()]}
+	end
+	--main.lifebar.p1score = true
+	--main.lifebar.p2ailevel = true
 	main.roundTime = -1
-	main.selectMenu = {true, true}
-	main.stageMenu = true
+	main.selectMenu[2] = true
+	if gameOption('Config.TrainingStage') == '' then
+		main.stageMenu = true
+	end
+	main.teamMenu[1].ratio = false
+	main.teamMenu[1].simul = false
+	main.teamMenu[1].single = true
+	main.teamMenu[1].tag = false
+	main.teamMenu[1].turns = false
+	main.teamMenu[2].single = true
+	main.matchWins.draw = {0, 0}
+	main.matchWins.simul = {0, 0}
+	main.matchWins.single = {0, 0}
+	main.matchWins.tag = {0, 0}
 	textImgSetText(motif.select_info.title.TextSpriteData, motif.select_info.title.text.trials)
 	remapInput(1, getLastInputController())
-	setCommandInputSource(2, 1)
+	remapInput(getLastInputController(), 1)
 	setGameMode('trials')
 	setHomeTeam(1)
 	hook.run("main.t_itemname")
@@ -1074,7 +1132,7 @@ function trials.f_trialsDrawer()
 					})
 					animReset(trials.trials_mode[sub .. 'step_vertical_bg_data'])
 					animUpdate(trials.trials_mode[sub .. 'step_vertical_bg_data'])
-					animDraw(trials.trials_mode[sub .. 'step_vertical_bg_data'], 2)
+					animDraw(trials.trials_mode[sub .. 'step_vertical_bg_data'])
 					trials.draw.vertical[sub .. 'textline'][i]:draw()
 				elseif layout == "horizontal" then
 					--Horizontal layouts are much more complicated. Text is not drawn in horizontal mode, instead we only display the glyphs. A small sprite is dynamically tiled to the width of the
@@ -1236,35 +1294,44 @@ function trials.f_trialsChecker()
 		local animcheck = true
 
 		local attackerid = 0
-		local attackerstate = nil
-		local attackeranim = nil
+		local projid = -1
+		local source = 'player'
+		local attackerstate = 'nil'
+		local attackeranim = 'nil'
 
 		player(2)
 		if gethitvar('frame') then
 			attackerid = gethitvar('playerid')
-			-- local projid = gethitvar('projid')
-			-- if projid > 0 then
-			-- 	attackerid = projid
-			-- end
-			playerid(attackerid)
-			print("ID: " .. attackerid)
-			attackerstate = stateno()
-			print("State: " .. attackerstate)
-			-- attackeranim = anim()
-			-- print("Anim: " .. attackeranim)
+			projid = gethitvar('projid')
+			if projid >= 0 then
+				source = 'proj'
+				if playerid(attackerid) then
+					attackeranim = projvar(projid, 0, 'anim')
+				end
+			else
+				if playerid(attackerid) then
+					attackerstate = stateno()
+					attackeranim = anim()
+				end
+			end
 			-- Can uncomment this section to debug helper/proj data
-			-- print("ID: " .. attackerid)
-			-- print("State: " .. attackerstate)
-			-- print("Anim: " .. attackeranim)
+			print("ID: " .. attackerid)
+			print("Source: " .. source)
+			print("State: " .. attackerstate)
+			print("Anim: " .. attackeranim)
 		end
 		player(1)
 
 		-- Check states and anims; iterate over 'or' operand if multiple states and/or anims are provided
 		local desiredstates = trials.data.trial[ct].trialstep[cts].stateno[ctms]
-		for k = 1, #desiredstates, 1 do
-			if stateno() == desiredstates[k] or attackerstate == desiredstates[k] then
-				statecheck = true
-				break
+		if desiredstates == nil or #desiredstates == 0 then
+			statecheck = true
+		else
+			for k = 1, #desiredstates, 1 do
+				if stateno() == desiredstates[k] or attackerstate == desiredstates[k] then
+					statecheck = true
+					break
+				end
 			end
 		end
 		if trials.data.trial[ct].trialstep[cts].animno[ctms] ~= nil then
@@ -1783,6 +1850,27 @@ end
 --; trials.lua
 --;===========================================================
 
+local function f_initTrialStepMicrosteps(step, count)
+	if count == nil or count < 1 then
+		return
+	end
+	if step.numofmicrosteps < count then
+		step.numofmicrosteps = count
+	end
+	for k = 1, step.numofmicrosteps, 1 do
+		if step.stephitscount[k] == nil then step.stephitscount[k] = 0 end
+		if step.combocountonstep[k] == nil then step.combocountonstep[k] = 0 end
+		if step.hitcount[k] == nil then step.hitcount[k] = 1 end
+		if step.isthrow[k] == nil then step.isthrow[k] = false end
+		if step.ishelper[k] == nil then step.ishelper[k] = false end
+		if step.isproj[k] == nil then step.isproj[k] = false end
+		if step.iscounterhit[k] == nil then step.iscounterhit[k] = false end
+		if step.validforval[k] == nil then step.validforval[k] = nil end
+		if step.validforvar[k] == nil then step.validforvar[k] = nil end
+		if step.validfortickcount[k] == nil then step.validfortickcount[k] = nil end
+	end
+end
+
 -- Find trials files and parse them; append t_selChars table
 for row = 1, #main.t_selChars, 1 do
 	if main.t_selChars[row].def ~= nil then
@@ -1927,23 +2015,13 @@ for row = 1, #main.t_selChars, 1 do
 			elseif lcline:find("trialstep." .. j .. ".glyphs") then
 				trial[i].trialstep[j].glyphs = f_trimforchar(line, "=", "after")
 			elseif lcline:find("trialstep." .. j .. ".stateno") then
-				trial[i].trialstep[j].stateno = main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", ""))
-				for k = 1, #trial[i].trialstep[j].stateno, 1 do
-					local temp = trial[i].trialstep[j].stateno[k]
-					trial[i].trialstep[j].stateno[k] = f_str2number(main.f_strsplit('|', temp))
-				end
-				trial[i].trialstep[j].numofmicrosteps = #trial[i].trialstep[j].stateno
-				for k = 1, trial[i].trialstep[j].numofmicrosteps, 1 do
-					trial[i].trialstep[j].stephitscount[k] = 0
-					trial[i].trialstep[j].combocountonstep[k] = 0
-					trial[i].trialstep[j].hitcount[k] = 1
-					trial[i].trialstep[j].isthrow[k] = false
-					trial[i].trialstep[j].ishelper[k] = false
-					trial[i].trialstep[j].isproj[k] = false
-					trial[i].trialstep[j].iscounterhit[k] = false
-					trial[i].trialstep[j].validforval[k] = nil
-					trial[i].trialstep[j].validforvar[k] = nil
-					trial[i].trialstep[j].validfortickcount[k] = nil
+				if string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "") ~= "" then
+					trial[i].trialstep[j].stateno = main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", ""))
+					for k = 1, #trial[i].trialstep[j].stateno, 1 do
+						local temp = trial[i].trialstep[j].stateno[k]
+						trial[i].trialstep[j].stateno[k] = f_str2number(main.f_strsplit('|', temp))
+					end
+					f_initTrialStepMicrosteps(trial[i].trialstep[j], #trial[i].trialstep[j].stateno)
 				end
 			elseif lcline:find("trialstep." .. j .. ".animno") then
 				if string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "") ~= "" then
@@ -1952,6 +2030,7 @@ for row = 1, #main.t_selChars, 1 do
 						local temp = trial[i].trialstep[j].animno[k]
 						trial[i].trialstep[j].animno[k] = f_str2number(main.f_strsplit('|', temp))
 					end
+					f_initTrialStepMicrosteps(trial[i].trialstep[j], #trial[i].trialstep[j].animno)
 				end
 			elseif lcline:find("trialstep." .. j .. ".hitcount") then
 				if string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "") ~= "" then
