@@ -1169,13 +1169,13 @@ trialsanim = ""
 	trials.trials_mode.textbox.portrait.anim = animNew(Temporarysan9000,trialsanim)
 				elseif trials.trials_mode.textbox_portrait_source == "char" then
 				
-Temporarysan0000 = loadText(getCharFileName(start.p[1].t_selected[1].ref))
+Temporarysan0000 = loadText(getCharFileName(trials.p1selref))
 Temporarysan0000 = Temporarysan0000:lower()
 Temporarysan0000 = Temporarysan0000:gsub('([^\r\n;]*)%s*;[^\r\n]*', '%1')
 Temporarysan0000 = Temporarysan0000:gsub('\n%s*\n', '\n')
 Temporarysan0000 = Temporarysan0000:gsub('.*sprite.*=%s*(.*sff).*','%1')
 
-Temporarysan0001 = getCharFileName(start.p[1].t_selected[1].ref):gsub('(.*)%/.*def.*','%1/')
+Temporarysan0001 = getCharFileName(trials.p1selref):gsub('(.*)%/.*def.*','%1/')
 Temporarysan0000 = Temporarysan0001 .. Temporarysan0000
 Temporarysan9000 = sffNew(Temporarysan0000)
 
@@ -1948,6 +1948,7 @@ if trials.mtlcy ~= trials.stlcy then
 					
 	if roundStart() then
 		trials.data = nil
+				trials.p1selref = nil
 		-- Check if there's a trials file - if so, parse it
 		if start.f_getCharData(start.p[1].t_selected[1].ref).trialsdef ~= "" then
 			trials.f_inittrialsData()
@@ -1957,6 +1958,12 @@ if trials.mtlcy ~= trials.stlcy then
 		end
 	end
 
+				if trials.p1selref == nil then
+				if start.p[1].t_selected[1].ref ~= nil then
+				trials.p1selref = start.p[1].t_selected[1].ref
+					end
+					end
+					
 	if trialsExist and roundState() == 2 and not trials.data.trialsInitialized then
 		-- Initialize the trials based on parsed file and char state at roundState() == 2
 		trials.f_trialsBuilder()
