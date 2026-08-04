@@ -9,6 +9,9 @@
 trialsresetonsuccess = false
 trialslayout = vertical
 
+trialslocalcoord = 1280,720
+
+
 ; SELSCREENPALFX -----------------------------------------------------------
 ; Sets specified palfx color to character portraits WITHOUT trials files in the trials select screen. See definition for palfx for different fields and options.
 ; --------------------------------------------------------------------------
@@ -33,7 +36,7 @@ fadeout.anim = -1
 ; TRIALTITLE VERTICAL ------------------------------------------------------
 trialtitle.vertical.pos = 140,140
 trialtitle.vertical.text.offset = 0,-17
-trialtitle.vertical.text.font = 2,0,1, 255, 200, 100
+trialtitle.vertical.text.font = 6,0,1, 255, 200, 100
 trialtitle.vertical.text.text = "Trial: %s"
 trialtitle.vertical.text.scale = 1.0, 1.0
 trialtitle.vertical.text.font.height = -1
@@ -52,7 +55,7 @@ trialtitle.vertical.front.displaytime = -1
 ; TRIALTITLE HORIZONTAL ----------------------------------------------------
 trialtitle.horizontal.pos = 140,140
 trialtitle.horizontal.text.offset = 0,-17
-trialtitle.horizontal.text.font = 2,0,1, 255, 200, 100
+trialtitle.horizontal.text.font = 6,0,1, 255, 200, 100
 trialtitle.horizontal.text.text = "Trial: %s"
 trialtitle.horizontal.text.scale = 1.0, 1.0
 trialtitle.horizontal.text.font.height = -1
@@ -104,7 +107,7 @@ trialsteps.horizontal.bg.displaytime = -1
 ; UPCOMINGSTEP options can be specified for both vertical and horizontal layouts simultaneously.
 ; UPCOMINGSTEP VERTICAL ----------------------------------------------------
 upcomingstep.vertical.text.offset = 0,0
-upcomingstep.vertical.text.font = 2,0,1, 200, 200, 200
+upcomingstep.vertical.text.font = 6,0,1, 200, 200, 200
 upcomingstep.vertical.text.scale = 1.0, 1.0
 upcomingstep.vertical.bg.offset = 0, 0
 upcomingstep.vertical.bg.anim = -1
@@ -157,7 +160,7 @@ upcomingstep.horizontal.glyphs.palfx.add = 0, 0, 0
 ; CURRENTSTEP options can be specified for both vertical and horizontal layouts simultaneously.
 ; CURRENTSTEP VERTICAL -----------------------------------------------------
 currentstep.vertical.text.offset = 0,0
-currentstep.vertical.text.font = 2,0,1
+currentstep.vertical.text.font = 6,0,1
 currentstep.vertical.text.scale = 1.0, 1.0
 currentstep.vertical.text.font.height = -1
 currentstep.vertical.bg.offset = 0, 0
@@ -210,7 +213,7 @@ currentstep.horizontal.glyphs.palfx.add = 0, 0, 0
 ; COMPLETEDSTEP options can be specified for both vertical and horizontal layouts simultaneously.
 ; COMPLETEDSTEP VERTICAL ----------------------------------------------------
 completedstep.vertical.text.offset = 0,0
-completedstep.vertical.text.font = 2,0,1, 100, 100, 100
+completedstep.vertical.text.font = 6,0,1, 100, 100, 100
 completedstep.vertical.text.scale = 1.0, 1.0
 completedstep.vertical.text.font.height = -1
 completedstep.vertical.bg.offset = 0, 0
@@ -275,7 +278,7 @@ glyphs.vertical.scalewithtext = false
 ; GLYPHS HORIZONTAL --------------------------------------------------------
 glyphs.horizontal.offset = 0,-3
 glyphs.horizontal.scale = 0.4, 0.4
-glyphs.horizontal.spacing = 0,0
+glyphs.horizontal.spacing = 15,0
 
 ; TRIALS COUNTER AND TIMERS ------------------------------------------------
 ; trialcounter shows the current trial number
@@ -333,7 +336,7 @@ textbox.text.drawspeed = 2
 textbox.text.font.height = -1
 textbox.text.scale = 2,2
 textbox.title.offset = 0,0
-textbox.title.font = 2,0,1
+textbox.title.font = 6,0,1
 textbox.title.text = ;%s is  trial number, %n is trial name
 textbox.title.font.height = -1
 textbox.title.scale = 1,1
@@ -358,7 +361,7 @@ textbox.portrait.spr = 9000, 0
 textbox.portrait.offset = 5,5
 textbox.portrait.window = 0,0, 40, 40
 textbox.portrait.facing = 1
-textbox.portrait.scale = 0.5, 0.5
+textbox.portrait.scale = 1.5, 1.5
 
 ; TRIAL SUCCESS BANNER -----------------------------------------------------
 ; --------------------------------------------------------------------------
