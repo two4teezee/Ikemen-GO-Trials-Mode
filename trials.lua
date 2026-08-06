@@ -1726,6 +1726,7 @@ end
 
 function trials.f_trialsSuccess(successstring, index)
 	-- This function is responsible for drawing the Success or All Clear banners after a trial is completed successfully.
+	player(2)
 	mapSet('_iksys_trialsDummyMode', 0)
 	mapSet('_iksys_trialsGuardMode', 0)
 	mapSet('_iksys_trialsButtonJam', 0)
