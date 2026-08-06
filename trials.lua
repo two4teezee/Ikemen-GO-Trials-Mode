@@ -1015,7 +1015,8 @@ function trials.f_trialsDrawer()
 			end
 
 			-- Draw trial reset reminder if enabled
-			if trials.trials_mode.trialreset.enabled == "true" then
+			if menu.trialreset == 1 then
+				trials.draw.trialreset_text:update({text = trials.trials_mode.trialreset.text.text})
 				trials.draw.trialreset_text:draw()
 			end
 
@@ -1707,12 +1708,13 @@ function trials.f_trialsChecker()
 			trials.f_trialsFade()
 		else
 			player(2)
-			if stateNo() == 0 then
+			if stateNo() == 0 or trials.draw.fadetriggered then
+							mapSet('_iksys_trialsButtonJamDelay',trials.draw.fade)
 				trials.f_trialsFade()
 			end
 			player(1)
 		end
-	elseif f_checkKeyCombo(trials.trials_mode.trialreset_buttonpress) and trials.draw.fade == 0 and trials.trials_mode.trialreset_enabled == "true" then
+	elseif f_checkKeyCombo(trials.trials_mode.trialreset_buttonpress) and trials.draw.fade == 0 and menu.trialreset == 1 then
 		trials.draw.fadein = trials.trials_mode.fadein_time
 		trials.draw.fadeout = trials.trials_mode.fadeout_time
 		trials.draw.fade = trials.draw.fadein + trials.draw.fadeout
@@ -1732,7 +1734,6 @@ function trials.f_trialsSuccess(successstring, index)
 		-- Play sound only once
 		sndPlay(motif.files.snd_data, trials.trials_mode[successstring .. '_snd'][1], trials.trials_mode[successstring .. '_snd'][2])
 	end
-		trials.draw.trialreset_text.text = trials.trials_mode.trialreset.text.text
 		trials.draw.success_text.text = trials.trials_mode.success.text.text
 		trials.draw.success_text.x = trials.trials_mode.success.pos[1]
 		trials.draw.success_text.y = trials.trials_mode.success.pos[2]
@@ -1771,15 +1772,15 @@ function trials.f_trialsSuccess(successstring, index)
 end
 
 function trials.f_trialsFade()
-	local stagelocalcoordX = stagevar("stageinfo.localcoord.x")
-	local stageboundleft = stagevar("bound.screenleft")
-	local stageboundright = stagevar("bound.screenright")
-	local dummyposx = stagevar("playerinfo.p2startx") / (stagelocalcoordX/320)
-	local dummyposy = stagevar("playerinfo.p2starty") / (stagelocalcoordX/320)
-	local playerposx = stagevar("playerinfo.p1startx") / (stagelocalcoordX/320)
-	local playerposy = stagevar("playerinfo.p1starty") / (stagelocalcoordX/320)
-	local leftbound = stagevar("camera.boundleft")
-	local rightbound = stagevar("camera.boundright")
+	local stagelocalcoordX = stageVar("stageinfo.localcoord.x")
+	local stageboundleft = stageVar("bound.screenleft")
+	local stageboundright = stageVar("bound.screenright")
+	local dummyposx = stageVar("playerinfo.p2startx") / (stagelocalcoordX/320)
+	local dummyposy = stageVar("playerinfo.p2starty") / (stagelocalcoordX/320)
+	local playerposx = stageVar("playerinfo.p1startx") / (stagelocalcoordX/320)
+	local playerposy = stageVar("playerinfo.p1starty") / (stagelocalcoordX/320)
+	local leftbound = stageVar("camera.boundleft")
+	local rightbound = stageVar("camera.boundright")
 	local cameraPosX = 0
 	local posx = 0
 	local oppx = 0
@@ -1837,19 +1838,31 @@ function trials.f_trialsFade()
 	
 	-- This function is responsible for fadein/fadeout if trialsresetonsuccess is set to true.
 	if trials.draw.fadeout > 0 then
-		if not main.fadeActive then
-			main.f_fadeReset('fadeout',trials.trials_mode)
+		if not fadeActive() then
+			trials.draw.fadeoutData = fadeNew({
+			time = trials.draw.fadeout,
+			color = {trials.trials_mode.fadeout.col[1],
+			trials.trials_mode.fadeout.col[2],
+			trials.trials_mode.fadeout.col[3]},
+			anim = trials.trials_mode.fadeout.anim
+			})
+		fadeOutInit(trials.draw.fadeoutData)
 		end
-		main.f_fadeAnim(trials.trials_mode)
 		trials.draw.fadeout = trials.draw.fadeout - 1
+
 	elseif trials.draw.fadein > 0 then
-		if main.fadeType == 'fadeout' then
+		if not fadeActive() then
 			mapSet('_iksys_trialsReposition', 1)
-			main.f_fadeReset('fadein',trials.trials_mode)
-		elseif main.fadeType == 'fadein' then
+			trials.draw.fadeinData = fadeNew({
+			time = trials.draw.fadein,
+			color = {trials.trials_mode.fadein.col[1],
+			trials.trials_mode.fadein.col[2],
+			trials.trials_mode.fadein.col[3]},
+			anim = trials.trials_mode.fadein.anim
+			})
 			mapSet('_iksys_trialsCameraReset', 1)
-		end
-		main.f_fadeAnim(trials.trials_mode)
+		fadeInInit(trials.draw.fadeinData)
+	end
 		trials.draw.fadein = trials.draw.fadein - 1
 	end
 
@@ -2005,6 +2018,9 @@ menu.trialslayout = 1
 		if menu.trialstextboxes == nil then
 menu.trialstextboxes = 1
 			end
+		if menu.trialreset == nil then
+menu.trialreset = 1
+			end
 		motif.option_info.menu.valuename.trialslist_1 = "Select Trial"
 menu.t_valuename.trialslist = {
  	{itemname = "Select Trial", displayname = motif.option_info.menu.valuename.trialslist_1}
@@ -2032,6 +2048,12 @@ menu.t_valuename.trialslayout = {
 menu.t_valuename.trialstextboxes = {
 	{itemname = "Show", displayname = motif.option_info.menu.valuename.trialstextboxes_1},
 	{itemname = "Hide", displayname = motif.option_info.menu.valuename.trialstextboxes_2}
+}
+		motif.option_info.menu.valuename.trialreset_1 = "enabled"
+		motif.option_info.menu.valuename.trialreset_2 = "disabled"
+menu.t_valuename.trialreset = {
+	{itemname = "enabled", displayname = motif.option_info.menu.valuename.trialreset_1},
+	{itemname = "disabled", displayname = motif.option_info.menu.valuename.trialreset_2}
 }
 menu.t_itemname['trialslist'] = function(t, item, cursorPosY, movTeTxt, sec)
 	if menu.f_valueChanged(t.items[item], sec) then
@@ -2126,6 +2148,24 @@ options.t_vardisplay['trialstextboxes'] = function()
 	return menu.t_valuename.trialstextboxes[menu.trialstextboxes or 1].displayname
 end
 
+menu.t_itemname['trialreset'] = function(t, item, cursorPosY, moveTxt, sec)
+	if menu.f_valueChanged(t.items[item], sec) then
+		if menu.t_valuename.trialreset[menu.trialreset or 1].itemname == "enabled" then
+			trials.trials_mode.trialreset_enabled = true
+		else
+			trials.trials_mode.trialreset_enabled = false
+		end
+	end
+	return true
+end
+menu.t_vardisplay['trialreset'] = function()
+	return menu.t_valuename.trialreset[menu.trialreset or 1].displayname
+end
+
+options.t_vardisplay['trialreset'] = function()
+	return menu.t_valuename.trialreset[menu.trialreset or 1].displayname
+end
+
 menu.t_itemname['nexttrial'] = function(t, item, cursorPosY, moveTxt, sec)
 	if getInput(-1, motif.option_info.menu.done.key) then
 		trials.data.currenttrialstep = 1
@@ -2160,6 +2200,11 @@ function menu.f_trialsReset()
 	for k, _ in pairs(menu.t_valuename) do
 		menu[k] = 1
 	end
+	if trials.data.trialadvancement == true then
+		menu.trialadvancement = 1
+	else
+		menu.trialadvancement = 2
+	end
 	if trials.trials_mode.trialsresetonsuccess == "true" then
 		menu.trialresetonsuccess = 1
 	else
@@ -2174,6 +2219,11 @@ function menu.f_trialsReset()
 		menu.trialstextboxes = 1
 	else
 		menu.trialstextboxes = 2
+	end
+	if trials.trials_mode.trialreset_enabled == true then
+		menu.trialreset = 1
+	else
+		menu.trialreset = 2
 	end
 	for _, v in ipairs(menu.t_vardisplayPointers) do
 		v.vardisplay = menu.f_vardisplay(v.itemname)
