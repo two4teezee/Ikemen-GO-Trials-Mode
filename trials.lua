@@ -1520,7 +1520,7 @@ trialsanimwindow2 = animposy + trials.trials_mode.textbox_portrait_window[2] + t
 end
 
 
-function trials.f_trialsChecker()
+function trials.f_trialsChecker(CheckIt)
 	--This function sets dummy actions according to the character trials info and validates trials attempts
 	--To help follow along, ct = current trial, cts = current trial step, ncts = next current trial step
 	if ct <= #trials.data.trial and trials.draw.success == 0 and trials.draw.fade == 0 and trials.data.active then
@@ -1564,6 +1564,9 @@ function trials.f_trialsChecker()
 			print("Anim: " .. attackeranim)
 		end
 		player(1)
+		if CheckIt ~= nil and CheckIt ~= 'root' then
+			helperIndex(CheckIt)
+		end
 
 		-- Check states and anims; iterate over 'or' operand if multiple states and/or anims are provided
 		local desiredstates = trials.data.trial[ct].trialstep[cts].stateno[ctms]
@@ -1723,6 +1726,7 @@ function trials.f_trialsChecker()
 	else
 		trials.draw.fadetriggered = false
 	end
+		player(1)
 end
 
 function trials.f_trialsSuccess(successstring, index)
@@ -1986,7 +1990,14 @@ if trials.mtlcy ~= trials.stlcy then
 	elseif trialsExist and roundState() == 2 and trials.data.trialsInitialized then
 		-- If trials initialized, draw elements and check for success!
 		trials.f_trialsDrawer()
-		trials.f_trialsChecker()
+		player(1)
+		trials.f_trialsChecker('root')
+		if numHelper() > 0 and trials.draw.success == 0 then
+			for i = 1, numHelper(), 1 do
+			trials.f_trialsChecker(i)
+			end
+			end
+		player(1)
 	elseif roundState() == 2 then
 		-- No trials present!
 		player(2)
