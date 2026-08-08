@@ -1545,9 +1545,10 @@ function trials.f_trialsChecker()
 		if getHitVar('frame') then
 			attackerid = getHitVar('playerId')
 			projid = getHitVar('projid')
+		player(1)
 			if projid >= 0 then
 				source = 'proj'
-				if playerId(attackerid) then
+				if numProjId(projid) > 0 and playerId(attackerid) then
 					attackeranim = projVar(projid, 0, 'anim')
 				end
 			else
