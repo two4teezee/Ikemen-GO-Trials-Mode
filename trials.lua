@@ -1613,7 +1613,7 @@ function trials.f_trialsChecker(CheckIt)
 			end
 		end
 
-		maincharcheck = (statecheck and not(trials.data.trial[ct].trialstep[cts].isproj[ctms]) and not(trials.data.trial[ct].trialstep[cts].ishelper[ctms]) and animcheck and ((moveHit() and comboCount() > trials.data.comboCounter) or trials.data.trial[ct].trialstep[cts].isthrow[ctms] or trials.data.trial[ct].trialstep[cts].hitcount[ctms] == 0))
+		maincharcheck = (statecheck and not(trials.data.trial[ct].trialstep[cts].isproj[ctms]) and not(trials.data.trial[ct].trialstep[cts].ishelper[ctms]) and animcheck and ((moveHit() > 0 and comboCount() > trials.data.comboCounter) or trials.data.trial[ct].trialstep[cts].isthrow[ctms] or trials.data.trial[ct].trialstep[cts].hitcount[ctms] == 0))
 		if trials.data.trial[ct].trialstep[cts].validforvar ~= nil and maincharcheck then
 			for i = 1, #trials.data.trial[ct].trialstep[cts].validforvar, 1 do
 				if maincharcheck then
