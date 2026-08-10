@@ -953,6 +953,31 @@ function trials.f_trialsDummySetup()
 	player(1)
 end
 
+function trials.textboxportrait()
+Temporarysan0000 = loadText(getCharFileName(trials.p1selref))
+Temporarysan0000 = Temporarysan0000:lower()
+Temporarysan0000 = Temporarysan0000:gsub('([^\r\n;]*)%s*;[^\r\n]*', '%1')
+Temporarysan0000 = Temporarysan0000:gsub('\n%s*\n', '\n')
+Temporarysan0000 = Temporarysan0000:gsub('.*sprite.*=%s*(.*sff).*','%1')
+
+Temporarysan0001 = getCharFileName(trials.p1selref):gsub('(.*)%/.*def.*','%1/')
+Temporarysan0000 = Temporarysan0001 .. Temporarysan0000
+				if Temporarysan9000 == nil then
+Temporarysan9000 = sffNew(Temporarysan0000)
+	end
+
+trialsanim = ""
+	for i,k in pairs(trials.data.trial[ct].trialstep[cts].iconanim) do
+		k = tostring(k)
+		k = k:gsub('(%d*)','%1')
+		trialsanim = trialsanim .. "," .. k
+			end
+				trialsanim = trialsanim:gsub('\,(%d*.*)','%1')
+				trialsanim = tostring(trialsanim)
+				
+	trials.trials_mode.textbox.portrait.anim = animNew(Temporarysan9000,trialsanim)
+	end
+	
 function trials.f_trialsDrawer()
 	if trials.data.trialsInitialized and roundState() == 2 and not trials.data.active and trials.draw.fade == 0 then
 		trials.f_trialsDummySetup()
@@ -1169,29 +1194,8 @@ trialsanim = ""
 				
 	trials.trials_mode.textbox.portrait.anim = animNew(Temporarysan9000,trialsanim)
 				elseif trials.trials_mode.textbox_portrait_source == "char" then
-				
-Temporarysan0000 = loadText(getCharFileName(trials.p1selref))
-Temporarysan0000 = Temporarysan0000:lower()
-Temporarysan0000 = Temporarysan0000:gsub('([^\r\n;]*)%s*;[^\r\n]*', '%1')
-Temporarysan0000 = Temporarysan0000:gsub('\n%s*\n', '\n')
-Temporarysan0000 = Temporarysan0000:gsub('.*sprite.*=%s*(.*sff).*','%1')
-
-Temporarysan0001 = getCharFileName(trials.p1selref):gsub('(.*)%/.*def.*','%1/')
-Temporarysan0000 = Temporarysan0001 .. Temporarysan0000
-Temporarysan9000 = sffNew(Temporarysan0000)
-
-trialsanim = ""
-	for i,k in pairs(trials.data.trial[ct].trialstep[cts].iconanim) do
-		k = tostring(k)
-		k = k:gsub('(%d*)','%1')
-		trialsanim = trialsanim .. "," .. k
-			end
-				trialsanim = trialsanim:gsub('\,(%d*.*)','%1')
-				trialsanim = tostring(trialsanim)
-				
-	trials.trials_mode.textbox.portrait.anim = animNew(Temporarysan9000,trialsanim)
-	end
-					
+				trials.textboxportrait()
+	
 	if trials.trials_mode.textbox.portrait.anim ~= nil then
 	
 trialsanimoffset = trials.data.trial[ct].trialstep[cts].iconanimoffset
@@ -1248,8 +1252,10 @@ trialsanimwindow2 = animposy + trials.trials_mode.textbox_portrait_window[2] + t
 				animDraw(a)
 
 			end
+			end
 		end
 	end
+	
 
 				-- Draw textbox front
 				animSetLocalcoord(trials.trials_mode.textbox_front_data, trials.mtlcx, trials.mtlcy)
@@ -1967,7 +1973,12 @@ if trials.mtlcy ~= trials.stlcy then
 					
 	if roundStart() then
 		trials.data = nil
-				trials.p1selref = nil
+		trials.p1selref = nil
+		Temporarysan9000 = nil
+		trialsanim = nil
+		if trials.trials_mode.textbox.portrait.anim ~= nil then
+		animReset(trials.trials_mode.textbox.portrait.anim)
+					end
 		-- Check if there's a trials file - if so, parse it
 		if start.f_getCharData(start.p[1].t_selected[1].ref).trialsdef ~= "" then
 			trials.f_inittrialsData()
