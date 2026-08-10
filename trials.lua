@@ -1024,7 +1024,7 @@ function trials.f_trialsDrawer()
 			-- TODO: use the dynamic scaling in the draw loop to adjust the overlay size (new x2, y2 values)
 			-- if trials.trials_mode.trialsteps[layout].bg.overlay.visible == 'true' then
 			-- 	local windowKey = 'withouttextbox'
-			-- 	if trials.trials_mode.textbox.visible == 'true' and trials.data.trial[ct].textbox ~= '' then
+			-- 	if trials.trials_mode.textbox.visible == true and trials.data.trial[ct].textbox ~= '' then
 			-- 		windowKey = 'withtextbox'
 			-- 	end
 				
@@ -1067,7 +1067,7 @@ function trials.f_trialsDrawer()
 
 			--Determine whether textboxes are being shown and whether the current trial has a textbox to display, and if so, draw them!
 			--Also adjust the window range to account for the textbox as specified in the motif
-			if trials.trials_mode.textbox_visible == 'true' and trials.data.trial[ct].textbox ~= '' then
+			if trials.trials_mode.textbox_visible == true and trials.data.trial[ct].textbox ~= '' then
 				windowYrange = trials.draw[layout].windowYrangeWtext
 				windowXrange = trials.draw[layout].windowXrangeWtext
 
@@ -1686,7 +1686,7 @@ function trials.f_trialsChecker(CheckIt)
 							else
 								trials.draw.success = math.max(trials.trials_mode.success_front_displaytime, trials.trials_mode.success_bg_displaytime, trials.trials_mode.success_text_displaytime)
 							end
-							if trials.trials_mode.trialsresetonsuccess == "true" then
+							if trials.trials_mode.trialsresetonsuccess == true then
 								trials.draw.fadein = trials.trials_mode.fadein_time
 								trials.draw.fadeout = trials.trials_mode.fadeout_time
 								trials.draw.fade = trials.draw.fadein + trials.draw.fadeout
@@ -1707,7 +1707,7 @@ function trials.f_trialsChecker(CheckIt)
 	--If the trial was completed successfully, draw the trials success
 	if trials.draw.success > 0 then
 		trials.f_trialsSuccess('success', ct)
-	elseif trials.draw.fade > 0 and (trials.trials_mode.trialsresetonsuccess == "true" or trials.draw.fadetriggered) then
+	elseif trials.draw.fade > 0 and (trials.trials_mode.trialsresetonsuccess == true or trials.draw.fadetriggered) then
 		if trials.draw.fade < trials.draw.fadein + trials.draw.fadeout then
 			trials.f_trialsFade()
 		else
@@ -2128,9 +2128,9 @@ end
 menu.t_itemname['trialresetonsuccess'] = function(t, item, cursorPosY, moveTxt, sec)
 	if menu.f_valueChanged(t.items[item], sec) then
 		if menu.t_valuename.trialresetonsuccess[menu.trialresetonsuccess or 1].itemname == "Yes" then
-			trials.trials_mode.trialsresetonsuccess = "true"
+			trials.trials_mode.trialsresetonsuccess = true
 		else
-			trials.trials_mode.trialsresetonsuccess = "false"
+			trials.trials_mode.trialsresetonsuccess = false
 		end
 	end
 	return true
@@ -2146,9 +2146,9 @@ end
 menu.t_itemname['trialstextboxes'] = function(t, item, cursorPosY, moveTxt, sec)
 	if menu.f_valueChanged(t.items[item], sec) then
 		if menu.t_valuename.trialstextboxes[menu.trialstextboxes or 1].itemname == "Show" then
-			trials.trials_mode.textbox_visible = "true"
+			trials.trials_mode.textbox_visible = true
 		else
-			trials.trials_mode.textbox_visible = "false"
+			trials.trials_mode.textbox_visible = false
 		end
 	end
 	return true
@@ -2218,7 +2218,7 @@ function menu.f_trialsReset()
 	else
 		menu.trialadvancement = 2
 	end
-	if trials.trials_mode.trialsresetonsuccess == "true" then
+	if trials.trials_mode.trialsresetonsuccess == true then
 		menu.trialresetonsuccess = 1
 	else
 		menu.trialresetonsuccess = 2
@@ -2228,7 +2228,7 @@ function menu.f_trialsReset()
 	else
 		menu.trialslayout = 2
 	end
-	if trials.trials_mode.textbox_visible == "true" then
+	if trials.trials_mode.textbox_visible == true then
 		menu.trialstextboxes = 1
 	else
 		menu.trialstextboxes = 2
