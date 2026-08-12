@@ -1628,7 +1628,7 @@ function trials.f_trialsChecker(CheckIt)
 			end
 		end		
 
-		if trials.data.validfortickcount > 0 then
+		if trials.data.validfortickcount > 0 and paused() == false and pauseTime() == 0 and CheckIt == 'root' then
 			trials.data.validfortickcount = trials.data.validfortickcount - 1
 		end
 		
