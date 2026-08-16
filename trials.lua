@@ -1717,7 +1717,7 @@ function trials.f_trialsChecker(CheckIt)
 	--If the trial was completed successfully, draw the trials success
 	if trials.draw.success > 0 then
 		trials.f_trialsSuccess('success', ct)
-	elseif trials.draw.fade > 0 and (trials.trials_mode.trialsresetonsuccess == true or trials.draw.fadetriggered) then
+	elseif trials.draw.fade > 0 and (trials.trials_mode.trialsresetonsuccess == true or trials.draw.fadetriggered) and CheckIt == 'root' then
 		if trials.draw.fade < trials.draw.fadein + trials.draw.fadeout then
 			trials.f_trialsFade()
 		else
@@ -1728,12 +1728,12 @@ function trials.f_trialsChecker(CheckIt)
 			end
 			player(1)
 		end
-	elseif f_checkKeyCombo(trials.trials_mode.trialreset_buttonpress) and trials.draw.fade == 0 and menu.trialreset == 1 then
+	elseif f_checkKeyCombo(trials.trials_mode.trialreset_buttonpress) and trials.draw.fade == 0 and menu.trialreset == 1 and trials.data.currenttrial <= #trials.data.trial then
 		trials.draw.fadein = trials.trials_mode.fadein_time
 		trials.draw.fadeout = trials.trials_mode.fadeout_time
 		trials.draw.fade = trials.draw.fadein + trials.draw.fadeout
 		trials.draw.fadetriggered = true
-	else
+	elseif not CheckIt == 'root' or trials.draw.fade == 0 then
 		trials.draw.fadetriggered = false
 	end
 		player(1)
@@ -1801,6 +1801,19 @@ function trials.f_trialsFade()
 	local posx = 0
 	local oppx = 0
 
+	if trials.data.trial[trials.data.currenttrial].dummyposoffset[1] == nil then
+	trials.data.trial[trials.data.currenttrial].dummyposoffset[1] = 0
+	end
+	if trials.data.trial[trials.data.currenttrial].dummyposoffset[2] == nil then
+	trials.data.trial[trials.data.currenttrial].dummyposoffset[2] = 0
+	end
+	if trials.data.trial[trials.data.currenttrial].playerposoffset[1] == nil then
+	trials.data.trial[trials.data.currenttrial].playerposoffset[1] = 0
+	end
+	if trials.data.trial[trials.data.currenttrial].playerposoffset[2] == nil then
+	trials.data.trial[trials.data.currenttrial].playerposoffset[2] = 0
+	end
+	
 	if trials.data.trial[trials.data.currenttrial].dummypos == 'left-corner' or trials.data.trial[trials.data.currenttrial].playerpos == 'left-corner' then
 		cameraPosX = leftbound / (stagelocalcoordX/320)
 		posx = - (stagelocalcoordX/2 - stageboundleft) / (stagelocalcoordX/320)
@@ -1846,6 +1859,11 @@ function trials.f_trialsFade()
 		playerposx = -130
 	end
 
+	dummyposx = dummyposx + trials.data.trial[trials.data.currenttrial].dummyposoffset[1]
+	dummyposy = dummyposy + trials.data.trial[trials.data.currenttrial].dummyposoffset[2]
+	playerposx = playerposx + trials.data.trial[trials.data.currenttrial].playerposoffset[1]
+	playerposy = playerposy + trials.data.trial[trials.data.currenttrial].playerposoffset[2]
+	
 	mapSet('_iksys_trialsCameraPosX', cameraPosX)
 	mapSet('_iksys_trialsDummyPosX', dummyposx)
 	mapSet('_iksys_trialsDummyPosY', dummyposy)
@@ -1876,13 +1894,15 @@ function trials.f_trialsFade()
 			trials.trials_mode.fadein.col[3]},
 			anim = trials.trials_mode.fadein.anim
 			})
-			mapSet('_iksys_trialsCameraReset', 1)
 		fadeInInit(trials.draw.fadeinData)
 	end
 		trials.draw.fadein = trials.draw.fadein - 1
 	end
 
 	trials.draw.fade = trials.draw.fade - 1
+	if trials.draw.fade == 0 then
+			mapSet('_iksys_trialsCameraReset', 1)
+end
 end
 
 function trials.f_trialsSelectScreen()
@@ -2392,6 +2412,8 @@ for row = 1, #main.t_selChars, 1 do
 						p2life = -1,
 						playerpos = nil,
 						dummypos = nil,
+						playerposoffset = {0,0},
+						dummyposoffset = {0,0},
 						showforvar = {nil},
 						showforval = {nil},
 						elapsedtime = 0,
@@ -2417,6 +2439,14 @@ for row = 1, #main.t_selChars, 1 do
 				trial[i].p1life = tonumber(f_trimforchar(lcline, "=", "after"))
 			elseif lcline:find("dummylife") then
 				trial[i].p2life = tonumber(f_trimforchar(lcline, "=", "after"))
+			elseif lcline:find("playerposoffset") then
+				if string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "") ~= "" then
+					trial[i].playerposoffset = f_str2number(main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "")))
+				end
+			elseif lcline:find("dummyposoffset") then
+				if string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "") ~= "" then
+					trial[i].dummyposoffset = f_str2number(main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "")))
+				end
 			elseif lcline:find("playerpos") then
 				trial[i].playerpos = f_trimforchar(lcline, "=", "after")
 			elseif lcline:find("dummypos") then
