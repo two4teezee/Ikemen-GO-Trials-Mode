@@ -1416,7 +1416,9 @@ trialsanimwindow2 = animposy + trials.trials_mode.textbox_portrait_window[2] + t
 					animReset(trials.trials_mode[sub .. 'step_horizontal_bg_tail_data'])
 				animSetLocalcoord(trials.trials_mode[sub .. 'step_horizontal_bg_tail_data'], trials.mtlcx, trials.mtlcy)
 					animUpdate(trials.trials_mode[sub .. 'step_horizontal_bg_tail_data'])
+					if menu.itemname ~= 'commandlist' then
 					animDraw(trials.trials_mode[sub .. 'step_horizontal_bg_tail_data'])
+					end
 					
 					-- Draw BG for Glyphs - scale to length, start from tail pos
 					bgtargetscale = {(padding + totalglyphlength + padding)/bgsize[1], 1}
@@ -1485,7 +1487,9 @@ trialsanimwindow2 = animposy + trials.trials_mode.textbox_portrait_window[2] + t
 					animReset(motif.glyphs[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].AnimData)
 				animSetLocalcoord(motif.glyphs[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].AnimData, trials.mtlcx, trials.mtlcy)
 					animUpdate(motif.glyphs[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].AnimData)
+					if menu.itemname ~= 'commandlist' then
 					animDraw(motif.glyphs[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].AnimData)
+				end
 				end
 				accwidth = bgcomponentposX
 			end
