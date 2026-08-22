@@ -5,8 +5,31 @@ positioning, fades, glyph alignment, menu navigation and anything requiring cont
 input are all human-verified. The maintainer runs those; the agent runs everything
 else.
 
-**Whenever an implementation is ready to test, the agent produces a test checklist
-before saying it is done.** Delivering code without one is an incomplete handoff.
+**When an implementation reaches something the maintainer can test, the agent relabels
+the ticket `ready-for-human-testing` and produces a test checklist.** Delivering code
+without both is an incomplete handoff — the label says whose turn it is, the checklist
+says what to do.
+
+## Handing off
+
+Once the slice is implemented, reviewed, fixed and committed:
+
+1. Swap the label — remove whatever it currently carries, add `ready-for-human-testing`:
+   `gh issue edit <n> --remove-label "<current>" --add-label "ready-for-human-testing"`
+2. Post the checklist as an issue comment, and repeat it in the response.
+3. Wait for the maintainer's report. On confirmation, close the ticket; if their testing
+   found something, fix it and swap the label back to `ready-for-agent` while it is
+   being worked.
+
+## When not to hand off
+
+Only hand off when there is genuinely something to test. Skip the label *and* the
+checklist for docs-only changes, tooling, refactors with no visible effect, and anything
+the agent already verified end to end — asking the maintainer to confirm something they
+cannot observe wastes the one testing resource this project has.
+
+Hand off if *any* part of the change needs a person at the screen, even when other parts
+of the same slice were verified headlessly. Most slices are mixed.
 
 ## The split
 
