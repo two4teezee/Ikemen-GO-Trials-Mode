@@ -35,23 +35,21 @@ title.trials.text = "Trials"
 ; menu.f_init resolves it from the game mode name — so shipping this section is all
 ; that is needed to register it. No module menu code exists or should exist.
 ;
-; The dummy items below need no module code either: trials shares the engine's
-; _iksys_training* map namespace (docs/adr/0002), and the engine's own handlers write
-; those maps unconditionally. Listing the item names is the whole integration.
+; Deliberately NO dummy submenu. Dummy behaviour comes from the Trial Definition and
+; nowhere else, so every Trial plays the same way for everyone. The module writes the
+; shared _iksys_training* maps per Trial and trials.zss executes them (docs/adr/0002);
+; exposing the same maps as menu items would let a player silently invalidate the Trial
+; its author designed.
+;
+; This also removes a live crash: the engine only calls menu.f_trainingReset() under
+; gameMode('training') (start.lua:1739), so in a Trials match menu.ailevel is never
+; initialised and cycling Dummy Control raises "Argument 1 is not a number" from
+; setAILevel. With no dummy items, nothing reaches that path.
 ;
 ; A screenpack overrides any of this by defining [Trials Pause Menu] in its own
 ; system.def, which the engine concatenates first and therefore wins.
 
 menu.itemname.back = Continue
-menu.itemname.menutraining = Dummy Menu
-menu.itemname.menutraining.dummycontrol = Dummy Control
-menu.itemname.menutraining.ailevel = AI Level
-menu.itemname.menutraining.dummymode = Dummy Mode
-menu.itemname.menutraining.guardmode = Guard Mode
-menu.itemname.menutraining.fallrecovery = Fall Recovery
-menu.itemname.menutraining.distance = Distance
-menu.itemname.menutraining.buttonjam = Button Jam
-menu.itemname.menutraining.back = Back
 menu.itemname.menuinput = Button Config
 menu.itemname.menuinput.keyboard = Key Config
 menu.itemname.menuinput.gamepad = Joystick Config

@@ -23,9 +23,24 @@ common-state changes.
 
 ## Consequences
 
-The built-in dummy control, guard mode, dummy mode, fall recovery, distance and button
-jam pause-menu items work in Trials Mode with **no module code at all** — they only
-need listing as item names in `[Trials Pause Menu]`.
+The module writes the shared maps directly from Lua when a Trial starts, and
+`trials.zss` executes them. No dummy logic is duplicated in Lua, and no dummy items
+appear in the trials pause menu.
+
+An earlier revision of this ADR justified the shared namespace on the grounds that the
+engine's built-in dummy *menu items* would then work for free. That is no longer the
+payoff: dummy behaviour is prescribed by the Trial Definition and nowhere else, so
+every Trial plays the same way for everyone, and exposing the same maps as menu items
+would let a player silently invalidate the Trial its author designed. The decision to
+share the namespace still stands on its own — writing the names the engine's own
+`functions.zss` and pause-menu handlers already understand is what avoids forking the
+dummy logic.
+
+One consequence of *not* shipping those menu items is that a live crash is avoided:
+the engine calls `menu.f_trainingReset()` only under `gameMode('training')`
+(`start.lua:1739`), so in a Trials match `menu.ailevel` is never initialised and
+cycling Dummy Control raises `Argument 1 is not a number` from `setAILevel`. A
+screenpack that adds a dummy submenu to its own `[Trials Pause Menu]` will hit this.
 
 `IkSys_JustDefend` in the engine's `functions.zss` reads the shared guard-mode map
 unconditionally, so a guarding Trials Dummy also becomes eligible for Just Defend.
