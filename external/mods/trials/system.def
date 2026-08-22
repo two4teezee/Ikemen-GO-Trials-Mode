@@ -74,3 +74,47 @@ trialcounter.pos = 5, 228
 ; trialcounter.font.height =
 ; trialcounter.window =
 ; trialcounter.localcoord =
+
+; TRIAL STEPS — VERTICAL LAYOUT ----------------------------------------------------
+; The Steps of the current Trial, stacked. trialsteps.<layout> is the block the three
+; Step Status elements below share: rows lay out from its pos, one spacing apart, and
+; clip to its window. Each Step Status then spells only what distinguishes it.
+;
+; window is X1,Y1, X2,Y2. Once the rows no longer fit inside it the list scrolls,
+; keeping two completed Steps above the current one. Leave it out for no clipping.
+;
+; The .withtextbox variants are used for a Trial that carries a trial.textbox, so the
+; two do not overlap. pos.withtextbox moves the block; window.withtextbox reshapes what
+; it clips to. Both fall back to the plain key, so a config that sets neither behaves
+; exactly as it did before.
+;
+; pos is in 320x240, this file's own space (see trials.localcoord above).
+; -----------------------------------------------------------------------------------
+trialsteps.vertical.pos = 35, 38
+trialsteps.vertical.spacing = 0, 9
+trialsteps.vertical.window = 25, 34, 295, 138
+; trialsteps.vertical.pos.withtextbox =
+; trialsteps.vertical.window.withtextbox =
+
+; STEP STATUS — VERTICAL LAYOUT ----------------------------------------------------
+; Where a Step sits relative to the player's progress: upcoming, current, or completed.
+; Each is styled independently so progress is legible at a glance — here by colour
+; alone, the fourth to sixth font slots, so the three read as one list.
+;
+; offset is added to the block's pos, per Step Status. Everything an engine text
+; element takes works here too: scale, font.height, window, layerno.
+; -----------------------------------------------------------------------------------
+upcomingstep.vertical.text.font = 1, 0, 1, 180, 180, 180
+upcomingstep.vertical.text.offset = 0, 0
+; upcomingstep.vertical.text.scale =
+; upcomingstep.vertical.text.font.height =
+
+currentstep.vertical.text.font = 1, 0, 1, 255, 255, 255
+currentstep.vertical.text.offset = 0, 0
+; currentstep.vertical.text.scale =
+; currentstep.vertical.text.font.height =
+
+completedstep.vertical.text.font = 1, 0, 1, 110, 110, 110
+completedstep.vertical.text.offset = 0, 0
+; completedstep.vertical.text.scale =
+; completedstep.vertical.text.font.height =

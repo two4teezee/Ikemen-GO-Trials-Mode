@@ -380,9 +380,15 @@ local function join(path, ...)
 	return full
 end
 
--- Which layer supplied one of an element's keys, or nil if none did.
-local function sourceOf(path, key)
-	return trials.configSource[table.concat(path, '.') .. '.' .. key]
+-- Which layer supplied one of an element's keys, or nil if none did. An element that
+-- inherits shared geometry from a parent block falls back to that block, exactly as
+-- elementReader does, so a key's value and its provenance always come from one place.
+local function sourceOf(path, key, origin)
+	local own = trials.configSource[table.concat(path, '.') .. '.' .. key]
+	if own ~= nil or origin == nil then
+		return own
+	end
+	return trials.configSource[table.concat(origin, '.') .. '.' .. key]
 end
 
 -- The space the coordinates in the module's own system.def are written in. Paired with
@@ -404,7 +410,7 @@ local MODULE_LOCALCOORD = {320, 240}
 -- shipped positions resolve in MODULE_LOCALCOORD, and a screenpack's resolve in the
 -- screenpack's own, which is what every existing trials integration already assumes.
 -- Setting trials.localcoord overrides both.
-local function sharedLocalcoord(path, own, ownSource)
+local function sharedLocalcoord(path, own, ownSource, origin)
 	local screen = {motif.info.localcoord[1], motif.info.localcoord[2]}
 
 	-- Whose coordinates are these? A position the module shipped is written in the
@@ -412,7 +418,7 @@ local function sharedLocalcoord(path, own, ownSource)
 	-- else distinguishes them — an existing integration sets `trialcounter.pos` and no
 	-- localcoord at all, and so does this module, so the *absence* of a localcoord
 	-- means two different things depending on who left it out.
-	local posSource = sourceOf(path, 'pos')
+	local posSource = sourceOf(path, 'pos', origin)
 	local ours = posSource == nil or posSource == 'defaults'
 	local fallback = ours and MODULE_LOCALCOORD or screen
 
@@ -425,13 +431,16 @@ local function sharedLocalcoord(path, own, ownSource)
 	if sharedSource ~= nil and (sharedSource ~= 'defaults' or ours) then
 		return numList(cfgGet({'trials_mode', 'trials', 'localcoord'}), fallback)
 	end
-	return fallback
+	-- Copied: MODULE_LOCALCOORD is a constant every element would otherwise share one
+	-- table with, and f_printTable elides a table it has already printed, so the second
+	-- element onwards would report no localcoord at all in the dump.
+	return {fallback[1], fallback[2]}
 end
 
 -- Shared prelude for every element: the geometry keys the three property structs have
 -- in common, resolved once so the mappers below read as the setter chain they are.
-local function elementGeometry(g, path)
-	local lc = sharedLocalcoord(path, g('localcoord'), sourceOf(path, 'localcoord'))
+local function elementGeometry(g, path, origin)
+	local lc = sharedLocalcoord(path, g('localcoord'), sourceOf(path, 'localcoord', origin), origin)
 	-- Summed, the way the engine sums them: its own elements carry `offset`, and the
 	-- parent block's `pos` is added on top at load (offsetTexts, src/motif.go:2648).
 	-- Trials elements have always spelled their origin `pos` and have no parent block,
@@ -456,20 +465,30 @@ local function elementGeometry(g, path)
 end
 
 -- Returns a getter reading one element's keys out of the resolved Trials Config.
-local function elementReader(path)
+--
+-- `origin` names a parent block the element inherits from. The Step rows are the case
+-- it exists for: all three Step Status elements sit on the one trialsteps.<layout>
+-- block, which carries the origin and window they share, so a screenpack moves the
+-- whole block by setting one pos rather than the same pos three times. The element's
+-- own key wins wherever it has one.
+local function elementReader(path, origin)
 	return function(...)
-		return cfgGet(join(path, ...))
+		local v = cfgGet(join(path, ...))
+		if v == nil and origin ~= nil then
+			v = cfgGet(join(origin, ...))
+		end
+		return v
 	end
 end
 
 -- TextProperties -> TextSprite.
-local function buildText(path)
-	local g = elementReader(path)
+local function buildText(path, origin)
+	local g = elementReader(path, origin)
 	local font = numList(g('font'), {-1, 0, 0, 255, 255, 255, 255, -1})
 	-- Trials has always spelled the font height as its own key; the engine puts it in
 	-- the 8th font slot. The dedicated key wins when both are present.
 	font[8] = tonumber(g('font', 'height')) or font[8]
-	local geo = elementGeometry(g, path)
+	local geo = elementGeometry(g, path, origin)
 
 	local ts = textImgNew()
 	local fnt = resolveFont(g('font'), font)
@@ -507,9 +526,9 @@ end
 -- that works, and is what the slices drawing anims (#42, #43, #44) should plan on. The
 -- branch stays so that a build which does expose the table gets the engine's own
 -- priority order for free.
-local function buildAnim(path, sff)
-	local g = elementReader(path)
-	local geo = elementGeometry(g, path)
+local function buildAnim(path, sff, origin)
+	local g = elementReader(path, origin)
+	local geo = elementGeometry(g, path, origin)
 	local anim = tonumber(g('anim'))
 	local spr = numList(g('spr'), {-1, 0})
 
@@ -543,9 +562,9 @@ local function buildAnim(path, sff)
 end
 
 -- OverlayProperties -> Rect.
-local function buildOverlay(path)
-	local g = elementReader(path)
-	local geo = elementGeometry(g, path)
+local function buildOverlay(path, origin)
+	local g = elementReader(path, origin)
+	local geo = elementGeometry(g, path, origin)
 	local col = numList(g('col'), {0, 0, 0})
 	local alpha = numList(g('alpha'), {0, 255})
 
@@ -571,8 +590,128 @@ trials.f_buildOverlay = buildOverlay
 
 trials.elements = {}
 
+-- Where a Step sits relative to the player's progress. Each is styled independently,
+-- from its own configuration block, and is one text element built once at load.
+local STEP_STATUSES = {'upcoming', 'current', 'completed'}
+
+-- Only the vertical Layout exists today. #41 adds the horizontal one along with the
+-- branch that picks between them; until it lands, reading the Layout Player Preference
+-- here would leave a player whose config.ini says `horizontal` with no Steps at all.
+local STEP_LAYOUT = 'vertical'
+
+-- Builds the Step block: the three Step Status text elements, plus the geometry they
+-- share — the origin rows lay out from, the spacing between them, and the window they
+-- clip to, in both its with- and without-Textbox variants.
+--
+-- The elements inherit that shared geometry through elementReader's origin, so
+-- `trialsteps.<layout>.pos` positions all three and each Step Status only spells what
+-- distinguishes it: font, colour, scale and its own offset.
+local function buildStepBlock(layout)
+	local path = {'trials_mode', 'trialsteps', layout}
+	local g = elementReader(path)
+	local block = {path = path, layout = layout, text = {}}
+
+	for _, status in ipairs(STEP_STATUSES) do
+		local e = buildText({'trials_mode', status .. 'step', layout, 'text'}, path)
+		block.text[status] = e
+		trials.elements[status .. 'step.' .. layout .. '.text'] = e
+	end
+
+	-- Whose space the block resolved into. A screenpack that positions the block writes
+	-- its pos in its own localcoord, and every length this module ships as a default is
+	-- written in MODULE_LOCALCOORD — so where the two differ, a default length means
+	-- nothing until it is converted. See sharedLocalcoord for the same question asked
+	-- about the coordinate space itself.
+	local posSource = sourceOf(path, 'pos')
+	local foreign = posSource ~= nil and posSource ~= 'defaults'
+	-- One space for the whole block: the elements all resolved it the same way, so any
+	-- one of them answers for the rest.
+	local lc = block.text.current.localcoord
+
+	-- Row spacing is a length, so a default written in MODULE_LOCALCOORD is converted
+	-- into whatever space the block resolved into rather than used raw: 9 units apart
+	-- reads as a list at 320x240 and as overlapping text at 1280x720. The window below
+	-- is dropped instead of converted, because it is an absolute rect and a converted
+	-- guess that misses the block would hide the Steps entirely.
+	block.spacing = numList(g('spacing'), {0, 0})
+	if foreign and sourceOf(path, 'spacing') == 'defaults' then
+		block.spacing = {
+			block.spacing[1] * lc[1] / MODULE_LOCALCOORD[1],
+			block.spacing[2] * lc[2] / MODULE_LOCALCOORD[2],
+		}
+	end
+
+	-- A Textbox displaces the block rather than being drawn over it. `window.withtextbox`
+	-- is the documented key for that and every existing screenpack already ships one;
+	-- `pos.withtextbox` is the same idea for the origin, and defaults to no shift at all,
+	-- so a config that only ever set the window behaves exactly as it did before.
+	local pos = numList(g('pos'), {0, 0})
+	local posWithTextbox = numList(g('pos', 'withtextbox'), pos)
+	block.shift = {posWithTextbox[1] - pos[1], posWithTextbox[2] - pos[2]}
+
+	-- textImgSetWindow ignores an all-zero rect (src/font.go:915), so a window can be
+	-- set but never cleared. Wherever this needs to say "do not clip" to an element that
+	-- already has a window applied, it has to spell it as the full localcoord rect.
+	local full = {0, 0, lc[1], lc[2]}
+	local function unclipped(w)
+		return w[1] == 0 and w[2] == 0 and w[3] == 0 and w[4] == 0
+	end
+	local function copy(w)
+		return {w[1], w[2], w[3], w[4]}
+	end
+
+	-- A window is written in the same coordinate space as the pos it accompanies, and
+	-- this module's own defaults are written in MODULE_LOCALCOORD. A screenpack that
+	-- repositions the block without supplying a window of its own would otherwise have
+	-- the module's 320x240 rect clip a corner of its 1280x720 screen. Drop the default
+	-- instead of clipping in a space it was never written for.
+	--
+	-- Resolved in order, because the with-Textbox variant falls back to the plain one:
+	-- dropping the plain window after deriving the variant from it would leave the
+	-- variant holding the very default that was just dropped.
+	local window = numList(g('window'), {0, 0, 0, 0})
+	if foreign and sourceOf(path, 'window') == 'defaults' then
+		window = copy(full)
+	end
+	local windowWithTextbox = numList(g('window', 'withtextbox'), window)
+	if foreign and sourceOf(path, 'window.withtextbox') == 'defaults' then
+		windowWithTextbox = copy(window)
+	end
+
+	-- Where one variant clips and the other does not, the same rule applies: the
+	-- unclipped one has to be the full rect, or switching to it from the clipped one
+	-- would leave the clip in place.
+	local function normalize(w, other)
+		if unclipped(w) and not unclipped(other) then
+			return copy(full)
+		end
+		return w
+	end
+	block.window = normalize(window, windowWithTextbox)
+	block.windowWithTextbox = normalize(windowWithTextbox, window)
+	block.activeWindow = block.window
+
+	return block
+end
+
+-- Clipping is textImgSetWindow's job, so switching variants is switching what it was
+-- given. Called when the match moves to a Trial, not per frame.
+local function applyStepWindow(block, withTextbox)
+	local w = withTextbox and block.windowWithTextbox or block.window
+	block.activeWindow = w
+	for _, status in ipairs(STEP_STATUSES) do
+		local e = block.text[status]
+		textImgSetWindow(e.TextSpriteData, w[1], w[2], w[3], w[4])
+		-- The element's own record of its window, which is what the debug dump reports.
+		-- Left at the build-time value it would describe the window the element was
+		-- constructed with rather than the one it is drawing under.
+		e.window = {w[1], w[2], w[3], w[4]}
+	end
+end
+
 if trials.enabled then
 	trials.elements.trialcounter = buildText({'trials_mode', 'trialcounter'})
+	trials.stepblock = buildStepBlock(STEP_LAYOUT)
 end
 
 --;===========================================================
@@ -622,6 +761,62 @@ local function trialTitle(section)
 	return (title:gsub('%s*$', ''))
 end
 
+-- Reads one Trial Definition value in the player's language.
+--
+-- Trials Config takes its language from a section-name prefix, but a Trial Definition
+-- takes it from a key suffix — `trialstep.1.text.es` alongside `trialstep.1.text` —
+-- which is the format's own documented spelling and is unchanged. loadIni turns that
+-- pair into a table holding the variants, with the unsuffixed value in __value, so the
+-- fallback chain the README describes reads straight off it: the selected language,
+-- then English, then whatever was written with no suffix at all.
+local function localized(v)
+	if type(v) ~= 'table' or isValueList(v) then
+		return v
+	end
+	local pick = v[trials.language]
+	if pick == nil then
+		pick = v.en
+	end
+	if pick == nil then
+		pick = v.__value
+	end
+	return pick
+end
+
+-- The Steps of one Trial, in Step-number order.
+--
+-- loadIni splits `trialstep.1.text` into nested tables keyed by the literal string
+-- '1' (setNestedLuaKey, src/script.go:450), so the list is a Lua hash and not an
+-- array — # would report 0 and ipairs would stop immediately. Rebuild it by number.
+--
+-- Only the text is read here. The condition fields a Step verifies against, and the
+-- Parts a comma-separated one carries, belong to #39 and stay in `data` until then.
+local function readSteps(data)
+	local raw = data.trialstep
+	if type(raw) ~= 'table' then
+		return {}
+	end
+	-- Sorted on the number, indexed by the key as authored: `trialstep.01` and
+	-- `trialstep.1` are the same Step number but not the same table key, so the key has
+	-- to be carried rather than rebuilt from the number.
+	local order = {}
+	for key, v in pairs(raw) do
+		local n = tonumber(key)
+		if n ~= nil and type(v) == 'table' then
+			order[#order + 1] = {number = n, key = key}
+		end
+	end
+	table.sort(order, function(a, b) return a.number < b.number end)
+	local steps = {}
+	for _, entry in ipairs(order) do
+		steps[#steps + 1] = {
+			number = entry.number,
+			text = strValue(localized(raw[entry.key].text), ''),
+		}
+	end
+	return steps
+end
+
 -- Parses a Trial Definition into its Trials, in the order the author wrote them.
 --
 -- normalizeSections stays off so [TrialDef, <name>] survives and the title stays
@@ -642,10 +837,19 @@ local function readTrialDefinition(path)
 				print('Trials: duplicate Trial "' .. name .. '" in ' .. path .. ' — keeping the first.')
 			else
 				seen[name] = true
+				-- Lowercased for the same reason Trials Config is: go-ini keeps key
+				-- case as authored and the pre-refactor parser lowercased everything
+				-- it read, so `TrialStep.1.Text` has always resolved.
+				local data = lowerKeys(ini[name])
 				table.insert(list, {
 					section = name,
 					title = trialTitle(name),
-					data = ini[name],
+					-- Read here rather than at draw time so a Trial's Textbox is known
+					-- before the first frame: it decides which window variant the Step
+					-- block clips to. Drawing the Textbox itself is #43.
+					textbox = strValue(localized(type(data.trial) == 'table' and data.trial.textbox or nil), ''),
+					steps = readSteps(data),
+					data = data,
 				})
 			end
 		end
@@ -820,7 +1024,7 @@ trials.match = nil
 -- guarded, because a mode that reaches this hook without a selection should draw
 -- nothing rather than raise mid-match.
 local function resolveMatch()
-	local m = {trials = {}, total = 0, current = 1, char = nil}
+	local m = {trials = {}, total = 0, current = 1, step = 1, steps = {}, textbox = false, char = nil}
 	local selected = start.p and start.p[1] and start.p[1].t_selected and start.p[1].t_selected[1]
 	if selected ~= nil and selected.ref ~= nil then
 		local char = main.t_selChars[selected.ref + 1]
@@ -834,6 +1038,55 @@ local function resolveMatch()
 		end
 	end
 	return m
+end
+
+-- The Textbox Player Preference. A Textbox the player has hidden displaces nothing:
+-- the window variant follows what is actually on screen, not what the Trial declares.
+local function textboxesVisible()
+	local opts = trials.ini.Options or {}
+	local v = type(opts.Trials) == 'table' and opts.Trials.Textboxes or nil
+	return tostring(v or 'show'):lower() ~= 'hide'
+end
+
+-- Moves the match onto one Trial and resolves everything that depends on which Trial
+-- it is: the Steps to draw, and whether a Textbox pushes the Step block into its
+-- with-Textbox window.
+local function selectTrial(index)
+	local m = trials.match
+	m.current = index
+	m.step = 1
+	local trial = m.trials[index]
+	m.steps = type(trial) == 'table' and trial.steps or {}
+	m.textbox = type(trial) == 'table' and trial.textbox ~= nil and trial.textbox ~= ''
+		and textboxesVisible()
+	if trials.stepblock ~= nil then
+		applyStepWindow(trials.stepblock, m.textbox)
+	end
+end
+
+-- Advances the current Step on a fixed cadence, wrapping into the next Trial past the
+-- last Step. Off unless config.ini's [Debug] CycleSteps says otherwise.
+--
+-- This exists so the three Step Statuses, the row spacing and the scrolling window can
+-- be looked at before Step verification lands: until #39, nothing else moves the Step
+-- index, and a Trial's first Step is drawn as `current` with no `completed` row above
+-- it to compare against. #39 deletes this along with the config key.
+local cycleSteps = tonumber((trials.ini.Debug or {}).CycleSteps) or 0
+local cycleTimer = 0
+local function debugCycleStep()
+	if cycleSteps <= 0 or trials.match == nil then
+		return
+	end
+	cycleTimer = cycleTimer + 1
+	if cycleTimer < cycleSteps then
+		return
+	end
+	cycleTimer = 0
+	if trials.match.step < #trials.match.steps then
+		trials.match.step = trials.match.step + 1
+	elseif trials.match.total > 0 then
+		selectTrial(trials.match.current % trials.match.total + 1)
+	end
 end
 
 -- Injects the module's [Common] files for the duration of a Trials match only.
@@ -905,6 +1158,52 @@ local function counterText(current, total)
 	return main.f_formatBySpec(fmt, {i = current, s = tostring(total)})
 end
 
+-- The Steps of the current Trial, drawn in the vertical Layout.
+--
+-- Rows lay out from the block's origin, one spacing apart, each drawn with the element
+-- for the Step Status it currently has — so advancing the Step index is all it takes
+-- for a row to move from upcoming to current to completed.
+--
+-- Nothing is constructed here. Each row is the engine's own list idiom
+-- (main.f_drawMenu, main.lua:3811): reset the element to the position it was built at,
+-- add the row's offset, set the text, draw.
+local function drawSteps()
+	local block = trials.stepblock
+	local m = trials.match
+	if block == nil or m == nil or #m.steps == 0 then
+		return
+	end
+
+	local spacing = block.spacing
+	local shift = m.textbox and block.shift or {0, 0}
+	local first, last = 1, #m.steps
+
+	-- Scroll only once the rows cannot all fit the window. Keeping two completed Steps
+	-- above the current one is what the pre-refactor module did, and it is what makes a
+	-- long Trial read as progress rather than as a jump.
+	local range = block.activeWindow[4] - block.activeWindow[2]
+	if range > 0 and spacing[2] ~= 0 and #m.steps * spacing[2] > range then
+		first = math.max(m.step - 2, 1)
+		if (last - first) * spacing[2] > range then
+			last = math.min(first + math.floor(range / spacing[2]), #m.steps)
+		end
+	end
+
+	for i = first, last do
+		local status = 'upcoming'
+		if i < m.step then
+			status = 'completed'
+		elseif i == m.step then
+			status = 'current'
+		end
+		local ts = block.text[status].TextSpriteData
+		textImgReset(ts)
+		textImgAddPos(ts, shift[1] + spacing[1] * (i - first), shift[2] + spacing[2] * (i - first))
+		textImgSetText(ts, m.steps[i].text)
+		textImgDraw(ts)
+	end
+end
+
 -- Runs once per frame during a Trials match, from the engine's Common.Lua `loop()`
 -- (debug.lua:230). Sets text and draws — nothing is constructed here.
 hook.add('loop#trials', 'trials', function()
@@ -913,21 +1212,23 @@ hook.add('loop#trials', 'trials', function()
 	end
 	if trials.match == nil then
 		trials.match = resolveMatch()
+		selectTrial(trials.match.current)
 		trials.f_dumpState()
 	end
 	if roundState() ~= 2 then
 		return
 	end
+	debugCycleStep()
 	local counter = trials.elements.trialcounter
-	if counter == nil then
-		return
+	if counter ~= nil then
+		if trials.match.total > 0 then
+			textImgSetText(counter.TextSpriteData, counterText(trials.match.current, trials.match.total))
+		else
+			textImgSetText(counter.TextSpriteData, strValue(cfgGet({'trials_mode', 'nodata', 'text'}), ''))
+		end
+		textImgDraw(counter.TextSpriteData)
 	end
-	if trials.match.total > 0 then
-		textImgSetText(counter.TextSpriteData, counterText(trials.match.current, trials.match.total))
-	else
-		textImgSetText(counter.TextSpriteData, strValue(cfgGet({'trials_mode', 'nodata', 'text'}), ''))
-	end
-	textImgDraw(counter.TextSpriteData)
+	drawSteps()
 end)
 
 --;===========================================================
@@ -959,8 +1260,18 @@ function trials.f_dumpState()
 				row.trialsDef = t.trials.def
 				row.trialCount = #t.trials
 				row.titles = {}
+				-- One row per Trial: how many Steps it parsed to, the text of the
+				-- first, and whether it carries a Textbox — which is what decides the
+				-- window variant its Steps clip to.
+				row.trials = {}
 				for i, v in ipairs(t.trials) do
 					row.titles[i] = v.title
+					row.trials[i] = {
+						title = v.title,
+						stepCount = #v.steps,
+						firstStepText = v.steps[1] ~= nil and v.steps[1].text or '',
+						textbox = v.textbox ~= '',
+					}
 				end
 			end
 			chars[#chars + 1] = row
@@ -991,6 +1302,22 @@ function trials.f_dumpState()
 		config = trials.config,
 		configSource = trials.configSource,
 		elements = elements,
+		-- The Step block's resolved geometry. Rows are positioned from these every
+		-- frame, so a layout that lands in the wrong place is diagnosable from here
+		-- without a screenshot.
+		steps = trials.stepblock ~= nil and {
+			layout = trials.stepblock.layout,
+			spacing = trials.stepblock.spacing,
+			window = trials.stepblock.window,
+			windowWithTextbox = trials.stepblock.windowWithTextbox,
+			shiftWithTextbox = trials.stepblock.shift,
+			-- Copied, not referenced: f_printTable elides a table it has already
+			-- printed, and this one is usually the same table as `window`.
+			activeWindow = {
+				trials.stepblock.activeWindow[1], trials.stepblock.activeWindow[2],
+				trials.stepblock.activeWindow[3], trials.stepblock.activeWindow[4],
+			},
+		} or nil,
 		chars = chars,
 		match = trials.match,
 		-- Which extension points the module actually registered. Cheaper to assert

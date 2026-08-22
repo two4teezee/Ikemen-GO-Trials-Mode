@@ -234,6 +234,45 @@ def main():
         c.present(f"{r.get('name')}: Trial Definition resolved", r.get("trialsDef"))
         c.present(f"{r.get('name')}: Trials read in authored order", dig(r, "titles", 1))
 
+    print("\nStep text, vertical layout (#37)")
+    block = dig(tree, "steps")
+    c.present("Step block resolved at load", block)
+    c.check("vertical layout", dig(block, "layout") if block else None, "vertical")
+    c.present("row spacing resolved", dig(block, "spacing") if block else None)
+    c.present("clipping window resolved", dig(block, "window") if block else None)
+    c.present("with-textbox window resolved", dig(block, "windowWithTextbox") if block else None)
+    for status in ("upcoming", "current", "completed"):
+        el = dig(tree, "elements", f"{status}step.vertical.text")
+        c.present(f"{status} Step element built at load", el)
+        if el:
+            # All three sit on the one trialsteps.<layout> block, so a font colour is
+            # what distinguishes them and the origin must be identical.
+            c.present(f"  {status}: font resolved", el.get("font"))
+            c.present(f"  {status}: origin inherited from the block", el.get("pos"))
+            # An empty table here means f_printTable elided it as one it had already
+            # printed — i.e. the element is sharing another element's localcoord table.
+            c.check(f"  {status}: localcoord is its own", len(el.get("localcoord") or {}), 2)
+    origins = {
+        tuple((dig(tree, "elements", f"{s}step.vertical.text") or {}).get("pos", {}).values())
+        for s in ("upcoming", "current", "completed")
+    }
+    c.check("all three Step Statuses share one origin", len(origins), 1)
+    colours = {
+        tuple(list((dig(tree, "elements", f"{s}step.vertical.text") or {}).get("font", {}).values())[3:7])
+        for s in ("upcoming", "current", "completed")
+    }
+    c.check("and are styled apart", len(colours), 3)
+
+    print("\nSteps parsed from the Trial Definition (#37)")
+    parsed = [t for r in with_trials for t in (r.get("trials") or {}).values()
+              if isinstance(t, dict)]
+    c.check("every Trial parsed to at least one Step",
+            bool(parsed) and all(t.get("stepCount", 0) >= 1 for t in parsed), True)
+    c.check("Steps carry the text they render",
+            bool(parsed) and all(t.get("firstStepText") for t in parsed), True)
+    multi = [t for t in parsed if t.get("stepCount", 0) > 1]
+    c.check("at least one Trial has several Steps", bool(multi), True)
+
     print("\nModule directory hygiene")
     # The engine walks external/mods recursively and require()s every *.lua it finds,
     # so any second .lua here is executed as a module at boot. A match launcher named
