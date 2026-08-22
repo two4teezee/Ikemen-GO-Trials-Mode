@@ -1,0 +1,29 @@
+; TRIALS MODE — engine-native motif defaults
+;
+; The engine discovers every external/mods/**/+system.def and concatenates it AFTER
+; the screenpack's own system.def, resolving duplicates first-instance-wins. The
+; screenpack is concatenated first, so anything it defines overrides this file.
+;
+; ONLY sections and keys the engine's motif struct understands belong here. The
+; engine parses this file and logs a warning for every key it cannot assign, so a
+; trials-specific key placed here produces console noise on every boot. Those live in
+; system.def (no "+" prefix) alongside this file, which the engine never reads.
+;
+; See docs/adr/0001.
+
+;-----------------------------------------------------------------------------------
+[Select Info]
+;-----------------------------------------------------------------------------------
+; Per-gamemode select-screen title. Engine-native map key, merged automatically.
+title.trials.text = "Trials"
+
+;-----------------------------------------------------------------------------------
+[Title Info]
+;-----------------------------------------------------------------------------------
+; Deliberately does NOT define menu.itemname.trials.
+;
+; This file is concatenated after the screenpack's system.def, so an itemname defined
+; here would land at the end of the menu order — after EXIT. The module appends the
+; entry at runtime instead, at a controlled position, and skips appending if the
+; screenpack already defines one. A screenpack wanting control of the label or its
+; position defines menu.itemname.trials in its own system.def.

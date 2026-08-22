@@ -1,0 +1,27 @@
+; TRIALS MODE — trials-specific motif defaults
+;
+; Deliberately NOT named "+system.def". The engine auto-merges files with that name
+; and logs a warning for every key its motif struct cannot assign, so trials-specific
+; keys placed there would produce a warning per key on every boot. This file is read
+; only by the module, via loadIni, and the engine never parses it.
+;
+; NOT YET WIRED (issue #36): the screenpack override layer is not implemented. Once it
+; is, a screenpack will override any of these by defining the same section and key in
+; its own system.def, and the module will merge that layer over this one. Language
+; variants will use the engine's section-prefix convention, e.g. [ES.Trials Mode].
+; Today the module reads only this file, so edits to a screenpack's system.def have no
+; effect on trials.
+;
+; Keys are dotted, matching how the engine's own element properties are written, and
+; loadIni splits them into nested tables. See docs/adr/0001.
+
+;-----------------------------------------------------------------------------------
+[Trials Mode]
+;-----------------------------------------------------------------------------------
+
+; Label used when the module appends its own main-menu entry, and only then: a
+; screenpack that defines [Title Info] menu.itemname.trials keeps full control.
+menu.itemname.trials = "TRIALS"
+
+; Shown when the selected character ships no trials definition file.
+nodata.text = "No trials available for this character."

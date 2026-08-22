@@ -1,0 +1,10 @@
+Ikemen-GO-main/
+Ikemen-GO-nightly-late-2025-snapshot/
+testbuild/
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Test-loop artifacts
+tools/*.local
