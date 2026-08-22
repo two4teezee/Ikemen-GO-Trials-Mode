@@ -168,7 +168,14 @@ local function mergeLayer(dst, src, layer, source, prefix)
 			end
 		elseif type(v) == 'table' and not isValueList(v) then
 			if type(dst[k]) ~= 'table' or isValueList(dst[k]) then
-				dst[k] = {}
+				-- The mirror of the branch below: a later layer setting only a dotted
+				-- child (font.height, window.withtextbox) promotes the key to a parent,
+				-- and the value an earlier layer put there moves into __value rather
+				-- than being dropped. This is what loadIni itself does when the same
+				-- file writes both spellings (setNestedLuaKey, src/script.go:470); a
+				-- screenpack that overrides one child would otherwise silently delete
+				-- the module's whole default for that key.
+				dst[k] = dst[k] ~= nil and {__value = dst[k]} or {}
 			end
 			mergeLayer(dst[k], v, layer, source, path)
 		elseif type(dst[k]) == 'table' and not isValueList(dst[k]) then
@@ -1181,11 +1188,20 @@ local function drawSteps()
 	-- Scroll only once the rows cannot all fit the window. Keeping two completed Steps
 	-- above the current one is what the pre-refactor module did, and it is what makes a
 	-- long Trial read as progress rather than as a jump.
+	--
+	-- A negative spacing draws the list upward, which no window height can be reasoned
+	-- about the same way, so that case simply never scrolls and lets the window clip.
 	local range = block.activeWindow[4] - block.activeWindow[2]
-	if range > 0 and spacing[2] ~= 0 and #m.steps * spacing[2] > range then
-		first = math.max(m.step - 2, 1)
-		if (last - first) * spacing[2] > range then
-			last = math.min(first + math.floor(range / spacing[2]), #m.steps)
+	if range > 0 and spacing[2] > 0 then
+		-- n rows span n-1 spacings, so this is how many the window actually holds.
+		local fit = math.floor(range / spacing[2]) + 1
+		if #m.steps > fit then
+			first = math.max(1, math.min(m.step - 2, #m.steps - fit + 1))
+			-- Two completed Steps above the current one only where there is room for
+			-- them. A window one or two rows deep still has to show the row the player
+			-- is actually on, so the current Step wins over the pair above it.
+			first = math.max(first, m.step - fit + 1)
+			last = math.min(first + fit - 1, #m.steps)
 		end
 	end
 

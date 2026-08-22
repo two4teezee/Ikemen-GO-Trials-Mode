@@ -102,7 +102,9 @@ trialsteps.vertical.window = 25, 34, 295, 138
 ; alone, the fourth to sixth font slots, so the three read as one list.
 ;
 ; offset is added to the block's pos, per Step Status. Everything an engine text
-; element takes works here too: scale, font.height, window, layerno.
+; element takes works here too: scale, font.height, layerno. The window is the one
+; exception — it belongs to the block above, because it is what switches when a Trial
+; carries a Textbox, and all three Step Statuses have to clip to the same rect.
 ; -----------------------------------------------------------------------------------
 upcomingstep.vertical.text.font = 1, 0, 1, 180, 180, 180
 upcomingstep.vertical.text.offset = 0, 0
