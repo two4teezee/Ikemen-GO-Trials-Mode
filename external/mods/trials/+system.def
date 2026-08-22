@@ -27,3 +27,37 @@ title.trials.text = "Trials"
 ; entry at runtime instead, at a controlled position, and skips appending if the
 ; screenpack already defines one. A screenpack wanting control of the label or its
 ; position defines menu.itemname.trials in its own system.def.
+
+;-----------------------------------------------------------------------------------
+[Trials Pause Menu]
+;-----------------------------------------------------------------------------------
+; Engine-native. Any section matching ^(?i).*pause.*menu$ becomes a pause menu, and
+; menu.f_init resolves it from the game mode name — so shipping this section is all
+; that is needed to register it. No module menu code exists or should exist.
+;
+; The dummy items below need no module code either: trials shares the engine's
+; _iksys_training* map namespace (docs/adr/0002), and the engine's own handlers write
+; those maps unconditionally. Listing the item names is the whole integration.
+;
+; A screenpack overrides any of this by defining [Trials Pause Menu] in its own
+; system.def, which the engine concatenates first and therefore wins.
+
+menu.itemname.back = Continue
+menu.itemname.menutraining = Dummy Menu
+menu.itemname.menutraining.dummycontrol = Dummy Control
+menu.itemname.menutraining.ailevel = AI Level
+menu.itemname.menutraining.dummymode = Dummy Mode
+menu.itemname.menutraining.guardmode = Guard Mode
+menu.itemname.menutraining.fallrecovery = Fall Recovery
+menu.itemname.menutraining.distance = Distance
+menu.itemname.menutraining.buttonjam = Button Jam
+menu.itemname.menutraining.back = Back
+menu.itemname.menuinput = Button Config
+menu.itemname.menuinput.keyboard = Key Config
+menu.itemname.menuinput.gamepad = Joystick Config
+menu.itemname.menuinput.spacer = -
+menu.itemname.menuinput.inputdefault = Default
+menu.itemname.menuinput.back = Back
+menu.itemname.commandlist = Command List
+menu.itemname.characterchange = Character Change
+menu.itemname.exit = Exit

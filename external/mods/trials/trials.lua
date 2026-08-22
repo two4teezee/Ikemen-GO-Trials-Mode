@@ -23,7 +23,9 @@ trials.dir = 'external/mods/trials/'
 
 -- Resolves a path against the module directory, the active motif and data/.
 local function normalizePath(path)
-	if path == nil or path == '' then
+	-- loadIni yields a table for a comma-separated value, and searchFile raises on a
+	-- non-string argument, so a list-valued key would abort module load outright.
+	if type(path) ~= 'string' or path == '' then
 		return ''
 	end
 	return searchFile(path, {'', trials.dir, motif.def, 'data/'})
@@ -146,8 +148,9 @@ main.t_itemname.trials = function(t, item)
 	main.roundTime = -1
 	main.selectMenu[2] = true
 
-	-- Config.TrainingStage is likewise gated on gameMode('training') (start.lua:492),
-	-- so trials applies it itself in the launchFight hook below.
+	-- Config.TrainingStage is likewise gated on gameMode('training') (start.lua:492).
+	-- With one configured we skip the stage-select screen and fight.lua passes it to
+	-- launchFight; with none, the player picks.
 	if gameOption('Config.TrainingStage') == '' then
 		main.stageMenu = true
 	end
@@ -162,6 +165,11 @@ main.t_itemname.trials = function(t, item)
 	main.matchWins.single = {0, 0}
 	main.matchWins.tag = {0, 0}
 
+	-- Trials runs its own match launcher instead of external/script/default.lua, so
+	-- Config.TrainingStage can be passed to launchFight. See fight.lua for why no
+	-- hook-based approach works.
+	main.luaPath = trials.dir .. 'fight.lua'
+
 	textImgSetText(motif.select_info.title.TextSpriteData, motif.select_info.title.text.trials)
 	remapInput(1, getLastInputController())
 	remapInput(getLastInputController(), 1)
@@ -172,30 +180,45 @@ main.t_itemname.trials = function(t, item)
 end
 end
 
---;===========================================================
---; start.lua — MATCH LAUNCH
---;===========================================================
--- Config.TrainingStage is gated on gameMode('training') inside f_setStage
--- (start.lua:492), so trials applies it itself.
+-- Injects the module's [Common] files for the duration of a Trials match only.
 --
--- This must happen before f_setStage runs, because f_setStage ends by calling
--- selectStage() — by the time the "launchFight" hook fires the stage is already
--- committed, and mutating t.stageNo there does nothing. "start.launchFight.selected"
--- fires at start.lua:2222 for explicitly selected characters, which is the trials
--- path, and setting stageAssigned makes f_setStage use our value verbatim.
-hook.add("start.launchFight.selected", "trials", function(side, member, selected, teamData, t)
-	if t == nil or not gameMode('trials') then
+-- The engine reads Common.States from sys.cfg at compile time and has no discovery of
+-- module config.ini files, so the only way in is to mutate the `common` table the
+-- launchFight hook is handed. updateCommon() adds these right after this hook and
+-- removes them once the match ends, which is what keeps installing trials free of any
+-- save/config.ini edit. Key case matters: updateCommon builds the option name as
+-- 'Common.' .. k:gsub('^%l', string.upper), so the key must be lowercase here.
+hook.add("launchFight", "trials", function(common, t, data)
+	if not gameMode('trials') or type(trials.config.Common) ~= 'table' then
 		return
 	end
-	-- main.stageMenu is on when no training stage is configured; leave the player's
-	-- own choice alone in that case.
-	if main.stageMenu then
-		return
-	end
-	local stage = gameOption('Config.TrainingStage')
-	if stage ~= '' then
-		t.stageNo = start.f_getStageRef(stage)
-		t.stageAssigned = true
+	for section, values in pairs(trials.config.Common) do
+		local key = section:lower()
+		-- updateCommon looks the key up with gameOption(), which raises on an unknown
+		-- name rather than returning nil, so a stray or mistyped key here would kill
+		-- the match after character select. Only pass through names the engine defines.
+		local known = pcall(gameOption, 'Common.' .. key:gsub('^%l', string.upper))
+		if not known then
+			print('Trials: ignoring unknown [Common] key in config.ini: ' .. tostring(section))
+		else
+			if common[key] == nil then
+				common[key] = {}
+			end
+			local existing = {}
+			for _, v in ipairs(common[key]) do
+				existing[v] = true
+			end
+			-- loadIni yields a bare string for a single value and a table for a list.
+			if type(values) ~= 'table' then
+				values = {values}
+			end
+			for _, v in ipairs(values) do
+				if v ~= '' and not existing[v] then
+					table.insert(common[key], v)
+					existing[v] = true
+				end
+			end
+		end
 	end
 end)
 
@@ -212,12 +235,24 @@ function trials.f_dumpState()
 	if not gameOption('Debug.DumpLuaTables') then
 		return
 	end
-	local ok, err = pcall(main.f_printTable, {
+	local ok, err = pcall(function() main.f_printTable({
 		dir = trials.dir,
+		enabled = trials.enabled,
 		config = trials.config,
 		system = trials.system,
 		menuItemname = systemValue('trials_mode', 'menu', 'itemname', 'trials'),
-	}, 'debug/t_trials.txt')
+		-- Which extension points the module actually registered. Cheaper to assert
+		-- than to infer from behaviour, and it catches a hook silently not attaching.
+		hooks = {
+			launchFight = hook.lists['launchFight'] ~= nil
+				and hook.lists['launchFight']['trials'] ~= nil,
+			launchFightSelected = hook.lists['start.launchFight.selected'] ~= nil
+				and hook.lists['start.launchFight.selected']['trials'] ~= nil,
+		},
+		-- Resolved on disk, so a mistyped path in config.ini shows up here rather
+		-- than as a silently absent state file at match start.
+		zssPath = normalizePath((trials.config.Common or {}).States or ''),
+	}, 'debug/t_trials.txt') end)
 	if not ok then
 		print('Trials: could not write debug dump (' .. tostring(err) .. ')')
 	end

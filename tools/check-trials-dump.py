@@ -150,8 +150,22 @@ def main():
     c.present("[Trials Mode] nodata.text", dig(tree, "system", "trials_mode", "nodata", "text"))
     c.present("authored key order preserved (__order)", dig(tree, "system", "trials_mode", "__order"))
 
+    print("\nZSS injection (#35)")
+    c.check("launchFight hook registered", dig(tree, "hooks", "launchFight"), True)
+    c.check(
+        "start.launchFight.selected hook registered",
+        dig(tree, "hooks", "launchFightSelected"),
+        True,
+    )
+    c.check(
+        "trials.zss resolves on disk",
+        dig(tree, "zssPath"),
+        "external/mods/trials/trials.zss",
+    )
+
     print("\nResolved values")
     c.check("main-menu label resolves", dig(tree, "menuItemname"), "TRIALS")
+    c.check("module is enabled", dig(tree, "enabled"), True)
 
     total = c.passed + c.failed
     print(f"\n  {c.passed}/{total} passed" + (f", {c.failed} failed" if c.failed else ""))
