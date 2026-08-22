@@ -1,8 +1,15 @@
--- ikemenversion: 1.0
---
 -- Trials Mode match launcher. Replaces external/script/default.lua for Trials matches,
 -- selected by setting main.luaPath in main.t_itemname.trials, and executed by
 -- start.lua's assert(loadFile(path))().
+--
+-- THE EXTENSION IS DELIBERATE. Do not rename this to .lua.
+--
+-- The engine walks external/mods recursively and require()s every *.lua it finds
+-- (main.lua:3985-4000), so a launcher named fight.lua is loaded as a module at boot and
+-- calls launchFight{} with no match context, panicking the engine before the title
+-- screen. loadFile() reads the file through LoadText and does not care about the
+-- extension, so any non-.lua name works. There is no ikemenversion header for the same
+-- reason: this is not a module.
 --
 -- It exists for one reason. Config.TrainingStage is gated on gameMode('training')
 -- inside f_setStage (start.lua:492), and that gate does not extend to new mode names.

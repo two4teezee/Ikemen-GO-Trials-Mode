@@ -11,6 +11,7 @@ Usage:
 Exits non-zero if any check fails, so it can gate CI later.
 """
 
+import os
 import re
 import sys
 
@@ -149,6 +150,18 @@ def main():
     )
     c.present("[Trials Mode] nodata.text", dig(tree, "system", "trials_mode", "nodata", "text"))
     c.present("authored key order preserved (__order)", dig(tree, "system", "trials_mode", "__order"))
+
+    print("\nModule directory hygiene")
+    # The engine walks external/mods recursively and require()s every *.lua it finds,
+    # so any second .lua here is executed as a module at boot. A match launcher named
+    # fight.lua panicked the engine before the title screen exactly this way.
+    module_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "..", "external", "mods", "trials")
+    if os.path.isdir(module_dir):
+        luas = sorted(f for f in os.listdir(module_dir) if f.endswith(".lua"))
+        c.check("only trials.lua is auto-required by the engine", luas, ["trials.lua"])
+    else:
+        c.check("module directory found", module_dir, "<missing>")
 
     print("\nZSS injection (#35)")
     c.check("launchFight hook registered", dig(tree, "hooks", "launchFight"), True)

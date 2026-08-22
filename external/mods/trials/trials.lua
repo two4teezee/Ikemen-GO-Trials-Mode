@@ -168,7 +168,7 @@ main.t_itemname.trials = function(t, item)
 	-- Trials runs its own match launcher instead of external/script/default.lua, so
 	-- Config.TrainingStage can be passed to launchFight. See fight.lua for why no
 	-- hook-based approach works.
-	main.luaPath = trials.dir .. 'fight.lua'
+	main.luaPath = trials.dir .. 'fight.luascript'
 
 	textImgSetText(motif.select_info.title.TextSpriteData, motif.select_info.title.text.trials)
 	remapInput(1, getLastInputController())
