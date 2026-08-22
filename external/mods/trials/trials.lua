@@ -385,39 +385,47 @@ local function sourceOf(path, key)
 	return trials.configSource[table.concat(path, '.') .. '.' .. key]
 end
 
--- Every trials element draws in the same coordinate space, so that space is one
--- setting — [Trials Mode] trials.localcoord — rather than a copy per element. An
--- element may still carry its own `localcoord` where it genuinely needs a different
--- one; this is the value it falls back to.
+-- The space the coordinates in the module's own system.def are written in. Paired with
+-- them: change this and every shipped position moves.
 --
--- Nobody has to write it. With no value anywhere it is the screenpack's own
--- (motif.info.localcoord), which is the space every existing trials integration was
--- authored in.
+-- 320x240 rather than something widescreen because a match does not necessarily render
+-- at the screenpack's aspect ratio — Video.FightAspect defaults to the stage's, and a
+-- 4:3 stage renders 4:3 even in a 16:9 screenpack. Only the central 4:3 slice of a
+-- widescreen localcoord is on screen when that happens. 320x240 has no such margins.
+local MODULE_LOCALCOORD = {320, 240}
+
+-- Every trials element draws in the same coordinate space, so that space is one setting
+-- — [Trials Mode] trials.localcoord — rather than a copy per element. An element may
+-- still carry its own `localcoord` where it genuinely needs a different one; this is
+-- what it falls back to.
 --
--- The module *does* ship a value, because its own default positions have to be
--- authored somewhere, and a widescreen space is the wrong somewhere: a match can render
--- at the stage's aspect rather than the screenpack's, and the outer margins of a
--- widescreen localcoord are off-screen when it does. So the shipped defaults are
--- authored in 320x240, where every coordinate is on screen at both aspect ratios.
---
--- That shipped value stands down on its own. The moment a layer above the module's
--- defaults positions an element, those coordinates are in the screenpack's space, not
--- the module's, so the screenpack's localcoord takes over unless that layer set
--- trials.localcoord too.
+-- Nobody has to write it, at any layer, and leaving it out never changes where an
+-- element lands. The space follows whoever positioned the element: the module's own
+-- shipped positions resolve in MODULE_LOCALCOORD, and a screenpack's resolve in the
+-- screenpack's own, which is what every existing trials integration already assumes.
+-- Setting trials.localcoord overrides both.
 local function sharedLocalcoord(path, own, ownSource)
 	local screen = {motif.info.localcoord[1], motif.info.localcoord[2]}
-	local shared = cfgGet({'trials_mode', 'trials', 'localcoord'})
-	local sharedSource = trials.configSource['trials_mode.trials.localcoord']
-	local posSource = sourceOf(path, 'pos')
-	local overridden = posSource ~= nil and posSource ~= 'defaults'
 
-	if ownSource ~= nil and (ownSource ~= 'defaults' or not overridden) then
-		return numList(own, screen)
+	-- Whose coordinates are these? A position the module shipped is written in the
+	-- module's space; one a screenpack wrote is written in the screenpack's. Nothing
+	-- else distinguishes them — an existing integration sets `trialcounter.pos` and no
+	-- localcoord at all, and so does this module, so the *absence* of a localcoord
+	-- means two different things depending on who left it out.
+	local posSource = sourceOf(path, 'pos')
+	local ours = posSource == nil or posSource == 'defaults'
+	local fallback = ours and MODULE_LOCALCOORD or screen
+
+	-- An explicit localcoord always wins, except where the module set it and a
+	-- screenpack has since moved the element out of the module's space.
+	if ownSource ~= nil and (ownSource ~= 'defaults' or ours) then
+		return numList(own, fallback)
 	end
-	if shared ~= nil and (sharedSource ~= 'defaults' or not overridden) then
-		return numList(shared, screen)
+	local sharedSource = trials.configSource['trials_mode.trials.localcoord']
+	if sharedSource ~= nil and (sharedSource ~= 'defaults' or ours) then
+		return numList(cfgGet({'trials_mode', 'trials', 'localcoord'}), fallback)
 	end
-	return screen
+	return fallback
 end
 
 -- Shared prelude for every element: the geometry keys the three property structs have

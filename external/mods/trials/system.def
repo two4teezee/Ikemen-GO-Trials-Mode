@@ -36,24 +36,23 @@ nodata.text = "No trials available for this character."
 ;
 ; trials.localcoord is the coordinate space every trials element draws in.
 ;
-; You do not have to set it. Left unset it is your screenpack's own localcoord, which
-; is the space every existing trials integration was already authored in — so a
-; screenpack that positions trials elements and says nothing about localcoord keeps
-; working exactly as it did.
+; You do not have to set it, and leaving it out never moves anything. The space follows
+; whoever positioned the element:
 ;
-; The value below exists because the module's own default positions have to be authored
-; somewhere, and a widescreen space is the wrong somewhere. A match does not necessarily
-; render at the screenpack's aspect ratio: with Video.FightAspect set to the stage's
-; (the shipped default), a 4:3 stage renders 4:3 even in a 16:9 screenpack, and only the
-; central 4:3 slice of a widescreen localcoord is on screen. For 1280x720 that is
-; x = 160 to 1120, so a default of "10 in from the left" would be invisible on exactly
-; the setup this module ships against. 320x240 has no such margins.
+;   - the positions in THIS file are written in 320x240, and resolve there
+;   - a position your screenpack sets is written in your screenpack's localcoord, and
+;     resolves there — which is what every existing trials integration already assumes,
+;     so one that sets trialcounter.pos and nothing else keeps working unchanged
+;   - setting trials.localcoord below overrides both
 ;
-; It stands down on its own. The moment you position any trials element, your
-; coordinates are in your space, not the module's, and your screenpack's localcoord
-; takes over — unless you set trials.localcoord yourself, which always wins.
+; Why 320x240 for this file's own coordinates: a match does not necessarily render at
+; the screenpack's aspect ratio. With Video.FightAspect set to the stage's (the shipped
+; default), a 4:3 stage renders 4:3 even in a 16:9 screenpack, and only the central 4:3
+; slice of a widescreen localcoord is on screen. For 1280x720 that is x = 160 to 1120,
+; so a default of "10 in from the left" would be invisible on exactly the setup this
+; module ships against. 320x240 has no such margins.
 ; -----------------------------------------------------------------------------------
-trials.localcoord = 320, 240
+; trials.localcoord =
 
 ; TRIALS COUNTER ------------------------------------------------------------------
 ; Which Trial the player is on, and how many the character ships.
@@ -62,9 +61,9 @@ trials.localcoord = 320, 240
 ; convention (main.f_formatBySpec). The pre-refactor "Trial %s of %t" spelling is still
 ; read the way it always was, so an existing screenpack needs no edit.
 ;
-; pos is in trials.localcoord above — 320x240 as shipped, your screenpack's the moment
-; you set a position of your own. trialcounter.localcoord overrides that for this one
-; element only, and is almost never what you want.
+; pos is in 320x240, this file's own space (see trials.localcoord above). A pos you set
+; in your screenpack is in your screenpack's space instead. trialcounter.localcoord
+; overrides that for this one element only, and is almost never what you want.
 ; -----------------------------------------------------------------------------------
 trialcounter.text = "Trial %i of %s"
 trialcounter.font = 1, 0, 1
