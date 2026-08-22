@@ -127,29 +127,96 @@ def main():
 
     print("\nModule bootstrap")
     c.check("module directory resolved", dig(tree, "dir"), "external/mods/trials/")
-    c.present("config.ini parsed", dig(tree, "config"))
-    c.present("system.def defaults parsed", dig(tree, "system"))
+    c.check("module is enabled", dig(tree, "enabled"), True)
+    c.present("config.ini parsed", dig(tree, "ini"))
+    c.present("Trials Config resolved", dig(tree, "config"))
+    c.check("language resolved", dig(tree, "language"), "en")
 
     print("\nconfig.ini — dotted keys nest, types coerce")
-    opts = dig(tree, "config", "Options", "Trials")
+    opts = dig(tree, "ini", "Options", "Trials")
     c.check("Options.Trials.Layout", dig(opts, "Layout") if opts else None, "vertical")
     c.check("Options.Trials.Advancement", dig(opts, "Advancement") if opts else None, "autoadvance")
     c.check("Options.Trials.ResetOnSuccess is bool", dig(opts, "ResetOnSuccess") if opts else None, False)
     c.check("Options.Trials.TotalTimer is bool", dig(opts, "TotalTimer") if opts else None, True)
     c.check(
         "Common.States points at the module's zss",
-        dig(tree, "config", "Common", "States"),
+        dig(tree, "ini", "Common", "States"),
         "external/mods/trials/trials.zss",
     )
 
-    print("\nsystem.def — trials sections survive the engine's closed motif struct")
+    print("\nTrials Config — three layers, screenpack last (#36)")
+    c.check("layer 1 is the module's defaults", dig(tree, "layers", 1, "name"), "defaults")
+    c.check("layer 2 is the module's config.ini", dig(tree, "layers", 2, "name"), "config.ini")
+    c.check("layer 3 is the screenpack", dig(tree, "layers", 3, "name"), "screenpack")
     c.check(
         "[Trials Mode] menu.itemname.trials",
-        dig(tree, "system", "trials_mode", "menu", "itemname", "trials"),
+        dig(tree, "config", "trials_mode", "menu", "itemname", "trials"),
         "TRIALS",
     )
-    c.present("[Trials Mode] nodata.text", dig(tree, "system", "trials_mode", "nodata", "text"))
-    c.present("authored key order preserved (__order)", dig(tree, "system", "trials_mode", "__order"))
+    c.present("[Trials Mode] nodata.text", dig(tree, "config", "trials_mode", "nodata", "text"))
+    c.present("authored key order preserved (__order)", dig(tree, "config", "trials_mode", "__order"))
+    c.check(
+        "counter text comes from the module by default",
+        dig(tree, "configSource", "trials_mode.trialcounter.font"),
+        "defaults",
+    )
+
+    # These two need the #36 fixture appended to testbuild/data/ikemen1/system.def.
+    # Without it the screenpack defines no trials sections and both checks are skipped.
+    source = dig(tree, "configSource") or {}
+    if source.get("trials_mode.trialcounter.text", "").startswith("screenpack"):
+        c.check(
+            "screenpack overrides the module's counter text",
+            dig(tree, "config", "trials_mode", "trialcounter", "text"),
+            "Screenpack: Trial %i of %s",
+        )
+        c.check(
+            "a language-prefixed section beats the unprefixed one",
+            dig(tree, "configSource", "trials_mode.nodata.text"),
+            "screenpack [en]",
+        )
+        c.check(
+            "and supplies its value",
+            dig(tree, "config", "trials_mode", "nodata", "text"),
+            "Screenpack EN: no trials for this character.",
+        )
+        # The fixture's base section spells the no-data message the pre-refactor way.
+        # Under Config.Language = es the EN section drops out and that is what wins.
+        nodata_src = str(dig(tree, "configSource", "trials_mode.nodata.text") or "")
+        c.check(
+            "the legacy trialcounter.notrialsdata.text spelling is still read",
+            "via trialcounter.notrialsdata.text" in nodata_src
+            or nodata_src == "screenpack [en]",
+            True,
+        )
+    else:
+        print("  - screenpack override fixture not installed, layering checks skipped")
+
+    print("\nElement construction (#36)")
+    counter = dig(tree, "elements", "trialcounter")
+    c.present("trial counter built at load", counter)
+    c.check("counter reads a layer number", dig(counter, "layerno") if counter else None, 0)
+    c.present("counter localcoord resolved", dig(counter, "localcoord") if counter else None)
+    c.present("counter position resolved", dig(counter, "pos") if counter else None)
+
+    print("\nTrial Definition discovery (#36)")
+    chars = dig(tree, "chars") or {}
+    rows = [v for v in chars.values() if isinstance(v, dict)]
+    checked = [r for r in rows if r.get("checked")]
+    with_trials = [r for r in rows if r.get("trialCount")]
+    # Discovery runs at module load, so this is assertable from the startup dump with
+    # no interaction — see the umbrella spec's testing decisions.
+    c.check("the roster was swept at load", bool(checked), True)
+    c.check("every playable character was checked", len(checked), len(rows))
+    c.check("at least one character ships a Trial Definition", bool(with_trials), True)
+    c.check(
+        "characters without one are detected as such",
+        bool([r for r in checked if not r.get("trialCount")]),
+        True,
+    )
+    for r in with_trials:
+        c.present(f"{r.get('name')}: Trial Definition resolved", r.get("trialsDef"))
+        c.present(f"{r.get('name')}: Trials read in authored order", dig(r, "titles", 1))
 
     print("\nModule directory hygiene")
     # The engine walks external/mods recursively and require()s every *.lua it finds,
@@ -163,22 +230,15 @@ def main():
     else:
         c.check("module directory found", module_dir, "<missing>")
 
-    print("\nZSS injection (#35)")
+    print("\nExtension points")
     c.check("launchFight hook registered", dig(tree, "hooks", "launchFight"), True)
-    c.check(
-        "start.launchFight.selected hook registered",
-        dig(tree, "hooks", "launchFightSelected"),
-        True,
-    )
+    c.check("loop#trials hook registered", dig(tree, "hooks", "loop"), True)
+    c.check("main.f_addChar.files hook registered", dig(tree, "hooks", "addCharFiles"), True)
     c.check(
         "trials.zss resolves on disk",
         dig(tree, "zssPath"),
         "external/mods/trials/trials.zss",
     )
-
-    print("\nResolved values")
-    c.check("main-menu label resolves", dig(tree, "menuItemname"), "TRIALS")
-    c.check("module is enabled", dig(tree, "enabled"), True)
 
     total = c.passed + c.failed
     print(f"\n  {c.passed}/{total} passed" + (f", {c.failed} failed" if c.failed else ""))

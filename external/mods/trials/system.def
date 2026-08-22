@@ -5,15 +5,16 @@
 ; keys placed there would produce a warning per key on every boot. This file is read
 ; only by the module, via loadIni, and the engine never parses it.
 ;
-; NOT YET WIRED (issue #36): the screenpack override layer is not implemented. Once it
-; is, a screenpack will override any of these by defining the same section and key in
-; its own system.def, and the module will merge that layer over this one. Language
-; variants will use the engine's section-prefix convention, e.g. [ES.Trials Mode].
-; Today the module reads only this file, so edits to a screenpack's system.def have no
-; effect on trials.
+; This is layer 1 of three. The module reads its own config.ini over it, and the
+; screenpack's system.def over that — so a screenpack overrides any key below by
+; defining the same section and key in its own system.def. Language variants use the
+; engine's section-prefix convention, e.g. [ES.Trials Mode], resolved the way the
+; engine resolves its own motif sections. See docs/adr/0001.
 ;
 ; Keys are dotted, matching how the engine's own element properties are written, and
-; loadIni splits them into nested tables. See docs/adr/0001.
+; loadIni splits them into nested tables. Element keys follow the engine's own
+; vocabulary — font, offset, scale, window, localcoord, layerno — so nothing here is a
+; second dialect.
 
 ;-----------------------------------------------------------------------------------
 [Trials Mode]
@@ -23,5 +24,32 @@
 ; screenpack that defines [Title Info] menu.itemname.trials keeps full control.
 menu.itemname.trials = "TRIALS"
 
-; Shown when the selected character ships no trials definition file.
+; Shown in place of the counter when the selected character ships no Trial Definition.
+; The pre-refactor spelling, trialcounter.notrialsdata.text, is still read: a screenpack
+; that already sets it keeps working without an edit.
 nodata.text = "No trials available for this character."
+
+; TRIALS COUNTER ------------------------------------------------------------------
+; Which Trial the player is on, and how many the character ships.
+;
+; %i is the current Trial and %s the total, following the engine's own substitution
+; convention (main.f_formatBySpec). The pre-refactor "Trial %s of %t" spelling is still
+; read the way it always was, so an existing screenpack needs no edit.
+;
+; trialcounter.pos is deliberately unset. One pair of absolute coordinates cannot suit
+; both a 320x240 and a 1280x720 screenpack, so with no value here the module places the
+; counter at the bottom left of whatever localcoord the screenpack declares — 1% in from
+; the left, 95% down. Set trialcounter.pos to put it anywhere else.
+;
+; trialcounter.localcoord defaults to the screenpack's own, which is what makes the
+; counter land in the same place at 4:3 and 16:9.
+; -----------------------------------------------------------------------------------
+trialcounter.text = "Trial %i of %s"
+trialcounter.font = 1, 0, 1
+trialcounter.scale = 1, 1
+trialcounter.layerno = 0
+; trialcounter.pos =
+; trialcounter.offset =
+; trialcounter.font.height =
+; trialcounter.window =
+; trialcounter.localcoord =

@@ -74,6 +74,12 @@ A sprite standing in for one input token in a Step's notation, drawn from the
 screenpack's shared glyph vocabulary — the same one the engine's movelists use.
 _Avoid_: icon, button, symbol
 
+**Trial Counter**:
+The one-line readout of which Trial the player is on and how many the character
+ships. Doubles as where the no-data message appears when the selected character has
+no Trial Definition, so a player always learns something from that spot.
+_Avoid_: progress, counter (ambiguous with the engine's combo counter), trial number
+
 ### Progress
 
 **Advancement**:
