@@ -47,24 +47,38 @@ input, so it automates. Everything from character select onward needs a controll
 ## Checklist format
 
 One checklist per slice, posted in the response *and* as a comment on the issue so it
-survives the session. Structure:
+survives the session.
 
-**Setup** — the exact commands, including anything non-obvious about this machine.
+**Every item is a `- [ ]` checkbox.** The maintainer ticks them in place as they go, so
+a half-finished run still records exactly how far it got. Prose the maintainer cannot
+tick is not a checklist item; put it in the surrounding text.
 
-**Watch for** — ordered by how early it appears, so a failure stops the run rather
-than wasting the rest of it. Each item states the expected result concretely enough to
-be judged without reading the code. "TRIALS appears above OPTIONS" — not "menu entry
-works".
+Title the comment `## Test checklist — #<n> (commit \`<sha>\`)`, then:
 
-**Known-suspect** — anything the agent could not verify, and specifically anything
-changed after the last successful run. This is the part that earns the checklist:
-these items are where a failure is most likely, and the maintainer should look at them
-first.
+**### Setup** — the exact commands in a bash block, including anything non-obvious
+about this machine or fixtures that had to be installed by hand.
 
-**Already verified** — stated briefly, so time is not spent re-checking it.
+**### Watch for — in order** — grouped under numbered bold headings, ordered by how
+early each appears so a failure stops the run rather than wasting the rest of it. Mark a
+group with ⚠️ when it is new or the likeliest thing to break, and add a short italic note
+saying why. Under each heading, one `- [ ]` per observable result, stated concretely
+enough to judge without reading the code — "TRIALS appears above OPTIONS", not "menu
+entry works". Where a failure explains itself, follow the group with a line saying what
+that failure means.
 
-**If it fails** — what to capture. Usually the console output and
+**### Known-suspect** — anything the agent could not verify, and specifically anything
+changed after the last successful run. This is the part that earns the checklist: these
+items are where a failure is most likely, and the maintainer should look at them first.
+
+**### Already verified** — stated briefly, so time is not spent re-checking it.
+
+**### If something fails** — what to capture. Usually the console output and
 `testbuild/debug/t_trials.txt`, since those are what the agent can act on afterwards.
+
+**### Not in scope** — what this slice deliberately does not do, so a missing feature is
+not reported as a bug.
+
+Prior art to copy: the checklist on #35.
 
 ## Rules
 

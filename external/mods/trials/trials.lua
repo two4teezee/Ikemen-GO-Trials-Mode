@@ -385,21 +385,45 @@ local function sourceOf(path, key)
 	return trials.configSource[table.concat(path, '.') .. '.' .. key]
 end
 
+-- Every trials element draws in the same coordinate space, so that space is one
+-- setting — [Trials Mode] trials.localcoord — rather than a copy per element. An
+-- element may still carry its own `localcoord` where it genuinely needs a different
+-- one; this is the value it falls back to.
+--
+-- Nobody has to write it. With no value anywhere it is the screenpack's own
+-- (motif.info.localcoord), which is the space every existing trials integration was
+-- authored in.
+--
+-- The module *does* ship a value, because its own default positions have to be
+-- authored somewhere, and a widescreen space is the wrong somewhere: a match can render
+-- at the stage's aspect rather than the screenpack's, and the outer margins of a
+-- widescreen localcoord are off-screen when it does. So the shipped defaults are
+-- authored in 320x240, where every coordinate is on screen at both aspect ratios.
+--
+-- That shipped value stands down on its own. The moment a layer above the module's
+-- defaults positions an element, those coordinates are in the screenpack's space, not
+-- the module's, so the screenpack's localcoord takes over unless that layer set
+-- trials.localcoord too.
+local function sharedLocalcoord(path, own, ownSource)
+	local screen = {motif.info.localcoord[1], motif.info.localcoord[2]}
+	local shared = cfgGet({'trials_mode', 'trials', 'localcoord'})
+	local sharedSource = trials.configSource['trials_mode.trials.localcoord']
+	local posSource = sourceOf(path, 'pos')
+	local overridden = posSource ~= nil and posSource ~= 'defaults'
+
+	if ownSource ~= nil and (ownSource ~= 'defaults' or not overridden) then
+		return numList(own, screen)
+	end
+	if shared ~= nil and (sharedSource ~= 'defaults' or not overridden) then
+		return numList(shared, screen)
+	end
+	return screen
+end
+
 -- Shared prelude for every element: the geometry keys the three property structs have
 -- in common, resolved once so the mappers below read as the setter chain they are.
 local function elementGeometry(g, path)
-	-- pos and localcoord are a pair. The module's own defaults are authored in 320x240,
-	-- because a match can render at the stage's aspect rather than the screenpack's and
-	-- the outer margins of a widescreen localcoord are off-screen when it does. But a
-	-- screenpack that moves an element is working in *its* coordinate space, and every
-	-- existing trials integration was written that way — so when a layer above the
-	-- defaults sets pos and says nothing about localcoord, the screenpack's wins.
-	local screen = {motif.info.localcoord[1], motif.info.localcoord[2]}
-	local lc = numList(g('localcoord'), screen)
-	local posSource = sourceOf(path, 'pos')
-	if sourceOf(path, 'localcoord') == 'defaults' and posSource ~= nil and posSource ~= 'defaults' then
-		lc = screen
-	end
+	local lc = sharedLocalcoord(path, g('localcoord'), sourceOf(path, 'localcoord'))
 	-- Summed, the way the engine sums them: its own elements carry `offset`, and the
 	-- parent block's `pos` is added on top at load (offsetTexts, src/motif.go:2648).
 	-- Trials elements have always spelled their origin `pos` and have no parent block,

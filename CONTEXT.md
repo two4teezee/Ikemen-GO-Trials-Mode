@@ -48,6 +48,14 @@ windows, layouts. Resolved from three layers: the module's `+system.def`, the
 module's `config.ini`, then the screenpack's `system.def`.
 _Avoid_: trials settings, motif data, trials_mode
 
+**Shared Setting**:
+A Trials Config value more than one element reads, written once at the top of
+`[Trials Mode]` under the `trials.` prefix — `trials.localcoord` — rather than
+repeated on each element. An element may still carry its own value; the Shared
+Setting is what it falls back to. New settings that several components will want
+belong here, not copied per element.
+_Avoid_: global, default, common
+
 **Player Preference**:
 A Trials Config value the player changes at runtime through the pause menu and
 which persists to the module's `config.ini` — layout, textbox visibility, trial
