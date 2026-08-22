@@ -11,6 +11,7 @@ Usage:
 Exits non-zero if any check fails, so it can gate CI later.
 """
 
+import math
 import os
 import re
 import sys
@@ -198,6 +199,21 @@ def main():
     c.check("counter reads a layer number", dig(counter, "layerno") if counter else None, 0)
     c.present("counter localcoord resolved", dig(counter, "localcoord") if counter else None)
     c.present("counter position resolved", dig(counter, "pos") if counter else None)
+    if counter:
+        # A match can render at the stage's aspect rather than the screenpack's. At 4:3
+        # only x in [0,320] of the engine's internal space is on screen; at 16:9 it is
+        # [-53.3, 373.3]. Reproduces TextSprite.SetLocalcoord/SetPos (src/font.go:850).
+        lc = counter.get("localcoord") or {}
+        pos = counter.get("pos") or {}
+        lx, ly = lc.get(1), lc.get(2)
+        px, py = pos.get(1), pos.get(2)
+        if None not in (lx, ly, px, py):
+            v = ly * 4 / 3 if lx * 3 > ly * 4 else lx
+            ix = px * (320 / v) - int(math.floor(lx / (v / 320) - 320) / 2)
+            iy = py * (320 / v)
+            print(f"      (internal position: {ix:.1f}, {iy:.1f})")
+            c.check("counter is on screen at 4:3", 0 <= ix <= 320 and 0 <= iy <= 240, True)
+            c.check("counter is on screen at 16:9", -53.4 <= ix <= 373.4 and 0 <= iy <= 240, True)
 
     print("\nTrial Definition discovery (#36)")
     chars = dig(tree, "chars") or {}

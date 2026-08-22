@@ -368,10 +368,38 @@ local function resolveFont(raw, font)
 	return nil
 end
 
+-- Concatenates an element's config path with the key being read off it.
+local function join(path, ...)
+	local full = {}
+	for _, v in ipairs(path) do
+		full[#full + 1] = v
+	end
+	for _, v in ipairs({...}) do
+		full[#full + 1] = v
+	end
+	return full
+end
+
+-- Which layer supplied one of an element's keys, or nil if none did.
+local function sourceOf(path, key)
+	return trials.configSource[table.concat(path, '.') .. '.' .. key]
+end
+
 -- Shared prelude for every element: the geometry keys the three property structs have
 -- in common, resolved once so the mappers below read as the setter chain they are.
-local function elementGeometry(g)
-	local lc = numList(g('localcoord'), {motif.info.localcoord[1], motif.info.localcoord[2]})
+local function elementGeometry(g, path)
+	-- pos and localcoord are a pair. The module's own defaults are authored in 320x240,
+	-- because a match can render at the stage's aspect rather than the screenpack's and
+	-- the outer margins of a widescreen localcoord are off-screen when it does. But a
+	-- screenpack that moves an element is working in *its* coordinate space, and every
+	-- existing trials integration was written that way — so when a layer above the
+	-- defaults sets pos and says nothing about localcoord, the screenpack's wins.
+	local screen = {motif.info.localcoord[1], motif.info.localcoord[2]}
+	local lc = numList(g('localcoord'), screen)
+	local posSource = sourceOf(path, 'pos')
+	if sourceOf(path, 'localcoord') == 'defaults' and posSource ~= nil and posSource ~= 'defaults' then
+		lc = screen
+	end
 	-- Summed, the way the engine sums them: its own elements carry `offset`, and the
 	-- parent block's `pos` is added on top at load (offsetTexts, src/motif.go:2648).
 	-- Trials elements have always spelled their origin `pos` and have no parent block,
@@ -398,14 +426,7 @@ end
 -- Returns a getter reading one element's keys out of the resolved Trials Config.
 local function elementReader(path)
 	return function(...)
-		local full = {}
-		for _, v in ipairs(path) do
-			full[#full + 1] = v
-		end
-		for _, v in ipairs({...}) do
-			full[#full + 1] = v
-		end
-		return cfgGet(full)
+		return cfgGet(join(path, ...))
 	end
 end
 
@@ -416,7 +437,7 @@ local function buildText(path)
 	-- Trials has always spelled the font height as its own key; the engine puts it in
 	-- the 8th font slot. The dedicated key wins when both are present.
 	font[8] = tonumber(g('font', 'height')) or font[8]
-	local geo = elementGeometry(g)
+	local geo = elementGeometry(g, path)
 
 	local ts = textImgNew()
 	local fnt = resolveFont(g('font'), font)
@@ -456,7 +477,7 @@ end
 -- priority order for free.
 local function buildAnim(path, sff)
 	local g = elementReader(path)
-	local geo = elementGeometry(g)
+	local geo = elementGeometry(g, path)
 	local anim = tonumber(g('anim'))
 	local spr = numList(g('spr'), {-1, 0})
 
@@ -492,7 +513,7 @@ end
 -- OverlayProperties -> Rect.
 local function buildOverlay(path)
 	local g = elementReader(path)
-	local geo = elementGeometry(g)
+	local geo = elementGeometry(g, path)
 	local col = numList(g('col'), {0, 0, 0})
 	local alpha = numList(g('alpha'), {0, 255})
 
@@ -519,18 +540,6 @@ trials.f_buildOverlay = buildOverlay
 trials.elements = {}
 
 if trials.enabled then
-	-- The counter has no default position in system.def, because one set of absolute
-	-- coordinates cannot suit both a 320x240 and a 1280x720 screenpack. Sit it at the
-	-- bottom left of whatever localcoord the screenpack declares instead; a screenpack
-	-- that wants it elsewhere writes trialcounter.pos.
-	if cfgGet({'trials_mode', 'trialcounter', 'pos'}) == nil then
-		trials.config.trials_mode.trialcounter = trials.config.trials_mode.trialcounter or {}
-		trials.config.trials_mode.trialcounter.pos = {
-			motif.info.localcoord[1] * 0.01,
-			motif.info.localcoord[2] * 0.95,
-		}
-		trials.configSource['trials_mode.trialcounter.pos'] = 'derived'
-	end
 	trials.elements.trialcounter = buildText({'trials_mode', 'trialcounter'})
 end
 

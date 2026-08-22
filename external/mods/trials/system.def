@@ -36,20 +36,29 @@ nodata.text = "No trials available for this character."
 ; convention (main.f_formatBySpec). The pre-refactor "Trial %s of %t" spelling is still
 ; read the way it always was, so an existing screenpack needs no edit.
 ;
-; trialcounter.pos is deliberately unset. One pair of absolute coordinates cannot suit
-; both a 320x240 and a 1280x720 screenpack, so with no value here the module places the
-; counter at the bottom left of whatever localcoord the screenpack declares — 1% in from
-; the left, 95% down. Set trialcounter.pos to put it anywhere else.
+; POSITION. pos and localcoord below are a pair, and have to be read together.
 ;
-; trialcounter.localcoord defaults to the screenpack's own, which is what makes the
-; counter land in the same place at 4:3 and 16:9.
+; A match does not necessarily render at the screenpack's aspect ratio — with
+; Video.FightAspect set to the stage's (the shipped default), a 4:3 stage renders 4:3
+; even in a 16:9 screenpack. In that pass only the central 4:3 slice of a widescreen
+; localcoord is on screen: for 1280x720 that is x = 160 to 1120, so anything in the
+; outer 160 units is drawn off the edge. A default of "10 in from the left" would be
+; invisible on exactly the setup this module ships against.
+;
+; So the module's own default is authored in 320x240, where every coordinate is on
+; screen at both aspect ratios, and declares that localcoord alongside it.
+;
+; If you set trialcounter.pos and nothing else, localcoord follows your screenpack's
+; rather than the 320x240 above — your coordinates are in your own space, which is what
+; every existing trials integration already assumes. Set trialcounter.localcoord too
+; only if you want a third space.
 ; -----------------------------------------------------------------------------------
 trialcounter.text = "Trial %i of %s"
 trialcounter.font = 1, 0, 1
 trialcounter.scale = 1, 1
 trialcounter.layerno = 0
-; trialcounter.pos =
+trialcounter.pos = 5, 228
+trialcounter.localcoord = 320, 240
 ; trialcounter.offset =
 ; trialcounter.font.height =
 ; trialcounter.window =
-; trialcounter.localcoord =
