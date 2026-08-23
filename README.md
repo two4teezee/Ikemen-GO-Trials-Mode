@@ -46,11 +46,16 @@ The [Trials Mode wiki](https://github.com/two4teezee/Ikemen-GO-Trials-Mode/wiki)
 ; NOTE: Values provided in this sample meant for `mugen1` screenpack, 1280x720 resolution.
 ;
 ; GENERAL TRIALS OPTIONS ---------------------------------------------------
-; trialsresetonsuccess: set to "true" to reset character positions after each trial success (except the final one). Can optionally specify fadein and fadeout parameters - will default to shown values.
-; trialslayout: "vertical" or "horizontal" are the only valid values. Defaults to "vertical" if not specified. Affects scrolling logic, as stated above, also enables dynamic step width. Can be changed via the pause menu if screenpack author leaves the option in.
+; Reset on Success and Layout are no longer screenpack settings. They are Player
+; Preferences: the player changes them from the trials pause menu and the module writes
+; them to its own external/mods/trials/config.ini, under [Options] as
+; Trials.ResetOnSuccess and Trials.Layout. A screenpack that still sets
+; trialsresetonsuccess or trialslayout here is ignored — a value the player owns cannot
+; also be authored, or neither side can tell who won.
+;
+; The fade that accompanies a reposition IS still a screenpack setting: fadeout.time,
+; fadeout.col, fadein.time, fadein.col, further down.
 ; --------------------------------------------------------------------------
-trialsresetonsuccess = false
-trialslayout = vertical
 
 ; SELSCREENPALFX -----------------------------------------------------------
 ; Sets specified palfx color to character portraits WITHOUT trials files in the trials select screen. See definition for palfx for different fields and options.
@@ -456,39 +461,66 @@ allclear.text.scale	= 3,3
 ; allclear.front.spr = 
 ; allclear.front.displaytime = 
 
-[Trials Info]
-; If not overridden, values used for [Menu Info] are shared with this group.
+[Trials Pause Menu]
+; RENAMED. This section was [Trials Info] before the rebuild, and that is the one
+; breaking change in the whole refactor. The engine turns any system.def section
+; matching ^(?i).*pause.*menu$ into a pause menu and resolves which one to open from
+; the game mode's name, so [Trials Pause Menu] is a pause menu the engine registers by
+; itself and [Trials Info] is not.
+;
+; A screenpack that still ships [Trials Info] keeps working: the module reads it and
+; folds it into this section, warning once on the console. That compatibility goes away
+; in a later release — rename the section.
+;
+; Everything this section does not define is topped up from the screenpack's own
+; [Pause Menu], so a menu that only wants to reorder the items writes only itemnames.
+;
 ; Trials specific parameters:
-menu.valuename.trialslist = ""
-menu.valuename.trialdvancement.autoadvance = "Auto-Advance"
-menu.valuename.trialadvancement.repeat = "Repeat"
-menu.valuename.trialresetonsuccess.yes = "Yes"
-menu.valuename.trialresetonsuccess.no = "No"
-menu.valuename.trialslayout.vertical = "Vertical"
-menu.valuename.trialslayout.horizontal = "Horizontal"
-menu.valuename.trialstextboxes.show = "Show"
-menu.valuename.trialstextboxes.hide = "Hide"
+menu.valuename.trialadvancement_autoadvance = "Auto-Advance"
+menu.valuename.trialadvancement_repeat = "Repeat"
+menu.valuename.trialresetonsuccess_enabled = "Yes"
+menu.valuename.trialresetonsuccess_disabled = "No"
+menu.valuename.trialslayout_vertical = "Vertical"
+menu.valuename.trialslayout_horizontal = "Horizontal"
+menu.valuename.trialstextboxes_show = "Show"
+menu.valuename.trialstextboxes_hide = "Hide"
 
 ; https://github.com/ikemen-engine/Ikemen-GO/wiki/Screenpack-features#submenus
-; If custom menu is not declared, following menu is loaded by default:
+; If a custom menu is not declared, the module's own is loaded:
 ; menu.itemname.back = "Continue"
-; menu.itemname.nexttrial = "Next Trial"
-; menu.itemname.previoustrial = "Previous Trial"
-; menu.itemname.menutrials = "Trials Menu"
-; menu.itemname.menutrials.trialslist = "Trials List"
-; menu.itemname.menutrials.trialadvancement = "Trials Advancement"
-; menu.itemname.menutrials.trialresetonsuccess = "Reset to Center on Success"
-; menu.itemname.menutrials.trialslayout = "Trials Layout"
-; menu.itemname.menutrials.back = "Back"
+; menu.itemname.trialslist = "Trials"
+; menu.itemname.trialslist.back = "Back"
+; menu.itemname.trialadvancement = "Advancement"
+; menu.itemname.trialresetonsuccess = "Reset on Success"
+; menu.itemname.trialslayout = "Layout"
+; menu.itemname.trialstextboxes = "Textboxes"
 ; menu.itemname.menuinput = "Button Config"
 ; menu.itemname.menuinput.keyboard = "Key Config"
 ; menu.itemname.menuinput.gamepad = "Joystick Config"
-; menu.itemname.menuinput.empty = ""
+; menu.itemname.menuinput.spacer = "-"
 ; menu.itemname.menuinput.inputdefault = "Default"
 ; menu.itemname.menuinput.back = "Back"
 ; menu.itemname.commandlist = "Command List"
 ; menu.itemname.characterchange = "Character Change"
 ; menu.itemname.exit = "Exit"
+;
+; Two more items exist but are not shipped, because the trials list replaces them:
+; menu.itemname.nexttrial = "Next Trial"
+; menu.itemname.previoustrial = "Previous Trial"
+;
+; The trials list is filled in per character when the match starts, so its entries are
+; never authored. It keeps whatever items the section declares under it — the Back
+; above — underneath the Trials, and a character shipping none leaves those alone.
+;
+; DO NOT add a dummy submenu (dummy control, guard mode, dummy mode, fall recovery,
+; distance, button jam). Dummy behaviour is prescribed by the Trial Definition so that
+; a Trial plays the same way for everyone, and the engine only initialises those items
+; under gameMode('training') — cycling Dummy Control in a Trials match raises
+; "Argument 1 is not a number" from setAILevel.
+
+; The pause menu's background. Optional: leave it out and the screenpack's own
+; [PauseBgDef] is used.
+; [TrialsPauseBgDef]
 
 [TrialsBgDef]
 spr 			= ""
@@ -700,10 +732,33 @@ trials = trials.def        ;Ikemen feature: Trials mode data
 
 ## Pause Menu Options
 
-Trials Mode ships with the several pause menu options. Customizing the pause menu must be done by editing the `motif.setBaseTrialsInfo()` in `trials.lua`.
-- **Next Trial**: advance to the next trial
-- **Previous Trial**: return to the previous trial
-- **Trials List**: view a list of the trials, and select which one to activate
-- **Trial Advancement**: toggles between either Auto-Advance or Repeat, allows the player to play a single trial on repeat if desired
-- **Reset on Success**: resets the players to center stage when the trial is cleared. This can be set in the `system.def`, but the player can modify it in-game as well. If dummy and/or player positions are specified, the dummy and player will be moved accordingly.
-- **Trials Layout**: toggles between Vertical and Horizontal trials layout. This can be set in the `system.def`, but the player can modify it in-game as well.
+Pausing during a Trials match opens the trials pause menu. It is an engine-native pause
+menu: the module ships a `[Trials Pause Menu]` section and the engine registers it,
+which is why no screenpack edit is needed to get one. A screenpack customises it by
+defining the same section in its own `system.def` — see the template above.
+
+- **Trials**: the Trials the selected character ships. Picking one jumps to it, starts
+  its progress over and places the pair at its authored positions.
+- **Advancement**: Auto-Advance moves to the next Trial on Success; Repeat plays the
+  same one again, so it can be drilled.
+- **Reset on Success**: whether completing a Trial puts the pair back at that Trial's
+  authored positions **when the match stays on the same Trial** — Advancement = Repeat,
+  and the All-Clear that finishes the set. Moving to a *different* Trial places that
+  Trial's pair either way, whatever this is set to.
+- **Layout**: Vertical or Horizontal trials layout. The setting is live and persists;
+  only the vertical layout is drawn today, so switching it changes nothing on screen
+  until the horizontal one lands.
+- **Textboxes**: whether a Trial's textbox is shown. Hiding it also gives the Steps
+  their full-width window back, on the Trial already running.
+
+Plus the engine's own Button Config, Command List, Character Change and Exit.
+
+The four settings below **Trials** are Player Preferences: the module writes them back to
+its own `external/mods/trials/config.ini` under `[Options]` the moment they are changed,
+so they survive a restart. That file is rewritten whole, which keeps every value in it
+and none of the comments — the copy in this repository is the documented one.
+
+There is deliberately **no dummy submenu**. Dummy behaviour comes from the Trial
+Definition and nowhere else, so a Trial plays the same way for everyone; a screenpack
+that adds one will also hit a crash, because the engine initialises those items only
+under `gameMode('training')`.

@@ -5,10 +5,16 @@
 -- Universal trials module for Ikemen GO.
 --
 -- All module state lives in the local `trials` table below. Globals are touched only
--- at documented extension points: main.t_itemname.trials, and the loop#trials,
--- launchFight and main.f_addChar.files hooks. Nothing is installed onto `start` or
--- `menu` — that coupling is what made the previous version unrecoverable across an
--- engine update.
+-- at documented extension points: main.t_itemname.trials; the loop#trials, launchFight,
+-- main.f_addChar.files and menu.menu.loop hooks; and the three pause-menu tables the
+-- engine documents as appendable by an external module — menu.t_itemname,
+-- menu.t_valuename and menu.t_vardisplay (menu.lua:8, :92, :338). Nothing is installed
+-- onto `start`, and nothing on `menu` beyond those tables: that coupling is what made
+-- the previous version unrecoverable across an engine update.
+--
+-- One motif table is edited in place rather than only read, and it is the only one: the
+-- legacy [Trials Info] fold rewrites motif.pause_menu.trials_pause_menu.menu.itemname
+-- so a screenpack that never migrated keeps a working menu. See the PAUSE MENU section.
 --
 -- Configuration model: docs/adr/0001. Dummy namespace: docs/adr/0002.
 -- Vocabulary (Trial / Step / Part / Trial Definition / Trials Config): CONTEXT.md
@@ -261,6 +267,16 @@ addLayer('defaults', defaultsPath, true)
 -- and still lose to their screenpack.
 addLayer('config.ini', trials.configPath, false)
 addLayer('screenpack', gameOption('Config.Motif'), false)
+
+-- The screenpack as parsed, kept whole rather than only the sections the merge below
+-- walks. The legacy [Trials Info] fold in the pause menu section needs a section this
+-- module does not own, and re-reading the file for it would parse the screenpack twice.
+local screenpackIni = {}
+for _, layer in ipairs(layers) do
+	if layer.name == 'screenpack' then
+		screenpackIni = layer.ini
+	end
+end
 
 trials.layers = {}
 for i, layer in ipairs(layers) do
@@ -1506,8 +1522,8 @@ end
 
 -- One Player Preference, out of the module's own config.ini. These are the settings a
 -- player changes rather than a screenpack author, which is why they live in config.ini
--- and not in system.def — see docs/adr/0001. The pause menu that writes them back is
--- a later slice; until it lands they are edited by hand.
+-- and not in system.def — see docs/adr/0001. The trials pause menu below writes them
+-- back with saveIni; a config.ini edited by hand is read exactly the same way.
 local function preference(name, default)
 	local opts = trials.ini.Options or {}
 	if type(opts.Trials) ~= 'table' then
@@ -1576,6 +1592,15 @@ local function syncDisplay(m)
 	end
 end
 
+-- Whether the Trial at `index` shows a Textbox: it has to carry one, and the player has
+-- to want to see it. Read here rather than at draw time, because it is what decides
+-- which window variant the Step block clips to.
+local function trialTextbox(m, index)
+	local trial = m.trials[index]
+	return type(trial) == 'table' and trial.textbox ~= nil and trial.textbox ~= ''
+		and textboxesVisible()
+end
+
 -- Moves the match onto one Trial and resolves everything that depends on which Trial
 -- it is: the Steps to draw, whether a Textbox pushes the Step block into its
 -- with-Textbox window, and the progress and per-Trial timer, both of which start over.
@@ -1584,8 +1609,7 @@ local function selectTrial(index)
 	m.current = index
 	local trial = m.trials[index]
 	m.steps = type(trial) == 'table' and trial.steps or {}
-	m.textbox = type(trial) == 'table' and trial.textbox ~= nil and trial.textbox ~= ''
-		and textboxesVisible()
+	m.textbox = trialTextbox(m, index)
 	resetProgress(m)
 	m.trialTicks = 0
 	-- Nothing on screen changes yet while a banner is up: syncDisplay runs when the pair
@@ -1594,6 +1618,503 @@ local function selectTrial(index)
 	if m.banner == nil then
 		syncDisplay(m)
 	end
+end
+
+--;===========================================================
+--; PAUSE MENU
+--;===========================================================
+-- Pausing a Trials match opens the [Trials Pause Menu] the module ships in +system.def,
+-- and shipping that section is the whole of the registration: the engine's motif parser
+-- turns any section matching ^(?i).*pause.*menu$ into a pause menu (motif.go:1335), and
+-- menu.f_init resolves which one to open from gameMode() (menu.lua:558). There is no
+-- menu loop in this module and there should not be one.
+--
+-- What the module contributes is the behaviour behind its own items, through the three
+-- tables the engine keys by itemname: menu.t_valuename holds the values a setting cycles
+-- through, menu.t_vardisplay renders the current one beside the item, and menu.t_itemname
+-- runs on every frame its item is active. External modules are required (main.lua:3996)
+-- before menu.f_start() generates the menus (main.lua:4027), so everything registered
+-- here is in place by the time the menu is built.
+
+-- The Player Preferences that have a menu item.
+--
+--   item     the itemname, both in +system.def and in every engine table below
+--   key      the [Options] Trials.<key> it persists to in config.ini
+--   values   what it cycles through, in cycle order. Each is also the word written to
+--            config.ini and the suffix of its menu.valuename.<item>_<value>. The first
+--            is the default, and matches the default the readers above assume.
+--   boolean  persisted as a Lua boolean rather than as its word, because
+--            preferenceEnabled is what reads it back and `false` is that reader's own
+--            spelling of off
+--
+-- Layout is here and does nothing visible yet, on purpose: only the vertical Layout
+-- exists (STEP_LAYOUT above), and #41 adds the horizontal one along with the branch that
+-- picks between them. The setting persists in the meantime, so a player who switched it
+-- before that lands finds it switched afterwards.
+local MENU_PREFERENCES = {
+	{item = 'trialadvancement',    key = 'Advancement',    values = {'autoadvance', 'repeat'}},
+	{item = 'trialresetonsuccess', key = 'ResetOnSuccess', values = {'enabled', 'disabled'}, boolean = true},
+	{item = 'trialslayout',        key = 'Layout',         values = {'vertical', 'horizontal'}},
+	{item = 'trialstextboxes',     key = 'Textboxes',      values = {'show', 'hide'}},
+}
+
+-- The same four, keyed by itemname, for the lookups that start from one.
+local MENU_PREFERENCE = {}
+for _, pref in ipairs(MENU_PREFERENCES) do
+	MENU_PREFERENCE[pref.item] = pref
+end
+
+-- The trials list is one submenu whose items are per-character, so it is filled in when
+-- a match resolves rather than authored. Every entry carries the same itemname — which
+-- is what the handler is registered under — and says which Trial it stands for on the
+-- item itself.
+local TRIALS_LIST_ITEM = 'trialslist'
+local TRIALS_ENTRY_ITEM = 'trialsentry'
+
+-- Which value of a preference is currently set, as an index into its `values`. The
+-- engine's value items are index-based: menu[itemname] is the index, and everything
+-- else follows from it.
+local function preferenceIndex(pref)
+	if pref.boolean then
+		return preferenceEnabled(pref.key, true) and 1 or 2
+	end
+	local current = tostring(preference(pref.key, pref.values[1])):lower()
+	for i, value in ipairs(pref.values) do
+		if value == current then
+			return i
+		end
+	end
+	return 1
+end
+
+-- Points every value item at what config.ini currently says. Run at load, and again per
+-- match for the reason syncPauseMenu gives.
+local function syncPreferenceIndices()
+	for _, pref in ipairs(MENU_PREFERENCES) do
+		menu[pref.item] = preferenceIndex(pref)
+	end
+end
+
+-- Persists one Player Preference to the module's config.ini.
+--
+-- saveIni rewrites the whole file from the table it was read into, so [Common] and
+-- [Files] keep their values — but not the comments around them. config.ini as shipped
+-- says so, because the first preference a player changes is what strips them.
+local function writePreference(key, value)
+	if type(trials.ini.Options) ~= 'table' then
+		trials.ini.Options = {}
+	end
+	if type(trials.ini.Options.Trials) ~= 'table' then
+		trials.ini.Options.Trials = {}
+	end
+	trials.ini.Options.Trials[key] = value
+	-- Resolved here rather than held on the module, because saveIni writes the path it
+	-- is given and does not search for one the way loadIni does. The authored path is
+	-- the fallback: searchFile answers '' for a file it cannot find, and writing the
+	-- preference where it was read from is better than writing it to the root.
+	local path = normalizePath(trials.configPath)
+	if path == '' then
+		path = trials.configPath
+	end
+	local ok, err = pcall(saveIni, trials.ini, path)
+	if not ok then
+		print('Trials: could not write ' .. path .. ' (' .. tostring(err) .. ').')
+	end
+end
+
+-- Catches the match already running up with a changed Textbox preference.
+--
+-- Nothing else needs one: Advancement and Reset on Success are read when a Trial is
+-- completed, and Layout when the Steps are laid out. Whether a Trial's Textbox displaces
+-- the Step block, though, is resolved when the Trial is selected — so without this the
+-- setting would only take hold on the next Trial.
+local function refreshTextbox()
+	local m = trials.match
+	if m == nil then
+		return
+	end
+	m.textbox = trialTextbox(m, m.current)
+	-- Only a display that is already showing this Trial follows immediately. One still
+	-- lagging behind a Success catches up through syncDisplay, with the Trial it is
+	-- lagging towards.
+	if m.shownCurrent == m.current then
+		m.shownTextbox = m.textbox
+		if trials.stepblock ~= nil then
+			applyStepWindow(trials.stepblock, m.textbox)
+		end
+	end
+end
+
+-- Advancement, Reset on Success and Layout are read where they are used, so changing one
+-- needs nothing beyond persisting it. The Textbox preference is the exception, and the
+-- exception lives on the descriptor rather than as a name test inside the shared handler.
+MENU_PREFERENCE.trialstextboxes.changed = refreshTextbox
+
+-- The resolved [Trials Pause Menu], or nil on a build where the section never reached
+-- the motif at all. One walk, because three readers below want the same one.
+local function pauseMenuSection()
+	local sec = motif.pause_menu ~= nil and motif.pause_menu.trials_pause_menu or nil
+	if sec == nil or type(sec.menu) ~= 'table' then
+		return nil
+	end
+	return sec
+end
+
+-- The words one value of a preference is shown as.
+--
+-- Read off the resolved motif, so a screenpack that spells them differently in its own
+-- [Trials Pause Menu] wins by the engine's ordinary first-wins merge without this
+-- knowing about it. The value itself stands in only for a build where the section never
+-- reached the motif at all.
+local function valuename(item, value)
+	local sec = pauseMenuSection()
+	local words = sec ~= nil and sec.menu.valuename or nil
+	local v = type(words) == 'table' and words[item .. '_' .. value] or nil
+	if v == nil or v == '' then
+		return value
+	end
+	return v
+end
+
+-- Moves the match to one Trial from the menu.
+--
+-- selectTrial resolves everything that follows the Trial: the Steps, the Textbox window,
+-- the progress and the per-Trial clock. The guard is why this exists rather than being
+-- called directly — a list built for one character can outlive it across a Character
+-- Change, and selectTrial does not check the index it is handed.
+--
+-- The placement is asked for rather than left to applySetup's own trigger, which is the
+-- Trial having changed: picking the Trial already running is a restart, and a restart
+-- that left the pair mid-stage would be the one entry in the list that did not start its
+-- Trial where the author put it. Everything downstream is #49's — the banner wait, the
+-- settled-Dummy wait, the fade, the camera.
+local function jumpToTrial(index)
+	local m = trials.match
+	if m == nil or type(m.trials[index]) ~= 'table' then
+		return
+	end
+	selectTrial(index)
+	m.reposRequest = true
+end
+
+-- Leaves the pause menu, the way its own Continue does: back to the root menu, then the
+-- delay the engine gives a closing pause menu before the match resumes.
+local function closePauseMenu()
+	menu.currentMenu[1] = menu.currentMenu[2]
+	menu.pauseExitDelay = gameOption('Input.PauseExitDelay')
+	return false
+end
+
+-- The submenu the trials list lives in, once menu.f_start has generated it.
+--
+-- Searched rather than looked up at the top level: where the list sits is the
+-- screenpack's to decide, and the pre-refactor menu the legacy fold below reads put it
+-- inside a submenu of its own.
+local function trialsListMenu()
+	local stack = {type(menu) == 'table' and menu.trials or nil}
+	while #stack > 0 do
+		local node = table.remove(stack)
+		if type(node) == 'table' and type(node.submenu) == 'table' then
+			local sub = node.submenu[TRIALS_LIST_ITEM]
+			if type(sub) == 'table' and type(sub.items) == 'table' then
+				return sub
+			end
+			for _, child in pairs(node.submenu) do
+				stack[#stack + 1] = child
+			end
+		end
+	end
+	return nil
+end
+
+-- The items [Trials Pause Menu] declared under the list itself — its Back. Captured the
+-- first time the list is filled in, because filling it in is what replaces them.
+local trialsListTail = nil
+
+-- Fills the trials list in with the Trials the selected character ships.
+local function buildTrialsList()
+	local sub = trialsListMenu()
+	if sub == nil then
+		return
+	end
+	if trialsListTail == nil then
+		trialsListTail = sub.items
+	end
+	local m = trials.match
+	local items = {}
+	for i, trial in ipairs(m ~= nil and m.trials or {}) do
+		items[i] = {
+			itemname = TRIALS_ENTRY_ITEM,
+			-- What a screenpack keys a per-item background off. Every entry shares one,
+			-- because a screenpack cannot name a Trial it has never seen.
+			paramname = TRIALS_ENTRY_ITEM,
+			displayname = trial.title,
+			vardisplay = '',
+			-- The Trial the match is on draws in the menu's own selected style, which is
+			-- what that style is for.
+			selected = i == m.current,
+			trial = i,
+		}
+	end
+	-- Underneath, so a character shipping no Trials still leaves something to sit on:
+	-- the engine indexes the active item unguarded, and an empty menu is a crash.
+	for _, item in ipairs(trialsListTail) do
+		items[#items + 1] = item
+	end
+	-- The tail is the screenpack's, so it can be missing — a folded legacy [Trials Info]
+	-- that declared its list with no Back under it leaves nothing there. One is made
+	-- rather than left to crash, worded from whatever the section does say.
+	if #items == 0 then
+		local sec = pauseMenuSection()
+		local words = sec ~= nil and sec.menu.itemname or {}
+		items[1] = {
+			itemname = 'back',
+			paramname = 'back',
+			displayname = words[TRIALS_LIST_ITEM .. '_back'] or words.back or 'Back',
+			vardisplay = '',
+			selected = false,
+		}
+	end
+	sub.items = items
+	sub.item = 1
+	sub.cursorPosY = 1
+	sub.moveTxt = 0
+end
+
+-- The match and the Trial the menu was last caught up with.
+local menuMatch, menuTrial = nil, nil
+
+-- Catches the pause menu up with the match that is running, and with the Trial it is on.
+--
+-- Neither can be settled at boot. The trials list is per-character and the menu is
+-- generated once for the whole run. And the preference indices, though read out of
+-- config.ini at load, are wiped by menu.f_trainingReset(), which sets every value item
+-- in menu.t_valuename back to 1 — ours included — before a training match
+-- (start.lua:1739). A Trials match entered after one would otherwise show the first
+-- value of each setting rather than the setting.
+local function syncPauseMenu()
+	local m = trials.match
+	if m == nil or type(menu) ~= 'table' then
+		return
+	end
+	if menuMatch ~= m then
+		menuMatch, menuTrial = m, nil
+		syncPreferenceIndices()
+		for _, item in ipairs(menu.t_vardisplayPointers or {}) do
+			if MENU_PREFERENCE[item.itemname] ~= nil then
+				item.vardisplay = menu.f_vardisplay(item.itemname)
+			end
+		end
+	end
+	if menuTrial ~= m.current then
+		menuTrial = m.current
+		buildTrialsList()
+	end
+end
+
+-- LEGACY [Trials Info] --------------------------------------------------------------
+-- The section rename is the one genuine breaking change in this refactor. The engine
+-- matches a pause menu with ^(?i).*pause.*menu$ (motif.go:1335): [Trials Pause Menu]
+-- matches and [Trials Info] does not, so a screenpack that customised the pre-refactor
+-- menu would silently get the module's own instead of its own.
+--
+-- So a legacy section is folded into the pause menu here, and the promise made in #45
+-- holds literally for one release. The rename is documented in README.md; this fold
+-- goes away in a later one.
+--
+-- A screenpack carrying both sections has migrated and left the old one behind, so its
+-- [Trials Pause Menu] wins outright and nothing is folded.
+--
+-- Written into the Lua `motif` table rather than through modifyMotif, which is what the
+-- ticket suggested. modifyMotif reaches sys.motif on the Go side (script.go:5182), and
+-- the Lua table menu.f_start actually reads is a snapshot taken once by loadMotif()
+-- (main.lua:1179) and never refreshed from it — so a fold through modifyMotif would
+-- change nothing the menu is built from.
+trials.legacyPauseMenu = false
+
+-- Values the pre-refactor section spelled differently from the module, legacy name to
+-- current one. Reset on Success is the only case: its values are enabled and disabled,
+-- and [Trials Info] wrote yes and no.
+local LEGACY_VALUENAMES = {
+	trialresetonsuccess_yes = 'trialresetonsuccess_enabled',
+	trialresetonsuccess_no = 'trialresetonsuccess_disabled',
+}
+
+-- loadIni's keepMeta tables carry the authored key order in __order and, where a key is
+-- both a scalar and a parent, its own scalar in __value — which is exactly the shape a
+-- legacy `menu.itemname.menutrials` sitting above `menu.itemname.menutrials.trialslist`
+-- takes. Flattened into the engine's own spelling, where the separator is an underscore
+-- rather than a dot. Both halves of a legacy section are the same shape, so this reads
+-- menu.itemname and menu.valuename alike.
+local function flattenMenuKeys(src, prefix, out)
+	if type(src) ~= 'table' then
+		return out
+	end
+	for _, key in ipairs(src.__order or {}) do
+		local v = src[key]
+		local path = prefix == '' and key or (prefix .. '_' .. key)
+		if type(v) == 'table' and not isValueList(v) then
+			if v.__value ~= nil then
+				out[#out + 1] = {key = path, value = strValue(v.__value, '')}
+			end
+			flattenMenuKeys(v, path, out)
+		elseif v ~= nil then
+			out[#out + 1] = {key = path, value = strValue(v, '')}
+		end
+	end
+	return out
+end
+
+local function foldLegacyTrialsInfo()
+	local legacy = screenpackIni.trials_info
+	if type(legacy) ~= 'table' or type(legacy.menu) ~= 'table' then
+		return
+	end
+	if type(screenpackIni.trials_pause_menu) == 'table' then
+		return
+	end
+	local sec = pauseMenuSection()
+	if sec == nil then
+		return
+	end
+
+	-- Values merge: a legacy section that renames one setting's words should not blank
+	-- the three it says nothing about. A legacy spelling is written under the module's
+	-- key as well as its own, or the module's default would out-rank the screenpack's
+	-- rename — which is backwards, and is what the fold exists to prevent.
+	local folded = false
+	if type(legacy.menu.valuename) == 'table' then
+		if type(sec.menu.valuename) ~= 'table' then
+			sec.menu.valuename = {}
+		end
+		for _, entry in ipairs(flattenMenuKeys(legacy.menu.valuename, '', {})) do
+			sec.menu.valuename[entry.key] = entry.value
+			if LEGACY_VALUENAMES[entry.key] ~= nil then
+				sec.menu.valuename[LEGACY_VALUENAMES[entry.key]] = entry.value
+			end
+			folded = true
+		end
+	end
+
+	-- Items replace: a legacy section is a whole menu, not an addition to one, and
+	-- merging would show every item the two have in common twice. A section that renamed
+	-- only the words falls through with the module's own menu intact, which is what it
+	-- asked for.
+	local items = flattenMenuKeys(legacy.menu.itemname, '', {})
+	if #items > 0 then
+		local itemname, order, depth, rank = {}, {}, {}, {}
+		for i, entry in ipairs(items) do
+			itemname[entry.key] = entry.value
+			order[#order + 1] = entry.key
+			depth[entry.key] = select(2, entry.key:gsub('_', ''))
+			rank[entry.key] = i
+		end
+		-- The engine orders a menu's itemnames by depth, parents ahead of their children
+		-- (script.go:4779), and menu.f_start depends on it: a child reached before its
+		-- parent has no submenu to be inserted into. Authored order decides the rest.
+		table.sort(order, function(a, b)
+			if depth[a] ~= depth[b] then
+				return depth[a] < depth[b]
+			end
+			return rank[a] < rank[b]
+		end)
+		sec.menu.itemname = itemname
+		sec.menu.itemname_order = order
+		folded = true
+	end
+
+	if folded then
+		trials.legacyPauseMenu = true
+		print('Trials: the screenpack still defines [Trials Info]. It has been read as ' ..
+			'[Trials Pause Menu], which is the name to rename it to.')
+	end
+end
+
+if trials.enabled then
+	foldLegacyTrialsInfo()
+end
+
+-- Registration. Everything above is inert until these three tables carry it.
+if trials.enabled and type(menu) == 'table' then
+	for _, pref in ipairs(MENU_PREFERENCES) do
+		local values = {}
+		for i, value in ipairs(pref.values) do
+			values[i] = {itemname = value, displayname = valuename(pref.item, value)}
+		end
+		menu.t_valuename[pref.item] = values
+		menu.t_vardisplay[pref.item] = function()
+			return menu.t_valuename[pref.item][menu[pref.item] or 1].displayname
+		end
+		menu.t_itemname[pref.item] = function(t, item, cursorPosY, moveTxt, sec)
+			local changed, value = menu.f_valueChanged(t.items[item], sec)
+			if changed then
+				-- Spelled out rather than as `pref.boolean and ... or value`: the whole
+				-- point of a boolean preference is that it can be false, and that idiom
+				-- collapses a false to its fallback — every setting switched off would
+				-- persist as the word for off and read back as on.
+				local stored = value
+				if pref.boolean then
+					stored = value == pref.values[1]
+				end
+				writePreference(pref.key, stored)
+				if pref.changed ~= nil then
+					pref.changed()
+				end
+			end
+			return true
+		end
+	end
+
+	-- One entry of the trials list. Deliberately NOT registered under TRIALS_LIST_ITEM:
+	-- menu.f_start only generates a submenu for an itemname menu.t_itemname has no
+	-- handler for (menu.lua:456), so registering the list itself would leave it with
+	-- nowhere to put the Trials.
+	menu.t_itemname[TRIALS_ENTRY_ITEM] = function(t, item, cursorPosY, moveTxt, sec)
+		if getInput(-1, sec.menu.done.key) then
+			sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
+			jumpToTrial(t.items[item].trial)
+			return closePauseMenu()
+		end
+		return true
+	end
+
+	-- Not in the module's own [Trials Pause Menu] — the trials list covers both — but
+	-- the pre-refactor module shipped them, so a screenpack still listing them gets
+	-- working items rather than an empty submenu the engine would index into.
+	local function step(offset)
+		return function(t, item, cursorPosY, moveTxt, sec)
+			local m = trials.match
+			if getInput(-1, sec.menu.done.key) and m ~= nil and m.total > 0 then
+				sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
+				jumpToTrial((m.current - 1 + offset) % m.total + 1)
+				return closePauseMenu()
+			end
+			return true
+		end
+	end
+	menu.t_itemname['nexttrial'] = step(1)
+	menu.t_itemname['previoustrial'] = step(-1)
+
+	-- After the value lists, since an index is an index into one. menu.f_start reads the
+	-- values back through menu.t_vardisplay when it builds the items.
+	syncPreferenceIndices()
+
+	-- The engine clears every item's `selected` flag whenever a pause menu is reset,
+	-- which is every time one closes (menu.f_reset, menu.lua:662), so which Trial the
+	-- match is on is marked on the frames the list is actually drawn rather than once
+	-- when it is filled in. menu.menu.loop is the hook menu.f_createMenu runs, and it
+	-- runs for every pause menu in the game, so the mode is checked before anything is
+	-- touched.
+	hook.add('menu.menu.loop', 'trials', function()
+		local sub = gameMode('trials') and trialsListMenu() or nil
+		local m = trials.match
+		if sub == nil or m == nil then
+			return
+		end
+		for _, item in ipairs(sub.items) do
+			item.selected = item.trial == m.current
+		end
+	end)
 end
 
 -- Writes the current Trial's Dummy settings to the maps trials.zss reads.
@@ -1900,6 +2421,14 @@ local function applySetup()
 	if m == nil then
 		return
 	end
+	-- Common.Lua runs on every tick, pause menu open or not (system.go:2875), so without
+	-- this a Trial picked out of the trials list would start its fade behind the menu the
+	-- player picked it from — and wait on fadeActive() for the menu's own closing fade,
+	-- which is the same one. Nothing moves while the match is paused; the frame it
+	-- resumes is the frame this picks up.
+	if paused() then
+		return
+	end
 	if roundState() < 1 then
 		-- The record goes with the marker. It says what is in the maps, and trials.zss
 		-- has just cleared them. A half-run fade goes too, rather than resuming into a
@@ -2149,6 +2678,20 @@ local function completeTrial(m)
 	end
 	if m.banner ~= nil then
 		m.trialTicks = finishTicks
+	end
+	-- Reset on Success. applySetup places the pair when the Trial it last placed is no
+	-- longer the one the match is on, which covers every move to a *different* Trial and
+	-- nothing else — so Advancement = repeat, and the All-Clear that stays on the Trial
+	-- finishing the set, both leave the pair wherever the combo carried them. Latching
+	-- the request the mid-Trial combination latches puts them back through the machinery
+	-- already there: the banner wait, the settled-Dummy wait, the fade, the camera and
+	-- the display lag all belong to it and none of them change.
+	--
+	-- Deliberately unconditional on whether the Trial changed. Where it did, applySetup
+	-- was going to place the pair anyway and the request costs nothing; where it did not,
+	-- this is the only thing that will.
+	if preferenceEnabled('ResetOnSuccess', true) then
+		m.reposRequest = true
 	end
 	trials.f_dumpState()
 end
@@ -2476,6 +3019,10 @@ hook.add('loop#trials', 'trials', function()
 	-- once the round is live.
 	applyDummy()
 	applySetup()
+	-- The trials list and the Player Preference values, both of which belong to the
+	-- match rather than to the run. Cheap: it does nothing on a frame where neither the
+	-- match nor the Trial has changed.
+	syncPauseMenu()
 	local m = trials.match
 	if roundState() ~= 2 then
 		-- A banner only counts down on a frame it is drawn on, and nothing draws outside
@@ -2604,6 +3151,34 @@ local function copySteps(steps)
 	return out
 end
 
+-- The pause menu's items in the order the engine resolved them to, as one string. A
+-- list, not a table, for the reason copySteps flattens Parts into one: it is what makes
+-- an ordering assertable without reasoning about the dump's back-referencing.
+local function pauseMenuItems()
+	local sec = pauseMenuSection()
+	local order = sec ~= nil and sec.menu.itemname_order or nil
+	if type(order) ~= 'table' then
+		return ''
+	end
+	return table.concat(order, '|')
+end
+
+-- The trials list as the module filled it in, entry by entry. The declared tail — its
+-- Back — is named too, since a list that lost it is a list a character with no Trials
+-- crashes on.
+local function trialsListTitles()
+	local sub = trialsListMenu()
+	if sub == nil then
+		return ''
+	end
+	local names = {}
+	for i, item in ipairs(sub.items) do
+		names[i] = item.itemname == TRIALS_ENTRY_ITEM and item.displayname or
+			('<' .. item.itemname .. '>')
+	end
+	return table.concat(names, '|')
+end
+
 function trials.f_dumpState()
 	if not gameOption('Debug.DumpLuaTables') then
 		return
@@ -2727,9 +3302,27 @@ function trials.f_dumpState()
 			shownTrial = trials.match.shownCurrent or trials.match.current,
 			shownComplete = trials.match.shownComplete == true,
 			advancement = autoAdvances() and 'autoadvance' or 'repeat',
+			resetOnSuccess = preferenceEnabled('ResetOnSuccess', true),
+			layout = tostring(preference('Layout', 'vertical')):lower(),
+			textboxes = textboxesVisible() and 'show' or 'hide',
 			totalTimer = preferenceEnabled('TotalTimer', true),
 			trialTimer = preferenceEnabled('TrialTimer', true),
+			-- Latched by a mid-Trial reposition and by Reset on Success, and cleared when
+			-- the pair is placed. What tells "the preference is off" apart from "it is on
+			-- and the placement has already happened".
+			reposRequest = trials.match.reposRequest == true,
 		} or nil,
+		-- The pause menu as registered. Which items the section resolved to, and in what
+		-- order, is what a screenpack edit and the legacy fold both change — and neither
+		-- is visible anywhere else without a person watching the menu.
+		pauseMenu = {
+			registered = pauseMenuSection() ~= nil,
+			items = pauseMenuItems(),
+			legacy = trials.legacyPauseMenu,
+			-- The trials list as filled in for the match, which is the one part of the
+			-- menu the module builds rather than the engine.
+			list = trialsListTitles(),
+		},
 		-- What is actually in the shared training maps, and the Trial it came from.
 		--
 		-- Copied scalar by scalar, not referenced: f_printTable elides a table it has
@@ -2786,6 +3379,8 @@ function trials.f_dumpState()
 				and hook.lists['loop#trials']['trials'] ~= nil,
 			addCharFiles = hook.lists['main.f_addChar.files'] ~= nil
 				and hook.lists['main.f_addChar.files']['trials'] ~= nil,
+			pauseMenuLoop = hook.lists['menu.menu.loop'] ~= nil
+				and hook.lists['menu.menu.loop']['trials'] ~= nil,
 		},
 		-- Resolved on disk, so a mistyped path in config.ini shows up here rather
 		-- than as a silently absent state file at match start.

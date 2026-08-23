@@ -479,11 +479,20 @@ def run_checks(tree, quiet=False):
     c.check("language resolved", dig(tree, "language"), "en")
 
     c._print("\nconfig.ini — dotted keys nest, types coerce")
+    # Every key under [Options] is a Player Preference the trials pause menu writes back
+    # (#40), so the value is the player's and not the module's. What is assertable is
+    # that the key is still there and still of the type its reader expects — a dotted
+    # key that stopped nesting, or a boolean that came back as the word for one, is what
+    # this block is watching for.
     opts = dig(tree, "ini", "Options", "Trials")
-    c.check("Options.Trials.Layout", dig(opts, "Layout") if opts else None, "vertical")
-    c.check("Options.Trials.Advancement", dig(opts, "Advancement") if opts else None, "autoadvance")
-    c.check("Options.Trials.ResetOnSuccess is bool", dig(opts, "ResetOnSuccess") if opts else None, False)
-    c.check("Options.Trials.TotalTimer is bool", dig(opts, "TotalTimer") if opts else None, True)
+    c.check("Options.Trials.Layout is one the module knows",
+            (dig(opts, "Layout") if opts else None) in ("vertical", "horizontal"), True)
+    c.check("Options.Trials.Advancement is one the module knows",
+            (dig(opts, "Advancement") if opts else None) in ("autoadvance", "repeat"), True)
+    c.check("Options.Trials.ResetOnSuccess is bool",
+            isinstance(dig(opts, "ResetOnSuccess") if opts else None, bool), True)
+    c.check("Options.Trials.TotalTimer is bool",
+            isinstance(dig(opts, "TotalTimer") if opts else None, bool), True)
     c.check(
         "Common.States points at the module's zss",
         dig(tree, "ini", "Common", "States"),
@@ -873,6 +882,65 @@ def run_checks(tree, quiet=False):
         c.check("the reminder resolved to a string",
                 isinstance(dig(repos, "reminder"), str), True)
 
+    c._print("\nNative trials pause menu (#40)")
+    pause = dig(tree, "pauseMenu")
+    if pause is None:
+        c.check("the pause menu block reached the dump", pause, "<missing>")
+    else:
+        # The section reaching the motif is the whole of the registration: the engine
+        # turns any ^(?i).*pause.*menu$ section into a pause menu and resolves the one to
+        # open from the game mode's name. Nothing in Lua registers it.
+        c.check("[Trials Pause Menu] reached the motif", dig(pause, "registered"), True)
+        items = dig(pause, "items")
+        named = [i for i in str(items or "").split("|") if i]
+        c.check("  ... with items in it", bool(named), True)
+        # Spelled out rather than read back from +system.def: an expectation computed
+        # the way the code computes it can never disagree with it.
+        for item in ("trialslist", "trialadvancement", "trialresetonsuccess",
+                     "trialslayout", "trialstextboxes"):
+            c.check(f"  ... including {item}", item in named, True)
+        c.check("  ... and its Back, so the trials list is never empty",
+                "trialslist_back" in named, True)
+        # Dummy behaviour comes from the Trial Definition and nowhere else
+        # (docs/adr/0002), and the engine initialises those items only under
+        # gameMode('training') — one in a Trials match is a crash waiting on a cursor.
+        c.check("no dummy items, which would both invalidate Trials and crash",
+                [i for i in named
+                 if i.split("_")[-1] in ("dummycontrol", "ailevel", "dummymode",
+                                         "guardmode", "fallrecovery", "distance",
+                                         "buttonjam")], [])
+        c.check("the legacy [Trials Info] fold is reported either way",
+                isinstance(dig(pause, "legacy"), bool), True)
+        if dig(pause, "legacy") is True:
+            c._print("      (this screenpack still defines [Trials Info] — rename it)")
+
+    if match is None:
+        c.skip("the trials list is filled in from the selected character",
+               "no match in this dump")
+        c.skip("the Player Preferences the menu writes resolved",
+               "no match in this dump")
+    else:
+        # The list is the one part of the menu the module builds rather than the engine,
+        # and the tail it keeps is what a character shipping no Trials sits on.
+        entries = [e for e in str(dig(pause, "list") or "").split("|") if e]
+        total = dig(match, "total")
+        trials_named = [e for e in entries if not e.startswith("<")]
+        tail = [e for e in entries if e.startswith("<")]
+        c.check("the trials list is filled in from the selected character",
+                len(trials_named), total if isinstance(total, (int, float)) else 0)
+        c.check("  ... keeping the items the section declared under it", bool(tail), True)
+        c.check("the Player Preferences the menu writes resolved",
+                (dig(match, "advancement") in ("autoadvance", "repeat")
+                 and isinstance(dig(match, "resetOnSuccess"), bool)
+                 and dig(match, "layout") in ("vertical", "horizontal")
+                 and dig(match, "textboxes") in ("show", "hide")), True)
+        # Reset on Success latches the same request the mid-Trial combination does, and
+        # writeSetup clears it. A request still standing with no Trial change pending and
+        # nothing in the way is one nothing is going to act on.
+        c.check("a standing reposition request has something that will act on it",
+                not dig(match, "reposRequest") or dig(match, "banner") is not None
+                or dig(tree, "reposition", "enabled") is not False, True)
+
     c._print("\nModule directory hygiene")
     # The engine walks external/mods recursively and require()s every *.lua it finds,
     # so any second .lua here is executed as a module at boot. A match launcher named
@@ -889,6 +957,7 @@ def run_checks(tree, quiet=False):
     c.check("launchFight hook registered", dig(tree, "hooks", "launchFight"), True)
     c.check("loop#trials hook registered", dig(tree, "hooks", "loop"), True)
     c.check("main.f_addChar.files hook registered", dig(tree, "hooks", "addCharFiles"), True)
+    c.check("menu.menu.loop hook registered", dig(tree, "hooks", "pauseMenuLoop"), True)
     c.check(
         "trials.zss resolves on disk",
         dig(tree, "zssPath"),

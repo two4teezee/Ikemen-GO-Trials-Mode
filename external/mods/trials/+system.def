@@ -48,8 +48,34 @@ title.trials.text = "Trials"
 ;
 ; A screenpack overrides any of this by defining [Trials Pause Menu] in its own
 ; system.def, which the engine concatenates first and therefore wins.
+;
+; Keys the engine's own [Pause Menu] defines and this section does not are topped up
+; from it, so everything below inherits that section's fonts, positions, cursor and
+; window without repeating any of it. Only the trials-specific items and the order they
+; sit in are spelled here.
+
+; The words shown beside each Player Preference. The engine's shape is
+; menu.valuename.<itemname>_<value>, and <value> is what the module writes to
+; config.ini — so these are the labels, never the stored setting.
+menu.valuename.trialadvancement_autoadvance = Auto-Advance
+menu.valuename.trialadvancement_repeat = Repeat
+menu.valuename.trialresetonsuccess_enabled = Yes
+menu.valuename.trialresetonsuccess_disabled = No
+menu.valuename.trialslayout_vertical = Vertical
+menu.valuename.trialslayout_horizontal = Horizontal
+menu.valuename.trialstextboxes_show = Show
+menu.valuename.trialstextboxes_hide = Hide
 
 menu.itemname.back = Continue
+; The Trials the selected character ships, filled in by the module when the match
+; starts — the list is per-character, so it cannot be authored here. Its Back is,
+; because a character shipping no Trials would otherwise leave an empty submenu.
+menu.itemname.trialslist = Trials
+menu.itemname.trialslist.back = Back
+menu.itemname.trialadvancement = Advancement
+menu.itemname.trialresetonsuccess = Reset on Success
+menu.itemname.trialslayout = Layout
+menu.itemname.trialstextboxes = Textboxes
 menu.itemname.menuinput = Button Config
 menu.itemname.menuinput.keyboard = Key Config
 menu.itemname.menuinput.gamepad = Joystick Config
@@ -59,3 +85,7 @@ menu.itemname.menuinput.back = Back
 menu.itemname.commandlist = Command List
 menu.itemname.characterchange = Character Change
 menu.itemname.exit = Exit
+
+; Not shipped, but handled: a screenpack that lists menu.itemname.nexttrial or
+; menu.itemname.previoustrial gets working items. They are what the pre-refactor module
+; shipped, and the trials list above replaces them.
