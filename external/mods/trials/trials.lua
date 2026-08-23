@@ -1854,6 +1854,14 @@ local function applySetup()
 		return
 	end
 
+	-- Nothing starts under a banner. Finishing a Trial moves the match onto the next
+	-- one on the frame it is finished, so without this the pair would be repositioned
+	-- while the player is still reading SUCCESS — the fade would fire *on* the success
+	-- rather than after it. The move waits for the banner to go, and the guard above
+	-- picks it up on the next frame.
+	if m.banner ~= nil then
+		return
+	end
 	if m.setupTrial == m.current and not repositionHeld(m) then
 		return
 	end
