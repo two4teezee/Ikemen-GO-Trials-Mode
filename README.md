@@ -349,7 +349,7 @@ currenttrialtimer.text = "Current Trial: %s"
 ;
 ; fadeout / fadein wrap the move, so the pair arriving in position is a cut rather than a teleport. The screen fades out, the characters are placed while it is dark, and it fades back in. This runs when the player moves between trials and when the key combination below is held - never on the first placement of a round, which the round's own fade already covers. Set both times to 0 for an instant cut. col is r, g, b.
 ;
-; trialresetenabled allows the player to put both characters back where the current trial wants them, mid-trial, after a combo has carried them across the stage. Set it to false and the keys do nothing and the reminder is not drawn.
+; trialresetenabled allows the player to put both characters back where the current trial wants them, mid-trial, after a combo has carried them across the stage. A trial that names no playerpos or dummypos still has somewhere to go back to - the stage's own start positions, which is where the engine puts the pair when the round begins - so this is worth offering on every trial and not only the ones that ask for a corner. Set it to false and the keys do nothing and the reminder is not drawn.
 ;
 ; trialresetkeys is the combination that does it, spelled in the engine's own input names: B D F U L R (directions), a b c x y z s (buttons), d w m. Any number of them; all must be held at once. An unrecognised name is dropped with a warning rather than arming a combination the player can never complete.
 ;

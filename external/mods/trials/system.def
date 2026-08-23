@@ -224,6 +224,11 @@ fadein.col = 0, 0, 0
 
 ; Whether the player can reposition mid-Trial at all. Set to false and the keys below
 ; do nothing and the reminder is not drawn.
+;
+; A Trial that names no playerpos or dummypos still has somewhere to go back to: the
+; stage's own start positions, which is where the engine itself puts the pair when the
+; round begins. So the combination is worth offering on every Trial, not only the ones
+; that ask for a corner.
 trialresetenabled = true
 
 ; The keys held together to trigger it, from the engine's own input vocabulary:
