@@ -1691,6 +1691,20 @@ local function positionsFor(pos, charCoordX)
 		w.playerx = -pos.gap / 2
 		w.dummyx = pos.gap / 2
 	end
+	-- The camera belongs between the two characters, and everything above is measured
+	-- from it — PosSet reads x relative to the camera, which is why the corner geometry
+	-- needs the camera on the stage bound to be measured at all. Shifting the camera by
+	-- the pair's midpoint and the pair back against it leaves both of them exactly where
+	-- they were and puts the camera where a fight camera would sit.
+	--
+	-- It matters because the engine's fighting view will not re-centre on its own: it
+	-- only moves when a character crosses into its tension zone, so a pair teleported
+	-- inside the current view leaves the camera wherever it had drifted to.
+	local mid = (w.playerx + w.dummyx) / 2
+	w.playerx = w.playerx - mid
+	w.dummyx = w.dummyx - mid
+	w.camerax = w.camerax + mid
+
 	-- Out of the 320-wide space and into the Dummy's, in one factor: the stage values
 	-- divided into it above and the gap constants written in it are both carried.
 	local coordScale = (charCoordX or 320) / 320
@@ -1737,12 +1751,7 @@ local function writeSetup(m)
 	-- tick — up to a second later, with the Trial already begun at the wrong life.
 	mapSet('_iksys_trialsSetLife', life.dummy)
 	setLifeNow(life.dummy)
-	-- Both requests in the one write. trials.zss services the reposition and then the
-	-- camera reset in that order within a single tick, so the pair is placed and the
-	-- camera handed straight back to its fighting view; TrialsReposition leaves the
-	-- view free, which would otherwise pin the camera for the whole Trial.
 	mapSet('_iksys_trialsReposition', 1)
-	mapSet('_iksys_trialsCameraReset', 1)
 	-- Back on the Trials player, which is both where the player's own life is written
 	-- and where everything downstream expects the redirect to be. Unconditional, the
 	-- way applyDummy's is: leaving the redirect on the Dummy would hand every
@@ -1755,6 +1764,12 @@ local function writeSetup(m)
 	-- settings are: a Trial's positions are resolved at load and written many seconds
 	-- later, and a dump taken before this point cannot tell the two apart.
 	m.setupTrial = m.current
+	-- TrialsReposition leaves the camera on `view: free` at the position written above,
+	-- which is what frames the pair while they are placed. Handing it back to the
+	-- fighting view is a separate write, deliberately not in this one: done in the same
+	-- tick, the fighting view recomputes from where the characters were *before* the
+	-- PosSet and the framing is thrown away on the frame it was made for.
+	m.cameraPending = true
 	m.setup = {
 		trial = m.current,
 		corner = pos.corner,
@@ -1769,6 +1784,24 @@ local function writeSetup(m)
 		dummylife = life.dummy,
 	}
 	trials.f_dumpState()
+end
+
+-- Hands the camera back to its ordinary fighting view, one frame after the pair was
+-- placed at the earliest.
+--
+-- Until this runs the camera is exactly between the two characters and going nowhere,
+-- which is the framing the reposition was for. Afterwards the engine follows them
+-- again, from that position rather than from wherever the camera had drifted to.
+local function flushCameraReset(m)
+	if not m.cameraPending then
+		return
+	end
+	if not player(2) then
+		return
+	end
+	mapSet('_iksys_trialsCameraReset', 1)
+	player(1)
+	m.cameraPending = false
 end
 
 -- Whether the player is asking, right now, to be put back where the Trial wants them.
@@ -1828,6 +1861,7 @@ local function applySetup()
 		m.setupTrial = nil
 		m.setup = nil
 		m.repos = nil
+		m.cameraPending = false
 		return
 	end
 
@@ -1843,6 +1877,9 @@ local function applySetup()
 	elseif m.repos == 'in' then
 		if not fadeActive() then
 			m.repos = nil
+			-- The camera has framed the pair for the whole of the fade. Following
+			-- resumes now, with the screen already back.
+			flushCameraReset(m)
 			-- The pair has just been moved out from under whatever the player was
 			-- doing, so the combo count is re-read for the same reason clearBanner
 			-- re-reads it: what landed before the fade is not the first hit of what
@@ -1853,6 +1890,10 @@ local function applySetup()
 		end
 		return
 	end
+
+	-- A placement with no fade behind it hands the camera back on the frame after it,
+	-- which is the earliest the fighting view can see where the characters actually are.
+	flushCameraReset(m)
 
 	-- Nothing starts under a banner. Finishing a Trial moves the match onto the next
 	-- one on the frame it is finished, so without this the pair would be repositioned

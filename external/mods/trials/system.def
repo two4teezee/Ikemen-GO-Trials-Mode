@@ -216,6 +216,11 @@ allclear.text.displaytime = 120
 ;
 ; col is r, g, b. There is no anim key yet; the fade animation layers arrive with the
 ; rest of the presentation layer.
+;
+; The camera is placed between the two characters as part of the move, and only handed
+; back to its ordinary fighting view afterwards. It has to be: the engine's fighting
+; camera moves only when somebody crosses into its tension zone, so a pair teleported
+; inside the current view would otherwise leave the camera wherever it had drifted to.
 ; -----------------------------------------------------------------------------------
 fadeout.time = 12
 fadeout.col = 0, 0, 0
