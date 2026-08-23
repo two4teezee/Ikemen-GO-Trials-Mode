@@ -742,6 +742,11 @@ end
 local function buildBanner(name)
 	local path = {'trials_mode', name}
 	local e = buildText({'trials_mode', name, 'text'}, path)
+	-- buildText puts the words on the sprite, but textImgReset restores the sprite's
+	-- engine-side initial text, and that is written in exactly one place: the Go motif
+	-- parser. A sprite Lua made has none, so a reset empties it. Keeping the string here
+	-- lets drawBanner set it back every frame, the way drawSteps and drawTimer do.
+	e.text = strValue(cfgGet(join(path, 'text', 'text')), '')
 	-- Trials keeps its own key here, the way buildAnim does: the engine has no
 	-- per-element display time for text.
 	--
@@ -1467,7 +1472,10 @@ local function readAttacker()
 		local projid = getHitVar('projid')
 		if projid >= 0 then
 			if playerId(id) then
-				out.anim = projVar(projid, 0, 'anim')
+				-- A projectile with the usual remove = 1 is destroyed on the tick it
+				-- connects, before this runs, and the engine hands back something that is
+				-- not a number when it has none to read. Keep only a number.
+				out.anim = tonumber(projVar(projid, 0, 'anim'))
 			end
 		elseif playerId(id) then
 			out.stateno = stateNo()
@@ -1590,6 +1598,11 @@ local function completeTrial(m)
 		end
 	end
 
+	-- selectTrial starts the next Trial's clock from zero, but the reading that belongs
+	-- on screen for the length of the banner is the one the player just posted. It goes
+	-- back to zero when the banner clears — or stays up for good on All-Clear, which is
+	-- where both stopwatches stop.
+	local finishTicks = m.trialTicks
 	if m.allclear then
 		-- All-Clear freezes where it is: the counter reads All-Clear and both timers
 		-- stop. The Trial itself starts over, so it is still playable underneath.
@@ -1598,6 +1611,9 @@ local function completeTrial(m)
 		selectTrial(index % m.total + 1)
 	else
 		selectTrial(index)
+	end
+	if m.banner ~= nil then
+		m.trialTicks = finishTicks
 	end
 	trials.f_dumpState()
 end
@@ -1612,6 +1628,9 @@ local function advancePart(m, step, part)
 	-- format's validfortickcount says how long the run survives waiting for what comes
 	-- after it.
 	m.grace = part.validfortickcount or 0
+	-- A Step that ends with the combo already over — a throw, a knockdown — leaves this
+	-- at zero, which is what makes the follow-up's first hit read as the honest `1 > 0`.
+	-- Whether the run survives the gap at all is validfortickcount's job, not this one's.
 	m.combo = comboCount()
 	if m.part <= #step.parts then
 		return
@@ -1619,13 +1638,6 @@ local function advancePart(m, step, part)
 
 	-- Every Part done, so the Step is.
 	m.part = 1
-	-- A Step that required a hit but ends with the combo already over — a throw, a
-	-- knockdown — would otherwise look to the next Part like a combo that never
-	-- started. Carrying the count forward by one keeps `comboCount() > m.combo` the
-	-- honest test it is everywhere else.
-	if part.hitcount ~= 0 and comboCount() == 0 then
-		m.combo = m.combo + 1
-	end
 	m.step = m.step + 1
 	if m.step > #m.steps then
 		completeTrial(m)
@@ -1649,14 +1661,18 @@ local function verify()
 	end
 
 	local attacker = readAttacker()
+	local registers = partRegisters(step, part, attacker, m.combo)
+	if not registers and dropped(m, part) then
+		resetProgress(m)
+		return
+	end
+	-- Spent after the drop test, not before it: a Part declaring validfortickcount = 1 is
+	-- asking for one frame of protection, and spending that frame before anything
+	-- consults the window would leave it with none.
 	if m.grace > 0 then
 		m.grace = m.grace - 1
 	end
-
-	if not partRegisters(step, part, attacker, m.combo) then
-		if dropped(m, part) then
-			resetProgress(m)
-		end
+	if not registers then
 		return
 	end
 
@@ -1849,6 +1865,23 @@ local function drawTimer(timer, element, running)
 	return timer
 end
 
+-- Takes the banner down and hands the match back to the player.
+--
+-- Both of the things frozen for its length come back here rather than at the next
+-- verify: the restarted Trial's clock starts now, and the combo count is re-read so a
+-- combo still running from the attempt that just finished cannot register as the first
+-- hit of the new one. All-Clear keeps its finishing time, since nothing restarts.
+local function clearBanner(m)
+	m.banner = nil
+	m.bannerTimer = 0
+	if not m.allclear then
+		m.trialTicks = 0
+	end
+	if player(1) then
+		m.combo = comboCount()
+	end
+end
+
 -- The Success or All-Clear banner, for as long as its displaytime lasts.
 local function drawBanner(m)
 	local e = m.banner ~= nil and trials.elements[m.banner] or nil
@@ -1856,10 +1889,12 @@ local function drawBanner(m)
 		return
 	end
 	textImgReset(e.TextSpriteData)
+	-- After the reset, which empties a Lua-made sprite: see buildBanner.
+	textImgSetText(e.TextSpriteData, e.text)
 	textImgDraw(e.TextSpriteData)
 	m.bannerTimer = m.bannerTimer - 1
 	if m.bannerTimer <= 0 then
-		m.banner = nil
+		clearBanner(m)
 	end
 end
 
@@ -1877,10 +1912,17 @@ hook.add('loop#trials', 'trials', function()
 	-- Before the roundState gate below: the Dummy is configured during the intro, not
 	-- once the round is live.
 	applyDummy()
+	local m = trials.match
 	if roundState() ~= 2 then
+		-- A banner only counts down on a frame it is drawn on, and nothing draws outside
+		-- a live round. Taking it down here keeps a round that ends mid-banner — the
+		-- combo that finished the Trial being the one that KOs the Dummy, most of all —
+		-- from carrying frozen verification into the next round.
+		if m.banner ~= nil then
+			clearBanner(m)
+		end
 		return
 	end
-	local m = trials.match
 
 	-- Verification before drawing, so a Step completed this frame is already drawn as
 	-- completed rather than a frame late. It stops for the length of a banner: the
