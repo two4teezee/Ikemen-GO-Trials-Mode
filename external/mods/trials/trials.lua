@@ -1188,7 +1188,7 @@ local function drawSteps()
 	local shift = m.textbox and block.shift or {0, 0}
 	local first, last = 1, #m.steps
 
-	-- Scroll only once the rows cannot all fit the window. Keeping two completed Steps
+	-- Scroll only once the rows cannot all fit the window. Keeping one completed Step
 	-- above the current one is what the pre-refactor module did, and it is what makes a
 	-- long Trial read as progress rather than as a jump.
 	--
@@ -1203,8 +1203,8 @@ local function drawSteps()
 		-- n rows span n-1 spacings, so this is how many of them that space holds.
 		local fit = math.floor(available / spacing[2]) + 1
 		if #m.steps > fit then
-			first = math.max(1, math.min(m.step - 2, #m.steps - fit + 1))
-			-- Two completed Steps above the current one only where there is room for
+			first = math.max(1, math.min(m.step - 1, #m.steps - fit + 1))
+			-- One completed Step above the current one only where there is room for
 			-- them. A window one or two rows deep still has to show the row the player
 			-- is actually on, so the current Step wins over the pair above it.
 			first = math.max(first, m.step - fit + 1)
