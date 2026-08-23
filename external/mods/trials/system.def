@@ -125,6 +125,59 @@ completedstep.vertical.text.offset = 0, 0
 ; completedstep.vertical.text.scale =
 ; completedstep.vertical.text.font.height =
 
+; TRIAL STEPS — HORIZONTAL LAYOUT --------------------------------------------------
+; The same Steps flowed along a row instead of stacked, so the block is a ribbon a few
+; rows deep rather than a column. Which of the two is drawn is the player's, not the
+; screenpack's: the Layout preference in the module's config.ini, switchable from the
+; trials pause menu mid-match. Both blocks are built at load, so switching between them
+; is instant and a screenpack styles each independently.
+;
+; Steps lay out from pos, left to right, one spacing (first argument) apart. A Step that
+; would not fit inside the window's right edge starts a new row, one spacing (second
+; argument) down — so here the second argument is the row height, where in the vertical
+; block it is what separates one Step from the next.
+;
+; padding is the gap between a Step's text and the edges of its own item, applied on
+; both sides. It is what a background element drawn behind the Step needs in order not
+; to touch the words; with no background it simply insets the row.
+;
+; window is X1,Y1, X2,Y2. Its right edge is where rows wrap, and its bottom is how many
+; of them are shown: once the rows no longer fit, the list scrolls to keep the row the
+; player is on in view, exactly as the vertical block scrolls its Steps. Leave the window
+; out and rows wrap at the edge of the screen instead of not at all.
+;
+; The shipped origin is the vertical block's, and for a reason worth knowing before
+; moving it: the engine's own lifebars and power bars end around y = 32 in this space, so
+; a row drawn any higher than that sits across them.
+;
+; pos is in 320x240, this file's own space (see trials.localcoord above).
+; -----------------------------------------------------------------------------------
+trialsteps.horizontal.pos = 25, 38
+trialsteps.horizontal.spacing = 4, 11
+trialsteps.horizontal.padding = 2
+trialsteps.horizontal.window = 20, 34, 300, 70
+; trialsteps.horizontal.pos.withtextbox =
+; trialsteps.horizontal.window.withtextbox =
+
+; STEP STATUS — HORIZONTAL LAYOUT --------------------------------------------------
+; Styled apart the same way the vertical Layout's three are, and independently of them:
+; a screenpack that wants the row to read differently from the column says so here.
+; -----------------------------------------------------------------------------------
+upcomingstep.horizontal.text.font = 1, 0, 1, 180, 180, 180
+upcomingstep.horizontal.text.offset = 0, 0
+; upcomingstep.horizontal.text.scale =
+; upcomingstep.horizontal.text.font.height =
+
+currentstep.horizontal.text.font = 1, 0, 1, 255, 255, 255
+currentstep.horizontal.text.offset = 0, 0
+; currentstep.horizontal.text.scale =
+; currentstep.horizontal.text.font.height =
+
+completedstep.horizontal.text.font = 1, 0, 1, 110, 110, 110
+completedstep.horizontal.text.offset = 0, 0
+; completedstep.horizontal.text.scale =
+; completedstep.horizontal.text.font.height =
+
 ; TRIAL TIMERS --------------------------------------------------------------------
 ; Two stopwatches, both counting up: totaltrialtimer since the match began,
 ; currenttrialtimer since the current Trial started. Both freeze on All-Clear.

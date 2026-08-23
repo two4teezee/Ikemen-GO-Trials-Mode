@@ -617,10 +617,10 @@ trials.elements = {}
 -- from its own configuration block, and is one text element built once at load.
 local STEP_STATUSES = {'upcoming', 'current', 'completed'}
 
--- Only the vertical Layout exists today. #41 adds the horizontal one along with the
--- branch that picks between them; until it lands, reading the Layout Player Preference
--- here would leave a player whose config.ini says `horizontal` with no Steps at all.
-local STEP_LAYOUT = 'vertical'
+-- The two Layouts, each with its own configuration block and its own set of elements.
+-- Both are built at load and the Layout Player Preference picks between them, so
+-- switching from the pause menu swaps prepared element sets rather than rebuilding.
+local STEP_LAYOUTS = {'vertical', 'horizontal'}
 
 -- Builds the Step block: the three Step Status text elements, plus the geometry they
 -- share — the origin rows lay out from, the spacing between them, and the window they
@@ -664,6 +664,16 @@ local function buildStepBlock(layout)
 		}
 	end
 
+	-- The gap between a Step's text and the edges of its own item, applied on both
+	-- sides. The horizontal Layout is what reads it — it is what a background drawn
+	-- behind a flowing Step needs in order not to touch the words — and it is a length
+	-- along x, so a default written in MODULE_LOCALCOORD is converted the way the
+	-- spacing above is.
+	block.padding = numList(g('padding'), {0})[1]
+	if foreign and sourceOf(path, 'padding') == 'defaults' then
+		block.padding = block.padding * lc[1] / MODULE_LOCALCOORD[1]
+	end
+
 	-- A Textbox displaces the block rather than being drawn over it. `window.withtextbox`
 	-- is the documented key for that and every existing screenpack already ships one;
 	-- `pos.withtextbox` is the same idea for the origin, and defaults to no shift at all,
@@ -674,6 +684,9 @@ local function buildStepBlock(layout)
 	-- The origin rows lay out from, kept because the window alone does not say where
 	-- the list starts: the two are configured independently.
 	block.pos = pos
+	-- Copied for the reason sharedLocalcoord copies its own: f_printTable elides a table
+	-- it has already printed, and this is the same one the block's elements carry.
+	block.localcoord = {lc[1], lc[2]}
 
 	-- textImgSetWindow ignores an all-zero rect (src/font.go:915), so a window can be
 	-- set but never cleared. Wherever this needs to say "do not clip" to an element that
@@ -833,7 +846,15 @@ if trials.enabled then
 	trials.elements.trialresetreminder = buildText({'trials_mode', 'trialresetreminder'})
 	trials.elements.trialresetreminder.text =
 		strValue(cfgGet({'trials_mode', 'trialresetreminder', 'text'}), '')
-	trials.stepblock = buildStepBlock(STEP_LAYOUT)
+	-- Both Layouts, built once. trials.stepblock is whichever one the Layout preference
+	-- selects, and applyStepLayout below points it at that — it cannot be resolved here,
+	-- because reading a preference is reading config.ini and that reader is defined with
+	-- the rest of them, further down.
+	trials.stepblocks = {}
+	for _, layout in ipairs(STEP_LAYOUTS) do
+		trials.stepblocks[layout] = buildStepBlock(layout)
+	end
+	trials.stepblock = trials.stepblocks[STEP_LAYOUTS[1]]
 	-- Everything the mid-Trial reposition needs, resolved once. `keys` empty, or
 	-- enabled false, is the feature switched off.
 	trials.reposition = {
@@ -1563,6 +1584,40 @@ local function preferenceEnabled(name, default)
 	return word ~= 'false' and word ~= 'no' and word ~= '0' and word ~= 'off'
 end
 
+-- The Layout Player Preference: which of the two prepared Step blocks is drawn. An
+-- unrecognised word in a hand-edited config.ini falls back to the vertical one rather
+-- than leaving the player with no Steps at all.
+local function stepLayout()
+	local word = tostring(preference('Layout', STEP_LAYOUTS[1])):lower()
+	if trials.stepblocks ~= nil and trials.stepblocks[word] ~= nil then
+		return word
+	end
+	return STEP_LAYOUTS[1]
+end
+
+-- Points the module at the block the Layout preference names.
+--
+-- Both blocks were built at load, so this is the whole of switching Layout: the new
+-- block's elements already carry their font, origin, scale and localcoord, and only the
+-- window has to be caught up — it is the one thing that changes after construction,
+-- because it switches with the Trial's Textbox. Catching it up here rather than waiting
+-- for the next Trial is what makes the switch immediate.
+local function applyStepLayout()
+	local block = trials.stepblocks ~= nil and trials.stepblocks[stepLayout()] or nil
+	if block == nil then
+		return
+	end
+	trials.stepblock = block
+	-- What is on screen, not what the match has moved on to: the Steps drawn across a
+	-- Success are the finished Trial's, and so is the window they clip to (syncDisplay).
+	local m = trials.match
+	applyStepWindow(block, m ~= nil and m.shownTextbox == true)
+end
+
+if trials.enabled then
+	applyStepLayout()
+end
+
 -- Forgets whatever progress has been made through the current Trial and starts it over
 -- from its first Step.
 local function resetProgress(m)
@@ -1647,10 +1702,8 @@ end
 --            preferenceEnabled is what reads it back and `false` is that reader's own
 --            spelling of off
 --
--- Layout is here and does nothing visible yet, on purpose: only the vertical Layout
--- exists (STEP_LAYOUT above), and #41 adds the horizontal one along with the branch that
--- picks between them. The setting persists in the meantime, so a player who switched it
--- before that lands finds it switched afterwards.
+--   changed  what to run once the new value has been persisted, for a preference the
+--            match already running cannot pick up on its own
 local MENU_PREFERENCES = {
 	{item = 'trialadvancement',    key = 'Advancement',    values = {'autoadvance', 'repeat'}},
 	{item = 'trialresetonsuccess', key = 'ResetOnSuccess', values = {'enabled', 'disabled'}, boolean = true},
@@ -1745,10 +1798,12 @@ local function refreshTextbox()
 	end
 end
 
--- Advancement, Reset on Success and Layout are read where they are used, so changing one
--- needs nothing beyond persisting it. The Textbox preference is the exception, and the
--- exception lives on the descriptor rather than as a name test inside the shared handler.
+-- Advancement and Reset on Success are read where they are used, so changing one needs
+-- nothing beyond persisting it. The other two are read when a Trial is selected rather
+-- than per frame, and so have to be caught up with by hand — which lives on the
+-- descriptor rather than as a name test inside the shared handler.
 MENU_PREFERENCE.trialstextboxes.changed = refreshTextbox
+MENU_PREFERENCE.trialslayout.changed = applyStepLayout
 
 -- The resolved [Trials Pause Menu], or nil on a build where the section never reached
 -- the motif at all. One walk, because three readers below want the same one.
@@ -2929,33 +2984,35 @@ local function counterText(current, total)
 	return main.f_formatBySpec(fmt, {i = current, s = tostring(total)})
 end
 
--- The Steps of the current Trial, drawn in the vertical Layout.
---
--- Rows lay out from the block's origin, one spacing apart, each drawn with the element
--- for the Step Status it currently has — so advancing the Step index is all it takes
--- for a row to move from upcoming to current to completed.
+-- Where one Step sits relative to the player's progress, which is what decides the
+-- element it is drawn with. Both Layouts ask the same question of the same index.
+local function stepStatus(index, step)
+	if index < step then
+		return 'completed'
+	elseif index == step then
+		return 'current'
+	end
+	return 'upcoming'
+end
+
+-- Draws one Step, with the element for the Step Status it currently has.
 --
 -- Nothing is constructed here. Each row is the engine's own list idiom
 -- (main.f_drawMenu, main.lua:3811): reset the element to the position it was built at,
 -- add the row's offset, set the text, draw.
-local function drawSteps()
-	local block = trials.stepblock
-	local m = trials.match
-	if block == nil or m == nil then
-		return
-	end
-	-- The Trial on screen, which is not always the Trial the match is on: see
-	-- syncDisplay. A finished one reads as finished all the way down, rather than as the
-	-- next Trial's Step 1 highlighted over the Steps the player has just completed.
-	local steps = m.shownSteps or m.steps
-	local textbox = m.shownTextbox
-	local step = m.shownComplete and #steps + 1 or m.step
-	if #steps == 0 then
-		return
-	end
+local function drawStep(block, status, text, x, y)
+	local ts = block.text[status].TextSpriteData
+	textImgReset(ts)
+	textImgAddPos(ts, x, y)
+	textImgSetText(ts, text)
+	textImgDraw(ts)
+end
 
+-- The vertical Layout: one Step per row, stacked from the block's origin one spacing
+-- apart, so advancing the Step index is all it takes for a row to move from upcoming to
+-- current to completed.
+local function drawStepsVertical(block, steps, step, shift)
 	local spacing = block.spacing
-	local shift = textbox and block.shift or {0, 0}
 	local first, last = 1, #steps
 
 	-- Scroll only once the rows cannot all fit the window. Keeping one completed Step
@@ -2983,17 +3040,106 @@ local function drawSteps()
 	end
 
 	for i = first, last do
-		local status = 'upcoming'
-		if i < step then
-			status = 'completed'
-		elseif i == step then
-			status = 'current'
+		drawStep(block, stepStatus(i, step), steps[i].text,
+			shift[1] + spacing[1] * (i - first), shift[2] + spacing[2] * (i - first))
+	end
+end
+
+-- The horizontal Layout: Steps flowed along a row from the block's origin, one spacing
+-- apart, each one padded on both sides. A Step that would reach past the window's right
+-- edge starts a new row instead, one vertical spacing down.
+--
+-- Measured, not guessed: a Step's width is its own text through the engine's
+-- textImgGetTextWidth, times the scale of the element that draws it, exactly as the
+-- engine's own movelist measures its lines (menu.lua:928). Which element that is depends
+-- on the Step Status, so the row reflows as the player advances — which is the point:
+-- a Step Status the screenpack styles at a different scale takes a different amount of
+-- room, and pretending otherwise would leave the row overlapping itself.
+local function drawStepsHorizontal(block, steps, step, shift)
+	local spacing = block.spacing
+	local padding = block.padding
+	local originX = block.pos[1] + shift[1]
+
+	-- Where rows wrap. Measured from where they start rather than from the window's left
+	-- edge, for the reason the vertical Layout measures its height that way: the origin
+	-- and the window are configured independently.
+	--
+	-- An all-zero window is the engine's spelling of "do not clip" (textImgSetWindow
+	-- ignores such a rect, src/font.go:915), and a row with nowhere to wrap runs off the
+	-- side of the screen and stays there. So an unclipped block wraps at the edge of its
+	-- own coordinate space, which is what "do not clip" means on screen.
+	local right = block.activeWindow[3]
+	if right <= 0 then
+		right = block.localcoord[1]
+	end
+	local available = right - originX
+
+	-- Lay the whole Trial out first: which row each Step lands on, and how far along it.
+	-- The draw pass needs to know how many rows there are before it can decide which of
+	-- them are on screen.
+	local placement, rows, x = {}, 1, 0
+	for i = 1, #steps do
+		local e = block.text[stepStatus(i, step)]
+		local width = padding * 2 +
+			textImgGetTextWidth(e.TextSpriteData, steps[i].text) * e.scale[1]
+		-- `x > 0` is what keeps a Step wider than the whole row from wrapping forever:
+		-- it has nowhere to go, so it starts its own row and the window clips it.
+		if x > 0 and available > 0 and x + width > available then
+			rows = rows + 1
+			x = 0
 		end
-		local ts = block.text[status].TextSpriteData
-		textImgReset(ts)
-		textImgAddPos(ts, shift[1] + spacing[1] * (i - first), shift[2] + spacing[2] * (i - first))
-		textImgSetText(ts, steps[i].text)
-		textImgDraw(ts)
+		placement[i] = {row = rows, x = x}
+		x = x + width + spacing[1]
+	end
+
+	-- Scroll by rows once they no longer fit, the way the vertical Layout scrolls by
+	-- Steps: keep one row above the one the player is on where there is room for it, and
+	-- the row they are on wherever there is not.
+	local first, last = 1, rows
+	local availableY = block.activeWindow[4] - (block.pos[2] + shift[2])
+	if availableY > 0 and spacing[2] > 0 and rows > 1 then
+		local fit = math.floor(availableY / spacing[2]) + 1
+		if rows > fit then
+			-- The row of the Step the player is on, or of the last one when the Trial is
+			-- finished and every Step reads as completed.
+			local current = placement[math.max(1, math.min(step, #steps))].row
+			first = math.max(1, math.min(current - 1, rows - fit + 1))
+			first = math.max(first, current - fit + 1)
+			last = math.min(first + fit - 1, rows)
+		end
+	end
+
+	for i = 1, #steps do
+		local at = placement[i]
+		if at.row >= first and at.row <= last then
+			drawStep(block, stepStatus(i, step), steps[i].text,
+				shift[1] + at.x + padding, shift[2] + spacing[2] * (at.row - first))
+		end
+	end
+end
+
+-- The Steps of the current Trial, drawn in whichever Layout the player has chosen.
+local function drawSteps()
+	local block = trials.stepblock
+	local m = trials.match
+	if block == nil or m == nil then
+		return
+	end
+	-- The Trial on screen, which is not always the Trial the match is on: see
+	-- syncDisplay. A finished one reads as finished all the way down, rather than as the
+	-- next Trial's Step 1 highlighted over the Steps the player has just completed.
+	local steps = m.shownSteps or m.steps
+	local step = m.shownComplete and #steps + 1 or m.step
+	if #steps == 0 then
+		return
+	end
+
+	-- A Textbox displaces the whole block rather than being drawn over it.
+	local shift = m.shownTextbox and block.shift or {0, 0}
+	if block.layout == 'horizontal' then
+		drawStepsHorizontal(block, steps, step, shift)
+	else
+		drawStepsVertical(block, steps, step, shift)
 	end
 end
 
@@ -3335,12 +3481,14 @@ function trials.f_dumpState()
 		config = trials.config,
 		configSource = trials.configSource,
 		elements = elements,
-		-- The Step block's resolved geometry. Rows are positioned from these every
-		-- frame, so a layout that lands in the wrong place is diagnosable from here
-		-- without a screenshot.
+		-- The Step block's resolved geometry — the one the Layout preference selected,
+		-- since that is the one being drawn. Rows are positioned from these every frame,
+		-- so a layout that lands in the wrong place is diagnosable from here without a
+		-- screenshot.
 		steps = trials.stepblock ~= nil and {
 			layout = trials.stepblock.layout,
 			spacing = trials.stepblock.spacing,
+			padding = trials.stepblock.padding,
 			window = trials.stepblock.window,
 			windowWithTextbox = trials.stepblock.windowWithTextbox,
 			shiftWithTextbox = trials.stepblock.shift,

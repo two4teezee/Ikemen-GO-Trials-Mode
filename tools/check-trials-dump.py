@@ -594,7 +594,15 @@ def run_checks(tree, quiet=False):
     c._print("\nStep text, vertical layout (#37)")
     block = dig(tree, "steps")
     c.present("Step block resolved at load", block)
-    c.check("vertical layout", dig(block, "layout") if block else None, "vertical")
+    # The block in the dump is whichever Layout the player has selected (#41), so this
+    # asserts the two agree rather than that either one is vertical. Lowercased on the
+    # config.ini side because stepLayout() lowercases before it matches: a hand-edited
+    # `Trials.Layout = Horizontal` selects the horizontal block, and comparing it raw
+    # would report that working case as a failure.
+    preferred = dig(tree, "ini", "Options", "Trials", "Layout")
+    c.check("the block in use is the Layout the preference names",
+            dig(block, "layout") if block else None,
+            str(preferred).lower() if isinstance(preferred, str) else preferred)
     c.present("row spacing resolved", dig(block, "spacing") if block else None)
     c.present("clipping window resolved", dig(block, "window") if block else None)
     c.present("with-textbox window resolved", dig(block, "windowWithTextbox") if block else None)
@@ -621,6 +629,50 @@ def run_checks(tree, quiet=False):
     if not c.unreadable("and are styled apart", fonts):
         c.check("and are styled apart",
                 len({tuple(list((f or {}).values())[3:7]) for f in fonts}), 3)
+
+    c._print("\nHorizontal Layout (#41)")
+    # Both Layouts are built at load and the preference picks between them, so the
+    # horizontal elements are in the dump whichever one is being drawn. Their absence
+    # means a player switching Layout mid-match gets no Steps at all.
+    for status in ("upcoming", "current", "completed"):
+        c.present(f"{status} Step element built for the horizontal Layout",
+                  dig(tree, "elements", f"{status}step.horizontal.text"))
+    hpos = [dig(tree, "elements", f"{s}step.horizontal.text", "pos")
+            for s in ("upcoming", "current", "completed")]
+    if not c.unreadable("all three sit on the horizontal block's origin", hpos):
+        c.check("all three sit on the horizontal block's origin",
+                len({tuple((p or {}).values()) for p in hpos}), 1)
+    # Reported rather than asserted: a screenpack is free to put both Layouts in the same
+    # place, so the two origins differing is informative and not a rule.
+    vpos = dig(tree, "elements", "currentstep.vertical.text", "pos")
+    c._print(f"      (vertical origin {list((vpos or {}).values())}, "
+             f"horizontal {list((hpos[1] or {}).values())})")
+    # Padding is the horizontal Layout's own key — the gap between a Step's text and the
+    # edges of its item — and a row is laid out from it every frame. Only the Layout in
+    # use has its block geometry in the dump, so on a vertical run there is nothing here
+    # to read and the check says so rather than passing on an absent value.
+    if block and dig(block, "layout") == "horizontal":
+        c.present("row padding resolved", dig(block, "padding"))
+        c.present("wrapping window resolved", dig(block, "window"))
+    else:
+        c.skip("row padding resolved", "the vertical Layout is the one selected")
+        c.skip("wrapping window resolved", "the vertical Layout is the one selected")
+    # The horizontal origin has to be on screen at both aspects for the same reason the
+    # counter does: a match may render at the stage's aspect, not the screenpack's.
+    lc = dig(tree, "elements", "currentstep.horizontal.text", "localcoord") or {}
+    pos = dig(tree, "elements", "currentstep.horizontal.text", "pos") or {}
+    lx, ly, px, py = lc.get(1), lc.get(2), pos.get(1), pos.get(2)
+    if c.unreadable("horizontal origin is readable", lx, ly, px, py):
+        pass
+    elif None not in (lx, ly, px, py):
+        v = ly * 4 / 3 if lx * 3 > ly * 4 else lx
+        ix = px * (320 / v) - int(math.floor(lx / (v / 320) - 320) / 2)
+        iy = py * (320 / v)
+        c._print(f"      (internal position: {ix:.1f}, {iy:.1f})")
+        c.check("the horizontal origin is on screen at 4:3",
+                0 <= ix <= 320 and 0 <= iy <= 240, True)
+        c.check("the horizontal origin is on screen at 16:9",
+                -53.4 <= ix <= 373.4 and 0 <= iy <= 240, True)
 
     c._print("\nSteps parsed from the Trial Definition (#37)")
     parsed = [t for r in with_trials for t in (r.get("trials") or {}).values()
