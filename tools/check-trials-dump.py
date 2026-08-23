@@ -736,6 +736,12 @@ def run_checks(tree, quiet=False):
             c.check("the match tracks which Step and Part the player is on",
                     isinstance(step, (int, float)) and isinstance(count, (int, float))
                     and 1 <= step <= max(1, count), True)
+        # The Trial on screen lags the one the match is on across a Success, but only
+        # ever by one Trial and never out of range.
+        shown, total = dig(match, "shownTrial"), dig(match, "total")
+        c.check("the Trial on screen is one of the ones the match holds",
+                isinstance(shown, (int, float)) and isinstance(total, (int, float))
+                and 1 <= shown <= max(1, total), True)
         c.check("Advancement resolved",
                 dig(match, "advancement") in ("autoadvance", "repeat"), True)
         # Both count up from zero, so a freshly resolved match legitimately reads 0 and

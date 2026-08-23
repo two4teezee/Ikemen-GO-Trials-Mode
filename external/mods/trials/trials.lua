@@ -1558,6 +1558,24 @@ local function resetProgress(m)
 	m.grace = 0
 end
 
+-- Catches the screen up with the Trial the match is on.
+--
+-- The two are not always the same, on purpose. Finishing a Trial moves the match onto
+-- the next one on the frame it is finished — the Dummy, the positions and the verifier
+-- all have to follow it — but the player is still reading SUCCESS over the Steps they
+-- have just completed. So the display lags, and catches up when the pair is placed:
+-- after the banner has gone, and behind the fade where there is one, so the Steps change
+-- while the screen is dark rather than in front of the player.
+local function syncDisplay(m)
+	m.shownSteps = m.steps
+	m.shownCurrent = m.current
+	m.shownTextbox = m.textbox
+	m.shownComplete = false
+	if trials.stepblock ~= nil then
+		applyStepWindow(trials.stepblock, m.textbox)
+	end
+end
+
 -- Moves the match onto one Trial and resolves everything that depends on which Trial
 -- it is: the Steps to draw, whether a Textbox pushes the Step block into its
 -- with-Textbox window, and the progress and per-Trial timer, both of which start over.
@@ -1570,8 +1588,11 @@ local function selectTrial(index)
 		and textboxesVisible()
 	resetProgress(m)
 	m.trialTicks = 0
-	if trials.stepblock ~= nil then
-		applyStepWindow(trials.stepblock, m.textbox)
+	-- Nothing on screen changes yet while a banner is up: syncDisplay runs when the pair
+	-- is placed. Selecting a Trial with nothing in the way — the start of a match, a
+	-- Trial picked out of a menu — shows it at once.
+	if m.banner == nil then
+		syncDisplay(m)
 	end
 end
 
@@ -1760,6 +1781,9 @@ local function writeSetup(m)
 	-- later, and a dump taken before this point cannot tell the two apart.
 	m.setupTrial = m.current
 	m.reposRequest = false
+	-- The Steps and the counter change here, with the pair: after the banner, and behind
+	-- the fade where there is one.
+	syncDisplay(m)
 	-- TrialsReposition leaves the camera on `view: free` at the position written above,
 	-- which is what frames the pair while they are placed. Handing it back to the
 	-- fighting view is a separate write, deliberately not in this one: done in the same
@@ -2096,6 +2120,9 @@ local function completeTrial(m)
 	if finished then
 		m.allclear = true
 	end
+	-- What is on screen is the Trial just finished, and it stays there for the banner.
+	-- Every Step of it reads as completed for as long as it does.
+	m.shownComplete = true
 	local banner = finished and 'allclear' or 'success'
 	local e = trials.elements[banner]
 	if e ~= nil then
@@ -2292,13 +2319,22 @@ end
 local function drawSteps()
 	local block = trials.stepblock
 	local m = trials.match
-	if block == nil or m == nil or #m.steps == 0 then
+	if block == nil or m == nil then
+		return
+	end
+	-- The Trial on screen, which is not always the Trial the match is on: see
+	-- syncDisplay. A finished one reads as finished all the way down, rather than as the
+	-- next Trial's Step 1 highlighted over the Steps the player has just completed.
+	local steps = m.shownSteps or m.steps
+	local textbox = m.shownTextbox
+	local step = m.shownComplete and #steps + 1 or m.step
+	if #steps == 0 then
 		return
 	end
 
 	local spacing = block.spacing
-	local shift = m.textbox and block.shift or {0, 0}
-	local first, last = 1, #m.steps
+	local shift = textbox and block.shift or {0, 0}
+	local first, last = 1, #steps
 
 	-- Scroll only once the rows cannot all fit the window. Keeping one completed Step
 	-- above the current one is what the pre-refactor module did, and it is what makes a
@@ -2314,27 +2350,27 @@ local function drawSteps()
 	if available > 0 and spacing[2] > 0 then
 		-- n rows span n-1 spacings, so this is how many of them that space holds.
 		local fit = math.floor(available / spacing[2]) + 1
-		if #m.steps > fit then
-			first = math.max(1, math.min(m.step - 1, #m.steps - fit + 1))
+		if #steps > fit then
+			first = math.max(1, math.min(step - 1, #steps - fit + 1))
 			-- One completed Step above the current one only where there is room for
 			-- them. A window one or two rows deep still has to show the row the player
 			-- is actually on, so the current Step wins over the pair above it.
-			first = math.max(first, m.step - fit + 1)
-			last = math.min(first + fit - 1, #m.steps)
+			first = math.max(first, step - fit + 1)
+			last = math.min(first + fit - 1, #steps)
 		end
 	end
 
 	for i = first, last do
 		local status = 'upcoming'
-		if i < m.step then
+		if i < step then
 			status = 'completed'
-		elseif i == m.step then
+		elseif i == step then
 			status = 'current'
 		end
 		local ts = block.text[status].TextSpriteData
 		textImgReset(ts)
 		textImgAddPos(ts, shift[1] + spacing[1] * (i - first), shift[2] + spacing[2] * (i - first))
-		textImgSetText(ts, m.steps[i].text)
+		textImgSetText(ts, steps[i].text)
 		textImgDraw(ts)
 	end
 end
@@ -2465,6 +2501,9 @@ hook.add('loop#trials', 'trials', function()
 
 	local counter = trials.elements.trialcounter
 	if counter ~= nil then
+		-- The Trial on screen, for the same reason the Steps use it: the counter should
+		-- not read the next Trial's number over the SUCCESS for the one just finished.
+		local shown = m.shownCurrent or m.current
 		local text
 		if m.total == 0 then
 			text = strValue(cfgGet({'trials_mode', 'nodata', 'text'}), '')
@@ -2474,10 +2513,10 @@ hook.add('loop#trials', 'trials', function()
 			-- banner. Falls back to the ordinary counter for a config that omits it.
 			text = strValue(cfgGet({'trials_mode', 'trialcounter', 'allclear', 'text'}), '')
 			if text == '' then
-				text = counterText(m.current, m.total)
+				text = counterText(shown, m.total)
 			end
 		else
-			text = counterText(m.current, m.total)
+			text = counterText(shown, m.total)
 		end
 		textImgSetText(counter.TextSpriteData, text)
 		textImgDraw(counter.TextSpriteData)
@@ -2682,6 +2721,11 @@ function trials.f_dumpState()
 			banner = trials.match.banner or '',
 			totalTicks = trials.match.totalTicks,
 			trialTicks = trials.match.trialTicks,
+			-- The Trial on screen, which lags the one the match is on across a Success
+			-- (see syncDisplay). Dumped because "the wrong Trial is drawn" and "the
+			-- wrong Trial is being played" look identical in a screenshot.
+			shownTrial = trials.match.shownCurrent or trials.match.current,
+			shownComplete = trials.match.shownComplete == true,
 			advancement = autoAdvances() and 'autoadvance' or 'repeat',
 			totalTimer = preferenceEnabled('TotalTimer', true),
 			trialTimer = preferenceEnabled('TrialTimer', true),
