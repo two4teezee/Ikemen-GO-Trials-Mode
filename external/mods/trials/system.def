@@ -199,3 +199,50 @@ allclear.text.displaytime = 120
 ; allclear.text.font.height =
 ; allclear.bg.anim =       ; not read yet
 ; allclear.front.anim =    ; not read yet
+
+; REPOSITIONING --------------------------------------------------------------------
+; The pair is placed at the positions the Trial asked for (trial.playerpos and
+; trial.dummypos) when that Trial starts. Two things below soften and extend that:
+;
+;   * a fade, so the pair moving between Trials is a cut rather than a teleport;
+;   * a key combination the player can hold during a Trial to put both characters back
+;     where the Trial wants them, after a combo has carried them across the stage.
+;
+; The fade wraps the reposition: the screen fades out, the characters are placed while
+; it is dark, and it fades back in. It runs when the player moves between Trials and
+; when the key combination below is held — never on the first placement of a round,
+; which the round's own fade already covers. Set fadeout.time and fadein.time to 0 for
+; an instant cut.
+;
+; col is r, g, b. There is no anim key yet; the fade animation layers arrive with the
+; rest of the presentation layer.
+; -----------------------------------------------------------------------------------
+fadeout.time = 12
+fadeout.col = 0, 0, 0
+fadein.time = 12
+fadein.col = 0, 0, 0
+
+; Whether the player can reposition mid-Trial at all. Set to false and the keys below
+; do nothing and the reminder is not drawn.
+trialresetenabled = true
+
+; The keys held together to trigger it, from the engine's own input vocabulary:
+; B D F U L R (directions), a b c x y z s (buttons), d w m. Any number of them; all
+; must be held at once. Keep trialresetreminder.text below in step with whatever you
+; set here — nothing derives one from the other.
+trialresetkeys = d, w
+
+; The on-screen reminder of that combination. Leave the text empty and nothing is
+; drawn, which is what a screenpack that would rather say it elsewhere should do.
+;
+; pos is in 320x240, this file's own space (see trials.localcoord above).
+; -----------------------------------------------------------------------------------
+trialresetreminder.text = "D + W: Reset Positions"
+trialresetreminder.font = 1, 0, -1
+trialresetreminder.scale = 1, 1
+trialresetreminder.layerno = 0
+trialresetreminder.pos = 315, 8
+; trialresetreminder.offset =
+; trialresetreminder.font.height =
+; trialresetreminder.window =
+; trialresetreminder.localcoord =

@@ -839,6 +839,34 @@ def run_checks(tree, quiet=False):
                 [k for k in coords
                  if not isinstance(dig(setup, k), (int, float))], [])
 
+    # The mid-Trial reposition: its key combination, the fade around it, and the words
+    # reminding the player it exists.
+    repos = dig(tree, "reposition")
+    if repos is None:
+        c.check("the reposition config resolved", "<missing>", "a reposition block")
+    else:
+        # The engine's own inputTime vocabulary, spelled out here rather than read from
+        # the module for the reason the Dummy vocabulary is.
+        input_keys = set("B D F U L R a b c x y z s d w m".split())
+        c.check("whether the player can reposition is a flag",
+                isinstance(dig(repos, "enabled"), bool), True)
+        keys = str(dig(repos, "keys") or "")
+        named = [k for k in keys.split("+") if k != ""]
+        c.check("every key in the combination is one the engine answers for",
+                [k for k in named if k not in input_keys], [])
+        c.check("  ... and the count agrees with the combination",
+                dig(repos, "keyCount"), len(named))
+        # A feature switched on with no usable key is a feature that cannot fire, and
+        # is worth catching here rather than on a controller.
+        c.check("a reposition that is on has a combination to trigger it",
+                not dig(repos, "enabled") or len(named) > 0, True)
+        c.check("both fade times are tick counts",
+                [k for k in ("fadeout", "fadein")
+                 if not isinstance(dig(repos, k), (int, float))
+                 or dig(repos, k) < 0], [])
+        c.check("the reminder resolved to a string",
+                isinstance(dig(repos, "reminder"), str), True)
+
     c._print("\nModule directory hygiene")
     # The engine walks external/mods recursively and require()s every *.lua it finds,
     # so any second .lua here is executed as a module at boot. A match launcher named

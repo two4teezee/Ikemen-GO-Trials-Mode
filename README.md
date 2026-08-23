@@ -344,11 +344,23 @@ currenttrialtimer.scale = 2,2
 ; currenttrialtimer.font.height	=
 currenttrialtimer.text = "Current Trial: %s"
 
-; TRIAL RESET REMINDER AND SWITCH ------------------------------------------
-; trialresetenabled allows the user to reset the player and dummy position to center stage (or specified trials position) when the d and w keys are pressed simultaneously
-; trialresetreminder displays a string that reminds the player they can reset the trial position with the specified key input
+; REPOSITIONING ------------------------------------------------------------
+; A trial places the player and the dummy where trial.playerpos and trial.dummypos ask for when that trial starts. Two things soften and extend that:
+;
+; fadeout / fadein wrap the move, so the pair arriving in position is a cut rather than a teleport. The screen fades out, the characters are placed while it is dark, and it fades back in. This runs when the player moves between trials and when the key combination below is held - never on the first placement of a round, which the round's own fade already covers. Set both times to 0 for an instant cut. col is r, g, b.
+;
+; trialresetenabled allows the player to put both characters back where the current trial wants them, mid-trial, after a combo has carried them across the stage. Set it to false and the keys do nothing and the reminder is not drawn.
+;
+; trialresetkeys is the combination that does it, spelled in the engine's own input names: B D F U L R (directions), a b c x y z s (buttons), d w m. Any number of them; all must be held at once. An unrecognised name is dropped with a warning rather than arming a combination the player can never complete.
+;
+; trialresetreminder is the on-screen reminder of that combination. Keep its text in step with trialresetkeys yourself - nothing derives one from the other. Leave the text empty and nothing is drawn.
 ; --------------------------------------------------------------------------
+fadeout.time = 12
+fadeout.col = 0,0,0
+fadein.time = 12
+fadein.col = 0,0,0
 trialresetenabled = true
+trialresetkeys = d, w
 trialresetreminder.pos = 10,710
 trialresetreminder.font = 1,0,1
 trialresetreminder.scale = 2,2
@@ -537,6 +549,8 @@ trialstep.1.stateno = 1010
 ;   So `trial.dummypos = left-corner` puts the dummy in the left corner with the player a medium gap away, and adding `trial.playerpos = far` widens that gap without moving anyone out of the corner. A distance on its own, with no corner named, starts the pair that far apart around centre stage.
 ;
 ;   Positions and life totals are applied when the trial starts, and re-applied when the player moves to another trial or the round restarts. A trial that names none of them gets the stage's own start positions and full life, never the previous trial's.
+;
+;   Mid-trial, the player can put both characters back where the trial wants them by holding the key combination the screenpack sets as trialresetkeys - see REPOSITIONING in the system.def section above.
 ; trial.showvarvalpairs - optional - (comma-separated integers, specified in pairs, can specify 0..n pairs). Used to determine whether a trial should be displayed based on the specified variable and value pair(s) in this field. Useful if a trial should only be displayed when character has a specific variable/value pair set, such as being in a specific groove or mode. If specified, the trial will only be displayed if all variable-value pairs return true. These variable-value pairs should only be for the character (not for helpers). Finally, variables can have multiple specified values to test against, which should be separated by the "|" character (e.g. `trial.showforvarvalpairs = 12, 0|2|4` would test var(12) for values 0, 2, and 4).
 ; trial.textbox - optional - multilingual - displays specified text in a box specified in the textbox settings in system.def under [Trials Mode]. Supports specification as trial.textbox, or trial.textbox.en, trial.textbox.es, etc. for multilingual support. Will default to trial.textbox.en (or trial.textbox) if selected language cannot be matched.
 

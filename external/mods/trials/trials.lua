@@ -762,13 +762,75 @@ local function buildBanner(name)
 	return e
 end
 
+-- The keys the engine's own inputTime answers for. A combination is spelled in these
+-- and nothing else, so a typo is caught at load rather than silently never firing.
+local INPUT_KEYS = {
+	B = true, D = true, F = true, U = true, L = true, R = true,
+	a = true, b = true, c = true, x = true, y = true, z = true, s = true,
+	d = true, w = true, m = true,
+}
+
+-- The key combination that repositions the pair mid-Trial, as a list of input names.
+--
+-- Case is meaningful here and nowhere else in this file: the engine spells directions
+-- in capitals and buttons in lower case, and `D` (down) is a different key from `d`
+-- (the taunt button the pre-refactor combination used). So the value is read as
+-- authored rather than lowercased, and an unrecognised name is dropped with a warning
+-- instead of arming a combination the player can never complete.
+local function repositionKeys()
+	local raw = cfgGet({'trials_mode', 'trialresetkeys'})
+	if type(raw) ~= 'table' then
+		raw = {raw}
+	end
+	local out = {}
+	for _, v in ipairs(raw) do
+		local key = tostring(v):match('^%s*(.-)%s*$')
+		if key ~= '' then
+			if INPUT_KEYS[key] then
+				out[#out + 1] = key
+			else
+				print('Trials: trialresetkeys names ' .. key .. ', which is not an input ' ..
+					'the engine answers for — ignoring it.')
+			end
+		end
+	end
+	return out
+end
+
+-- One end of the reposition fade. Its animation layer arrives with the rest of the
+-- presentation layer (#44); time and colour are the whole of it for now, and a time of
+-- 0 means no fade at all, which fadeNew already treats as nothing to run.
+local function buildFade(name)
+	local col = numList(cfgGet({'trials_mode', name, 'col'}), {0, 0, 0})
+	return fadeNew({
+		time = math.max(0, numList(cfgGet({'trials_mode', name, 'time'}), {0})[1]),
+		color = {col[1] or 0, col[2] or 0, col[3] or 0},
+	})
+end
+
 if trials.enabled then
 	trials.elements.trialcounter = buildText({'trials_mode', 'trialcounter'})
 	trials.elements.totaltrialtimer = buildTimer('totaltrialtimer')
 	trials.elements.currenttrialtimer = buildTimer('currenttrialtimer')
 	trials.elements.success = buildBanner('success')
 	trials.elements.allclear = buildBanner('allclear')
+	trials.elements.trialresetreminder = buildText({'trials_mode', 'trialresetreminder'})
+	trials.elements.trialresetreminder.text =
+		strValue(cfgGet({'trials_mode', 'trialresetreminder', 'text'}), '')
 	trials.stepblock = buildStepBlock(STEP_LAYOUT)
+	-- Everything the mid-Trial reposition needs, resolved once. `keys` empty, or
+	-- enabled false, is the feature switched off.
+	trials.reposition = {
+		-- On unless the config says otherwise. loadIni hands `false` back as a Lua
+		-- boolean, and a screenpack writing the word is just as clear.
+		enabled = not (cfgGet({'trials_mode', 'trialresetenabled'}) == false
+			or strValue(cfgGet({'trials_mode', 'trialresetenabled'}), ''):lower() == 'false'),
+		keys = repositionKeys(),
+		fadeout = buildFade('fadeout'),
+		fadein = buildFade('fadein'),
+		fadeoutTime = math.max(0, numList(cfgGet({'trials_mode', 'fadeout', 'time'}), {0})[1]),
+		fadeinTime = math.max(0, numList(cfgGet({'trials_mode', 'fadein', 'time'}), {0})[1]),
+	}
 end
 
 --;===========================================================
@@ -1649,22 +1711,7 @@ end
 --
 -- The pre-refactor module drove this from its fade routine, which meant a Trial was
 -- placed when the *previous* one was cleared. It happens at Trial start here.
-local function applySetup()
-	local m = trials.match
-	if m == nil then
-		return
-	end
-	if roundState() < 1 then
-		-- The record goes with the marker. It says what is in the maps, and trials.zss
-		-- has just cleared them.
-		m.setupTrial = nil
-		m.setup = nil
-		return
-	end
-	if m.setupTrial == m.current then
-		return
-	end
-
+local function writeSetup(m)
 	local trial = m.trials[m.current]
 	local pos = type(trial) == 'table' and trial.positions or defaultPositions
 	local life = type(trial) == 'table' and trial.life or defaultLife
@@ -1722,6 +1769,104 @@ local function applySetup()
 		dummylife = life.dummy,
 	}
 	trials.f_dumpState()
+end
+
+-- Whether the player is asking, right now, to be put back where the Trial wants them.
+--
+-- Held rather than pressed, which is what makes a combination of ordinary game inputs
+-- usable for this: any single one of them is something the player presses constantly,
+-- and all of them at once is not. Nothing is read while a banner or a fade is up, so
+-- the request cannot arrive in the middle of servicing the last one.
+local function repositionHeld(m)
+	local r = trials.reposition
+	if r == nil or not r.enabled or #r.keys == 0 then
+		return false
+	end
+	if m.banner ~= nil or m.repos ~= nil or paused() then
+		return false
+	end
+	if not player(1) then
+		return false
+	end
+	for _, key in ipairs(r.keys) do
+		if inputTime(key) <= 0 then
+			return false
+		end
+	end
+	return true
+end
+
+-- Whether a reposition is worth fading for.
+local function fadesReposition()
+	return trials.reposition ~= nil
+		and (trials.reposition.fadeoutTime > 0 or trials.reposition.fadeinTime > 0)
+end
+
+-- Places the current Trial's pair, and runs the fade that softens the move.
+--
+-- Three states, held on the match as `repos`:
+--
+--   nil    nothing running. A Trial change, or the player holding the reposition
+--          combination, starts a cycle.
+--   'out'  the screen is going dark and the write is waiting behind it, so the pair
+--          moves while nobody can see them move.
+--   'in'   they are placed, and the screen is coming back.
+--
+-- Same timing as applyDummy, and for the same reason: trials.zss clears the maps for
+-- the whole of roundState 0, so nothing is written before the round is live and the
+-- marker is dropped when the round state falls back, which places everything again on
+-- a restart.
+local function applySetup()
+	local m = trials.match
+	if m == nil then
+		return
+	end
+	if roundState() < 1 then
+		-- The record goes with the marker. It says what is in the maps, and trials.zss
+		-- has just cleared them. A half-run fade goes too, rather than resuming into a
+		-- round that has started over.
+		m.setupTrial = nil
+		m.setup = nil
+		m.repos = nil
+		return
+	end
+
+	if m.repos == 'out' then
+		if not fadeActive() then
+			writeSetup(m)
+			m.repos = 'in'
+			if trials.reposition.fadeinTime > 0 then
+				fadeInInit(trials.reposition.fadein)
+			end
+		end
+		return
+	elseif m.repos == 'in' then
+		if not fadeActive() then
+			m.repos = nil
+			-- The pair has just been moved out from under whatever the player was
+			-- doing, so the combo count is re-read for the same reason clearBanner
+			-- re-reads it: what landed before the fade is not the first hit of what
+			-- comes after it.
+			if player(1) then
+				m.combo = comboCount()
+			end
+		end
+		return
+	end
+
+	if m.setupTrial == m.current and not repositionHeld(m) then
+		return
+	end
+	-- The first placement of a round goes straight in: there is nothing on screen yet
+	-- to fade away from, and the round's own fade already covers it.
+	if m.setupTrial ~= nil and fadesReposition() then
+		m.repos = 'out'
+		if trials.reposition.fadeoutTime > 0 then
+			fadeOutInit(trials.reposition.fadeout)
+		end
+		return
+	end
+	writeSetup(m)
 end
 
 --;===========================================================
@@ -2163,6 +2308,25 @@ local function clearBanner(m)
 	end
 end
 
+-- The standing reminder of the reposition combination.
+--
+-- Drawn for as long as the feature is usable and the screenpack gave it words: a
+-- reminder of a combination that does nothing, or that the player cannot read, is
+-- worse than none. Not drawn under a banner, which owns the screen while it is up.
+local function drawReminder(m)
+	local r = trials.reposition
+	local e = trials.elements.trialresetreminder
+	if r == nil or not r.enabled or #r.keys == 0 then
+		return
+	end
+	if e == nil or e.text == '' or m.banner ~= nil then
+		return
+	end
+	textImgReset(e.TextSpriteData)
+	textImgSetText(e.TextSpriteData, e.text)
+	textImgDraw(e.TextSpriteData)
+end
+
 -- The Success or All-Clear banner, for as long as its displaytime lasts.
 local function drawBanner(m)
 	local e = m.banner ~= nil and trials.elements[m.banner] or nil
@@ -2210,7 +2374,7 @@ hook.add('loop#trials', 'trials', function()
 	-- completed rather than a frame late. It stops for the length of a banner: the
 	-- Trial underneath has already restarted, and inputs still going in as the player
 	-- reads SUCCESS should not count towards it.
-	if m.banner == nil then
+	if m.banner == nil and m.repos == nil then
 		verify()
 	end
 
@@ -2257,6 +2421,7 @@ hook.add('loop#trials', 'trials', function()
 	end
 
 	drawSteps()
+	drawReminder(m)
 	drawBanner(m)
 end)
 
@@ -2469,6 +2634,19 @@ function trials.f_dumpState()
 			camerax = trials.match.setup.camerax,
 			playerlife = trials.match.setup.playerlife,
 			dummylife = trials.match.setup.dummylife,
+		} or nil,
+		-- The mid-Trial reposition, as configured and as it stands. `phase` is empty
+		-- unless a fade is running, which is the one part of this a startup dump
+		-- cannot show.
+		reposition = trials.reposition ~= nil and {
+			enabled = trials.reposition.enabled,
+			keys = table.concat(trials.reposition.keys, '+'),
+			keyCount = #trials.reposition.keys,
+			fadeout = trials.reposition.fadeoutTime,
+			fadein = trials.reposition.fadeinTime,
+			reminder = trials.elements.trialresetreminder ~= nil
+				and trials.elements.trialresetreminder.text or '',
+			phase = trials.match ~= nil and trials.match.repos or '',
 		} or nil,
 		-- Which extension points the module actually registered. Cheaper to assert
 		-- than to infer from behaviour, and it catches a hook silently not attaching.
