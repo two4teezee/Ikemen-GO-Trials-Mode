@@ -745,6 +745,100 @@ def run_checks(tree, quiet=False):
                 isinstance(dig(match, "totalTicks"), (int, float))
                 and isinstance(dig(match, "trialTicks"), (int, float)), True)
 
+    c._print("\nPlayer and Dummy life and position are set per-Trial (#49)")
+    # Both blocks are resolved at parse time, so a startup dump carries the whole set.
+    placements = [t.get("positions") for t in parsed if isinstance(t.get("positions"), dict)]
+    lives = [t.get("life") for t in parsed if isinstance(t.get("life"), dict)]
+    c.check("every Trial resolved its positions", len(placements), len(parsed))
+    c.check("every Trial resolved its life totals", len(lives), len(parsed))
+
+    # Spelled out here rather than read from the module, for the reason the Dummy
+    # vocabulary above is: an expectation computed the way the code computes it can
+    # never disagree with it.
+    corners = {"left-corner": "left", "right-corner": "right"}
+    gaps = {"close": 10, "medium": 130, "far": 260}
+
+    def placement_faults(pos):
+        """Ways one resolved placement disagrees with the words behind it."""
+        authored = pos.get("authored")
+        if not isinstance(authored, dict):
+            return ["authored"]
+        out = []
+        if pos.get("corner") not in ("", "left", "right"):
+            out.append("corner")
+        if pos.get("cornered") not in ("", "player", "dummy"):
+            out.append("cornered")
+        # A corner and the character in it are one fact, so neither is legible alone.
+        if (pos.get("corner") == "") != (pos.get("cornered") == ""):
+            out.append("corner/cornered")
+        if pos.get("gap") not in gaps.values():
+            out.append("gap")
+        if not isinstance(pos.get("spaced"), bool):
+            out.append("spaced")
+        # The Dummy's key is read first, so hers wins a Trial that names two corners.
+        wanted = ""
+        for side in ("dummy", "player"):
+            if authored.get(side, "") in corners and wanted == "":
+                wanted = side
+        if wanted != pos.get("cornered", ""):
+            out.append("cornered from the word")
+        elif wanted != "" and corners[authored[wanted]] != pos.get("corner"):
+            out.append("corner from the word")
+        # A distance is the gap, from whichever key named it; unnamed means untouched.
+        named = [authored.get(s, "") for s in ("dummy", "player")
+                 if authored.get(s, "") in gaps]
+        if bool(named) != bool(pos.get("spaced")):
+            out.append("spaced from the word")
+        elif named and gaps[named[0]] != pos.get("gap"):
+            out.append("gap from the word")
+        return out
+
+    c.check("each placement matches the words it was resolved from",
+            [p for p in placements if placement_faults(p)], [])
+
+    def life_faults(life):
+        authored = life.get("authored")
+        if not isinstance(authored, dict):
+            return ["authored"]
+        out = []
+        for side in ("player", "dummy"):
+            v = life.get(side)
+            # 0 is the map's own word for lifeMax, and is what an unwritten or
+            # unusable total falls back to.
+            if not isinstance(v, (int, float)) or v < 0 or v != int(v):
+                out.append(side)
+                continue
+            word = authored.get(side, "")
+            try:
+                wanted = int(word)
+            except (TypeError, ValueError):
+                wanted = 0
+            if wanted < 1:
+                wanted = 0
+            if v != wanted:
+                out.append(side + " from the word")
+        return out
+
+    c.check("each life total matches the word it was resolved from",
+            [l for l in lives if life_faults(l)], [])
+
+    # As with the Dummy, parsing is only half of it: the maps are written during the
+    # match, and the module rewrites this artifact the moment it does.
+    setup = dig(tree, "setupWritten")
+    if setup is None:
+        c.skip("the pair was placed for the Trial the match is on",
+               "no match in this dump reached roundstate 1")
+        c.skip("the positions written are stage coordinates",
+               "no match in this dump reached roundstate 1")
+    else:
+        c.check("the pair was placed for the Trial the match is on",
+                dig(setup, "trial"), dig(tree, "match", "current"))
+        coords = ("playerx", "playery", "dummyx", "dummyy", "camerax",
+                  "playerlife", "dummylife")
+        c.check("the positions written are stage coordinates",
+                [k for k in coords
+                 if not isinstance(dig(setup, k), (int, float))], [])
+
     c._print("\nModule directory hygiene")
     # The engine walks external/mods recursively and require()s every *.lua it finds,
     # so any second .lua here is executed as a module at boot. A match launcher named

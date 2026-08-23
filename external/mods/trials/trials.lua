@@ -890,19 +890,29 @@ local dummyVocabulary = {
 -- the default outright: an empty word means the Trial named nothing.
 --
 -- `data` is one parsed [TrialDef]; nil asks for the defaults on their own.
+-- One `trial.*` key as the author wrote it: lowercased, trimmed, '' when unwritten.
+local function authoredWord(raw, key)
+	local v = type(raw) == 'table' and raw[key] or nil
+	-- loadIni parks the scalar in __value when a key is both a value and a parent.
+	if type(v) == 'table' and v.__value ~= nil then
+		v = v.__value
+	end
+	return strValue(v, ''):lower():match('^%s*(.-)%s*$')
+end
+
+-- The one thing every unusable value in the authored block does: say so, then fall back.
+local function warnValue(path, section, key, word)
+	print('Trials: ' .. path .. ' [' .. section .. '] trial.' .. key ..
+		' = ' .. word .. ' is not a recognised value — using the default.')
+end
+
 local function readDummy(data, path, section)
 	local raw = type(data) == 'table' and data.trial or nil
 	local out = {authored = {}}
 	for _, spec in ipairs(dummyVocabulary) do
-		local v = type(raw) == 'table' and raw[spec.key] or nil
-		-- loadIni parks the scalar in __value when a key is both a value and a parent.
-		if type(v) == 'table' and v.__value ~= nil then
-			v = v.__value
-		end
-		local word = strValue(v, ''):lower():match('^%s*(.-)%s*$')
+		local word = authoredWord(raw, spec.key)
 		if word ~= '' and spec.values[word] == nil then
-			print('Trials: ' .. path .. ' [' .. section .. '] trial.' .. spec.key ..
-				' = ' .. word .. ' is not a recognised value — using the default.')
+			warnValue(path, section, spec.key, word)
 			word = ''
 		end
 		out[spec.field] = word ~= '' and spec.values[word] or spec.default
@@ -914,6 +924,106 @@ end
 -- What a Trial that names nothing resolves to, and what a character with no Trial
 -- Definition gets.
 local defaultDummy = readDummy(nil)
+
+-- The five words `trial.playerpos` and `trial.dummypos` are written in, and what each
+-- one actually says. Two of them name a corner, three name a distance — which is the
+-- whole of why the two keys read the way they do below.
+local POSITION_WORDS = {
+	['left-corner'] = {corner = 'left'},
+	['right-corner'] = {corner = 'right'},
+	-- One gap table, used both for the space behind a cornered character and for the
+	-- space either side of centre stage. The pre-refactor module spelled the second as
+	-- half of the first (5/65/130 against 10/130/260); it is the same distance said
+	-- twice, so it is written once here.
+	close = {gap = 10},
+	medium = {gap = 130},
+	far = {gap = 260},
+}
+
+-- The gap a corner assumes when no Trial named one.
+local DEFAULT_GAP = 130
+
+-- Where a Trial stands the two characters, resolved as far as it can be without a
+-- stage.
+--
+-- The two keys are *not* interchangeable, which is the one thing the pre-refactor
+-- module got wrong here: it read either key for either meaning, so `playerpos =
+-- left-corner` put the *Dummy* in the corner half the time. Each key now names its own
+-- character, and the split falls out of the vocabulary:
+--
+--   * A corner is a place, so it belongs to the character whose key spelled it. Only
+--     one character can have it; a Trial naming two corners keeps the Dummy's and is
+--     warned about the other.
+--   * A distance is a relation, not a place, so it belongs to neither character on its
+--     own. Either key may name it and it means the same thing: how far apart the pair
+--     starts. Two different distances keep the Dummy's, again with a warning.
+--
+-- `spaced` is whether a distance was actually named, which is what separates "put them
+-- 130 apart around centre stage" from "leave them on the stage's own start positions".
+local function readPositions(data, path, section)
+	local raw = type(data) == 'table' and data.trial or nil
+	local out = {corner = '', cornered = '', gap = DEFAULT_GAP, spaced = false,
+		authored = {player = '', dummy = ''}}
+	-- The Dummy first, so hers is the one already in place when the player's is read
+	-- and found to conflict.
+	for _, side in ipairs({{field = 'dummy', key = 'dummypos'}, {field = 'player', key = 'playerpos'}}) do
+		local word = authoredWord(raw, side.key)
+		if word ~= '' and POSITION_WORDS[word] == nil then
+			warnValue(path, section, side.key, word)
+			word = ''
+		end
+		out.authored[side.field] = word
+		local meaning = POSITION_WORDS[word]
+		if meaning ~= nil then
+			if meaning.corner ~= nil then
+				if out.corner ~= '' then
+					print('Trials: ' .. path .. ' [' .. section .. '] trial.' .. side.key ..
+						' = ' .. word .. ' — only one character can be in a corner, and ' ..
+						'trial.' .. (out.cornered == 'dummy' and 'dummypos' or 'playerpos') ..
+						' already named one. Ignoring this one.')
+				else
+					out.corner = meaning.corner
+					out.cornered = side.field
+				end
+			elseif out.spaced and out.gap ~= meaning.gap then
+				print('Trials: ' .. path .. ' [' .. section .. '] trial.' .. side.key ..
+					' = ' .. word .. ' — a distance is the gap between the two ' ..
+					'characters, and the other key already set it. Ignoring this one.')
+			else
+				out.gap = meaning.gap
+				out.spaced = true
+			end
+		end
+	end
+	return out
+end
+
+-- How much life a Trial starts each character with.
+--
+-- 0 is the map's own word for "no override, use lifeMax", so it is what an unnamed and
+-- an unusable value both resolve to. A life total is a count, so anything that is not a
+-- positive whole number is a mistake worth saying out loud rather than rounding into
+-- something playable.
+local function readLife(data, path, section)
+	local raw = type(data) == 'table' and data.trial or nil
+	local out = {player = 0, dummy = 0, authored = {player = '', dummy = ''}}
+	for _, side in ipairs({{field = 'player', key = 'playerlife'}, {field = 'dummy', key = 'dummylife'}}) do
+		local word = authoredWord(raw, side.key)
+		out.authored[side.field] = word
+		if word ~= '' then
+			local n = tonumber(word)
+			if n == nil or n < 1 or n ~= math.floor(n) then
+				warnValue(path, section, side.key, word)
+			else
+				out[side.field] = n
+			end
+		end
+	end
+	return out
+end
+
+local defaultPositions = readPositions(nil)
+local defaultLife = readLife(nil)
 
 -- The condition fields a Step verifies against, in the order the format documents
 -- them. What a Step's Part count is measured over: whichever of these the author wrote
@@ -1114,9 +1224,15 @@ local function readTrialDefinition(path)
 					-- known before the first frame, and so it lands in the debug dump
 					-- with everything else the Trial Definition parsed to.
 					dummy = readDummy(data, path, name),
+					-- Where the pair stands and what life they start with. Resolved
+					-- here for the same reason, and only as far as a stage-free parse
+					-- can go: the words and the gap between them are settled now, the
+					-- stage coordinates they land on at Trial start.
+					positions = readPositions(data, path, name),
+					life = readLife(data, path, name),
 					-- The section as parsed, kept for the keys no slice reads yet:
-					-- trialstep.X.glyphs, and the per-Trial life, positions and
-					-- showforvarvalpairs. Nothing on the per-frame path touches it.
+					-- trialstep.X.glyphs and showforvarvalpairs. Nothing on the
+					-- per-frame path touches it.
 					data = data,
 				})
 			end
@@ -1440,6 +1556,133 @@ local function applyDummy()
 	-- what the Trial Definition said, never that anything reached the Dummy.
 	m.dummyTrial = m.current
 	m.dummy = d
+	trials.f_dumpState()
+end
+
+-- Where the two characters stand, in stage coordinates.
+--
+-- Every stage value is authored in the stage's own localcoord and divided down to the
+-- 320-wide space PosSet works in, which is the one thing this geometry cannot skip: a
+-- 640-wide stage places everything twice as far out as it should otherwise.
+--
+-- The corner itself is the screen edge, not the camera bound: half the stage's width
+-- less its screen bound is where a character standing in the corner actually is. The
+-- camera bound is where the camera goes, which is a different number.
+local function positionsFor(pos)
+	local localcoordX = stageVar('stageinfo.localcoord.x')
+	local scale = localcoordX / 320
+	if scale <= 0 then
+		scale = 1
+	end
+	-- The stage's own start positions, which is where a Trial naming no position
+	-- leaves them.
+	local w = {
+		playerx = stageVar('playerinfo.p1startx') / scale,
+		playery = stageVar('playerinfo.p1starty') / scale,
+		dummyx = stageVar('playerinfo.p2startx') / scale,
+		dummyy = stageVar('playerinfo.p2starty') / scale,
+		camerax = 0,
+	}
+	if pos.corner ~= '' then
+		local cornerx, otherx
+		if pos.corner == 'left' then
+			w.camerax = stageVar('camera.boundleft') / scale
+			cornerx = -(localcoordX / 2 - stageVar('bound.screenleft')) / scale
+			otherx = cornerx + pos.gap
+		else
+			w.camerax = stageVar('camera.boundright') / scale
+			cornerx = (localcoordX / 2 - stageVar('bound.screenright')) / scale
+			otherx = cornerx - pos.gap
+		end
+		if pos.cornered == 'dummy' then
+			w.dummyx, w.playerx = cornerx, otherx
+		else
+			w.playerx, w.dummyx = cornerx, otherx
+		end
+	elseif pos.spaced then
+		-- No corner, so the gap is shared either side of centre stage rather than
+		-- measured out from a wall.
+		w.playerx = -pos.gap / 2
+		w.dummyx = pos.gap / 2
+	end
+	return w
+end
+
+-- Writes the current Trial's positions and life totals to the maps trials.zss reads.
+--
+-- Same shape and same timing as applyDummy, and for the same reason: trials.zss clears
+-- _iksys_trialsReposition for the whole of roundState 0, so the write happens on the
+-- first frame past it and again whenever the Trial changes or the round restarts.
+--
+-- The pre-refactor module drove this from its fade routine, which meant a Trial was
+-- placed when the *previous* one was cleared. It happens at Trial start here.
+local function applySetup()
+	local m = trials.match
+	if m == nil then
+		return
+	end
+	if roundState() < 1 then
+		m.setupTrial = nil
+		return
+	end
+	if m.setupTrial == m.current then
+		return
+	end
+
+	local trial = m.trials[m.current]
+	local pos = type(trial) == 'table' and trial.positions or defaultPositions
+	local life = type(trial) == 'table' and trial.life or defaultLife
+	local w = positionsFor(pos)
+
+	-- Every reposition map on the Dummy. TrialsReposition() is called from inside
+	-- trials.zss's `teamSide = 2 && !isHelper` block and redirects out of there, so it
+	-- reads P2's map array and nobody else's.
+	if not player(2) then
+		return
+	end
+	mapSet('_iksys_trialsCameraPosX', w.camerax)
+	mapSet('_iksys_trialsPlayerPosX', w.playerx)
+	mapSet('_iksys_trialsPlayerPosY', w.playery)
+	mapSet('_iksys_trialsDummyPosX', w.dummyx)
+	mapSet('_iksys_trialsDummyPosY', w.dummyy)
+	-- Life is the exception: trials.zss reads the map in each character's own life
+	-- recovery block, so one map name carries both totals and each side gets its own.
+	-- 0 is the map's word for lifeMax.
+	--
+	-- Set as well as pinned, because the map only takes effect on the next recovery
+	-- tick — up to a second later, with the Trial already begun at the wrong life.
+	mapSet('_iksys_trialsSetLife', life.dummy)
+	setLife(life.dummy > 0 and life.dummy or lifeMax())
+	-- Both requests in the one write. trials.zss services the reposition and then the
+	-- camera reset in that order within a single tick, so the pair is placed and the
+	-- camera handed straight back to its fighting view; TrialsReposition leaves the
+	-- view free, which would otherwise pin the camera for the whole Trial.
+	mapSet('_iksys_trialsReposition', 1)
+	mapSet('_iksys_trialsCameraReset', 1)
+	-- Back on the Trials player, which is both where the player's own life is written
+	-- and where everything downstream expects the redirect to be.
+	if player(1) then
+		mapSet('_iksys_trialsSetLife', life.player)
+		setLife(life.player > 0 and life.player or lifeMax())
+	end
+
+	-- What actually reached the two characters, recorded for the same reason the Dummy
+	-- settings are: a Trial's positions are resolved at load and written many seconds
+	-- later, and a dump taken before this point cannot tell the two apart.
+	m.setupTrial = m.current
+	m.setup = {
+		trial = m.current,
+		corner = pos.corner,
+		cornered = pos.cornered,
+		gap = pos.gap,
+		playerx = w.playerx,
+		playery = w.playery,
+		dummyx = w.dummyx,
+		dummyy = w.dummyy,
+		camerax = w.camerax,
+		playerlife = life.player,
+		dummylife = life.dummy,
+	}
 	trials.f_dumpState()
 end
 
@@ -1912,6 +2155,7 @@ hook.add('loop#trials', 'trials', function()
 	-- Before the roundState gate below: the Dummy is configured during the intro, not
 	-- once the round is live.
 	applyDummy()
+	applySetup()
 	local m = trials.match
 	if roundState() ~= 2 then
 		-- A banner only counts down on a frame it is drawn on, and nothing draws outside
@@ -2069,6 +2313,10 @@ function trials.f_dumpState()
 						-- empty word is a Trial that named nothing and took the
 						-- default, which is what makes a leak visible here.
 						dummy = v.dummy,
+						-- Where this Trial stands the pair and what life it starts
+						-- them with, resolved as far as a stage-free parse goes.
+						positions = v.positions,
+						life = v.life,
 						-- What each Step actually verifies against, Part by Part.
 						-- Copied out rather than referenced, for the same reason the
 						-- Dummy settings below are: f_printTable elides a table it has
@@ -2166,6 +2414,23 @@ function trials.f_dumpState()
 				guard = trials.match.dummy.authored.guard,
 				buttonjam = trials.match.dummy.authored.buttonjam,
 			},
+		} or nil,
+		-- What was actually written to the reposition and life maps, and the Trial it
+		-- came from. Copied scalar by scalar rather than referenced, for the reason
+		-- dummyWritten is: this is the same data as that Trial's `positions` and `life`
+		-- under `chars` above, and f_printTable elides a table it has already printed.
+		setupWritten = trials.match ~= nil and trials.match.setup ~= nil and {
+			trial = trials.match.setup.trial,
+			corner = trials.match.setup.corner,
+			cornered = trials.match.setup.cornered,
+			gap = trials.match.setup.gap,
+			playerx = trials.match.setup.playerx,
+			playery = trials.match.setup.playery,
+			dummyx = trials.match.setup.dummyx,
+			dummyy = trials.match.setup.dummyy,
+			camerax = trials.match.setup.camerax,
+			playerlife = trials.match.setup.playerlife,
+			dummylife = trials.match.setup.dummylife,
 		} or nil,
 		-- Which extension points the module actually registered. Cheaper to assert
 		-- than to infer from behaviour, and it catches a hook silently not attaching.

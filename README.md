@@ -524,10 +524,19 @@ trialstep.1.stateno = 1010
 ; trial.dummymode - optional - valid options are stand (default), crouch, jump, wjump. Defaults to stand if unspecified.
 ; trial.guardmode - optional - valid options are none, auto. Defaults to none if unspecified.
 ; trial.dummybuttonjam - optional - valid options are none, a, b, c, x, y, z, start, d, w. Defaults to none if unspecified.
-; trial.dummylife - optional - sets the dummy's life total.
-; trial.playerlife - optional - sets the player's life total. Useful for trials that involve desparation moves or require a specific life state.
-; trial.dummypos - optional - sets the dummy's position on the stage. Valid options are left-corner, right-corner, far, medium, close. If enabled, the player can reset positioning according to this information by hitting the d and w keys simultaneously. Defaults to center stage.
-; trial.playerpos - optional - sets the player's position on the stage. Valid options are left-corner, right-corner, far, medium, close. If enabled, the player can reset positioning according to this information by hitting the d and w keys simultaneously. Defaults to center stage.
+; trial.dummylife - optional - (whole number of life points). Sets the dummy's life total. Life recovery holds it there rather than refilling to the character's maximum. Defaults to the character's maximum.
+; trial.playerlife - optional - (whole number of life points). Sets the player's life total. Useful for trials that involve desparation moves or require a specific life state. Defaults to the character's maximum.
+; trial.dummypos - optional - sets where the dummy starts. Valid options are left-corner, right-corner, far, medium, close. Defaults to the stage's own start positions.
+; trial.playerpos - optional - sets where the player starts. Same five options.
+;
+;   The two keys are read separately, and the five words split into two kinds:
+;
+;   * left-corner and right-corner are places, and belong to the character whose key named them. Only one character can stand in a corner - a trial naming two keeps the dummy's and warns about the other.
+;   * close, medium and far are distances, and describe the gap between the two characters rather than either one's position. Either key may name one and it means the same thing. Two different distances keep the dummy's and warn about the other.
+;
+;   So `trial.dummypos = left-corner` puts the dummy in the left corner with the player a medium gap away, and adding `trial.playerpos = far` widens that gap without moving anyone out of the corner. A distance on its own, with no corner named, starts the pair that far apart around centre stage.
+;
+;   Positions and life totals are applied when the trial starts, and re-applied when the player moves to another trial or the round restarts. A trial that names none of them gets the stage's own start positions and full life, never the previous trial's.
 ; trial.showvarvalpairs - optional - (comma-separated integers, specified in pairs, can specify 0..n pairs). Used to determine whether a trial should be displayed based on the specified variable and value pair(s) in this field. Useful if a trial should only be displayed when character has a specific variable/value pair set, such as being in a specific groove or mode. If specified, the trial will only be displayed if all variable-value pairs return true. These variable-value pairs should only be for the character (not for helpers). Finally, variables can have multiple specified values to test against, which should be separated by the "|" character (e.g. `trial.showforvarvalpairs = 12, 0|2|4` would test var(12) for values 0, 2, and 4).
 ; trial.textbox - optional - multilingual - displays specified text in a box specified in the textbox settings in system.def under [Trials Mode]. Supports specification as trial.textbox, or trial.textbox.en, trial.textbox.es, etc. for multilingual support. Will default to trial.textbox.en (or trial.textbox) if selected language cannot be matched.
 
@@ -606,7 +615,7 @@ trialstep.1.stateno = 1000|1010
 ;---------------------------------------------
 
 [TrialDef, Kung Fu Juggle Combo]
-; In this trial, the position for the dummy on the stage is set. The player can reset positioning by hitting d + w.
+; In this trial, the dummy starts in the right corner, with the player a medium gap away.
 trial.dummypos = right-corner 
 
 trialstep.1.text = Kung Fu Knee and Extra Kick
