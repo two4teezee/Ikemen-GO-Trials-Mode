@@ -1011,8 +1011,11 @@ local function readLife(data, path, section)
 		local word = authoredWord(raw, side.key)
 		out.authored[side.field] = word
 		if word ~= '' then
-			local n = tonumber(word)
-			if n == nil or n < 1 or n ~= math.floor(n) then
+			-- Plain decimal digits and nothing else. tonumber would also take `5e2`
+			-- and `0x1f`, spellings no Trial Definition uses and every reader of this
+			-- file would have to agree on.
+			local n = word:match('^%d+$') and tonumber(word) or nil
+			if n == nil or n < 1 then
 				warnValue(path, section, side.key, word)
 			else
 				out[side.field] = n
@@ -1559,16 +1562,37 @@ local function applyDummy()
 	trials.f_dumpState()
 end
 
--- Where the two characters stand, in stage coordinates.
+-- Puts one character on the life a Trial asked for, now rather than at the next
+-- recovery tick.
 --
--- Every stage value is authored in the stage's own localcoord and divided down to the
--- 320-wide space PosSet works in, which is the one thing this geometry cannot skip: a
--- 640-wide stage places everything twice as far out as it should otherwise.
+-- 0 is the map's word for lifeMax, and means the same here. Red life goes with life
+-- because trials.zss pins both from the same map: setting one and leaving the other
+-- shows a full red-damage bar over the new total until the next recovery tick catches
+-- up, which is the very lag this write exists to avoid.
+local function setLifeNow(value)
+	local v = value > 0 and value or lifeMax()
+	setLife(v)
+	setRedLife(v)
+end
+
+-- Where the two characters stand, in the coordinate space trials.zss will read them in.
+--
+-- Two conversions, and skipping either puts everybody in the wrong place:
+--
+--  * Stage values come out of the Lua stageVar raw, in the stage's own localcoord. (The
+--    ZSS trigger of the same name converts them; this binding does not.) Dividing by
+--    the stage's localcoord over 320 puts them in the 320-wide space the gap constants
+--    below are written in, and the whole geometry is reasoned in from there.
+--  * The engine then reads what is written here in the *Dummy's* space, because
+--    TrialsReposition runs in her state: PosSet lands a value at `camera + V·localscl`
+--    and Camera at `V·localscl`, where localscl is the game width over the character's
+--    localcoord. A character authored at 640 therefore needs every number twice as
+--    large to reach the same place, which is what charCoordX is for.
 --
 -- The corner itself is the screen edge, not the camera bound: half the stage's width
 -- less its screen bound is where a character standing in the corner actually is. The
 -- camera bound is where the camera goes, which is a different number.
-local function positionsFor(pos)
+local function positionsFor(pos, charCoordX)
 	local localcoordX = stageVar('stageinfo.localcoord.x')
 	local scale = localcoordX / 320
 	if scale <= 0 then
@@ -1605,6 +1629,15 @@ local function positionsFor(pos)
 		w.playerx = -pos.gap / 2
 		w.dummyx = pos.gap / 2
 	end
+	-- Out of the 320-wide space and into the Dummy's, in one factor: the stage values
+	-- divided into it above and the gap constants written in it are both carried.
+	local coordScale = (charCoordX or 320) / 320
+	if coordScale <= 0 then
+		coordScale = 1
+	end
+	for k, v in pairs(w) do
+		w[k] = v * coordScale
+	end
 	return w
 end
 
@@ -1622,7 +1655,10 @@ local function applySetup()
 		return
 	end
 	if roundState() < 1 then
+		-- The record goes with the marker. It says what is in the maps, and trials.zss
+		-- has just cleared them.
 		m.setupTrial = nil
+		m.setup = nil
 		return
 	end
 	if m.setupTrial == m.current then
@@ -1632,14 +1668,15 @@ local function applySetup()
 	local trial = m.trials[m.current]
 	local pos = type(trial) == 'table' and trial.positions or defaultPositions
 	local life = type(trial) == 'table' and trial.life or defaultLife
-	local w = positionsFor(pos)
 
 	-- Every reposition map on the Dummy. TrialsReposition() is called from inside
 	-- trials.zss's `teamSide = 2 && !isHelper` block and redirects out of there, so it
-	-- reads P2's map array and nobody else's.
+	-- reads P2's map array and nobody else's — and, being run by her, reads every
+	-- value in her coordinate space, which is why the redirect comes first.
 	if not player(2) then
 		return
 	end
+	local w = positionsFor(pos, localCoordX())
 	mapSet('_iksys_trialsCameraPosX', w.camerax)
 	mapSet('_iksys_trialsPlayerPosX', w.playerx)
 	mapSet('_iksys_trialsPlayerPosY', w.playery)
@@ -1652,7 +1689,7 @@ local function applySetup()
 	-- Set as well as pinned, because the map only takes effect on the next recovery
 	-- tick — up to a second later, with the Trial already begun at the wrong life.
 	mapSet('_iksys_trialsSetLife', life.dummy)
-	setLife(life.dummy > 0 and life.dummy or lifeMax())
+	setLifeNow(life.dummy)
 	-- Both requests in the one write. trials.zss services the reposition and then the
 	-- camera reset in that order within a single tick, so the pair is placed and the
 	-- camera handed straight back to its fighting view; TrialsReposition leaves the
@@ -1660,11 +1697,12 @@ local function applySetup()
 	mapSet('_iksys_trialsReposition', 1)
 	mapSet('_iksys_trialsCameraReset', 1)
 	-- Back on the Trials player, which is both where the player's own life is written
-	-- and where everything downstream expects the redirect to be.
-	if player(1) then
-		mapSet('_iksys_trialsSetLife', life.player)
-		setLife(life.player > 0 and life.player or lifeMax())
-	end
+	-- and where everything downstream expects the redirect to be. Unconditional, the
+	-- way applyDummy's is: leaving the redirect on the Dummy would hand every
+	-- redirectable trigger the loop reaches after this the wrong character.
+	player(1)
+	mapSet('_iksys_trialsSetLife', life.player)
+	setLifeNow(life.player)
 
 	-- What actually reached the two characters, recorded for the same reason the Dummy
 	-- settings are: a Trial's positions are resolved at load and written many seconds
