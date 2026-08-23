@@ -66,6 +66,10 @@ nodata.text = "No trials available for this character."
 ; overrides that for this one element only, and is almost never what you want.
 ; -----------------------------------------------------------------------------------
 trialcounter.text = "Trial %i of %s"
+; What the counter reads once every Trial has been completed. The All-Clear moment has
+; its own banner below; this is what stays on screen after the banner has gone. Leave
+; it out and the counter keeps reading the ordinary Trial count.
+trialcounter.allclear.text = "All Trials Clear"
 trialcounter.font = 1, 0, 1
 trialcounter.scale = 1, 1
 trialcounter.layerno = 0
@@ -120,3 +124,78 @@ completedstep.vertical.text.font = 1, 0, 1, 110, 110, 110
 completedstep.vertical.text.offset = 0, 0
 ; completedstep.vertical.text.scale =
 ; completedstep.vertical.text.font.height =
+
+; TRIAL TIMERS --------------------------------------------------------------------
+; Two stopwatches, both counting up: totaltrialtimer since the match began,
+; currenttrialtimer since the current Trial started. Both freeze on All-Clear.
+;
+; The engine's own timers count DOWN and are driven by main.f_drawTimer, so its
+; formula is not reusable here — but framespercount means the same thing in both, and
+; is what a build running at something other than 60 ticks a second sets.
+;
+; %s is the elapsed time, formatted mm:ss:cc. Whether either timer is shown at all is
+; a Player Preference, [Options] Trials.TotalTimer and Trials.TrialTimer in config.ini,
+; not a screenpack setting: it is the player who wants to practise without a clock.
+;
+; pos is in 320x240, this file's own space (see trials.localcoord above).
+; -----------------------------------------------------------------------------------
+totaltrialtimer.text = "Total %s"
+totaltrialtimer.font = 1, 0, -1
+totaltrialtimer.scale = 1, 1
+totaltrialtimer.layerno = 0
+totaltrialtimer.pos = 315, 218
+totaltrialtimer.framespercount = 60
+; totaltrialtimer.offset =
+; totaltrialtimer.font.height =
+; totaltrialtimer.window =
+; totaltrialtimer.localcoord =
+
+currenttrialtimer.text = "Trial %s"
+currenttrialtimer.font = 1, 0, -1
+currenttrialtimer.scale = 1, 1
+currenttrialtimer.layerno = 0
+currenttrialtimer.pos = 315, 228
+currenttrialtimer.framespercount = 60
+; currenttrialtimer.offset =
+; currenttrialtimer.font.height =
+; currenttrialtimer.window =
+; currenttrialtimer.localcoord =
+
+; SUCCESS AND ALL-CLEAR -------------------------------------------------------------
+; Success is the moment every Step of one Trial is completed. All-Clear is the moment
+; every Trial the character ships has been completed, and replaces the Success banner
+; on the Trial that finishes the set.
+;
+; Both are one banner: pos positions it, .text styles the words, .text.displaytime is
+; how many ticks it stays up, and .snd is a group,index pair played once as it appears.
+; A negative sound group plays nothing, which is what this file ships — the module
+; carries no sounds of its own, and a screenpack's snd numbers are the screenpack's to
+; choose.
+;
+; The .bg and .front animation layers, and the fades that accompany them, are not read
+; yet — they arrive with the rest of the presentation layer. Configuring them now does
+; nothing; nothing is broken by leaving them in a screenpack that already has them.
+;
+; pos is in 320x240, this file's own space (see trials.localcoord above).
+; -----------------------------------------------------------------------------------
+success.pos = 160, 100
+success.snd = -1, 0
+success.text.text = "SUCCESS"
+success.text.font = 1, 0, 0, 255, 220, 100
+success.text.offset = 0, 0
+success.text.scale = 2, 2
+success.text.displaytime = 70
+; success.text.font.height =
+; success.bg.anim =        ; not read yet
+; success.front.anim =     ; not read yet
+
+allclear.pos = 160, 100
+allclear.snd = -1, 0
+allclear.text.text = "ALL CLEAR"
+allclear.text.font = 1, 0, 0, 255, 220, 100
+allclear.text.offset = 0, 0
+allclear.text.scale = 2, 2
+allclear.text.displaytime = 120
+; allclear.text.font.height =
+; allclear.bg.anim =       ; not read yet
+; allclear.front.anim =    ; not read yet

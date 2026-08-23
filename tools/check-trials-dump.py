@@ -404,8 +404,12 @@ def run_self_tests():
     # assertions in run_checks fail when the dump hides what they read. Driven over a
     # real dump when one is on disk, since no synthetic fixture exercises all of them.
     t._print("\nThe real checks, over a dump with a table elided")
-    dump = next((p for p in (DEFAULT_PATH, DEFAULT_PATH.replace(".txt", ".harness.txt"))
-                 if os.path.exists(p)), None)
+    # Newest wins, not a fixed order: a dump left on disk by an older build of the
+    # module legitimately fails checks written after it, which says nothing about the
+    # checker and would report here as a self-test failure.
+    candidates = [p for p in (DEFAULT_PATH, DEFAULT_PATH.replace(".txt", ".harness.txt"))
+                  if os.path.exists(p)]
+    dump = max(candidates, key=os.path.getmtime) if candidates else None
     if dump is None:
         t.skip("the real checks fail when what they read is elided",
                "no dump on disk; run the build first")
@@ -686,6 +690,60 @@ def run_checks(tree, quiet=False):
                 dig(written, "trial"), dig(tree, "match", "current"))
         c.check("the values written to the shared maps match their words",
                 mismatches(written) if isinstance(written, dict) else written, [])
+
+    c._print("\nSteps verify, advance, and fire Success (#39)")
+    # The parsed matcher is assertable from the startup dump with no interaction: it is
+    # what the Trial Definition resolved to, before anybody plays anything.
+    dumped_steps = [st for t in parsed for st in (t.get("steps") or {}).values()
+                    if isinstance(st, dict)]
+    c.check("Steps parsed to Parts", bool(dumped_steps), True)
+    c.check("every Step has at least one Part",
+            [st for st in dumped_steps if not (st.get("partCount") or 0) >= 1], [])
+    c.check("a comma-separated Step parsed to several Parts",
+            bool([st for st in dumped_steps if (st.get("partCount") or 0) > 1]), True)
+
+    all_parts = [pt for st in dumped_steps for pt in (st.get("parts") or {}).values()
+                 if isinstance(pt, dict)]
+    c.check("Parts were found to check", bool(all_parts), True)
+    # Spelled out rather than read from the module, the same way the Dummy vocabulary
+    # above is: an expectation computed the way the code computes it can never disagree.
+    flags = ("isthrow", "iscounterhit", "ishelper", "isproj")
+    c.check("every Part carries the four Step flags as booleans",
+            [pt for pt in all_parts
+             if any(not isinstance(pt.get(f), bool) for f in flags)], [])
+    c.check("every Part carries a hit count",
+            [pt for pt in all_parts if not isinstance(pt.get("hitcount"), (int, float))], [])
+    c.check("hit count defaults to 1 where the author wrote none",
+            bool([pt for pt in all_parts if pt.get("hitcount") == 1]), True)
+    c.check("at least one Part names a state to verify against",
+            bool([pt for pt in all_parts if pt.get("stateno")]), True)
+    # "|" is how the format spells alternatives, and the dump keeps them that way.
+    c.check("a Part accepting several states keeps them all",
+            bool([pt for pt in all_parts if "|" in str(pt.get("stateno") or "")]), True)
+
+    # Runtime progress needs a person to start a match, so this half is skipped on a
+    # startup dump rather than failed — see the umbrella spec's automation boundary.
+    match = dig(tree, "match")
+    if match is None:
+        c.skip("the match tracks which Step and Part the player is on",
+               "no match in this dump")
+        c.skip("Advancement resolved", "no match in this dump")
+        c.skip("both timers resolved to tick counts", "no match in this dump")
+    else:
+        step, count = dig(match, "step"), dig(match, "stepCount")
+        if not c.unreadable("the match tracks which Step and Part the player is on",
+                            step, count):
+            c.check("the match tracks which Step and Part the player is on",
+                    isinstance(step, (int, float)) and isinstance(count, (int, float))
+                    and 1 <= step <= max(1, count), True)
+        c.check("Advancement resolved",
+                dig(match, "advancement") in ("autoadvance", "repeat"), True)
+        # Both count up from zero, so a freshly resolved match legitimately reads 0 and
+        # the value itself says nothing. What is assertable here is that they exist and
+        # are counts at all — that they advance is item 4 of the test checklist.
+        c.check("both timers resolved to tick counts",
+                isinstance(dig(match, "totalTicks"), (int, float))
+                and isinstance(dig(match, "trialTicks"), (int, float)), True)
 
     c._print("\nModule directory hygiene")
     # The engine walks external/mods recursively and require()s every *.lua it finds,

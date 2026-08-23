@@ -719,8 +719,50 @@ local function applyStepWindow(block, withTextbox)
 	end
 end
 
+-- A stopwatch element. Everything the per-frame path needs is resolved here: the
+-- format its reading is substituted into, and how many ticks make one second of it.
+local function buildTimer(name)
+	local path = {'trials_mode', name}
+	local e = buildText(path)
+	e.text = strValue(cfgGet(join(path, 'text')), '%s')
+	-- The engine's own name for the same thing, on its own timer elements. A build
+	-- running at something other than 60 ticks a second is what sets it.
+	e.framespercount = math.max(1, numList(cfgGet(join(path, 'framespercount')), {60})[1])
+	return e
+end
+
+-- Success and All-Clear share one shape: a banner positioned by the parent key, with
+-- its words styled under `.text`, so `success.pos` moves both the text and everything
+-- a later slice draws behind it.
+--
+-- Text only here. The `.bg` and `.front` animation layers, and the fades that go with
+-- them, are the rest of the presentation layer — the module ships no sff for buildAnim
+-- to read them out of yet, so configuring them now resolves to nothing rather than to
+-- a half-drawn banner.
+local function buildBanner(name)
+	local path = {'trials_mode', name}
+	local e = buildText({'trials_mode', name, 'text'}, path)
+	-- Trials keeps its own key here, the way buildAnim does: the engine has no
+	-- per-element display time for text.
+	--
+	-- The pre-refactor config spelled -1 as "stay up as long as the banner's animation
+	-- runs", and there is no animation to measure yet, so a non-positive value falls
+	-- back to the default rather than to a banner that flashes for one frame.
+	e.displaytime = numList(cfgGet({'trials_mode', name, 'text', 'displaytime'}), {70})[1]
+	if e.displaytime <= 0 then
+		e.displaytime = 70
+	end
+	-- A negative group plays nothing, matching how the engine reads an absent snd.
+	e.snd = numList(cfgGet({'trials_mode', name, 'snd'}), {-1, 0})
+	return e
+end
+
 if trials.enabled then
 	trials.elements.trialcounter = buildText({'trials_mode', 'trialcounter'})
+	trials.elements.totaltrialtimer = buildTimer('totaltrialtimer')
+	trials.elements.currenttrialtimer = buildTimer('currenttrialtimer')
+	trials.elements.success = buildBanner('success')
+	trials.elements.allclear = buildBanner('allclear')
 	trials.stepblock = buildStepBlock(STEP_LAYOUT)
 end
 
@@ -868,14 +910,135 @@ end
 -- Definition gets.
 local defaultDummy = readDummy(nil)
 
--- The Steps of one Trial, in Step-number order.
+-- The condition fields a Step verifies against, in the order the format documents
+-- them. What a Step's Part count is measured over: whichever of these the author wrote
+-- as the longest list decides how many Parts the Step has, so a field missing from
+-- this list would be silently unable to create one.
+local CONDITION_KEYS = {
+	'stateno', 'animno', 'hitcount',
+	'isthrow', 'iscounterhit', 'ishelper', 'isproj',
+	'validfortickcount',
+}
+
+-- One Part's value of one condition field.
+--
+-- loadIni hands back an array for a comma-separated field and a bare value for a
+-- single one, and those mean different things: `stateno = 200, 210` is one value per
+-- Part, while `hitcount = 1` alongside it is Part 1's hit count and says nothing about
+-- Part 2 — which then takes the field's default. An unwritten key arrives as the empty
+-- string it was authored as rather than as nil, so both read as "not named".
+local function partValue(v, index)
+	if type(v) == 'table' then
+		if isValueList(v) then
+			v = v[index]
+		else
+			-- A key that is both a scalar and a parent keeps its scalar in __value.
+			v = index == 1 and v.__value or nil
+		end
+	elseif index > 1 then
+		v = nil
+	end
+	if v == nil or v == '' then
+		return nil
+	end
+	return v
+end
+
+-- The numbers one Part will accept for a field. The format separates alternatives with
+-- "|", so `stateno = 200|205` passes on either.
+--
+-- nil, not an empty list, for a field the Part does not name: the two are different
+-- conditions, and only nil means "do not check this at all".
+local function alternatives(v)
+	if v == nil then
+		return nil
+	end
+	local out = {}
+	for token in tostring(v):gmatch('[^|]+') do
+		local n = tonumber(token:match('^%s*(.-)%s*$'))
+		if n ~= nil then
+			out[#out + 1] = n
+		end
+	end
+	if #out == 0 then
+		return nil
+	end
+	return out
+end
+
+-- loadIni already turns `true` and `false` into Lua booleans. A quoted or otherwise
+-- unrecognised spelling still resolves, which is what the pre-refactor parser did.
+local function boolValue(v)
+	if type(v) == 'boolean' then
+		return v
+	end
+	return tostring(v or ''):lower() == 'true'
+end
+
+-- trialstep.X.validforvarvalpairs = 12, 0|2|4 — a character variable and the values it
+-- may hold, in pairs, all of which must hold for the Step to verify. Per Step and not
+-- per Part, which is what the format documents.
+local function readVarPairs(v)
+	local list
+	if type(v) == 'table' and isValueList(v) then
+		list = v
+	elseif v ~= nil and v ~= '' and type(v) ~= 'table' then
+		list = {v}
+	else
+		return nil
+	end
+	local out = {}
+	for i = 1, #list - 1, 2 do
+		local index = tonumber(tostring(list[i]))
+		local values = alternatives(list[i + 1])
+		if index ~= nil and values ~= nil then
+			out[#out + 1] = {var = index, values = values}
+		end
+	end
+	if #out == 0 then
+		return nil
+	end
+	return out
+end
+
+-- How many Parts a Step has: the length of its longest condition list. A Step whose
+-- fields are all single values has exactly one Part, which is what an ordinary Step is.
+local function partCount(raw)
+	local n = 1
+	for _, key in ipairs(CONDITION_KEYS) do
+		local v = raw[key]
+		if isValueList(v) and #v > n then
+			n = #v
+		end
+	end
+	return n
+end
+
+-- One Part, fully resolved. Every field is filled, so verification never has to ask
+-- whether the author wrote one — an unwritten condition is nil and an unwritten flag
+-- is false, and both are the same answer every frame.
+--
+-- Defaults are the ones README.md documents: hit count 1, every flag false.
+local function readPart(raw, index)
+	return {
+		stateno = alternatives(partValue(raw.stateno, index)),
+		animno = alternatives(partValue(raw.animno, index)),
+		hitcount = math.max(0, math.floor(tonumber(partValue(raw.hitcount, index)) or 1)),
+		isthrow = boolValue(partValue(raw.isthrow, index)),
+		iscounterhit = boolValue(partValue(raw.iscounterhit, index)),
+		ishelper = boolValue(partValue(raw.ishelper, index)),
+		isproj = boolValue(partValue(raw.isproj, index)),
+		-- Ticks the run survives without the next hit landing. nil is the format's
+		-- default and means no grace at all.
+		validfortickcount = tonumber(partValue(raw.validfortickcount, index)),
+	}
+end
+
+-- The Steps of one Trial, in Step-number order, each with its Parts resolved.
 --
 -- loadIni splits `trialstep.1.text` into nested tables keyed by the literal string
 -- '1' (setNestedLuaKey, src/script.go:450), so the list is a Lua hash and not an
 -- array — # would report 0 and ipairs would stop immediately. Rebuild it by number.
---
--- Only the text is read here. The condition fields a Step verifies against, and the
--- Parts a comma-separated one carries, belong to #39 and stay in `data` until then.
 local function readSteps(data)
 	local raw = data.trialstep
 	if type(raw) ~= 'table' then
@@ -894,9 +1057,17 @@ local function readSteps(data)
 	table.sort(order, function(a, b) return a.number < b.number end)
 	local steps = {}
 	for _, entry in ipairs(order) do
+		local step = raw[entry.key]
+		local parts = {}
+		for i = 1, partCount(step) do
+			parts[i] = readPart(step, i)
+		end
 		steps[#steps + 1] = {
 			number = entry.number,
-			text = strValue(localized(raw[entry.key].text), ''),
+			text = strValue(localized(step.text), ''),
+			parts = parts,
+			-- Gates the whole Step rather than one of its Parts, so it sits here.
+			validfor = readVarPairs(step.validforvarvalpairs),
 		}
 	end
 	return steps
@@ -938,6 +1109,9 @@ local function readTrialDefinition(path)
 					-- known before the first frame, and so it lands in the debug dump
 					-- with everything else the Trial Definition parsed to.
 					dummy = readDummy(data, path, name),
+					-- The section as parsed, kept for the keys no slice reads yet:
+					-- trialstep.X.glyphs, and the per-Trial life, positions and
+					-- showforvarvalpairs. Nothing on the per-frame path touches it.
 					data = data,
 				})
 			end
@@ -1113,7 +1287,22 @@ trials.match = nil
 -- guarded, because a mode that reaches this hook without a selection should draw
 -- nothing rather than raise mid-match.
 local function resolveMatch()
-	local m = {trials = {}, total = 0, current = 1, step = 1, steps = {}, textbox = false, char = nil}
+	local m = {
+		trials = {}, total = 0, current = 1, steps = {}, textbox = false, char = nil,
+		-- Progress. `step` and `part` are where the player is; `combo` is comboCount()
+		-- as of the last Part completed, which is what makes the next hit tell itself
+		-- apart from the one that has already been counted.
+		step = 1, part = 1, combo = 0, partHits = 0, partCombo = 0, grace = 0,
+		-- Which Trials have been completed at least once, and how many that is.
+		-- All-Clear is the moment that count reaches the total (CONTEXT.md), which is
+		-- not the same as walking off the end of the list.
+		completed = {}, completedCount = 0, allclear = false,
+		-- The Success or All-Clear banner currently on screen, and its remaining ticks.
+		banner = nil, bannerTimer = 0,
+		-- Both stopwatches count up. totalTicks runs for the whole match, trialTicks
+		-- restarts with every Trial.
+		totalTicks = 0, trialTicks = 0,
+	}
 	local selected = start.p and start.p[1] and start.p[1].t_selected and start.p[1].t_selected[1]
 	if selected ~= nil and selected.ref ~= nil then
 		local char = main.t_selChars[selected.ref + 1]
@@ -1129,25 +1318,72 @@ local function resolveMatch()
 	return m
 end
 
+-- One Player Preference, out of the module's own config.ini. These are the settings a
+-- player changes rather than a screenpack author, which is why they live in config.ini
+-- and not in system.def — see docs/adr/0001. The pause menu that writes them back is
+-- a later slice; until it lands they are edited by hand.
+local function preference(name, default)
+	local opts = trials.ini.Options or {}
+	if type(opts.Trials) ~= 'table' then
+		return default
+	end
+	-- Read out before it is tested, not through `a and b or c`: loadIni turns
+	-- `ResetOnSuccess = false` into a Lua false, and that idiom collapses a false to
+	-- its fallback — every boolean preference the player switches off would read back
+	-- as on.
+	local v = opts.Trials[name]
+	if v == nil or v == '' then
+		return default
+	end
+	return v
+end
+
 -- The Textbox Player Preference. A Textbox the player has hidden displaces nothing:
 -- the window variant follows what is actually on screen, not what the Trial declares.
 local function textboxesVisible()
-	local opts = trials.ini.Options or {}
-	local v = type(opts.Trials) == 'table' and opts.Trials.Textboxes or nil
-	return tostring(v or 'show'):lower() ~= 'hide'
+	return tostring(preference('Textboxes', 'show')):lower() ~= 'hide'
+end
+
+-- Advancement: what a completed Trial does next. Auto-advance moves to the next Trial,
+-- repeat plays the same one again so it can be drilled.
+local function autoAdvances()
+	return tostring(preference('Advancement', 'autoadvance')):lower() == 'autoadvance'
+end
+
+-- loadIni turns `true` and `false` into Lua booleans, but a config.ini a player has
+-- hand-edited can hold anything, so the string spellings resolve too.
+local function preferenceEnabled(name, default)
+	local v = preference(name, default)
+	if type(v) == 'boolean' then
+		return v
+	end
+	local word = tostring(v):lower()
+	return word ~= 'false' and word ~= 'no' and word ~= '0' and word ~= 'off'
+end
+
+-- Forgets whatever progress has been made through the current Trial and starts it over
+-- from its first Step.
+local function resetProgress(m)
+	m.step = 1
+	m.part = 1
+	m.partHits = 0
+	m.partCombo = 0
+	m.combo = 0
+	m.grace = 0
 end
 
 -- Moves the match onto one Trial and resolves everything that depends on which Trial
--- it is: the Steps to draw, and whether a Textbox pushes the Step block into its
--- with-Textbox window.
+-- it is: the Steps to draw, whether a Textbox pushes the Step block into its
+-- with-Textbox window, and the progress and per-Trial timer, both of which start over.
 local function selectTrial(index)
 	local m = trials.match
 	m.current = index
-	m.step = 1
 	local trial = m.trials[index]
 	m.steps = type(trial) == 'table' and trial.steps or {}
 	m.textbox = type(trial) == 'table' and trial.textbox ~= nil and trial.textbox ~= ''
 		and textboxesVisible()
+	resetProgress(m)
+	m.trialTicks = 0
 	if trials.stepblock ~= nil then
 		applyStepWindow(trials.stepblock, m.textbox)
 	end
@@ -1202,29 +1438,253 @@ local function applyDummy()
 	trials.f_dumpState()
 end
 
--- Advances the current Step on a fixed cadence, wrapping into the next Trial past the
--- last Step. Off unless config.ini's [Debug] CycleSteps says otherwise.
+--;===========================================================
+--; STEP VERIFICATION
+--;===========================================================
+-- A Step is verified against the engine's own state, once per frame, and never against
+-- the inputs that produced it: what a Trial asks for is that a move *happened*, which
+-- is a state number, not a joystick history. That is why a Trial Definition spells
+-- states and animations and never commands.
+
+-- What last hit the Dummy, as far as a Step's conditions are concerned.
 --
--- This exists so the three Step Statuses, the row spacing and the scrolling window can
--- be looked at before Step verification lands: until #39, nothing else moves the Step
--- index, and a Trial's first Step is drawn as `current` with no `completed` row above
--- it to compare against. #39 deletes this along with the config key.
-local cycleSteps = tonumber((trials.ini.Debug or {}).CycleSteps) or 0
-local cycleTimer = 0
-local function debugCycleStep()
-	if cycleSteps <= 0 or trials.match == nil then
+-- A Step can name a state belonging to the player, to one of its helpers, or to a
+-- projectile, and only the player's own is readable directly. The rest comes off the
+-- Dummy's hit variables — they describe the character that was *hit*, so they are read
+-- through the P2 redirect: getHitVar('playerid') names whoever landed the hit, and
+-- getHitVar('projid') is non-negative when it was a projectile, in which case there is
+-- no state to compare against and the projectile's anim is what identifies it.
+--
+-- Returns empty fields on a frame with no hit, which read as "matches nothing" rather
+-- than as "matches anything".
+local function readAttacker()
+	local out = {stateno = nil, anim = nil}
+	if not player(2) then
+		return out
+	end
+	if getHitVar('frame') then
+		local id = getHitVar('playerid')
+		local projid = getHitVar('projid')
+		if projid >= 0 then
+			if playerId(id) then
+				out.anim = projVar(projid, 0, 'anim')
+			end
+		elseif playerId(id) then
+			out.stateno = stateNo()
+			out.anim = anim()
+		end
+	end
+	-- Put the redirect back on the Trials player. Everything below reads the player's
+	-- own state through it, and so does every other module the loop reaches after this.
+	player(1)
+	return out
+end
+
+-- Does a value satisfy one condition field of a Part?
+--
+-- Either the player's own reading or the attacker's counts, which is what lets a single
+-- field cover a move performed by the player, by one of its helpers, or by a
+-- projectile. A field the Part does not name is not a condition at all.
+local function satisfies(list, own, theirs)
+	if list == nil then
+		return true
+	end
+	for _, want in ipairs(list) do
+		if own == want or theirs == want then
+			return true
+		end
+	end
+	return false
+end
+
+-- Every character variable a Step is gated on holds its declared value.
+-- trialstep.X.validforvarvalpairs gates the whole Step, not one of its Parts.
+local function varPairsHold(step)
+	if step.validfor == nil then
+		return true
+	end
+	for _, pair in ipairs(step.validfor) do
+		if not satisfies(pair.values, var(pair.var), nil) then
+			return false
+		end
+	end
+	return true
+end
+
+-- Whether the current Part registered this frame.
+--
+-- Three routes, one per kind of Step the format spells:
+--
+--   - a helper or projectile Part passes on state and animation alone. The hit it
+--     produces is not the player's own, so there is no moveHit to wait for.
+--   - a throw, or a Part declaring hitcount = 0 — a taunt, a movement, a stance change
+--     — passes on state alone: neither extends a combo.
+--   - anything else has to land a hit of its own that takes the combo further than the
+--     last Part left it.
+--
+-- The moveHit() test is new. The pre-refactor spelling was `movehit() and ...`, and
+-- movehit() has always returned a number, which is truthy in Lua even at zero — so the
+-- condition it was written to express has never actually been evaluated. Restoring it
+-- is what stops a Part registering off a hit the player did not land, which is exactly
+-- the case a Trial with a helper on screen runs into.
+local function partRegisters(step, part, attacker, combo)
+	if not satisfies(part.stateno, stateNo(), attacker.stateno) then
+		return false
+	end
+	if not satisfies(part.animno, anim(), attacker.anim) then
+		return false
+	end
+	if not varPairsHold(step) then
+		return false
+	end
+	-- A counter-hit Part only counts when the engine says the hit countered. Tested
+	-- here, before the hit count below has taken anything from it, so an ordinary hit
+	-- leaves the Part exactly where it was rather than half-counted.
+	if part.iscounterhit and part.hitcount ~= 0
+		and not (comboCount() > 0 and moveCountered() > 0) then
+		return false
+	end
+	if part.ishelper or part.isproj then
+		return true
+	end
+	return (moveHit() > 0 and comboCount() > combo) or part.isthrow or part.hitcount == 0
+end
+
+-- Whether the run is over: the player did something other than what the Step asked for.
+--
+-- A dropped combo is the signal, since that is what a wrong input produces. A Part
+-- requiring no hit cannot drop, because there is no combo to lose. Inside a Part's
+-- validfortickcount grace window the rule inverts: the run survives the combo ending
+-- and is ended instead by a hit landing that was not the one the Step asked for.
+local function dropped(m, part)
+	if m.grace > 0 then
+		return comboCount() > m.combo
+	end
+	return part.hitcount ~= 0 and comboCount() == 0
+end
+
+-- Fires Success for the Trial just finished, or All-Clear if that was the last one the
+-- character had left, and moves the match on according to the Advancement preference.
+local function completeTrial(m)
+	local index = m.current
+	if not m.completed[index] then
+		m.completed[index] = true
+		m.completedCount = m.completedCount + 1
+	end
+
+	-- All-Clear is every Trial completed, not the end of the list reached: a player
+	-- repeating one Trial, or jumping around them, finishes the set just as surely as
+	-- one going straight through. It replaces the Success banner rather than following
+	-- it, and fires once.
+	local finished = m.completedCount >= m.total and m.total > 0 and not m.allclear
+	if finished then
+		m.allclear = true
+	end
+	local banner = finished and 'allclear' or 'success'
+	local e = trials.elements[banner]
+	if e ~= nil then
+		m.banner = banner
+		m.bannerTimer = e.displaytime
+		if e.snd[1] >= 0 then
+			sndPlay(motif.Snd, e.snd[1], e.snd[2])
+		end
+	end
+
+	if m.allclear then
+		-- All-Clear freezes where it is: the counter reads All-Clear and both timers
+		-- stop. The Trial itself starts over, so it is still playable underneath.
+		selectTrial(index)
+	elseif autoAdvances() and m.total > 0 then
+		selectTrial(index % m.total + 1)
+	else
+		selectTrial(index)
+	end
+	trials.f_dumpState()
+end
+
+-- Moves past the Part the player has just satisfied, and past the Step and the Trial
+-- when that Part was their last.
+local function advancePart(m, step, part)
+	m.part = m.part + 1
+	m.partHits = 0
+	m.partCombo = 0
+	-- The next Part's grace window is the one the Part just completed declared: the
+	-- format's validfortickcount says how long the run survives waiting for what comes
+	-- after it.
+	m.grace = part.validfortickcount or 0
+	m.combo = comboCount()
+	if m.part <= #step.parts then
 		return
 	end
-	cycleTimer = cycleTimer + 1
-	if cycleTimer < cycleSteps then
+
+	-- Every Part done, so the Step is.
+	m.part = 1
+	-- A Step that required a hit but ends with the combo already over — a throw, a
+	-- knockdown — would otherwise look to the next Part like a combo that never
+	-- started. Carrying the count forward by one keeps `comboCount() > m.combo` the
+	-- honest test it is everywhere else.
+	if part.hitcount ~= 0 and comboCount() == 0 then
+		m.combo = m.combo + 1
+	end
+	m.step = m.step + 1
+	if m.step > #m.steps then
+		completeTrial(m)
+	end
+end
+
+-- One frame of Step verification. Runs while the round is live and no banner is up.
+local function verify()
+	local m = trials.match
+	local step = m.steps[m.step]
+	if type(step) ~= 'table' or type(step.parts) ~= 'table' then
 		return
 	end
-	cycleTimer = 0
-	if trials.match.step < #trials.match.steps then
-		trials.match.step = trials.match.step + 1
-	elseif trials.match.total > 0 then
-		selectTrial(trials.match.current % trials.match.total + 1)
+	local part = step.parts[m.part]
+	if part == nil then
+		return
 	end
+	-- Everything below reads the player's own state, so the redirect starts on them.
+	if not player(1) then
+		return
+	end
+
+	local attacker = readAttacker()
+	if m.grace > 0 then
+		m.grace = m.grace - 1
+	end
+
+	if not partRegisters(step, part, attacker, m.combo) then
+		if dropped(m, part) then
+			resetProgress(m)
+		end
+		return
+	end
+
+	-- A Part asking for several hits counts them as the combo takes them. partCombo is
+	-- the combo count when the Part first registered, so the difference is how far
+	-- through its hits the player is.
+	if part.hitcount >= 1 then
+		if m.partHits == 0 then
+			m.partCombo = comboCount()
+		end
+		if comboCount() - m.partHits == m.partCombo then
+			m.partHits = m.partHits + 1
+		end
+	else
+		m.partHits = 0
+	end
+	if m.partHits ~= part.hitcount then
+		return
+	end
+
+	-- A multi-hit Part is finished only once the combo has actually taken all of them.
+	if part.hitcount > 1 and comboCount() ~= m.partHits + m.partCombo - 1 then
+		if dropped(m, part) then
+			resetProgress(m)
+		end
+		return
+	end
+	advancePart(m, step, part)
 end
 
 -- Injects the module's [Common] files for the duration of a Trials match only.
@@ -1355,6 +1815,54 @@ local function drawSteps()
 	end
 end
 
+-- A stopwatch reading, mm:ss:cc.
+--
+-- framespercount is the engine's own name for how many ticks make one unit of a timer,
+-- and means the same thing here as it does on an engine timer element; only the
+-- direction differs.
+local function timerText(fmt, ticks, framespercount)
+	local seconds = math.max(0, ticks) / math.max(1, framespercount)
+	local reading = string.format('%02d:%02d:%02d',
+		math.floor(seconds / 60),
+		math.floor(seconds % 60),
+		math.floor(seconds % 1 * 100))
+	return main.f_formatBySpec(fmt, {s = reading, i = math.floor(ticks)})
+end
+
+-- Draws one stopwatch and returns it advanced by a tick.
+--
+-- Deliberately shaped like main.f_drawTimer — timer first, element second, the advanced
+-- timer back — so the two read alike even though the engine's counts down from a
+-- configured start and this one counts up from zero. Its formula is not reusable;
+-- its calling convention is.
+local function drawTimer(timer, element, running)
+	if element == nil then
+		return timer
+	end
+	if running then
+		timer = timer + 1
+	end
+	textImgReset(element.TextSpriteData)
+	textImgSetText(element.TextSpriteData,
+		timerText(element.text, timer, element.framespercount))
+	textImgDraw(element.TextSpriteData)
+	return timer
+end
+
+-- The Success or All-Clear banner, for as long as its displaytime lasts.
+local function drawBanner(m)
+	local e = m.banner ~= nil and trials.elements[m.banner] or nil
+	if e == nil then
+		return
+	end
+	textImgReset(e.TextSpriteData)
+	textImgDraw(e.TextSpriteData)
+	m.bannerTimer = m.bannerTimer - 1
+	if m.bannerTimer <= 0 then
+		m.banner = nil
+	end
+end
+
 -- Runs once per frame during a Trials match, from the engine's Common.Lua `loop()`
 -- (debug.lua:230). Sets text and draws — nothing is constructed here.
 hook.add('loop#trials', 'trials', function()
@@ -1372,17 +1880,60 @@ hook.add('loop#trials', 'trials', function()
 	if roundState() ~= 2 then
 		return
 	end
-	debugCycleStep()
+	local m = trials.match
+
+	-- Verification before drawing, so a Step completed this frame is already drawn as
+	-- completed rather than a frame late. It stops for the length of a banner: the
+	-- Trial underneath has already restarted, and inputs still going in as the player
+	-- reads SUCCESS should not count towards it.
+	if m.banner == nil then
+		verify()
+	end
+
 	local counter = trials.elements.trialcounter
 	if counter ~= nil then
-		if trials.match.total > 0 then
-			textImgSetText(counter.TextSpriteData, counterText(trials.match.current, trials.match.total))
+		local text
+		if m.total == 0 then
+			text = strValue(cfgGet({'trials_mode', 'nodata', 'text'}), '')
+		elseif m.allclear then
+			-- The counter doubles as where All-Clear is stated once its banner is gone,
+			-- which is why the key has always hung off the counter rather than off the
+			-- banner. Falls back to the ordinary counter for a config that omits it.
+			text = strValue(cfgGet({'trials_mode', 'trialcounter', 'allclear', 'text'}), '')
+			if text == '' then
+				text = counterText(m.current, m.total)
+			end
 		else
-			textImgSetText(counter.TextSpriteData, strValue(cfgGet({'trials_mode', 'nodata', 'text'}), ''))
+			text = counterText(m.current, m.total)
 		end
+		textImgSetText(counter.TextSpriteData, text)
 		textImgDraw(counter.TextSpriteData)
 	end
+
+	-- Nothing to time for a character who ships no Trials: that spot on screen says so
+	-- through the counter, and a stopwatch beside it would be counting nothing.
+	if m.total > 0 then
+		-- Both stopwatches stop for a banner and for good on All-Clear, so the time
+		-- that finished the set is the time left on screen. They also stop while
+		-- paused, which is what makes them a measure of play rather than of wall
+		-- clock. A timer the player has switched off still runs — it is the readout
+		-- that is hidden, not the clock, so switching it back on mid-match does not
+		-- restart it.
+		local running = m.banner == nil and not m.allclear and not paused()
+		if preferenceEnabled('TotalTimer', true) then
+			m.totalTicks = drawTimer(m.totalTicks, trials.elements.totaltrialtimer, running)
+		elseif running then
+			m.totalTicks = m.totalTicks + 1
+		end
+		if preferenceEnabled('TrialTimer', true) then
+			m.trialTicks = drawTimer(m.trialTicks, trials.elements.currenttrialtimer, running)
+		elseif running then
+			m.trialTicks = m.trialTicks + 1
+		end
+	end
+
 	drawSteps()
+	drawBanner(m)
 end)
 
 --;===========================================================
@@ -1394,6 +1945,52 @@ end)
 --
 -- main.f_fileWrite panicErrors when the target directory is missing, which would kill
 -- the game rather than skip a debug dump, so the write is guarded.
+-- The parsed Steps of one Trial, flattened into scalars.
+--
+-- Copied and not referenced: f_printTable prints a table once and back-references it
+-- everywhere else, and these same tables are reachable through `match` — referenced,
+-- whichever side printed second would dump as an empty block and every assertion
+-- against it would pass by default (#50).
+--
+-- Lists become strings, which is what makes them assertable at all: `stateno = 200|205`
+-- reads as "200|205" here rather than as a nested table that the dump's own
+-- back-referencing would then have to be reasoned about.
+local function copySteps(steps)
+	local function list(v)
+		if v == nil then
+			return ''
+		end
+		local parts = {}
+		for i, n in ipairs(v) do
+			parts[i] = tostring(n)
+		end
+		return table.concat(parts, '|')
+	end
+	local out = {}
+	for i, step in ipairs(steps) do
+		local parts = {}
+		for j, part in ipairs(step.parts) do
+			parts[j] = {
+				stateno = list(part.stateno),
+				animno = list(part.animno),
+				hitcount = part.hitcount,
+				isthrow = part.isthrow,
+				iscounterhit = part.iscounterhit,
+				ishelper = part.ishelper,
+				isproj = part.isproj,
+				validfortickcount = part.validfortickcount or -1,
+			}
+		end
+		out[i] = {
+			number = step.number,
+			text = step.text,
+			partCount = #step.parts,
+			parts = parts,
+		}
+	end
+	return out
+end
+
 function trials.f_dumpState()
 	if not gameOption('Debug.DumpLuaTables') then
 		return
@@ -1430,6 +2027,12 @@ function trials.f_dumpState()
 						-- empty word is a Trial that named nothing and took the
 						-- default, which is what makes a leak visible here.
 						dummy = v.dummy,
+						-- What each Step actually verifies against, Part by Part.
+						-- Copied out rather than referenced, for the same reason the
+						-- Dummy settings below are: f_printTable elides a table it has
+						-- already printed, and the parsed Steps are reachable again
+						-- through `match` (#50).
+						steps = copySteps(v.steps),
 					}
 				end
 			end
@@ -1478,7 +2081,33 @@ function trials.f_dumpState()
 			},
 		} or nil,
 		chars = chars,
-		match = trials.match,
+		-- The live match: which Trial and Step the player is on, how far through the
+		-- current Step's Parts, and what has been completed. Copied scalar by scalar
+		-- rather than dumping trials.match wholesale, so nothing here is a second path
+		-- to a table printed under `chars` (#50).
+		match = trials.match ~= nil and {
+			char = trials.match.char,
+			def = trials.match.def,
+			total = trials.match.total,
+			current = trials.match.current,
+			step = trials.match.step,
+			stepCount = #trials.match.steps,
+			part = trials.match.part,
+			partCount = trials.match.steps[trials.match.step] ~= nil
+				and #trials.match.steps[trials.match.step].parts or 0,
+			partHits = trials.match.partHits,
+			combo = trials.match.combo,
+			grace = trials.match.grace,
+			textbox = trials.match.textbox,
+			completedCount = trials.match.completedCount,
+			allclear = trials.match.allclear,
+			banner = trials.match.banner or '',
+			totalTicks = trials.match.totalTicks,
+			trialTicks = trials.match.trialTicks,
+			advancement = autoAdvances() and 'autoadvance' or 'repeat',
+			totalTimer = preferenceEnabled('TotalTimer', true),
+			trialTimer = preferenceEnabled('TrialTimer', true),
+		} or nil,
 		-- What is actually in the shared training maps, and the Trial it came from.
 		--
 		-- Copied scalar by scalar, not referenced: f_printTable elides a table it has
