@@ -2262,6 +2262,23 @@ end
 --
 -- The pre-refactor module drove this from its fade routine, which meant a Trial was
 -- placed when the *previous* one was cleared. It happens at Trial start here.
+-- One side's life, on whichever character the redirect currently sits on.
+--
+-- Life is the exception among the setup maps: trials.zss reads it in each character's
+-- own life recovery block, so one map name carries both totals and each side gets its
+-- own. 0 is the map's word for lifeMax.
+--
+-- Set as well as pinned, because the map only takes effect on the next recovery tick —
+-- up to a second later, with the Trial already begun at the wrong life.
+--
+-- Split out because a Trial taken on without the pair moving still starts with the life
+-- its author asked for: Reset on Success governs where the two stand, not what they
+-- stand there with.
+local function writeLifeSide(value)
+	mapSet('_iksys_trialsSetLife', value)
+	setLifeNow(value)
+end
+
 local function writeSetup(m)
 	local trial = m.trials[m.current]
 	local pos = type(trial) == 'table' and trial.positions or defaultPositions
@@ -2280,28 +2297,21 @@ local function writeSetup(m)
 	mapSet('_iksys_trialsPlayerPosY', w.playery)
 	mapSet('_iksys_trialsDummyPosX', w.dummyx)
 	mapSet('_iksys_trialsDummyPosY', w.dummyy)
-	-- Life is the exception: trials.zss reads the map in each character's own life
-	-- recovery block, so one map name carries both totals and each side gets its own.
-	-- 0 is the map's word for lifeMax.
-	--
-	-- Set as well as pinned, because the map only takes effect on the next recovery
-	-- tick — up to a second later, with the Trial already begun at the wrong life.
-	mapSet('_iksys_trialsSetLife', life.dummy)
-	setLifeNow(life.dummy)
+	writeLifeSide(life.dummy)
 	mapSet('_iksys_trialsReposition', 1)
 	-- Back on the Trials player, which is both where the player's own life is written
 	-- and where everything downstream expects the redirect to be. Unconditional, the
 	-- way applyDummy's is: leaving the redirect on the Dummy would hand every
 	-- redirectable trigger the loop reaches after this the wrong character.
 	player(1)
-	mapSet('_iksys_trialsSetLife', life.player)
-	setLifeNow(life.player)
+	writeLifeSide(life.player)
 
 	-- What actually reached the two characters, recorded for the same reason the Dummy
 	-- settings are: a Trial's positions are resolved at load and written many seconds
 	-- later, and a dump taken before this point cannot tell the two apart.
 	m.setupTrial = m.current
 	m.reposRequest = false
+	m.adoptTrial = nil
 	-- The Steps and the counter change here, with the pair: after the banner, and behind
 	-- the fade where there is one.
 	syncDisplay(m)
@@ -2323,6 +2333,58 @@ local function writeSetup(m)
 		camerax = w.camerax,
 		playerlife = life.player,
 		dummylife = life.dummy,
+		placed = true,
+	}
+	trials.f_dumpState()
+end
+
+-- Takes the Trial the match has moved on to WITHOUT placing the pair.
+--
+-- This is what Reset on Success off means. A Success does not move anybody: the next
+-- Trial — or the same one again — begins from wherever the combo ended, with no fade
+-- between the two, so a run reads as one continuous stretch of play.
+--
+-- Everything a placement does that is not a placement still happens: the life the Trial
+-- asked for, and the Steps and counter catching up with the Trial the match is on. The
+-- two things that only make sense around a move do not — the camera is left following
+-- the pair it is already following, and there is no wait for a settling Dummy, because
+-- she is not being taken out of whatever she is in.
+local function adoptSetup(m)
+	local trial = m.trials[m.current]
+	local pos = type(trial) == 'table' and trial.positions or defaultPositions
+	local life = type(trial) == 'table' and trial.life or defaultLife
+	if not player(2) then
+		return
+	end
+	-- Resolved in the Dummy's coordinate space while the redirect is still on her, the
+	-- way writeSetup resolves it, so the record below reads the same whether the pair
+	-- was placed or not.
+	local w = positionsFor(pos, localCoordX())
+	writeLifeSide(life.dummy)
+	player(1)
+	writeLifeSide(life.player)
+	m.setupTrial = m.current
+	m.adoptTrial = nil
+	m.reposRequest = false
+	m.settleWait = 0
+	syncDisplay(m)
+	-- Recorded like a placement, with `placed` saying it was not one. The positions are
+	-- the ones this Trial resolved to and deliberately did not use: a dump that showed
+	-- nothing here could not tell a Trial taken on in place from one whose placement had
+	-- simply not run yet.
+	m.setup = {
+		trial = m.current,
+		corner = pos.corner,
+		cornered = pos.cornered,
+		gap = pos.gap,
+		playerx = w.playerx,
+		playery = w.playery,
+		dummyx = w.dummyx,
+		dummyy = w.dummyy,
+		camerax = w.camerax,
+		playerlife = life.player,
+		dummylife = life.dummy,
+		placed = false,
 	}
 	trials.f_dumpState()
 end
@@ -2440,6 +2502,7 @@ local function applySetup()
 		m.settleWait = 0
 		m.reposRequest = false
 		m.reposHeld = false
+		m.adoptTrial = nil
 		return
 	end
 
@@ -2482,6 +2545,18 @@ local function applySetup()
 		return
 	end
 	readRepositionRequest(m)
+	-- Reset on Success off: the Trial the Success moved the match to is taken on where
+	-- the pair already stands, and nothing fades. Ahead of the guard below, because a
+	-- repeated Trial is the same Trial and would fall straight through it — leaving the
+	-- Steps reading as completed under a banner that has already gone.
+	--
+	-- A reposition the player asked for out-ranks it. Holding the combination, or picking
+	-- a Trial out of the list, is a request to be put back; the preference is about what
+	-- a Success does on its own.
+	if m.adoptTrial ~= nil and not m.reposRequest then
+		adoptSetup(m)
+		return
+	end
 	if m.setupTrial == m.current and not m.reposRequest then
 		m.settleWait = 0
 		return
@@ -2679,19 +2754,23 @@ local function completeTrial(m)
 	if m.banner ~= nil then
 		m.trialTicks = finishTicks
 	end
-	-- Reset on Success. applySetup places the pair when the Trial it last placed is no
-	-- longer the one the match is on, which covers every move to a *different* Trial and
-	-- nothing else — so Advancement = repeat, and the All-Clear that stays on the Trial
-	-- finishing the set, both leave the pair wherever the combo carried them. Latching
-	-- the request the mid-Trial combination latches puts them back through the machinery
-	-- already there: the banner wait, the settled-Dummy wait, the fade, the camera and
-	-- the display lag all belong to it and none of them change.
+	-- Reset on Success decides what a finished Trial does to where the two characters
+	-- stand, and it decides it for every Success — not only the ones that stay on the
+	-- same Trial.
 	--
-	-- Deliberately unconditional on whether the Trial changed. Where it did, applySetup
-	-- was going to place the pair anyway and the request costs nothing; where it did not,
-	-- this is the only thing that will.
+	-- On, the request the mid-Trial combination latches is latched here, and the pair
+	-- goes back to the next Trial's authored positions through the machinery already
+	-- there: the banner wait, the settled-Dummy wait, the fade, the camera and the
+	-- display lag all belong to it and none of them change. Unconditional on whether the
+	-- Trial changed, because applySetup's own trigger is the Trial changing and a
+	-- repeated Trial has not.
+	--
+	-- Off, the run carries straight on from wherever the combo ended: the next Trial is
+	-- taken on in place, with no move and no fade between the two.
 	if preferenceEnabled('ResetOnSuccess', true) then
 		m.reposRequest = true
+	else
+		m.adoptTrial = m.current
 	end
 	trials.f_dumpState()
 end
@@ -3311,6 +3390,10 @@ function trials.f_dumpState()
 			-- the pair is placed. What tells "the preference is off" apart from "it is on
 			-- and the placement has already happened".
 			reposRequest = trials.match.reposRequest == true,
+			-- Set by a Success while Reset on Success is off, and cleared when the Trial
+			-- is taken on. What tells "waiting to be taken on in place" apart from
+			-- "waiting to be placed".
+			adoptPending = trials.match.adoptTrial ~= nil,
 		} or nil,
 		-- The pause menu as registered. Which items the section resolved to, and in what
 		-- order, is what a screenpack edit and the legacy fold both change — and neither
@@ -3356,6 +3439,10 @@ function trials.f_dumpState()
 			camerax = trials.match.setup.camerax,
 			playerlife = trials.match.setup.playerlife,
 			dummylife = trials.match.setup.dummylife,
+			-- Whether the pair was actually moved there. False is a Trial taken on with
+			-- Reset on Success off: the positions above are the ones it resolved to and
+			-- deliberately did not use.
+			placed = trials.match.setup.placed == true,
 		} or nil,
 		-- The mid-Trial reposition, as configured and as it stands. `phase` is empty
 		-- unless a fade is running, which is the one part of this a startup dump

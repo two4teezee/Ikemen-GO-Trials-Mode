@@ -214,6 +214,11 @@ allclear.text.displaytime = 120
 ; which the round's own fade already covers. Set fadeout.time and fadein.time to 0 for
 ; an instant cut.
 ;
+; Whether a Success moves the pair at all is the player's, not the screenpack's: the
+; Reset on Success preference in the module's config.ini. Switched off, a finished Trial
+; hands straight on to the next one where the combo left the two characters, and neither
+; the move nor the fade below happens. The key combination still does both.
+;
 ; col is r, g, b. There is no anim key yet; the fade animation layers arrive with the
 ; rest of the presentation layer.
 ;

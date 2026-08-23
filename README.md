@@ -741,10 +741,13 @@ defining the same section in its own `system.def` — see the template above.
   its progress over and places the pair at its authored positions.
 - **Advancement**: Auto-Advance moves to the next Trial on Success; Repeat plays the
   same one again, so it can be drilled.
-- **Reset on Success**: whether completing a Trial puts the pair back at that Trial's
-  authored positions **when the match stays on the same Trial** — Advancement = Repeat,
-  and the All-Clear that finishes the set. Moving to a *different* Trial places that
-  Trial's pair either way, whatever this is set to.
+- **Reset on Success**: what a finished Trial does to where the two characters stand.
+  On, completing one puts the pair back at the next Trial's authored positions, behind a
+  fade. Off, the run carries straight on from wherever the combo ended — the next Trial
+  begins in place, with no move and no fade between the two. It governs every Success:
+  advancing, repeating the same Trial, and the All-Clear that finishes the set.
+  It does **not** govern a reposition the player asks for. The mid-Trial key combination,
+  and picking a Trial out of the **Trials** list above, place the pair either way.
 - **Layout**: Vertical or Horizontal trials layout. The setting is live and persists;
   only the vertical layout is drawn today, so switching it changes nothing on screen
   until the horizontal one lands.

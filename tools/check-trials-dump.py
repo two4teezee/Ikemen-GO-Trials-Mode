@@ -937,6 +937,20 @@ def run_checks(tree, quiet=False):
         # Reset on Success latches the same request the mid-Trial combination does, and
         # writeSetup clears it. A request still standing with no Trial change pending and
         # nothing in the way is one nothing is going to act on.
+        # A Success either asks for the pair to be placed or asks for the Trial to be
+        # taken on where they stand. Never both, and never one while the preference says
+        # the other.
+        c.check("a Success asks for a placement or for the Trial in place, not both",
+                not (dig(match, "reposRequest") and dig(match, "adoptPending")), True)
+        c.check("  ... and only asks to take it on in place with the preference off",
+                not dig(match, "adoptPending") or dig(match, "resetOnSuccess") is False,
+                True)
+        setup = dig(tree, "setupWritten")
+        if setup is None:
+            c.skip("a setup that was not a placement says so", "no setup in this dump")
+        else:
+            c.check("a setup that was not a placement says so",
+                    isinstance(dig(setup, "placed"), bool), True)
         c.check("a standing reposition request has something that will act on it",
                 not dig(match, "reposRequest") or dig(match, "banner") is not None
                 or dig(tree, "reposition", "enabled") is not False, True)
