@@ -1804,6 +1804,31 @@ local function flushCameraReset(m)
 	m.cameraPending = false
 end
 
+-- How long a Dummy who will not settle is waited for before the pair is placed anyway.
+-- Long enough for a knockdown and a getup, short enough that a Dummy stuck in a state
+-- that never hands control back cannot leave a Trial unplaced for the rest of the round.
+local SETTLE_LIMIT = 180
+
+-- Whether the Dummy is somewhere it is reasonable to move her from.
+--
+-- The Success banner runs on a timer and the knockdown that finished the Trial does
+-- not, so the two routinely end out of step: the banner clears while she is still in
+-- hitstun or on the floor, and repositioning then snatches her out of the combo that
+-- just landed. Waiting for control means the pair is always placed standing.
+--
+-- Control rather than a state number, because the state a settled Dummy sits in is
+-- whatever the Trial told her to do — a crouching Dummy is never in state 0 and a
+-- jumping one only in passing.
+local function dummySettled()
+	if not player(2) then
+		-- No Dummy to wait for.
+		return true
+	end
+	local settled = alive() and moveType() ~= 'H' and ctrl()
+	player(1)
+	return settled
+end
+
 -- Whether the player is asking, right now, to be put back where the Trial wants them.
 --
 -- Held rather than pressed, which is what makes a combination of ordinary game inputs
@@ -1862,6 +1887,7 @@ local function applySetup()
 		m.setup = nil
 		m.repos = nil
 		m.cameraPending = false
+		m.settleWait = 0
 		return
 	end
 
@@ -1904,8 +1930,15 @@ local function applySetup()
 		return
 	end
 	if m.setupTrial == m.current and not repositionHeld(m) then
+		m.settleWait = 0
 		return
 	end
+	-- Something wants the pair moved. It waits for the Dummy to be worth moving.
+	if not dummySettled() and (m.settleWait or 0) < SETTLE_LIMIT then
+		m.settleWait = (m.settleWait or 0) + 1
+		return
+	end
+	m.settleWait = 0
 	-- The first placement of a round goes straight in: there is nothing on screen yet
 	-- to fade away from, and the round's own fade already covers it.
 	if m.setupTrial ~= nil and fadesReposition() then
@@ -2423,7 +2456,10 @@ hook.add('loop#trials', 'trials', function()
 	-- completed rather than a frame late. It stops for the length of a banner: the
 	-- Trial underneath has already restarted, and inputs still going in as the player
 	-- reads SUCCESS should not count towards it.
-	if m.banner == nil and m.repos == nil then
+	-- Verification stops for a banner, for a reposition, and for the gap between the
+	-- two: a Trial has not started until its pair has been placed, and the wait for a
+	-- settling Dummy sits in exactly that gap.
+	if m.banner == nil and m.repos == nil and m.setupTrial == m.current then
 		verify()
 	end
 

@@ -217,6 +217,12 @@ allclear.text.displaytime = 120
 ; col is r, g, b. There is no anim key yet; the fade animation layers arrive with the
 ; rest of the presentation layer.
 ;
+; A move after a Success also waits for the Dummy to have control back. Her banner runs
+; on a timer and the knockdown that finished the Trial does not, so the banner regularly
+; clears while she is still in hitstun, and moving her then snatches her out of the combo
+; that just landed. Nothing verifies during that wait either — a Trial has not started
+; until its pair has been placed.
+;
 ; The camera is placed between the two characters as part of the move, and only handed
 ; back to its ordinary fighting view afterwards. It has to be: the engine's fighting
 ; camera moves only when somebody crosses into its tension zone, so a pair teleported
