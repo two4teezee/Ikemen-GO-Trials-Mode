@@ -655,6 +655,9 @@ local function buildStepBlock(layout)
 	local pos = numList(g('pos'), {0, 0})
 	local posWithTextbox = numList(g('pos', 'withtextbox'), pos)
 	block.shift = {posWithTextbox[1] - pos[1], posWithTextbox[2] - pos[2]}
+	-- The origin rows lay out from, kept because the window alone does not say where
+	-- the list starts: the two are configured independently.
+	block.pos = pos
 
 	-- textImgSetWindow ignores an all-zero rect (src/font.go:915), so a window can be
 	-- set but never cleared. Wherever this needs to say "do not clip" to an element that
@@ -1191,10 +1194,14 @@ local function drawSteps()
 	--
 	-- A negative spacing draws the list upward, which no window height can be reasoned
 	-- about the same way, so that case simply never scrolls and lets the window clip.
-	local range = block.activeWindow[4] - block.activeWindow[2]
-	if range > 0 and spacing[2] > 0 then
-		-- n rows span n-1 spacings, so this is how many the window actually holds.
-		local fit = math.floor(range / spacing[2]) + 1
+	-- Measured from where the rows actually start, not from the window's top edge. The
+	-- origin and the window are configured independently, so the space available to the
+	-- list is what lies between them — taking the window's full height instead counts
+	-- rows that fall off its bottom and reads them as fitting.
+	local available = block.activeWindow[4] - (block.pos[2] + shift[2])
+	if available > 0 and spacing[2] > 0 then
+		-- n rows span n-1 spacings, so this is how many of them that space holds.
+		local fit = math.floor(available / spacing[2]) + 1
 		if #m.steps > fit then
 			first = math.max(1, math.min(m.step - 2, #m.steps - fit + 1))
 			-- Two completed Steps above the current one only where there is room for
