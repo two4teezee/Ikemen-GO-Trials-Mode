@@ -23,9 +23,16 @@ common-state changes.
 
 ## Consequences
 
-The module writes the shared maps directly from Lua when a Trial starts, and
-`trials.zss` executes them. No dummy logic is duplicated in Lua, and no dummy items
-appear in the trials pause menu.
+The module writes the shared maps directly from Lua, and `trials.zss` executes them.
+No dummy logic is duplicated in Lua, and no dummy items appear in the trials pause
+menu.
+
+The write cannot happen at the moment a Trial is selected, though. `trials.zss` clears
+every shared dummy map for the whole of `roundState = 0`, so anything written before
+the round starts is wiped by the state file that is meant to read it. The module writes
+on the first frame past that reset instead, and again whenever the Trial changes or the
+round state falls back to 0 — so a round restart re-applies the current Trial rather
+than leaving the Dummy on whatever the reset left behind.
 
 An earlier revision of this ADR justified the shared namespace on the grounds that the
 engine's built-in dummy *menu items* would then work for free. That is no longer the

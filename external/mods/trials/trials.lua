@@ -793,6 +793,81 @@ local function localized(v)
 	return pick
 end
 
+-- The Dummy vocabulary a Trial Definition is written in, mapped onto the values
+-- trials.zss reads back out of the shared training maps (docs/adr/0002). Names and
+-- defaults are the ones the README documents, and the file format is unchanged.
+--
+-- `auto` guard resolves to 2 — the map's "guard everything" — rather than to 1, its
+-- "guard once hit". That is what the pre-refactor module settled on (b0211ff, "Fixes
+-- autoguard") and what the README means by auto: a Dummy that only starts guarding
+-- after the first hit lands has already let the combo starter through, which is the
+-- opposite of what a Trial author asks for. 1 and 3 stay unreachable from a Trial
+-- Definition because the format has never spelled them.
+--
+-- One entry per setting, each carrying everything about it that anything downstream
+-- needs: the key a Trial Definition spells it with, the shared map trials.zss reads it
+-- back out of, its default, and the words that resolve to each value.
+local dummyVocabulary = {
+	{
+		field = 'mode',
+		key = 'dummymode',
+		map = '_iksys_trainingDummyMode',
+		default = 0,
+		values = {stand = 0, crouch = 1, jump = 2, wjump = 3},
+	},
+	{
+		field = 'guard',
+		key = 'guardmode',
+		map = '_iksys_trainingGuardMode',
+		default = 0,
+		values = {none = 0, auto = 2},
+	},
+	{
+		field = 'buttonjam',
+		key = 'dummybuttonjam',
+		map = '_iksys_trainingButtonJam',
+		default = 0,
+		values = {none = 0, a = 1, b = 2, c = 3, x = 4, y = 5, z = 6, start = 7, d = 8, w = 9},
+	},
+}
+
+-- One Trial's Dummy settings, fully resolved.
+--
+-- Every field is filled even when the Trial names none, which is what stops a setting
+-- leaking from the Trial before it: with the pause menu carrying no dummy items
+-- (docs/adr/0002) there is nothing a player could use to notice a stale value, so the
+-- Trial always carries the whole triple rather than a partial one.
+--
+-- The authored word is kept alongside each number. It is what the debug dump is
+-- readable from, and what makes a fallback distinguishable from a Trial that asked for
+-- the default outright: an empty word means the Trial named nothing.
+--
+-- `data` is one parsed [TrialDef]; nil asks for the defaults on their own.
+local function readDummy(data, path, section)
+	local raw = type(data) == 'table' and data.trial or nil
+	local out = {authored = {}}
+	for _, spec in ipairs(dummyVocabulary) do
+		local v = type(raw) == 'table' and raw[spec.key] or nil
+		-- loadIni parks the scalar in __value when a key is both a value and a parent.
+		if type(v) == 'table' and v.__value ~= nil then
+			v = v.__value
+		end
+		local word = strValue(v, ''):lower():match('^%s*(.-)%s*$')
+		if word ~= '' and spec.values[word] == nil then
+			print('Trials: ' .. path .. ' [' .. section .. '] trial.' .. spec.key ..
+				' = ' .. word .. ' is not a recognised value — using the default.')
+			word = ''
+		end
+		out[spec.field] = word ~= '' and spec.values[word] or spec.default
+		out.authored[spec.field] = word
+	end
+	return out
+end
+
+-- What a Trial that names nothing resolves to, and what a character with no Trial
+-- Definition gets.
+local defaultDummy = readDummy(nil)
+
 -- The Steps of one Trial, in Step-number order.
 --
 -- loadIni splits `trialstep.1.text` into nested tables keyed by the literal string
@@ -859,6 +934,10 @@ local function readTrialDefinition(path)
 					-- block clips to. Drawing the Textbox itself is #43.
 					textbox = strValue(localized(type(data.trial) == 'table' and data.trial.textbox or nil), ''),
 					steps = readSteps(data),
+					-- Resolved here rather than at Trial start so the whole triple is
+					-- known before the first frame, and so it lands in the debug dump
+					-- with everything else the Trial Definition parsed to.
+					dummy = readDummy(data, path, name),
 					data = data,
 				})
 			end
@@ -1074,6 +1153,55 @@ local function selectTrial(index)
 	end
 end
 
+-- Writes the current Trial's Dummy settings to the maps trials.zss reads.
+--
+-- This is the whole of the module's dummy logic: the behaviour itself lives in ZSS,
+-- and Lua only says which of it to run (docs/adr/0002). A Trial with nothing to say
+-- still gets written, because the maps are shared state and the value sitting in them
+-- is the previous Trial's until something replaces it.
+--
+-- Not called from selectTrial, because trials.zss clears these maps for the whole of
+-- roundState 0 — anything written before the round starts is wiped. The loop applies
+-- them on the first frame past that reset instead, and marks them stale when the round
+-- state falls back to 0, so a restarted round writes them again.
+local function applyDummy()
+	local m = trials.match
+	if m == nil then
+		return
+	end
+	if roundState() < 1 then
+		m.dummyTrial = nil
+		return
+	end
+	if m.dummyTrial == m.current then
+		return
+	end
+	-- A character with no Trial Definition reaches here too, and gets the same
+	-- stand-still Dummy a Trial that names nothing would.
+	local trial = m.trials[m.current]
+	local d = type(trial) == 'table' and trial.dummy or defaultDummy
+	-- player() moves the redirect every trigger reads through, exactly as the engine's
+	-- own dummy handlers do (external/script/menu.lua:143). Without it mapSet would
+	-- write onto whichever character the engine last left it pointing at.
+	if not player(2) then
+		return
+	end
+	for _, spec in ipairs(dummyVocabulary) do
+		mapSet(spec.map, d[spec.field])
+	end
+	-- Put the redirect back on the Trials player, so nothing downstream inherits a
+	-- redirect it did not ask for.
+	player(1)
+	-- dummyTrial is the Trial whose settings are in the maps, and dummy is the
+	-- settings themselves. Both are recorded on the match rather than left implicit,
+	-- and the artifact is written again here: a Trial's settings are resolved at load
+	-- and written many seconds later, so a dump taken before this point shows only
+	-- what the Trial Definition said, never that anything reached the Dummy.
+	m.dummyTrial = m.current
+	m.dummy = d
+	trials.f_dumpState()
+end
+
 -- Advances the current Step on a fixed cadence, wrapping into the next Trial past the
 -- last Step. Off unless config.ini's [Debug] CycleSteps says otherwise.
 --
@@ -1238,6 +1366,9 @@ hook.add('loop#trials', 'trials', function()
 		selectTrial(trials.match.current)
 		trials.f_dumpState()
 	end
+	-- Before the roundState gate below: the Dummy is configured during the intro, not
+	-- once the round is live.
+	applyDummy()
 	if roundState() ~= 2 then
 		return
 	end
@@ -1294,6 +1425,11 @@ function trials.f_dumpState()
 						stepCount = #v.steps,
 						firstStepText = v.steps[1] ~= nil and v.steps[1].text or '',
 						textbox = v.textbox ~= '',
+						-- The values written to the shared training maps when this
+						-- Trial starts, and the words they were resolved from — an
+						-- empty word is a Trial that named nothing and took the
+						-- default, which is what makes a leak visible here.
+						dummy = v.dummy,
 					}
 				end
 			end
@@ -1343,6 +1479,23 @@ function trials.f_dumpState()
 		} or nil,
 		chars = chars,
 		match = trials.match,
+		-- What is actually in the shared training maps, and the Trial it came from.
+		--
+		-- Copied scalar by scalar, not referenced: f_printTable elides a table it has
+		-- already printed, and this is the very same table as that Trial's settings
+		-- under `chars` above — referenced, it would dump as an empty block and every
+		-- assertion against it would pass by default.
+		dummyWritten = trials.match ~= nil and trials.match.dummy ~= nil and {
+			trial = trials.match.dummyTrial,
+			mode = trials.match.dummy.mode,
+			guard = trials.match.dummy.guard,
+			buttonjam = trials.match.dummy.buttonjam,
+			authored = {
+				mode = trials.match.dummy.authored.mode,
+				guard = trials.match.dummy.authored.guard,
+				buttonjam = trials.match.dummy.authored.buttonjam,
+			},
+		} or nil,
 		-- Which extension points the module actually registered. Cheaper to assert
 		-- than to infer from behaviour, and it catches a hook silently not attaching.
 		hooks = {

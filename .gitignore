@@ -8,3 +8,6 @@ testbuild/
 
 # Test-loop artifacts
 tools/*.local
+
+# Python bytecode from tools/
+__pycache__/

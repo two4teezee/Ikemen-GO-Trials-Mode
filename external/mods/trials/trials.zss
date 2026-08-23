@@ -4,12 +4,17 @@
 # rather than a file carried forward independently. Re-fork when upstream changes
 # rather than patching around drift; every delta below is marked "Trials delta".
 #
-# Dummy state deliberately shares the engine's _iksys_training* map namespace: the
-# engine's pause-menu handlers write those names unconditionally, so sharing them means
-# the built-in dummy controls work with no duplicate Lua. See docs/adr/0002.
+# Dummy state deliberately shares the engine's _iksys_training* map namespace: these are
+# the names the engine's own functions.zss and pause-menu handlers already understand,
+# so trials writes them from Lua and forks no dummy logic. The values come from the
+# Trial Definition and nowhere else — no trials pause-menu item writes them. See
+# docs/adr/0002.
 #
 # _iksys_trainingDummyControl: 0 - cooperative, 1 - ai, 2 - manual
 # _iksys_trainingGuardMode: 0 - none, 1 - auto, 2 - all, 3 - random
+#   Trials delta: a Trial Definition's `trial.guardmode = auto` is written here as
+#   2, not 1. 1 only starts guarding once a hit has landed, which has already let
+#   the combo starter through. Only 0 and 2 are reachable from a Trial.
 # _iksys_trainingFallRecovery: 0 - none, 1 - ground, 2 - air, 3 - random
 # _iksys_trainingDummyMode: 0 - stand, 1 - crouch, 2 - jump, 3 - wjump
 # _iksys_trainingDistance: 0 - any, 1 - close, 2 - medium, 3 - far

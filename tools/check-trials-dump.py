@@ -273,6 +273,62 @@ def main():
     multi = [t for t in parsed if t.get("stepCount", 0) > 1]
     c.check("at least one Trial has several Steps", bool(multi), True)
 
+    print("\nDummy settings parsed per Trial (#38)")
+    # Every Trial carries the whole triple whether or not it named one, which is what
+    # stops a setting leaking from the Trial before it. A Trial that named nothing has
+    # an empty word in `authored` next to the default value.
+    dummies = [t.get("dummy") for t in parsed]
+    c.check("every Trial resolved its Dummy settings",
+            bool(dummies) and all(isinstance(d, dict) for d in dummies), True)
+    if all(isinstance(d, dict) for d in dummies):
+        # Spelled out here rather than read from the module: an expected value that
+        # was computed the way the code computes it could never disagree with it.
+        # This is the independent copy of what README.md documents.
+        vocabulary = {
+            "mode": {"stand": 0, "crouch": 1, "jump": 2, "wjump": 3},
+            "guard": {"none": 0, "auto": 2},
+            "buttonjam": {"none": 0, "a": 1, "b": 2, "c": 3, "x": 4,
+                          "y": 5, "z": 6, "start": 7, "d": 8, "w": 9},
+        }
+        c.check("every Trial carries the whole triple",
+                all(all(k in d for k in vocabulary) for d in dummies), True)
+        c.check("values stay inside the vocabulary trials.zss reads",
+                all(d.get(f) in words.values()
+                    for d in dummies for f, words in vocabulary.items()),
+                True)
+
+        def mismatches(d):
+            """Fields of one resolved Dummy that disagree with the word behind them."""
+            authored = d.get("authored")
+            if not isinstance(authored, dict):
+                return list(vocabulary)
+            out = []
+            for field, words in vocabulary.items():
+                # An unnamed setting takes the default; a named one resolves to its
+                # own value and to nothing else.
+                word = authored.get(field, "")
+                expected = 0 if word == "" else words.get(word)
+                if d.get(field) != expected:
+                    out.append(field)
+            return out
+
+        c.check("each value matches the word it was resolved from",
+                [d for d in dummies if mismatches(d)], [])
+
+        # Parsing is only half of it. The maps are written during the match, and the
+        # module rewrites this artifact the moment it does, so a dump taken after a
+        # real run also says what reached the Dummy. Absent when the dump predates the
+        # first round — a "not run yet", not a failure.
+        written = dig(tree, "dummyWritten")
+        if not written:
+            print("  -   the Dummy has not been configured yet in this dump "
+                  "(no match reached roundstate 1)")
+        else:
+            c.check("the Dummy was configured for the Trial the match is on",
+                    dig(written, "trial"), dig(tree, "match", "current"))
+            c.check("the values written to the shared maps match their words",
+                    mismatches(written), [])
+
     print("\nModule directory hygiene")
     # The engine walks external/mods recursively and require()s every *.lua it finds,
     # so any second .lua here is executed as a module at boot. A match launcher named
