@@ -223,10 +223,10 @@ allclear.text.displaytime = 120
 ; that just landed. Nothing verifies during that wait either — a Trial has not started
 ; until its pair has been placed.
 ;
-; The camera is placed between the two characters as part of the move, and only handed
-; back to its ordinary fighting view afterwards. It has to be: the engine's fighting
-; camera moves only when somebody crosses into its tension zone, so a pair teleported
-; inside the current view would otherwise leave the camera wherever it had drifted to.
+; The camera is handed back to its ordinary fighting view a frame after the move, not in
+; the same tick. It has to be: the fighting camera recomputes from where the characters
+; were before they were placed, and moves only when somebody crosses into its tension
+; zone, so restoring it too early leaves it wherever it had drifted to.
 ; -----------------------------------------------------------------------------------
 fadeout.time = 12
 fadeout.col = 0, 0, 0

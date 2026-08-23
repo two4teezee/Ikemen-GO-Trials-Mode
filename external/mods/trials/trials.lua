@@ -1691,20 +1691,15 @@ local function positionsFor(pos, charCoordX)
 		w.playerx = -pos.gap / 2
 		w.dummyx = pos.gap / 2
 	end
-	-- The camera belongs between the two characters, and everything above is measured
-	-- from it — PosSet reads x relative to the camera, which is why the corner geometry
-	-- needs the camera on the stage bound to be measured at all. Shifting the camera by
-	-- the pair's midpoint and the pair back against it leaves both of them exactly where
-	-- they were and puts the camera where a fight camera would sit.
+	-- The camera stays where the positions are measured from, and is not moved onto the
+	-- pair's midpoint to "centre" it. A corner position is spelled as half a screen from
+	-- the camera, so it only means the stage's wall while the camera is on the stage's
+	-- bound — and the bound is the furthest the engine will let the camera go. Shift the
+	-- camera past it to centre the pair and the corner stops being the corner: what the
+	-- engine accepts is clamped back, and the pair lands short of the wall, toward centre
+	-- stage. Framing is the fighting view's job, and it gets the camera back a frame
+	-- later with the characters already where they belong.
 	--
-	-- It matters because the engine's fighting view will not re-centre on its own: it
-	-- only moves when a character crosses into its tension zone, so a pair teleported
-	-- inside the current view leaves the camera wherever it had drifted to.
-	local mid = (w.playerx + w.dummyx) / 2
-	w.playerx = w.playerx - mid
-	w.dummyx = w.dummyx - mid
-	w.camerax = w.camerax + mid
-
 	-- Out of the 320-wide space and into the Dummy's, in one factor: the stage values
 	-- divided into it above and the gap constants written in it are both carried.
 	local coordScale = (charCoordX or 320) / 320
@@ -1764,6 +1759,7 @@ local function writeSetup(m)
 	-- settings are: a Trial's positions are resolved at load and written many seconds
 	-- later, and a dump taken before this point cannot tell the two apart.
 	m.setupTrial = m.current
+	m.reposRequest = false
 	-- TrialsReposition leaves the camera on `view: free` at the position written above,
 	-- which is what frames the pair while they are placed. Handing it back to the
 	-- fighting view is a separate write, deliberately not in this one: done in the same
@@ -1829,29 +1825,30 @@ local function dummySettled()
 	return settled
 end
 
--- Whether the player is asking, right now, to be put back where the Trial wants them.
+-- Notices the player asking to be put back where the Trial wants them.
 --
--- Held rather than pressed, which is what makes a combination of ordinary game inputs
--- usable for this: any single one of them is something the player presses constantly,
--- and all of them at once is not. Nothing is read while a banner or a fade is up, so
--- the request cannot arrive in the middle of servicing the last one.
-local function repositionHeld(m)
+-- The combination is *held*, which is what makes ordinary game inputs usable for it:
+-- any one of them is something a player presses constantly, and all of them at once is
+-- not. But holding it has to ask once rather than once a frame, or a player who keeps it
+-- down for the length of the fade starts another reposition the moment the last one
+-- lands. So the ask is the press, and it is latched until something acts on it — which
+-- is also what stops it being lost while a hit Dummy settles.
+local function readRepositionRequest(m)
 	local r = trials.reposition
-	if r == nil or not r.enabled or #r.keys == 0 then
-		return false
-	end
-	if m.banner ~= nil or m.repos ~= nil or paused() then
-		return false
-	end
-	if not player(1) then
-		return false
-	end
-	for _, key in ipairs(r.keys) do
-		if inputTime(key) <= 0 then
-			return false
+	local held = r ~= nil and r.enabled and #r.keys > 0
+		and m.banner == nil and not paused() and player(1)
+	if held then
+		for _, key in ipairs(r.keys) do
+			if inputTime(key) <= 0 then
+				held = false
+				break
+			end
 		end
 	end
-	return true
+	if held and not m.reposHeld then
+		m.reposRequest = true
+	end
+	m.reposHeld = held
 end
 
 -- Whether a reposition is worth fading for.
@@ -1888,6 +1885,8 @@ local function applySetup()
 		m.repos = nil
 		m.cameraPending = false
 		m.settleWait = 0
+		m.reposRequest = false
+		m.reposHeld = false
 		return
 	end
 
@@ -1929,7 +1928,8 @@ local function applySetup()
 	if m.banner ~= nil then
 		return
 	end
-	if m.setupTrial == m.current and not repositionHeld(m) then
+	readRepositionRequest(m)
+	if m.setupTrial == m.current and not m.reposRequest then
 		m.settleWait = 0
 		return
 	end
