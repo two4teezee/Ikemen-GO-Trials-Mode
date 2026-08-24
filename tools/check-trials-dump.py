@@ -810,6 +810,68 @@ def run_checks(tree, quiet=False):
                      f"Glyph in this screenpack)")
             c.check("the screenpack has a Glyph for the tokens in use", unknown, 0)
 
+    c._print("\nStep backgrounds (#53)")
+    # The graphical layer under the Steps, for the Layout in use. What is assertable
+    # from a startup dump is what it resolved TO -- whether it built, out of which file,
+    # and how wide -- not how it looks, which needs a person at the screen.
+    bg = dig(block, "bg") if block else None
+    c.present("the Step display's graphical layer resolved", bg)
+    if bg and not c.unreadable("the graphical layer is its own", bg):
+        # Not a failure. A screenpack is free to style the Steps with no artwork behind
+        # them at all, and the module ships defaults only so a stock one has some.
+        if dig(bg, "block") is not True:
+            # `art` says which of the two it is: a screenpack that styled the Steps with
+            # no artwork behind them, or one that repositioned the block and so had the
+            # module's own 320x240 artwork dropped rather than drawn at the wrong scale.
+            c.skip("a background is drawn behind the whole Step list",
+                   dig(bg, "art") or "this configuration declares none for the "
+                   "Layout in use")
+        else:
+            c.check("a background is drawn behind the whole Step list",
+                    dig(bg, "block"), True)
+            # A screenpack that meant a sprite in its OWN sff and got the module's would
+            # otherwise show up only as artwork nobody recognises, and only on screen.
+            c.check("  its sprite came from a file that could have meant it",
+                    dig(bg, "art") in ("module", "screenpack"), True)
+            # Nothing else can say this. A dropped or unloadable one reports as no
+            # background at all, which is the skip above, and both read on screen
+            # exactly like a screenpack that asked for none.
+
+            c._print(f"      (resolved against the {dig(bg, 'art')}'s sff)")
+        # Every width here is an input to where a row wraps in the horizontal Layout, so
+        # a background that failed to load reads as the zero that made rows wrap early --
+        # which on screen looks like a layout bug rather than a missing file.
+        for status in ("upcoming", "current", "completed"):
+            row = dig(bg, status)
+            if not row:
+                c.check(f"{status} Step background resolved", bool(row), True)
+                continue
+            widths = [dig(row, k) for k in ("body", "tail", "head")]
+            c.check(f"{status} Step background has widths, declared or zero",
+                    [w for w in widths if not isinstance(w, (int, float))], [])
+            if any(w for w in widths):
+                # The pre-refactor module read the head's width from the TAIL's
+                # animation (old trials.lua:790). Identical widths do not prove the bug
+                # is back -- a symmetric pair is a legitimate choice -- so this reports
+                # rather than fails.
+                if dig(row, "head") and dig(row, "head") == dig(row, "tail"):
+                    c._print(f"      ({status}: head and tail are both "
+                             f"{dig(row, 'head')} wide -- symmetric, or measured from "
+                             f"the wrong sprite?)")
+                c.check(f"  {status} tints its background under a palfx",
+                        bool(dig(row, "mul")), True)
+            else:
+                c.skip(f"  {status} tints its background under a palfx",
+                       "this Step Status declares no background")
+        # In the horizontal Layout the tail and head are part of the width that decides
+        # where a row wraps. A body with no tail and no head is a legitimate style; a
+        # tail or head with no body is artwork with nothing between it.
+        for status in ("upcoming", "current", "completed"):
+            row = dig(bg, status)
+            if row and not dig(row, "body") and (dig(row, "tail") or dig(row, "head")):
+                c.check(f"{status} has a body to go with its head and tail",
+                        False, True)
+
     all_parts = [pt for st in dumped_steps for pt in (st.get("parts") or {}).values()
                  if isinstance(pt, dict)]
     c.check("Parts were found to check", bool(all_parts), True)

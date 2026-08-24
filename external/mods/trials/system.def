@@ -178,6 +178,132 @@ completedstep.horizontal.text.offset = 0, 0
 ; completedstep.horizontal.text.scale =
 ; completedstep.horizontal.text.font.height =
 
+; STEP BACKGROUNDS ------------------------------------------------------------------
+; The artwork drawn behind the Steps: what makes Step text and Glyphs readable over a
+; busy stage, and what gives a screenpack its identity in this mode.
+;
+; Two kinds, both per Layout:
+;
+;   trialsteps.<layout>.bg.*      one background behind the whole Step list
+;   <status>step.<layout>.bg.*    one under each Step, styled per Step Status
+;
+; Every element takes the ordinary engine keys — spr, anim, offset, scale, facing,
+; window, localcoord, layerno — and draws behind the Step text at the same layer number,
+; because elements sharing a layer draw in the order they are drawn in and the module
+; draws these first.
+;
+; TO TURN ONE OFF, set its spr to nothing:
+;
+;   currentstep.horizontal.bg.spr =
+;   currentstep.horizontal.bg.tail.spr =
+;   currentstep.horizontal.bg.head.spr =
+;
+; All three, in the horizontal Layout — they are separate elements and clearing the body
+; leaves the head and tail. A Step Status with no background draws none and reserves no
+; room for one, so its Steps lay out exactly as they would if this section were not here.
+;
+; ONE CASE WHERE THESE DEFAULTS DROP THEMSELVES. If your screenpack sets
+; trialsteps.<layout>.pos, the block resolves into YOUR coordinate space, and the sprites
+; below are drawn at 320x240 — the shipped 280-unit panel would cover a quarter of the
+; width it was drawn for at 1280x720. So the module's own artwork is dropped rather than
+; drawn at the wrong scale, exactly as the block's own default window is. Style your own
+; backgrounds here and they are used as written; that is what this section is for.
+;
+; WHICH FILE A SPRITE NUMBER MEANS. `spr = 0, 10` below is a sprite in the module's own
+; trials.sff. The same key in YOUR system.def is a sprite in YOUR sff — the file follows
+; whoever wrote the key, exactly as the coordinate space does. There is no way to mix
+; the two on one element, and no reason to want to: state the key and the file that goes
+; with it comes along. trials.sff is only ever loaded if something still resolves to it,
+; so a screenpack that styles every element of its own never pays for a second copy.
+;
+; `anim = N` works the same way, resolving against trials.air here or against your own
+; [Begin Action N] in your screenpack. Note that a screenpack's actions do not currently
+; reach a Lua module at all — the engine's action table is unexported — so `spr` is the
+; route to use in your own system.def, and is what everything below uses.
+;
+; THE HORIZONTAL LAYOUT'S THREE PIECES. A vertical row is a fixed-width slot, so its
+; background is one sprite drawn where the row is. A horizontal Step is only as wide as
+; whatever it renders, so its background is an arrow in three parts:
+;
+;   .bg.tail.*   the nock, fixed width, drawn at the start of the Step
+;   .bg.*        the shaft, STRETCHED along x to the width of that Step's own content
+;   .bg.head.*   the point, fixed width, drawn at the end of the Step
+;
+; The body is stretched and not tiled, which is why the shipped one is four units wide
+; and uniform across — a sprite with detail along x would smear. The head and tail are
+; measured from their own sprites, and both are part of the width that decides where a
+; row wraps: one item spans tail + padding + content + padding + head, with
+; trialsteps.horizontal.spacing between items.
+;
+; Content is the Step's text AND its Glyphs together. The pre-refactor module drew
+; Glyphs alone in this Layout and sized the background to the Glyph line, so a Trial
+; Definition shipping no Glyphs collapsed to nothing; here it gets a background sized to
+; its words.
+;
+; palfx belongs to the whole background, head and tail included — they are one graphic,
+; and tinting the shaft without its point would read as a seam. The shipped muls are the
+; grey levels the three Step Statuses already dim their text and Glyphs by, so a
+; completed Step reads as completed all the way through. 256 is neutral.
+;
+; offsets are in 320x240, this file's own space (see trials.localcoord above), and are
+; measured from trialsteps.<layout>.pos. The shipped ones put each block background over
+; exactly the window its Layout clips to, and each Step background around the row it
+; sits under — a sprite font draws its line above the y it is given (src/font.go:636),
+; which is why the y offsets are negative.
+; -----------------------------------------------------------------------------------
+trialsteps.vertical.bg.spr = 0, 0
+trialsteps.vertical.bg.offset = -10, -4
+trialsteps.vertical.bg.layerno = 0
+; trialsteps.vertical.bg.scale =
+; trialsteps.vertical.bg.facing =
+
+trialsteps.horizontal.bg.spr = 0, 1
+trialsteps.horizontal.bg.offset = -5, -4
+trialsteps.horizontal.bg.layerno = 0
+; trialsteps.horizontal.bg.scale =
+; trialsteps.horizontal.bg.facing =
+
+; One plate per row in the vertical Layout, the same sprite under all three Step
+; Statuses and told apart by its palfx alone — which is what keeps the list reading as
+; one list rather than as three kinds of thing.
+upcomingstep.vertical.bg.spr = 0, 10
+upcomingstep.vertical.bg.offset = -2, -7
+upcomingstep.vertical.bg.palfx.mul = 180, 180, 180
+
+currentstep.vertical.bg.spr = 0, 10
+currentstep.vertical.bg.offset = -2, -7
+currentstep.vertical.bg.palfx.mul = 255, 255, 255
+
+completedstep.vertical.bg.spr = 0, 10
+completedstep.vertical.bg.offset = -2, -7
+completedstep.vertical.bg.palfx.mul = 110, 110, 110
+
+; The arrow, per Step Status. Tail 4 units wide, head 6; both are added to the width
+; that decides where a row wraps, so changing a sprite here reflows the row.
+upcomingstep.horizontal.bg.spr = 0, 20
+upcomingstep.horizontal.bg.offset = 0, -7
+upcomingstep.horizontal.bg.tail.spr = 0, 21
+upcomingstep.horizontal.bg.tail.offset = 0, -7
+upcomingstep.horizontal.bg.head.spr = 0, 22
+upcomingstep.horizontal.bg.head.offset = 0, -7
+upcomingstep.horizontal.bg.palfx.mul = 180, 180, 180
+
+currentstep.horizontal.bg.spr = 0, 20
+currentstep.horizontal.bg.offset = 0, -7
+currentstep.horizontal.bg.tail.spr = 0, 21
+currentstep.horizontal.bg.tail.offset = 0, -7
+currentstep.horizontal.bg.head.spr = 0, 22
+currentstep.horizontal.bg.head.offset = 0, -7
+currentstep.horizontal.bg.palfx.mul = 255, 255, 255
+
+completedstep.horizontal.bg.spr = 0, 20
+completedstep.horizontal.bg.offset = 0, -7
+completedstep.horizontal.bg.tail.spr = 0, 21
+completedstep.horizontal.bg.tail.offset = 0, -7
+completedstep.horizontal.bg.head.spr = 0, 22
+completedstep.horizontal.bg.head.offset = 0, -7
+completedstep.horizontal.bg.palfx.mul = 110, 110, 110
+
 ; COMMAND GLYPHS ------------------------------------------------------------------
 ; The icons drawn beside a Step's text, standing in for the inputs its words describe.
 ; They come from the screenpack's own [Glyphs] vocabulary — the same one the engine's
