@@ -527,6 +527,14 @@ local function buildText(path, origin)
 	local fnt = resolveFont(g('font'), font)
 	if fnt ~= nil then
 		textImgSetFont(ts, fnt)
+	else
+		-- A TextSprite with no font draws nothing, and draws it silently — which is a
+		-- hard thing to diagnose from the screen, because the element is present,
+		-- positioned and holding the right words. Every text element the module ships
+		-- names a font, so reaching here means a configuration dropped one.
+		print('Trials: ' .. table.concat(path, '.') .. '.font names no font this ' ..
+			'screenpack has, so this element draws no text. Give it a font index from ' ..
+			'the screenpack\'s [Files], e.g. font = 1, 0, 1.')
 	end
 	textImgSetBank(ts, font[2])
 	textImgSetAlign(ts, font[3])
@@ -3534,21 +3542,34 @@ end
 -- sprite keeps its proportions — and a Step Status a screenpack styles larger carries
 -- its Glyphs up with it, which is what makes the run read as part of the Step.
 --
--- nil where the size cannot be known: an element whose font never resolved has no
--- height to scale against, and a run that cannot be sized is skipped rather than drawn
--- at a guess.
+-- Where that Step Status resolved no font there is no height to match, and the Glyph
+-- falls back to its own sprite's size, with the element's scale and the configured
+-- multiplier still applied. It does NOT stop drawing. The font is a size reference and
+-- nothing else; a Glyph is a sprite and can always be drawn, so treating an absent font
+-- as "cannot size" took the icons down with the words — which is a configuration a
+-- screenpack really does write, because the pre-refactor horizontal Layout drew Glyphs
+-- and no text at all, and a screenpack migrating from it names no font here and expects
+-- its icons regardless.
+--
+-- nil only where the sprite itself cannot be sized, which is a token this screenpack
+-- has no Glyph for. That one is skipped, exactly as menu.lua:887 skips it.
 local function glyphScale(block, e, token)
 	local g = type(motif.glyphs) == 'table' and motif.glyphs[token] or nil
-	local size = e.fontdef ~= nil and e.fontdef.Size or nil
-	if g == nil or type(g.Size) ~= 'table' or size == nil then
+	if g == nil or type(g.Size) ~= 'table' then
 		return nil
 	end
-	local height = tonumber(size[2]) or 0
 	local sprite = tonumber(g.Size[2]) or 0
-	if height <= 0 or sprite <= 0 then
+	if sprite <= 0 then
 		return nil
 	end
-	local base = height * e.scale[2] / sprite
+	local size = e.fontdef ~= nil and e.fontdef.Size or nil
+	local height = size ~= nil and (tonumber(size[2]) or 0) or 0
+	-- The sprite as drawn where there is no font to match, the font's height where
+	-- there is one.
+	local base = e.scale[2]
+	if height > 0 then
+		base = height * e.scale[2] / sprite
+	end
 	local gl = block.glyphs
 	return base * gl.scale[1], base * gl.scale[2]
 end
