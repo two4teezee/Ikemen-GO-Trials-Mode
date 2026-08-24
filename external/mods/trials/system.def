@@ -97,8 +97,8 @@ trialcounter.pos = 5, 228
 trialsteps.vertical.pos = 35, 38
 trialsteps.vertical.spacing = 0, 9
 trialsteps.vertical.window = 25, 34, 295, 138
-; trialsteps.vertical.pos.withtextbox =
-; trialsteps.vertical.window.withtextbox =
+trialsteps.vertical.pos.withtextbox =
+trialsteps.vertical.window.withtextbox =
 
 ; STEP STATUS — VERTICAL LAYOUT ----------------------------------------------------
 ; Where a Step sits relative to the player's progress: upcoming, current, or completed.
@@ -156,8 +156,8 @@ trialsteps.horizontal.pos = 25, 38
 trialsteps.horizontal.spacing = 4, 11
 trialsteps.horizontal.padding = 2
 trialsteps.horizontal.window = 20, 34, 300, 70
-; trialsteps.horizontal.pos.withtextbox =
-; trialsteps.horizontal.window.withtextbox =
+trialsteps.horizontal.pos.withtextbox = 25, 38
+trialsteps.horizontal.window.withtextbox = 20, 34, 250, 70
 
 ; STEP STATUS — HORIZONTAL LAYOUT --------------------------------------------------
 ; Styled apart the same way the vertical Layout's three are, and independently of them:

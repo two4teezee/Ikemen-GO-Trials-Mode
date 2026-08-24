@@ -183,6 +183,16 @@ local function mergeLayer(dst, src, layer, source, prefix)
 				-- the module's whole default for that key.
 				dst[k] = dst[k] ~= nil and {__value = dst[k]} or {}
 			end
+			-- One layer writing both spellings — `window = 25, 34, 295, 138` and
+			-- `window.withtextbox =` in the same file — is handed to us as a single
+			-- table carrying both: the list on its array part, the child by name.
+			-- The list is this layer's value for the key itself, so record it as one.
+			-- Without this the key has no provenance at all, and every "did this layer
+			-- set it?" test reads false — which is what decides whether a length
+			-- written in the module's own space is converted into a screenpack's.
+			if v[1] ~= nil then
+				source[path] = layer
+			end
 			mergeLayer(dst[k], v, layer, source, path)
 		elseif type(dst[k]) == 'table' and not isValueList(dst[k]) then
 			-- An earlier layer promoted this key to a parent (font = 1,0,1 alongside
