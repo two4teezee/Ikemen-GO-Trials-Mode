@@ -310,21 +310,37 @@ completedstep.horizontal.glyphs.palfx.mul = 100, 100, 100
 
 ; GLYPHS -------------------------------------------------------------------
 ; GLYPHS options can be specified for both vertical and horizontal layouts simultaneously.
-; glyphs.<layout>.offset: x,y offset from current trialstep position
-; glyphs.<layout>.scale: x,y scale for glyphs
-; glyphs.<layout>.spacing: x,y spacing from one glyph element to another on the same trialstep
-; glyphs.vertical.align: alignment for glyphs (vertical layout only)
-; glyphs.vertical.scalewithtext: true or false; scales glyphs according to font height - ignores scale parameter when set to true.
+; glyphs.<layout>.offset: x,y offset of the glyph run. In the vertical layout it is measured
+;   from trialsteps.vertical.pos, so the run forms a column beside text of varying length. In
+;   the horizontal layout a step sits wherever the flow put it, so it is measured from the end
+;   of that step's own text and is also what separates the two.
+; glyphs.<layout>.scale: x,y MULTIPLIER, not a size. A glyph is sized from the font height and
+;   text scale of the step status drawing it - the same way the engine sizes movelist glyphs -
+;   and this is applied on top. The old scalewithtext key is gone - glyphs always scale with
+;   the text now, which is what scalewithtext = true used to ask for. An existing screenpack
+;   that set an absolute scale alongside scalewithtext = false (e.g. 0.3125) should set it to
+;   1,1, or its glyphs will come out at a third of the text height.
+; glyphs.<layout>.spacing: gap between one glyph and the next. First argument only; a run is a
+;   row, so a vertical gap between glyphs means nothing.
+; glyphs.vertical.align: 1 grows the run right from its anchor, -1 ends it there, 0 centres
+;   it on it. Vertical only, as before - aligning against an anchor only means something
+;   where the anchor stands still. A horizontal run is anchored at the end of its own step's
+;   text and always grows right from there.
+; glyphs.<layout>.layerno, glyphs.<layout>.localcoord: as on any other element.
+; <status>step.<layout>.glyphs.palfx.<color|mul|add|sinadd|invertall>: how each step status
+;   styles the glyphs beside its text, so upcoming, current and completed read apart as icons
+;   as well as words.
+; A step declaring no glyphs draws as text alone, with no gap reserved for them, and a token
+; this screenpack has no glyph for is skipped rather than drawn.
 ; GLYPHS VERTICAL ----------------------------------------------------------
 glyphs.vertical.offset = 244,3
-glyphs.vertical.scale = 0.3125,0.3125
-glyphs.vertical.spacing = 0,0
+glyphs.vertical.scale = 1,1
+glyphs.vertical.spacing = 4,0
 glyphs.vertical.align = -1
-glyphs.vertical.scalewithtext = false
 ; GLYPHS HORIZONTAL --------------------------------------------------------
-glyphs.horizontal.offset = 0,-3
-glyphs.horizontal.scale = 0.4, 0.4
-glyphs.horizontal.spacing = 0,0
+glyphs.horizontal.offset = 12,-3
+glyphs.horizontal.scale = 1,1
+glyphs.horizontal.spacing = 4,0
 
 ; TRIALS COUNTER AND TIMERS ------------------------------------------------
 ; trialcounter shows the current trial number

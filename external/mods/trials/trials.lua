@@ -546,6 +546,11 @@ local function buildText(path, origin)
 	textImgSetText(ts, strValue(g('text'), ''))
 
 	geo.font = font
+	-- The metrics of the font that was actually resolved, which is what a Glyph drawn
+	-- beside this element sizes itself against. Read through fontGetDef rather than off
+	-- motif.files.font, which has no entry for an element that named a font file of its
+	-- own — the resolved Fnt answers for both cases.
+	geo.fontdef = fnt ~= nil and fontGetDef(fnt) or nil
 	geo.TextSpriteData = ts
 	return geo
 end
@@ -631,6 +636,96 @@ local STEP_STATUSES = {'upcoming', 'current', 'completed'}
 -- Both are built at load and the Layout Player Preference picks between them, so
 -- switching from the pause menu swaps prepared element sets rather than rebuilding.
 local STEP_LAYOUTS = {'vertical', 'horizontal'}
+
+-- A palette effect, in the shape animSetPalFX takes.
+--
+-- Neutral where nothing is configured, so that a screenpack saying nothing gets the
+-- Glyphs it drew rather than a tint it never asked for: mul and color at 256 are the
+-- engine's identity, and animSetPalFX raises on any key outside this set.
+--
+-- time is -1 and not a duration. An effect is applied to one Anim once, when that Anim
+-- is built, and stands for the life of the module — PalFX.step disables itself the tick
+-- its time reaches 0 (src/image.go:279), so a finite time here would tint the Glyph for
+-- one frame and then stop.
+local function readPalFX(path)
+	local g = elementReader(path)
+	return {
+		time = -1,
+		add = numList(g('add'), {0, 0, 0}),
+		mul = numList(g('mul'), {256, 256, 256}),
+		sinadd = numList(g('sinadd'), {0, 0, 0, 0}),
+		invertall = numList(g('invertall'), {0})[1],
+		color = numList(g('color'), {256})[1],
+	}
+end
+
+-- The Glyphs accompanying a Step, as configuration: where their run sits relative to
+-- the Step, how far apart they are, which way the run grows, and the palette effect
+-- each Step Status draws it under.
+--
+-- `scale` is a multiplier and not a size. A Glyph stands in for a word of the Step it
+-- accompanies, so it is sized from that Step's own font — the engine's movelist sizes
+-- its own glyphs the same way (menu.lua:891) — and this is what is applied on top.
+--
+-- `align` is the engine's own three: 1 grows the run right from the anchor, -1 ends it
+-- there, 0 centres it. It is the vertical Layout's alone, and was in the pre-refactor
+-- module too. Aligning against an anchor only means something where the anchor stands
+-- still: vertical rows all start at the block's origin, so a right-aligned run there is
+-- a tidy column beside text of varying length. A horizontal Step's run is anchored at
+-- the end of that Step's own text, and a run growing left from there would be drawn
+-- over the words while the room reserved for it sat empty to their right.
+local function buildGlyphs(layout, origin, foreign)
+	local path = {'trials_mode', 'glyphs', layout}
+	-- Deliberately no origin: these keys are read off the glyphs block and nowhere else.
+	-- The Step block carries a `spacing` of its own with an unrelated meaning — the gap
+	-- between one row and the next — and inheriting it here would space a run of Glyphs
+	-- by the height of a row.
+	local g = elementReader(path)
+	-- The one thing that does inherit, for the reason every element inherits it: the
+	-- coordinate space follows whoever positioned the block these Glyphs are drawn on.
+	-- Read with the origin, exactly as the Step text elements read theirs — without it a
+	-- screenpack setting trialsteps.<layout>.localcoord would move the words into that
+	-- space and leave the Glyphs behind in this module's.
+	local own = cfgGet(join(path, 'localcoord'))
+	if own == nil then
+		own = cfgGet(join(origin, 'localcoord'))
+	end
+	local lc = sharedLocalcoord(path, own, sourceOf(path, 'localcoord', origin), origin)
+	-- Offset and spacing are lengths, so a default written in MODULE_LOCALCOORD is
+	-- converted into whatever space the block resolved into rather than used raw —
+	-- exactly as the block converts its own row spacing and padding.
+	local function length(key, default)
+		local out = numList(g(key), default)
+		if foreign and sourceOf(path, key) == 'defaults' then
+			return {
+				out[1] * lc[1] / MODULE_LOCALCOORD[1],
+				out[2] * lc[2] / MODULE_LOCALCOORD[2],
+			}
+		end
+		return out
+	end
+	local gl = {
+		path = path,
+		localcoord = {lc[1], lc[2]},
+		offset = length('offset', {0, 0}),
+		-- Only the first argument is read: a run is a row, and there is nothing for a
+		-- vertical gap between one Glyph and the next to mean.
+		spacing = length('spacing', {0, 0}),
+		scale = numList(g('scale'), {1, 1}),
+		align = numList(g('align'), {1})[1],
+		layerno = numList(g('layerno'), {0})[1],
+		-- One Anim per token per Step Status, built when a Trial that needs it is
+		-- selected. Per Step Status and not per token, because a palette effect belongs
+		-- to the Anim and not to the draw: see glyphAnim.
+		anims = {},
+		palfx = {},
+	}
+	for _, status in ipairs(STEP_STATUSES) do
+		gl.palfx[status] = readPalFX({'trials_mode', status .. 'step', layout, 'glyphs', 'palfx'})
+		gl.anims[status] = {}
+	end
+	return gl
+end
 
 -- Builds the Step block: the three Step Status text elements, plus the geometry they
 -- share — the origin rows lay out from, the spacing between them, and the window they
@@ -740,6 +835,8 @@ local function buildStepBlock(layout)
 	block.windowWithTextbox = normalize(windowWithTextbox, window)
 	block.activeWindow = block.window
 
+	block.glyphs = buildGlyphs(layout, path, foreign)
+
 	return block
 end
 
@@ -755,6 +852,100 @@ local function applyStepWindow(block, withTextbox)
 		-- Left at the build-time value it would describe the window the element was
 		-- constructed with rather than the one it is drawing under.
 		e.window = {w[1], w[2], w[3], w[4]}
+	end
+	-- Glyphs clip to the same rect the text they accompany does, so they follow it into
+	-- the with-Textbox variant rather than hanging outside the reshaped window.
+	if block.glyphs ~= nil then
+		for _, cache in pairs(block.glyphs.anims) do
+			for _, a in pairs(cache) do
+				if a ~= false then
+					animSetWindow(a, w[1], w[2], w[3], w[4])
+				end
+			end
+		end
+		block.glyphs.window = {w[1], w[2], w[3], w[4]}
+	end
+end
+
+-- Said once per run: see prepareGlyphs.
+local glyphsWarned = false
+
+-- The Anim one Glyph draws with, built once per token per Step Status per Layout and
+-- cached on the block. `false` marks a token this screenpack has no Glyph for, so the
+-- lookup that failed once is not retried every frame.
+--
+-- Built here rather than reusing motif.glyphs[token].AnimData, which is what the
+-- engine's own movelist draws with. That Anim is shared with the movelist and resolves
+-- in the screenpack's coordinate space rather than this module's, so drawing through it
+-- would both misplace the Glyph and leave this module's settings on it for the next
+-- Command List. The sprite comes from the same [Files] glyphs sff either way.
+--
+-- One per Step Status, rather than one per token drawn under whichever effect the Step
+-- needs, because a palette effect cannot be a per-draw setting. animDraw snapshots the
+-- Anim but the snapshot shares its PalFX pointer (src/script.go:1127), and the effect
+-- only reaches the draw through PalFX.step, which animUpdate runs once per Anim per
+-- frame — so a Step Status's effect set just before its draw would land on every other
+-- draw of that Glyph in the same frame. Bound to the Anim instead, it cannot.
+local function glyphAnim(block, status, token)
+	local gl = block.glyphs
+	local cache = gl.anims[status]
+	local cached = cache[token]
+	if cached ~= nil then
+		return cached ~= false and cached or nil
+	end
+	local g = type(motif.glyphs) == 'table' and motif.glyphs[token] or nil
+	-- menu.lua:887 guards on exactly this, and the absence of that guard is what #3
+	-- reported: a token the screenpack does not define has no sprite to draw and no
+	-- size to lay a run out from.
+	if g == nil or type(g.Spr) ~= 'table' or type(g.Size) ~= 'table'
+		or (tonumber(g.Size[2]) or 0) <= 0 then
+		cache[token] = false
+		return nil
+	end
+	local a = animNew(motif.GlyphsSff, g.Spr[1] .. ',' .. g.Spr[2] .. ', 0,0, -1')
+	animSetLocalcoord(a, gl.localcoord[1], gl.localcoord[2])
+	animSetLayerno(a, gl.layerno)
+	animSetWindow(a, block.activeWindow[1], block.activeWindow[2],
+		block.activeWindow[3], block.activeWindow[4])
+	animSetPalFX(a, gl.palfx[status])
+	cache[token] = a
+	return a
+end
+
+-- Builds the Anims the Steps of one Trial need, in both Layouts.
+--
+-- Called when the match moves to a Trial, not per frame, and for both Layouts at once
+-- so that switching Layout mid-match draws immediately. The per-frame path only ever
+-- looks a token up.
+local function prepareGlyphs(steps)
+	if trials.stepblocks == nil then
+		return
+	end
+	local asked, built = 0, 0
+	for _, block in pairs(trials.stepblocks) do
+		if block.glyphs ~= nil then
+			for _, step in ipairs(steps) do
+				for _, token in ipairs(step.glyphs) do
+					for _, status in ipairs(STEP_STATUSES) do
+						asked = asked + 1
+						if glyphAnim(block, status, token) ~= nil then
+							built = built + 1
+						end
+					end
+				end
+			end
+		end
+	end
+	-- A Trial that asked for Glyphs and got none of them. The likeliest cause is a
+	-- screenpack whose [Files] glyphs sff is missing or failed to load: the engine
+	-- substitutes an empty one (motif.go:2437) rather than reporting it, so every
+	-- token's sprite comes back sizeless and the run simply never draws. Said once,
+	-- not per Trial — the condition is a property of the screenpack, not of the Trial
+	-- that happened to reveal it.
+	if asked > 0 and built == 0 and not glyphsWarned then
+		glyphsWarned = true
+		print('Trials: this screenpack has no Glyph sprites for any token these Trials ' ..
+			'use — check [Files] glyphs. Steps still draw their text.')
 	end
 end
 
@@ -1261,12 +1452,86 @@ local function readPart(raw, index)
 	}
 end
 
+-- The lengths of the screenpack's Glyph tokens, longest first.
+--
+-- Longest first is the engine's own rule (menu.lua:769) and it is what makes tokenising
+-- work at all: `_D` is a prefix of `_DF`, so matching the shorter token first would
+-- swallow the longer one's head and leave its tail unrecognised.
+--
+-- Lengths rather than the tokens themselves, because motif.glyphs is already a table
+-- keyed by the raw token string — so trying one length is a single hash lookup, where
+-- trying every token in order is a comparison against each of the seventy-odd a stock
+-- screenpack ships, at every position of every Step of every Trial on the roster. The
+-- result is identical: the longest token that matches here is the one the engine's own
+-- ordered scan would have reached first.
+--
+-- Resolved once. motif.glyphs is fixed for the run.
+local glyphLengths = nil
+local function glyphTokenLengths()
+	if glyphLengths ~= nil then
+		return glyphLengths
+	end
+	glyphLengths = {}
+	local seen = {}
+	if type(motif.glyphs) == 'table' then
+		for token in pairs(motif.glyphs) do
+			-- An empty key would match everywhere and advance nowhere.
+			if type(token) == 'string' and #token > 0 and not seen[#token] then
+				seen[#token] = true
+				glyphLengths[#glyphLengths + 1] = #token
+			end
+		end
+	end
+	table.sort(glyphLengths, function(a, b) return a > b end)
+	return glyphLengths
+end
+
+-- The Glyphs one Step declares, as the tokens this screenpack knows.
+--
+-- Read at parse time rather than at draw time, so that a Step's notation is settled
+-- before the first frame and the per-frame path only lays out what is already resolved.
+--
+-- Anything matching no token is dropped rather than drawn or raised: a Trial Definition
+-- written against another screenpack's vocabulary keeps the Glyphs this one has and
+-- loses the rest, and a Trial Definition declaring no Glyphs at all is an empty list
+-- and not a missing one (#3). What was dropped is collected in `unknown` and reported
+-- once for the whole file.
+local function readGlyphs(raw, unknown)
+	local text = strValue(raw, '')
+	local lengths = glyphTokenLengths()
+	local out = {}
+	local i = 1
+	while i <= #text do
+		local matched = nil
+		for _, n in ipairs(lengths) do
+			local token = text:sub(i, i + n - 1)
+			if #token == n and motif.glyphs[token] ~= nil then
+				matched = token
+				break
+			end
+		end
+		if matched ~= nil then
+			out[#out + 1] = matched
+			i = i + #matched
+		else
+			local c = text:sub(i, i)
+			-- Whitespace separates tokens in some authored notations and stands for
+			-- nothing on screen, so it is not worth reporting.
+			if c:match('%S') then
+				unknown[c] = true
+			end
+			i = i + 1
+		end
+	end
+	return out
+end
+
 -- The Steps of one Trial, in Step-number order, each with its Parts resolved.
 --
 -- loadIni splits `trialstep.1.text` into nested tables keyed by the literal string
 -- '1' (setNestedLuaKey, src/script.go:450), so the list is a Lua hash and not an
 -- array — # would report 0 and ipairs would stop immediately. Rebuild it by number.
-local function readSteps(data)
+local function readSteps(data, unknown)
 	local raw = data.trialstep
 	if type(raw) ~= 'table' then
 		return {}
@@ -1292,6 +1557,9 @@ local function readSteps(data)
 		steps[#steps + 1] = {
 			number = entry.number,
 			text = strValue(localized(step.text), ''),
+			-- Not localized: a Glyph is a picture of an input and reads the same in
+			-- every language, so the key carries no language suffix the way text does.
+			glyphs = readGlyphs(step.glyphs, unknown),
 			parts = parts,
 			-- Gates the whole Step rather than one of its Parts, so it sits here.
 			validfor = readVarPairs(step.validforvarvalpairs),
@@ -1314,6 +1582,10 @@ local function readTrialDefinition(path)
 	end
 	local list = {}
 	local seen = {}
+	-- The characters no Glyph in this screenpack's vocabulary accounted for, gathered
+	-- across the whole file so that a Trial Definition written for another screenpack
+	-- costs one line of console rather than one per Step.
+	local unknown = {}
 	for _, name in ipairs(sectionOrder(path)) do
 		if name:lower():match('^trialdef') and ini[name] ~= nil then
 			if seen[name] then
@@ -1331,7 +1603,7 @@ local function readTrialDefinition(path)
 					-- before the first frame: it decides which window variant the Step
 					-- block clips to. Drawing the Textbox itself is #43.
 					textbox = strValue(localized(type(data.trial) == 'table' and data.trial.textbox or nil), ''),
-					steps = readSteps(data),
+					steps = readSteps(data, unknown),
 					-- Resolved here rather than at Trial start so the whole triple is
 					-- known before the first frame, and so it lands in the debug dump
 					-- with everything else the Trial Definition parsed to.
@@ -1349,6 +1621,15 @@ local function readTrialDefinition(path)
 				})
 			end
 		end
+	end
+	local dropped = {}
+	for c in pairs(unknown) do
+		dropped[#dropped + 1] = c
+	end
+	if #dropped > 0 then
+		table.sort(dropped)
+		print('Trials: ' .. path .. ' names glyphs this screenpack has none for (' ..
+			table.concat(dropped, ' ') .. ') — those are skipped, the rest still draw.')
 	end
 	return list, nil
 end
@@ -1674,6 +1955,10 @@ local function selectTrial(index)
 	m.current = index
 	local trial = m.trials[index]
 	m.steps = type(trial) == 'table' and trial.steps or {}
+	-- The Anims this Trial's Glyphs draw with, in both Layouts. Here rather than at
+	-- draw time so that nothing is constructed on the per-frame path, and so that
+	-- switching Layout mid-match draws the Glyphs immediately.
+	prepareGlyphs(m.steps)
 	m.textbox = trialTextbox(m, index)
 	resetProgress(m)
 	m.trialTicks = 0
@@ -3005,17 +3290,142 @@ local function stepStatus(index, step)
 	return 'upcoming'
 end
 
+-- How big one Glyph draws beside a given Step Status.
+--
+-- The engine's own formula (menu.lua:891): the Glyph is scaled so that its sprite
+-- height matches the height of the font drawing the Step, times that element's own text
+-- scale, times the configured multiplier. Both axes take the height ratio, so the
+-- sprite keeps its proportions — and a Step Status a screenpack styles larger carries
+-- its Glyphs up with it, which is what makes the run read as part of the Step.
+--
+-- nil where the size cannot be known: an element whose font never resolved has no
+-- height to scale against, and a run that cannot be sized is skipped rather than drawn
+-- at a guess.
+local function glyphScale(block, e, token)
+	local g = type(motif.glyphs) == 'table' and motif.glyphs[token] or nil
+	local size = e.fontdef ~= nil and e.fontdef.Size or nil
+	if g == nil or type(g.Size) ~= 'table' or size == nil then
+		return nil
+	end
+	local height = tonumber(size[2]) or 0
+	local sprite = tonumber(g.Size[2]) or 0
+	if height <= 0 or sprite <= 0 then
+		return nil
+	end
+	local base = height * e.scale[2] / sprite
+	local gl = block.glyphs
+	return base * gl.scale[1], base * gl.scale[2]
+end
+
+-- Walks one Step's Glyphs along a row, left to right, and returns how wide the run is.
+--
+-- With `fn`, each Glyph is handed back as it is reached, with how far along the run it
+-- sits and how big it draws. Measuring and drawing are therefore the same walk, so a
+-- run can never be measured one way and drawn another — which matters in the horizontal
+-- Layout, where the measurement is what reserves the room the drawing then uses.
+--
+-- A token this screenpack has no Glyph for contributes nothing and does not break the
+-- walk: it is skipped, exactly as menu.lua:887 skips it.
+local function glyphRun(block, status, glyphs, fn)
+	local gl = block.glyphs
+	local e = block.text[status]
+	local cache = gl.anims[status]
+	local x = 0
+	local drawn = 0
+	for _, token in ipairs(glyphs) do
+		local a = cache[token]
+		local sx, sy = glyphScale(block, e, token)
+		if a and sx ~= nil then
+			if fn ~= nil then
+				fn(a, x, sx, sy)
+			end
+			x = x + (tonumber(motif.glyphs[token].Size[1]) or 0) * sx + gl.spacing[1]
+			drawn = drawn + 1
+		end
+	end
+	-- Spacing sits between Glyphs, not after the last one.
+	if drawn > 0 then
+		x = x - gl.spacing[1]
+	end
+	return x
+end
+
+-- What one Step's Glyphs add to the width of its item in the horizontal Layout: the run
+-- itself, plus the offset that holds it off the words.
+--
+-- A Step declaring no Glyphs adds nothing at all — not the offset either. That is what
+-- keeps a text-only Trial flowing as though the feature were not there, rather than
+-- laying out around a gap it never fills.
+local function glyphWidth(block, status, step)
+	local gl = block.glyphs
+	if gl == nil or step.glyphs == nil or #step.glyphs == 0 then
+		return 0
+	end
+	local width = glyphRun(block, status, step.glyphs)
+	if width <= 0 then
+		return 0
+	end
+	return gl.offset[1] + width
+end
+
+-- Draws one Step's Glyphs, as a run laid out from where that Step sits.
+--
+-- Where the run is anchored differs by Layout, because the two put a Step in a
+-- different kind of place. Every vertical row starts at the block's origin, so the
+-- offset is measured from there and the run stands as a column beside text of varying
+-- length. A horizontal Step sits wherever the flow put it, so the offset is measured
+-- from the end of that Step's own text and the run follows the words.
+local function drawGlyphs(block, status, step, x, y)
+	local gl = block.glyphs
+	local glyphs = step.glyphs
+	if gl == nil or glyphs == nil or #glyphs == 0 then
+		return
+	end
+	local e = block.text[status]
+	local width = glyphRun(block, status, glyphs)
+	if width <= 0 then
+		return
+	end
+	local anchor = block.pos[1] + gl.offset[1] + x
+	if block.layout == 'horizontal' then
+		anchor = anchor + textImgGetTextWidth(e.TextSpriteData, step.text) * e.scale[1]
+	end
+	-- Vertical only: see buildGlyphs. The horizontal run always grows right from the
+	-- text it follows, which is the direction glyphWidth reserves room in.
+	if block.layout ~= 'horizontal' then
+		if gl.align == 0 then
+			anchor = anchor - width / 2
+		elseif gl.align == -1 then
+			anchor = anchor - width
+		end
+	end
+	local top = block.pos[2] + gl.offset[2] + y
+	glyphRun(block, status, glyphs, function(a, dx, sx, sy)
+		animSetScale(a, sx, sy)
+		animSetPos(a, anchor + dx, top)
+		-- Neither reset nor palfx here. animReset would clear the effect the Anim was
+		-- built with (Anim.Reset calls palfx.clear, src/anim.go:2365), and animUpdate is
+		-- what carries that effect through to the draw — it advances at most once per
+		-- Anim per frame, so calling it before each of a Glyph's several draws costs
+		-- nothing. animDraw snapshots the Anim, so the position just set is the one this
+		-- draw uses even though the next Step moves the same Anim again.
+		animUpdate(a)
+		animDraw(a)
+	end)
+end
+
 -- Draws one Step, with the element for the Step Status it currently has.
 --
 -- Nothing is constructed here. Each row is the engine's own list idiom
 -- (main.f_drawMenu, main.lua:3811): reset the element to the position it was built at,
--- add the row's offset, set the text, draw.
-local function drawStep(block, status, text, x, y)
+-- add the row's offset, set the text, draw. The Step's Glyphs then draw beside it.
+local function drawStep(block, status, step, x, y)
 	local ts = block.text[status].TextSpriteData
 	textImgReset(ts)
 	textImgAddPos(ts, x, y)
-	textImgSetText(ts, text)
+	textImgSetText(ts, step.text)
 	textImgDraw(ts)
+	drawGlyphs(block, status, step, x, y)
 end
 
 -- The vertical Layout: one Step per row, stacked from the block's origin one spacing
@@ -3050,7 +3460,7 @@ local function drawStepsVertical(block, steps, step, shift)
 	end
 
 	for i = first, last do
-		drawStep(block, stepStatus(i, step), steps[i].text,
+		drawStep(block, stepStatus(i, step), steps[i],
 			shift[1] + spacing[1] * (i - first), shift[2] + spacing[2] * (i - first))
 	end
 end
@@ -3061,10 +3471,11 @@ end
 --
 -- Measured, not guessed: a Step's width is its own text through the engine's
 -- textImgGetTextWidth, times the scale of the element that draws it, exactly as the
--- engine's own movelist measures its lines (menu.lua:928). Which element that is depends
--- on the Step Status, so the row reflows as the player advances — which is the point:
--- a Step Status the screenpack styles at a different scale takes a different amount of
--- room, and pretending otherwise would leave the row overlapping itself.
+-- engine's own movelist measures its lines (menu.lua:928), plus whatever its Glyphs add
+-- beside it. Which element that is depends on the Step Status, so the row reflows as the
+-- player advances — which is the point: a Step Status the screenpack styles at a
+-- different scale takes a different amount of room, and pretending otherwise would leave
+-- the row overlapping itself.
 local function drawStepsHorizontal(block, steps, step, shift)
 	local spacing = block.spacing
 	local padding = block.padding
@@ -3091,7 +3502,8 @@ local function drawStepsHorizontal(block, steps, step, shift)
 	for i = 1, #steps do
 		local e = block.text[stepStatus(i, step)]
 		local width = padding * 2 +
-			textImgGetTextWidth(e.TextSpriteData, steps[i].text) * e.scale[1]
+			textImgGetTextWidth(e.TextSpriteData, steps[i].text) * e.scale[1] +
+			glyphWidth(block, stepStatus(i, step), steps[i])
 		-- `x > 0` is what keeps a Step wider than the whole row from wrapping forever:
 		-- it has nowhere to go, so it starts its own row and the window clips it.
 		if x > 0 and available > 0 and x + width > available then
@@ -3122,7 +3534,7 @@ local function drawStepsHorizontal(block, steps, step, shift)
 	for i = 1, #steps do
 		local at = placement[i]
 		if at.row >= first and at.row <= last then
-			drawStep(block, stepStatus(i, step), steps[i].text,
+			drawStep(block, stepStatus(i, step), steps[i],
 				shift[1] + at.x + padding, shift[2] + spacing[2] * (at.row - first))
 		end
 	end
@@ -3379,11 +3791,52 @@ local function copySteps(steps)
 		out[i] = {
 			number = step.number,
 			text = step.text,
+			-- Flattened for the reason the Part lists above are: a list, not a table,
+			-- is what makes the tokens assertable without reasoning about which side of
+			-- the dump f_printTable elided. Empty is a Step that declares no Glyphs,
+			-- which is a supported Trial Definition and not a parse failure (#3).
+			glyphs = table.concat(step.glyphs, '|'),
+			glyphCount = #step.glyphs,
 			partCount = #step.parts,
 			parts = parts,
 		}
 	end
 	return out
+end
+
+-- The Glyph geometry of one Step block, and what its Anim cache resolved to.
+--
+-- Counted rather than listed: the cache holds one entry per token the Trials of the
+-- selected character use, and how many of them this screenpack knows is the whole of
+-- what a dump can say about Glyphs without a screenshot.
+local function glyphState(block)
+	local gl = block.glyphs
+	if gl == nil then
+		return nil
+	end
+	-- One Step Status answers for all three: prepareGlyphs builds every token under
+	-- each of them, so the three caches hold the same tokens and differ only in the
+	-- palette effect their Anims carry.
+	local known, unknown = 0, 0
+	for _, a in pairs(gl.anims.current or {}) do
+		if a == false then
+			unknown = unknown + 1
+		else
+			known = known + 1
+		end
+	end
+	return {
+		offset = gl.offset,
+		scale = gl.scale,
+		spacing = gl.spacing,
+		align = gl.align,
+		layerno = gl.layerno,
+		-- Copied for the reason the block's own localcoord is: it is the same table
+		-- its elements carry, and f_printTable elides a table it has already printed.
+		localcoord = {gl.localcoord[1], gl.localcoord[2]},
+		known = known,
+		unknown = unknown,
+	}
 end
 
 -- The pause menu's items in the order the engine resolved them to, as one string. A
@@ -3508,6 +3961,12 @@ function trials.f_dumpState()
 				trials.stepblock.activeWindow[1], trials.stepblock.activeWindow[2],
 				trials.stepblock.activeWindow[3], trials.stepblock.activeWindow[4],
 			},
+			-- Where the Glyphs accompanying a Step sit, and how many of the current
+			-- Trial's tokens this screenpack actually has a Glyph for. `unknown` is the
+			-- diagnosis a blank run needs: a Trial Definition written against another
+			-- screenpack's vocabulary reads as a count here rather than as nothing on
+			-- screen.
+			glyphs = glyphState(trials.stepblock),
 		} or nil,
 		chars = chars,
 		-- The live match: which Trial and Step the player is on, how far through the

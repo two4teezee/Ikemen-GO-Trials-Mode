@@ -178,6 +178,86 @@ completedstep.horizontal.text.offset = 0, 0
 ; completedstep.horizontal.text.scale =
 ; completedstep.horizontal.text.font.height =
 
+; COMMAND GLYPHS ------------------------------------------------------------------
+; The icons drawn beside a Step's text, standing in for the inputs its words describe.
+; They come from the screenpack's own [Glyphs] vocabulary — the same one the engine's
+; movelists use — so a Trial Definition writing `trialstep.1.glyphs = _QCF^P` gets the
+; quarter-circle-forward and punch icons that screenpack already ships. A Step that
+; declares no Glyphs draws as text alone, and a token this screenpack has no Glyph for
+; is skipped rather than drawn.
+;
+; scale is a MULTIPLIER, not a size. A Glyph stands in for a word of the Step beside it,
+; so it is sized from that Step Status's own font height and text scale — the engine
+; sizes its movelist glyphs the same way — and this is applied on top. A Step Status a
+; screenpack styles larger therefore carries its Glyphs up with it.
+;
+; align is the engine's own three: 1 grows the run right from its anchor, -1 ends it
+; there, 0 centres it on it. It is the vertical Layout's alone, because aligning against
+; an anchor only means something where the anchor stands still — see below.
+;
+; Where the run is anchored differs by Layout, because the two put a Step in a different
+; kind of place:
+;
+;   vertical   — every row starts at trialsteps.vertical.pos, so offset is measured from
+;                there. The run is a column beside text of varying length, which is what
+;                the shipped right-aligned default makes of it.
+;   horizontal — a Step sits wherever the flow put it, so offset is measured from the end
+;                of that Step's own text and the run follows the words, always growing
+;                right. It is also what separates the two, and a Step with no Glyphs is
+;                laid out without it.
+;
+; spacing reads its first argument only: a run is a row, and there is nothing for a
+; vertical gap between one Glyph and the next to mean.
+;
+; The y offset is a nudge, and 2 is the engine's own for the same job — its movelist
+; ships movelist.glyphs.offset = 0, 2 in this same space. It is needed because text and
+; sprites are positioned from different places: a sprite font draws its line above the y
+; it is given (src/font.go:636) while a Glyph's Anim draws from its sprite axis, so the
+; two only line up once the difference between them is spelled here. Expect to tune it
+; for a screenpack whose font height or glyph axis differs from the stock one.
+;
+; offset and spacing are in 320x240, this file's own space (see trials.localcoord above).
+; -----------------------------------------------------------------------------------
+glyphs.vertical.offset = 230, 2
+glyphs.vertical.scale = 1, 1
+glyphs.vertical.spacing = 1, 0
+glyphs.vertical.align = -1
+glyphs.vertical.layerno = 0
+; glyphs.vertical.localcoord =
+
+glyphs.horizontal.offset = 3, 2
+glyphs.horizontal.scale = 1, 1
+glyphs.horizontal.spacing = 1, 0
+glyphs.horizontal.layerno = 0
+; glyphs.horizontal.localcoord =
+
+; GLYPH PALETTE EFFECTS -------------------------------------------------------------
+; A Step Status styles its text by font and colour; this is how it styles the Glyphs
+; drawn beside that text, so that upcoming, current and completed read apart as icons
+; too. The keys are the engine's own palfx: add and mul are r,g,b; sinadd is r,g,b and
+; a period; invertall is 0 or 1; color is 0-256, where 256 is the sprite's own colour
+; and 0 is greyscale.
+;
+; The shipped muls are the grey levels the three Step Statuses already dim their text
+; by above — 180, 255, 110 — so that a completed Step reads as completed all the way
+; across rather than dimming its words and leaving its icons bright. 256 is neutral, so
+; a screenpack that would rather its Glyphs never be tinted sets these to 256, 256, 256.
+; -----------------------------------------------------------------------------------
+upcomingstep.vertical.glyphs.palfx.mul = 180, 180, 180
+currentstep.vertical.glyphs.palfx.mul = 255, 255, 255
+completedstep.vertical.glyphs.palfx.mul = 110, 110, 110
+; upcomingstep.vertical.glyphs.palfx.color =
+; upcomingstep.vertical.glyphs.palfx.add =
+; upcomingstep.vertical.glyphs.palfx.sinadd =
+; upcomingstep.vertical.glyphs.palfx.invertall =
+
+upcomingstep.horizontal.glyphs.palfx.mul = 180, 180, 180
+currentstep.horizontal.glyphs.palfx.mul = 255, 255, 255
+completedstep.horizontal.glyphs.palfx.mul = 110, 110, 110
+; upcomingstep.horizontal.glyphs.palfx.color =
+; currentstep.horizontal.glyphs.palfx.color =
+; completedstep.horizontal.glyphs.palfx.color =
+
 ; TRIAL TIMERS --------------------------------------------------------------------
 ; Two stopwatches, both counting up: totaltrialtimer since the match began,
 ; currenttrialtimer since the current Trial started. Both freeze on All-Clear.

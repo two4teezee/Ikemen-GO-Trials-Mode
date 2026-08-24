@@ -763,6 +763,53 @@ def run_checks(tree, quiet=False):
     c.check("a comma-separated Step parsed to several Parts",
             bool([st for st in dumped_steps if (st.get("partCount") or 0) > 1]), True)
 
+    c._print("\nGlyphs beside the Step text (#42, closes #3)")
+    # Tokenised at parse time against the screenpack's [Glyphs] vocabulary, so what a
+    # Step resolved to is assertable from the startup dump with no interaction.
+    c.check("every Step resolved its Glyphs to a list, declared or not",
+            [st for st in dumped_steps if not isinstance(st.get("glyphs"), str)], [])
+    c.check("Steps declaring Glyphs tokenised to at least one",
+            bool([st for st in dumped_steps if (st.get("glyphCount") or 0) > 0]), True)
+    # The whole of #3: a Step with no Glyphs is an empty list and not a missing one, and
+    # the horizontal Layout lays such a Step out with no room reserved for them. There is
+    # nothing here to assert on a roster where every Step declares Glyphs, so say so
+    # rather than pass on an absent case.
+    bare = [st for st in dumped_steps if (st.get("glyphCount") or 0) == 0]
+    if bare:
+        c.check("a Step declaring no Glyphs parsed to an empty list, not a nil",
+                [st for st in bare if st.get("glyphs") != ""], [])
+    else:
+        c.skip("a Step declaring no Glyphs parsed to an empty list, not a nil",
+               "every Step on this roster declares Glyphs")
+    # A token count that disagrees with the tokens is the tokeniser losing one silently,
+    # which on screen is a run one Glyph short and nothing else.
+    c.check("the token count matches the tokens",
+            [st for st in dumped_steps
+             if (st.get("glyphCount") or 0) != len([t for t in str(st.get("glyphs") or "").split("|") if t])],
+            [])
+
+    glyphs = dig(block, "glyphs") if block else None
+    c.present("Glyph geometry resolved for the Layout in use", glyphs)
+    if glyphs and not c.unreadable("Glyph geometry is its own", glyphs):
+        c.present("  run offset resolved", dig(glyphs, "offset"))
+        c.present("  run spacing resolved", dig(glyphs, "spacing"))
+        c.check("  scale is a multiplier, so it defaults to 1",
+                list((dig(glyphs, "scale") or {}).values()), [1, 1])
+        c.check("  align is one the run knows",
+                dig(glyphs, "align") in (-1, 0, 1), True)
+        # Counted over the Trials of the character the match is on, so it is empty until
+        # a match has selected one. An unknown token is not a failure — a Trial
+        # Definition written for another screenpack is a supported case — but it is the
+        # first thing to read when a run draws short.
+        known, unknown = dig(glyphs, "known"), dig(glyphs, "unknown")
+        if (known or 0) + (unknown or 0) == 0:
+            c.skip("the screenpack has a Glyph for the tokens in use",
+                   "no Trial selected in this dump, so no tokens were resolved")
+        else:
+            c._print(f"      ({known} of {(known or 0) + (unknown or 0)} tokens have a "
+                     f"Glyph in this screenpack)")
+            c.check("the screenpack has a Glyph for the tokens in use", unknown, 0)
+
     all_parts = [pt for st in dumped_steps for pt in (st.get("parts") or {}).values()
                  if isinstance(pt, dict)]
     c.check("Parts were found to check", bool(all_parts), True)
