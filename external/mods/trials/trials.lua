@@ -465,7 +465,7 @@ local function sharedLocalcoord(path, own, ownSource, origin)
 		return numList(cfgGet({'trials_mode', 'trials', 'localcoord'}), fallback)
 	end
 	-- Copied: MODULE_LOCALCOORD is a constant every element would otherwise share one
-	-- table with, and f_printTable elides a table it has already printed, so the second
+	-- table with, and the dump elides a table it has already printed, so the second
 	-- element onwards would report no localcoord at all in the dump.
 	return {fallback[1], fallback[2]}
 end
@@ -789,8 +789,8 @@ local function buildStepBlock(layout)
 	-- The origin rows lay out from, kept because the window alone does not say where
 	-- the list starts: the two are configured independently.
 	block.pos = pos
-	-- Copied for the reason sharedLocalcoord copies its own: f_printTable elides a table
-	-- it has already printed, and this is the same one the block's elements carry.
+	-- Copied for the reason sharedLocalcoord copies its own: the dump elides a table it
+	-- has already printed, and this is the same one the block's elements carry.
 	block.localcoord = {lc[1], lc[2]}
 
 	-- textImgSetWindow ignores an all-zero rect (src/font.go:915), so a window can be
@@ -3750,11 +3750,94 @@ end)
 -- Every non-visual assertion reads this file. See the umbrella spec for why there is
 -- exactly one of these and not one per concern.
 --
--- main.f_fileWrite panicErrors when the target directory is missing, which would kill
--- the game rather than skip a debug dump, so the write is guarded.
+-- Written through the module's own serializer rather than main.f_printTable, which
+-- produces the same bytes but builds them with `txt = txt .. line` — a copy of
+-- everything written so far, once per line. The dump is around half a megabyte, and in
+-- the engine's own VM that quadratic growth measures ~150ms. f_dumpState runs on the
+-- frame a Trial is completed, so the player wore all of it as a hitch on the hit that
+-- closed the Trial out (#58). Buffered, the same dump takes under a millisecond.
+--
+-- io.open is called here rather than through main.f_fileWrite because that one
+-- panicErrors on a missing target directory, which would kill the game rather than
+-- skip a debug dump. Erroring instead leaves it to the pcall f_dumpState already has.
+
+-- How many buffer entries one table.concat may span.
+--
+-- Not a tuning knob: gopher-lua's table.concat pushes every element it joins onto the
+-- VM stack, and a dump this size overflows the registry long before it runs out of
+-- entries. Joining in bounded blocks and then joining the blocks keeps every individual
+-- concat small, and stays linear in total.
+local CONCAT_CHUNK = 256
+
+-- Joins buf[1..n] into one string, a block at a time, until one string is left.
+local function joinChunked(buf, n)
+	while n > 1 do
+		local out, on = {}, 0
+		for i = 1, n, CONCAT_CHUNK do
+			on = on + 1
+			out[on] = table.concat(buf, '', i, math.min(i + CONCAT_CHUNK - 1, n))
+		end
+		buf, n = out, on
+	end
+	return n == 1 and buf[1] or ''
+end
+
+-- Writes `t` to `path` in main.f_printTable's format, byte for byte.
+--
+-- The format is load-bearing — tools/check-trials-dump.py parses it, including the
+-- `*table: 0x…` line that marks a table already printed elsewhere — so every branch
+-- below mirrors main.lua:113 exactly. The only difference is where the pieces go: into
+-- a buffer that is joined once at the end, rather than onto the end of a string that is
+-- copied every time.
+local function printTable(t, path)
+	local buf, n = {}, 0
+	local function put(s)
+		n = n + 1
+		buf[n] = s
+	end
+	local printed = {}
+	local function walk(t, indent)
+		if printed[tostring(t)] then
+			put(indent) put('*') put(tostring(t)) put('\n')
+			return
+		end
+		printed[tostring(t)] = true
+		if type(t) ~= 'table' then
+			put(indent) put(tostring(t)) put('\n')
+			return
+		end
+		for pos, val in pairs(t) do
+			local k = (type(pos) == 'string') and ('[' .. string.format('%q', pos) .. ']')
+				or ('[' .. tostring(pos) .. ']')
+			if type(val) == 'table' then
+				put(indent) put(k) put(' => ') put(tostring(val)) put(' {\n')
+				walk(val, indent .. string.rep(' ', string.len(k) + 6))
+				put(indent) put(string.rep(' ', string.len(k) + 4)) put('}\n')
+			elseif type(val) == 'string' then
+				put(indent) put(k) put(' => "') put(val) put('"\n')
+			else
+				put(indent) put(k) put(' => ') put(tostring(val)) put('\n')
+			end
+		end
+	end
+	if type(t) == 'table' then
+		put(tostring(t)) put(' {\n')
+		walk(t, '  ')
+		put('}\n')
+	else
+		walk(t, '  ')
+	end
+	local file = io.open(path, 'w+')
+	if file == nil then
+		error("could not open " .. path)
+	end
+	file:write(joinChunked(buf, n))
+	file:close()
+end
+
 -- The parsed Steps of one Trial, flattened into scalars.
 --
--- Copied and not referenced: f_printTable prints a table once and back-references it
+-- Copied and not referenced: the dump prints a table once and back-references it
 -- everywhere else, and these same tables are reachable through `match` — referenced,
 -- whichever side printed second would dump as an empty block and every assertion
 -- against it would pass by default (#50).
@@ -3793,8 +3876,8 @@ local function copySteps(steps)
 			text = step.text,
 			-- Flattened for the reason the Part lists above are: a list, not a table,
 			-- is what makes the tokens assertable without reasoning about which side of
-			-- the dump f_printTable elided. Empty is a Step that declares no Glyphs,
-			-- which is a supported Trial Definition and not a parse failure (#3).
+			-- the dump elided. Empty is a Step that declares no Glyphs, which is a
+			-- supported Trial Definition and not a parse failure (#3).
 			glyphs = table.concat(step.glyphs, '|'),
 			glyphCount = #step.glyphs,
 			partCount = #step.parts,
@@ -3832,7 +3915,7 @@ local function glyphState(block)
 		align = gl.align,
 		layerno = gl.layerno,
 		-- Copied for the reason the block's own localcoord is: it is the same table
-		-- its elements carry, and f_printTable elides a table it has already printed.
+		-- its elements carry, and the dump elides a table it has already printed.
 		localcoord = {gl.localcoord[1], gl.localcoord[2]},
 		known = known,
 		unknown = unknown,
@@ -3909,7 +3992,7 @@ function trials.f_dumpState()
 						life = v.life,
 						-- What each Step actually verifies against, Part by Part.
 						-- Copied out rather than referenced, for the same reason the
-						-- Dummy settings below are: f_printTable elides a table it has
+						-- Dummy settings below are: the dump elides a table it has
 						-- already printed, and the parsed Steps are reachable again
 						-- through `match` (#50).
 						steps = copySteps(v.steps),
@@ -3933,7 +4016,7 @@ function trials.f_dumpState()
 		}
 	end
 
-	local ok, err = pcall(function() main.f_printTable({
+	local ok, err = pcall(function() printTable({
 		dir = trials.dir,
 		enabled = trials.enabled,
 		language = trials.language,
@@ -3955,7 +4038,7 @@ function trials.f_dumpState()
 			window = trials.stepblock.window,
 			windowWithTextbox = trials.stepblock.windowWithTextbox,
 			shiftWithTextbox = trials.stepblock.shift,
-			-- Copied, not referenced: f_printTable elides a table it has already
+			-- Copied, not referenced: the dump elides a table it has already
 			-- printed, and this one is usually the same table as `window`.
 			activeWindow = {
 				trials.stepblock.activeWindow[1], trials.stepblock.activeWindow[2],
@@ -4025,7 +4108,7 @@ function trials.f_dumpState()
 		},
 		-- What is actually in the shared training maps, and the Trial it came from.
 		--
-		-- Copied scalar by scalar, not referenced: f_printTable elides a table it has
+		-- Copied scalar by scalar, not referenced: the dump elides a table it has
 		-- already printed, and this is the very same table as that Trial's settings
 		-- under `chars` above — referenced, it would dump as an empty block and every
 		-- assertion against it would pass by default.
@@ -4043,7 +4126,7 @@ function trials.f_dumpState()
 		-- What was actually written to the reposition and life maps, and the Trial it
 		-- came from. Copied scalar by scalar rather than referenced, for the reason
 		-- dummyWritten is: this is the same data as that Trial's `positions` and `life`
-		-- under `chars` above, and f_printTable elides a table it has already printed.
+		-- under `chars` above, and the dump elides a table it has already printed.
 		setupWritten = trials.match ~= nil and trials.match.setup ~= nil and {
 			trial = trials.match.setup.trial,
 			corner = trials.match.setup.corner,
