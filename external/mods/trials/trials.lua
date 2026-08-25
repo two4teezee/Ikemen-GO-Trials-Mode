@@ -659,9 +659,6 @@ local function buildAnim(path, sff, origin)
 	animSetWindow(a, geo.window[1], geo.window[2], geo.window[3], geo.window[4])
 	animSetLayerno(a, geo.layerno)
 
-	-- Trials keeps its own key here: the engine has no per-element display time.
-	geo.displaytime = numList(g('displaytime'), {-1})[1]
-
 	-- One forced update, the way the engine's own element builder does it
 	-- (src/iniutils.go:2093-2096). animNew leaves the Animation with no current sprite:
 	-- only UpdateSprite sets one (src/anim.go:684), and that runs from Action, which
