@@ -216,10 +216,10 @@ completedstep.horizontal.text.offset = 0, 0
 ; with it comes along. trials.sff is only ever loaded if something still resolves to it,
 ; so a screenpack that styles every element of its own never pays for a second copy.
 ;
-; `anim = N` works the same way, resolving against trials.air here or against your own
-; [Begin Action N] in your screenpack. Note that a screenpack's actions do not currently
-; reach a Lua module at all — the engine's action table is unexported — so `spr` is the
-; route to use in your own system.def, and is what everything below uses.
+; `spr` and not `anim`, on both sides. Every element here is one static sprite, so the
+; module ships no .air; and a screenpack's own [Begin Action N] cannot reach a Lua module
+; at all, because the engine's action table is unexported. Writing `anim = N` here draws
+; nothing and says so in the console. Use `spr = group, index`.
 ;
 ; THE HORIZONTAL LAYOUT'S THREE PIECES. A vertical row is a fixed-width slot, so its
 ; background is one sprite drawn where the row is. A horizontal Step is only as wide as
