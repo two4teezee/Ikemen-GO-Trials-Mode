@@ -29,6 +29,28 @@ menu.itemname.trials = "TRIALS"
 ; that already sets it keeps working without an edit.
 nodata.text = "No trials available for this character."
 
+; SELECT SCREEN --------------------------------------------------------------------
+; The palette effect applied to the cell portrait of every character that ships NO Trial
+; Definition, for as long as Trials Mode is the mode being selected for. It is how a
+; player sees at a glance who has content, and it is taken off again on the way out, so
+; nothing here follows the player into another mode.
+;
+; The five keys are the engine's own palfx vocabulary and mean exactly what they mean on
+; any other element: mul and color are out of 256, where 256 is neutral, and color = 0
+; is fully greyscale. What ships below is a dimmed greyscale portrait — recognisable,
+; obviously not selectable-for-trials. Set mul = 256, 256, 256 and color = 256 to turn
+; the whole thing off.
+;
+; Only the small grid portraits are affected. The large face portrait of the character
+; under the cursor is drawn from a different anim and is left alone deliberately: it is
+; the one place a player looks to identify who they are hovering over.
+; -----------------------------------------------------------------------------------
+selscreenpalfx.mul = 100, 100, 100
+selscreenpalfx.color = 0
+; selscreenpalfx.add =
+; selscreenpalfx.sinadd =
+; selscreenpalfx.invertall =
+
 ; SHARED --------------------------------------------------------------------------
 ; Settings more than one trials element reads live here rather than being repeated on
 ; each of them. An element may still carry its own value where it genuinely needs a
@@ -262,6 +284,49 @@ trialsteps.horizontal.bg.offset = -5, -4
 trialsteps.horizontal.bg.layerno = 0
 ; trialsteps.horizontal.bg.scale =
 ; trialsteps.horizontal.bg.facing =
+
+; THE STEP BLOCK OVERLAY -------------------------------------------------------------
+; A flat panel drawn under everything else the Step block draws: the plain colour at an
+; alpha that makes Step text readable over a busy stage without anyone having to draw a
+; sprite for it. Same five keys the engine's own menu overlays take.
+;
+; OFF unless you set visible = true. The module already ships artwork behind the Steps
+; (trialsteps.<layout>.bg above), and a panel underneath it would darken a background
+; authored at the alpha it wanted. This is for a screenpack that clears that artwork and
+; wants a panel instead — which is the cheapest way to style this mode.
+;
+; A rect has no position: its WINDOW is its whole geometry, X1,Y1, X2,Y2. Leave the
+; window out and it takes the Step block's own, in both variants — so a panel that
+; covers exactly the Steps costs one line, and follows the block if you move it. Set
+; window and it is yours, in the same coordinate space as the pos that positioned the
+; block; window.withtextbox is the variant used for a Trial that carries a Textbox, and
+; falls back to the plain one.
+;
+; alpha is src, dst, the engine's own additive pair: 0, 128 is the half-transparent
+; panel most screenpacks want, 255, 0 is opaque, and 0, 255 contributes nothing and is
+; invisible. col is r, g, b.
+;
+; Setting visible = true and nothing else gives you the 0, 128 panel in black. The
+; engine's own default for an overlay's alpha is 0, 255 — invisible — which would make
+; the one key that turns this on do nothing at all, so this key carries its own.
+;
+; It draws under the block background and under each Step's own, at its own layerno.
+; -----------------------------------------------------------------------------------
+; trialsteps.vertical.bg.overlay.visible = false
+; trialsteps.vertical.bg.overlay.col = 0, 0, 0
+; trialsteps.vertical.bg.overlay.alpha = 0, 128
+; trialsteps.vertical.bg.overlay.window =
+; trialsteps.vertical.bg.overlay.window.withtextbox =
+; trialsteps.vertical.bg.overlay.layerno = 0
+; trialsteps.vertical.bg.overlay.localcoord =
+
+; trialsteps.horizontal.bg.overlay.visible = false
+; trialsteps.horizontal.bg.overlay.col = 0, 0, 0
+; trialsteps.horizontal.bg.overlay.alpha = 0, 128
+; trialsteps.horizontal.bg.overlay.window =
+; trialsteps.horizontal.bg.overlay.window.withtextbox =
+; trialsteps.horizontal.bg.overlay.layerno = 0
+; trialsteps.horizontal.bg.overlay.localcoord =
 
 ; One plate per row in the vertical Layout, the same sprite under all three Step
 ; Statuses and told apart by its palfx alone — which is what keeps the list reading as
@@ -561,9 +626,14 @@ currenttrialtimer.framespercount = 60
 ; carries no sounds of its own, and a screenpack's snd numbers are the screenpack's to
 ; choose.
 ;
-; The .bg and .front animation layers, and the fades that accompany them, are not read
-; yet — they arrive with the rest of the presentation layer. Configuring them now does
-; nothing; nothing is broken by leaving them in a screenpack that already has them.
+; The .bg and .front animation layers are not read. The banner is its words and its
+; sound; a screenpack wanting artwork behind SUCCESS draws it from the trials background
+; below, which is a full background definition and can do considerably more. Configuring
+; them does nothing, and nothing is broken by leaving them in a screenpack that has them.
+;
+; The fade that follows a Success is the reposition fade further down — fadeout.* and
+; fadein.* — not a banner setting. It runs after the banner, not under it, and only when
+; the player's Reset on Success preference is on.
 ;
 ; pos is in 320x240, this file's own space (see trials.localcoord above).
 ; -----------------------------------------------------------------------------------
@@ -575,8 +645,8 @@ success.text.offset = 0, 0
 success.text.scale = 2, 2
 success.text.displaytime = 70
 ; success.text.font.height =
-; success.bg.anim =        ; not read yet
-; success.front.anim =     ; not read yet
+; success.bg.anim =        ; not read
+; success.front.anim =     ; not read
 
 allclear.pos = 160, 100
 allclear.snd = -1, 0
@@ -586,8 +656,8 @@ allclear.text.offset = 0, 0
 allclear.text.scale = 2, 2
 allclear.text.displaytime = 120
 ; allclear.text.font.height =
-; allclear.bg.anim =       ; not read yet
-; allclear.front.anim =    ; not read yet
+; allclear.bg.anim =       ; not read
+; allclear.front.anim =    ; not read
 
 ; REPOSITIONING --------------------------------------------------------------------
 ; The pair is placed at the positions the Trial asked for (trial.playerpos and
@@ -608,8 +678,23 @@ allclear.text.displaytime = 120
 ; hands straight on to the next one where the combo left the two characters, and neither
 ; the move nor the fade below happens. The key combination still does both.
 ;
-; col is r, g, b. There is no anim key yet; the fade animation layers arrive with the
-; rest of the presentation layer.
+; col is r, g, b.
+;
+; Each end takes its own artwork and sound: spr = group, index draws that sprite for the
+; whole of that end of the fade, and snd = group, index plays once as it starts. Both
+; are optional, and nothing is loaded for a fade that names neither — the module ships
+; no artwork or sound for these, so what a screenpack writes here is drawn out of its
+; own sff and played out of its own snd.
+;
+; ARTWORK REPLACES THE COLOUR WIPE. Set spr and the screen no longer darkens to col: the
+; sprite is drawn over the unfaded screen instead, for `time` ticks. That is the engine's
+; own rule for its own fades, not this module's — set one or the other, not both, and
+; expect the sprite to win. The fade still lasts exactly `time` either way, and time = 0
+; is still no fade at all, artwork or not.
+;
+; `anim = N` is accepted and will not work, for the reason it does not work anywhere
+; else in this file: the engine's action table is unexported and cannot be reached from
+; a Lua module. Spell it spr = group, index. Writing anim says so in the console.
 ;
 ; A move after a Success also waits for the Dummy to have control back. Her banner runs
 ; on a timer and the knockdown that finished the Trial does not, so the banner regularly
@@ -624,8 +709,16 @@ allclear.text.displaytime = 120
 ; -----------------------------------------------------------------------------------
 fadeout.time = 12
 fadeout.col = 0, 0, 0
+; fadeout.spr =
+; fadeout.snd =
+; fadeout.scale =
+; fadeout.pos =
 fadein.time = 12
 fadein.col = 0, 0, 0
+; fadein.spr =
+; fadein.snd =
+; fadein.scale =
+; fadein.pos =
 
 ; Whether the player can reposition mid-Trial at all. Set to false and the keys below
 ; do nothing and the reminder is not drawn.
@@ -656,3 +749,62 @@ trialresetreminder.pos = 315, 8
 ; trialresetreminder.font.height =
 ; trialresetreminder.window =
 ; trialresetreminder.localcoord =
+
+;-----------------------------------------------------------------------------------
+; THE TRIALS BACKGROUND — [TrialsBgDef]
+;-----------------------------------------------------------------------------------
+; The mode's own backdrop, drawn over the stage and behind everything this module puts
+; on screen. It is a full background definition — the same format a stage or a title
+; screen uses — so anything the engine's background elements can do, it can do here:
+; scrolling, sin movement, velocity, tiling, multiple layered elements.
+;
+; NOT SHIPPED, AND NOT REQUIRED. No section, no backdrop, and the mode draws its Steps
+; straight over the stage, which is what a stock install looks like. This exists for a
+; screenpack that wants the mode to have an identity of its own.
+;
+; DEFINE IT IN YOUR OWN system.def, not here. The module reads it out of whichever
+; layer declares it, and reads it with the ENGINE's own parser rather than through the
+; merged config: it is handed the file and the section name, and parses the whole block
+; itself. That is why it survives at all — the engine's motif struct has no field for
+; this section and drops it, but nothing about that reaches the parser underneath.
+;
+; WHAT IT LOOKS LIKE, in your system.def:
+;
+;   [TrialsBgDef]
+;   spr = trials.sff        ; optional; your screenpack's own sff is used without it
+;
+;   [TrialsBg Panel]
+;   type  = normal
+;   spriteno = 100, 0
+;   start = 0, 0
+;   layerno = 0             ; 0 draws under the Steps, 1 over them
+;
+;   [TrialsBg Frame]
+;   type  = normal
+;   spriteno = 100, 1
+;   start = 0, 0
+;   layerno = 1
+;
+; Element sections are [TrialsBg <name>] — the engine matches on the prefix, so the
+; name after it is yours. Refer to the Elecbyte background documentation for the full
+; element vocabulary; every key of it is available.
+;
+; EXPECT CONSOLE WARNINGS. The engine parses your system.def into its own motif struct
+; before this module ever sees the file, and that struct has no field for these
+; sections — so it logs "Failed to assign key [trialsbgdef.spr]", and one more per key
+; of every element section. They are harmless and unavoidable: the same lines appear for
+; [Trials Mode] itself, and the background works regardless, because this module reads
+; the file with the engine's background parser rather than through the motif.
+;
+; bgclearcolor is parsed and deliberately ignored. Clearing the screen is what it does,
+; and this background is drawn over a live match — honouring it would erase the stage.
+;
+; NOT the pause menu's background. That is [TrialsPauseBgDef], which the engine resolves
+; natively from the game mode name; you do not need this module for it.
+;
+; IF YOU ALREADY HAD ONE, CHECK IT. Before the rebuild this section backed the module's
+; own trials MENU screen, which was a full screen of its own and is gone — the pause
+; menu is the engine's now. So a [TrialsBgDef] carried over from then is full-screen
+; artwork that will be drawn over a live match, and will cover the stage. Either give
+; its elements positions and a size that suit a backdrop drawn over a fight, or move
+; them to [TrialsPauseBgDef], where the old full-screen reading still holds.

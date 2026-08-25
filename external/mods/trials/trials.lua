@@ -6,11 +6,11 @@
 --
 -- All module state lives in the local `trials` table below. Globals are touched only
 -- at documented extension points: main.t_itemname.trials; the loop#trials, launchFight,
--- main.f_addChar.files and menu.menu.loop hooks; and the three pause-menu tables the
--- engine documents as appendable by an external module — menu.t_itemname,
--- menu.t_valuename and menu.t_vardisplay (menu.lua:8, :92, :338). Nothing is installed
--- onto `start`, and nothing on `menu` beyond those tables: that coupling is what made
--- the previous version unrecoverable across an engine update.
+-- main.f_addChar.files, start.f_selectScreen and menu.menu.loop hooks; and the three
+-- pause-menu tables the engine documents as appendable by an external module —
+-- menu.t_itemname, menu.t_valuename and menu.t_vardisplay (menu.lua:8, :92, :338).
+-- Nothing is installed onto `start`, and nothing on `menu` beyond those tables: that
+-- coupling is what made the previous version unrecoverable across an engine update.
 --
 -- One motif table is edited in place rather than only read, and it is the only one: the
 -- legacy [Trials Info] fold rewrites motif.pause_menu.trials_pause_menu.menu.itemname
@@ -634,7 +634,13 @@ end
 -- The module ships no actions of its own to resolve `anim` against, deliberately: every
 -- element it draws is one static sprite, so an .air beside its .sff would be a file
 -- nothing ever read. See buildArt for what a screenpack's `anim` gets instead.
-local function buildAnim(path, sff, origin)
+-- `frametime` is how long the single sprite is held, in ticks, and defaults to -1: an
+-- element that stays up for as long as it is drawn, which is what every element on the
+-- Step display is. Only a fade passes anything else, and it has to — the engine measures
+-- a fade's whole duration from its animation's length, and GetLength counts a -1 frame
+-- as exactly one tick (src/anim.go:557). A static sprite would therefore make the fade
+-- one frame long. See buildFade.
+local function buildAnim(path, sff, origin, frametime)
 	local g = elementReader(path, origin)
 	local geo = elementGeometry(g, path, origin)
 	local anim = tonumber(g('anim'))
@@ -644,7 +650,7 @@ local function buildAnim(path, sff, origin)
 	if anim ~= nil and anim >= 0 and type(motif.AnimTable) == 'table' and motif.AnimTable[anim] ~= nil then
 		a = animNew(sff, motif.AnimTable[anim])
 	elseif spr[1] >= 0 then
-		a = animNew(sff, spr[1] .. ',' .. spr[2] .. ', 0,0, -1')
+		a = animNew(sff, spr[1] .. ',' .. spr[2] .. ', 0,0, ' .. (frametime or -1))
 	end
 	if a == nil then
 		return nil
@@ -726,7 +732,7 @@ end
 -- space is worse than no default at all in another, because it fails in a way that reads
 -- as a layout bug rather than as a missing style. A screenpack in that position styles
 -- its own backgrounds, which is what the feature is for.
-local function buildArt(path, origin, foreign)
+local function buildArt(path, origin, foreign, frametime)
 	if artIsOurs(path, origin) then
 		if foreign then
 			return nil
@@ -735,7 +741,7 @@ local function buildArt(path, origin, foreign)
 		if sff == nil then
 			return nil
 		end
-		return buildAnim(path, sff, origin)
+		return buildAnim(path, sff, origin, frametime)
 	end
 	-- A screenpack named an action but no sprite. The engine's action table does not
 	-- reach a Lua module, so there is nothing to resolve it against — and buildAnim's
@@ -750,7 +756,7 @@ local function buildArt(path, origin, foreign)
 			'spr = group, index instead. Nothing is drawn for this element.')
 		return nil
 	end
-	return buildAnim(path, motif.Sff, origin)
+	return buildAnim(path, motif.Sff, origin, frametime)
 end
 
 -- Exposed so the slices that add drawn elements build them the same way this one does,
@@ -934,6 +940,88 @@ local function buildGlyphs(layout, origin, foreign)
 	return gl
 end
 
+-- The semi-transparent panel behind the whole Step block.
+--
+-- A Rect and not a sprite, because what it is for is a flat colour at an alpha: making
+-- Step text readable over a busy stage without the screenpack having to draw a plate for
+-- it. That is what the engine's own menus use rectNew for, and OverlayProperties is the
+-- shape they configure it in, so this reads the same five keys they do.
+--
+-- Off unless a screenpack asks for it. The module ships artwork behind the Steps
+-- already, and an overlay under that would darken a background authored at the alpha it
+-- wanted — so the panel exists for a screenpack that styles the Steps with nothing
+-- behind them, and `visible` is how it says so.
+--
+-- A Rect has no position: its window IS its geometry. So the window falls back to the
+-- Step block's own, in both variants, and a screenpack that reshapes the block gets a
+-- panel covering exactly the Steps without writing the same rect twice.
+--
+-- Built once, like every other element. The pre-refactor module called rect:create()
+-- inside the draw loop, once per frame per Layout (old trials.lua:1116).
+local function buildStepOverlay(block, origin)
+	local path = join(origin, 'bg', 'overlay')
+	if not flagValue(cfgGet(join(path, 'visible')), false) then
+		return nil
+	end
+	local ov = buildOverlay(path, origin)
+	local function copy(w)
+		return {w[1], w[2], w[3], w[4]}
+	end
+	-- `visible` on its own has to draw something. OverlayProperties defaults alpha to
+	-- 0, 255 — the engine's own default, and one that contributes nothing to the frame —
+	-- so a screenpack that uncomments the one key that turns this feature on and leaves
+	-- the rest would get a fully built, correctly windowed, entirely invisible panel,
+	-- with nothing said about it anywhere. `visible` is this module's own key rather than
+	-- the engine's, so it carries its own default: the half-transparent black the def
+	-- block documents beside it, which is the value the feature exists to draw.
+	if sourceOf(path, 'alpha') == nil then
+		ov.alpha = {0, 128}
+		rectSetAlpha(ov.RectData, ov.alpha[1], ov.alpha[2])
+	end
+	-- An all-zero rect means two different things to the two kinds of element, and for a
+	-- Rect it means the useless one. On a text sprite it says "do not clip"; on a Rect
+	-- the window is the whole geometry, so a zero rect is a panel with no area — and
+	-- rectSetWindow refuses it outright, returning without storing it (src/rect.go:331),
+	-- exactly as textImgSetWindow does. So an unclipped window has to be spelled as the
+	-- full localcoord rect here, or the panel is invisible where the block does not clip,
+	-- and switching TO an unclipped variant would leave the other variant's rect in
+	-- place. This is the same answer buildStepBlock's own normalize gives, for the same
+	-- reason, one element down.
+	local function bounded(w)
+		if w[1] == 0 and w[2] == 0 and w[3] == 0 and w[4] == 0 then
+			return {0, 0, ov.localcoord[1], ov.localcoord[2]}
+		end
+		return copy(w)
+	end
+	-- The two variants are asked about separately, because they are separately
+	-- authorable and a screenpack may well write only the second: "keep the block's own
+	-- shape normally, shrink when a Textbox is up" is one line, and reading it as none
+	-- would discard the only rect its author wrote.
+	--
+	-- Asked of the element's own path with no origin, so each answers strictly for a key
+	-- THIS element declared. buildOverlay read `window` through the origin, so where the
+	-- element declared none it is holding the block's AUTHORED rect — which is not
+	-- necessarily the rect the block resolved to. A block a screenpack repositioned
+	-- drops the module's 320x240 default rather than clipping a corner of a 1280x720
+	-- screen (see buildStepBlock), and the panel has to follow it there.
+	local ownWindow = sourceOf(path, 'window') ~= nil
+	local ownWithTextbox = sourceOf(path, 'window.withtextbox') ~= nil
+	ov.window = bounded(ownWindow and ov.window or block.window)
+	if ownWithTextbox then
+		ov.windowWithTextbox =
+			bounded(numList(cfgGet(join(path, 'window', 'withtextbox')), ov.window))
+	elseif ownWindow then
+		-- Its own rect and no variant: the panel keeps that one shape either way, which
+		-- is what a screenpack that shaped one panel asked for.
+		ov.windowWithTextbox = copy(ov.window)
+	else
+		ov.windowWithTextbox = bounded(block.windowWithTextbox)
+	end
+	rectSetWindow(ov.RectData, ov.window[1], ov.window[2], ov.window[3], ov.window[4])
+	ov.activeWindow = ov.window
+	return ov
+end
+
 -- Builds the Step block: the three Step Status text elements, plus the geometry they
 -- share — the origin rows lay out from, the spacing between them, and the window they
 -- clip to, in both its with- and without-Textbox variants.
@@ -1044,10 +1132,17 @@ local function buildStepBlock(layout)
 
 	block.glyphs = buildGlyphs(layout, path, foreign)
 
-	-- The graphical layer, under everything above. The block's own background sits
-	-- behind the whole list; each Step Status carries its own, drawn under the Step it
-	-- styles. Both inherit the block's origin and window through the origin argument, so
-	-- a screenpack that moves or reshapes the block takes its artwork with it.
+	-- The graphical layer, under everything above. The overlay is the bottom of it — a
+	-- flat panel the artwork is drawn over. The block's own background sits behind the
+	-- whole list; each Step Status carries its own, drawn under the Step it styles. All
+	-- three inherit the block's origin and window through the origin argument, so a
+	-- screenpack that moves or reshapes the block takes its artwork with it.
+	--
+	-- After the windows above, which the overlay falls back to.
+	block.overlay = buildStepOverlay(block, path)
+	if block.overlay ~= nil then
+		trials.elements['trialsteps.' .. layout .. '.bg.overlay'] = block.overlay
+	end
 	block.bg = buildArt(join(path, 'bg'), path, foreign)
 	if block.bg ~= nil then
 		trials.elements['trialsteps.' .. layout .. '.bg'] = block.bg
@@ -1084,6 +1179,15 @@ local function applyStepWindow(block, withTextbox)
 			animSetWindow(e.AnimData, w[1], w[2], w[3], w[4])
 			e.window = {w[1], w[2], w[3], w[4]}
 		end
+	end
+	-- The panel behind them switches with them. It is a rect and not a text sprite, so
+	-- the same rect is reshaped rather than reclipped: its window is its whole geometry,
+	-- which is why the with-Textbox variant is a second rect's worth of numbers and not
+	-- a clip applied over the first.
+	if block.overlay ~= nil then
+		local ow = withTextbox and block.overlay.windowWithTextbox or block.overlay.window
+		rectSetWindow(block.overlay.RectData, ow[1], ow[2], ow[3], ow[4])
+		block.overlay.activeWindow = ow
 	end
 	clip(block.bg)
 	for _, bg in pairs(block.stepbg or {}) do
@@ -1425,15 +1529,49 @@ local function repositionKeys()
 	return out
 end
 
--- One end of the reposition fade. Its animation layer arrives with the rest of the
--- presentation layer (#44); time and colour are the whole of it for now, and a time of
--- 0 means no fade at all, which fadeNew already treats as nothing to run.
+-- One end of the reposition fade: time, colour, an optional animation drawn over the
+-- darkened screen, and an optional sound played as it starts. A time of 0 means no fade
+-- at all, which fadeNew already treats as nothing to run.
+--
+-- THE ANIMATION REPLACES THE COLOUR WIPE rather than accompanying it. That is the
+-- engine's own rule for its own fades, not a choice made here: Fade.init takes the
+-- overlay's duration from colorFadeTime, which returns 0 whenever an animation is
+-- present, and the fade then lasts exactly as long as that animation
+-- (src/rect.go:47, :71). A screenpack that sets both gets the artwork.
+--
+-- Which is why the sprite is held for the configured time rather than indefinitely. A
+-- Lua module can only build single-sprite animations — the engine's action table is
+-- unexported, as buildAnim explains — and GetLength counts an indefinite frame as one
+-- tick (src/anim.go:557). Left at the default the artwork would suppress the colour
+-- wipe and then last a single frame, so `time` would be honoured by neither. Given to
+-- the frame instead, the fade lasts exactly as long as it is configured to, whether the
+-- screen goes dark or the artwork plays over it.
+--
+-- Returns the Fade and whether an animation was built for it, which the debug dump
+-- reports: a fade drawing artwork and one drawing a colour are the same fade from
+-- outside, and this is what tells them apart without a screenshot.
+--
+-- The artwork is built only where a key actually names some. buildArt falls back to the
+-- module's own trials.sff, and asking it unconditionally would load that file on every
+-- install whether or not anything ever draws out of it — which is exactly the cost
+-- moduleSff is lazy to avoid.
 local function buildFade(name)
-	local col = numList(cfgGet({'trials_mode', name, 'col'}), {0, 0, 0})
+	local path = {'trials_mode', name}
+	local col = numList(cfgGet(join(path, 'col')), {0, 0, 0})
+	-- A negative group plays nothing, which is how the engine reads an absent snd and
+	-- what this file ships: the module carries no sounds of its own.
+	local snd = numList(cfgGet(join(path, 'snd')), {-1, 0})
+	local time = math.max(0, numList(cfgGet(join(path, 'time')), {0})[1])
+	local art = nil
+	if time > 0 and (cfgGet(join(path, 'spr')) ~= nil or cfgGet(join(path, 'anim')) ~= nil) then
+		art = buildArt(path, nil, false, time)
+	end
 	return fadeNew({
-		time = math.max(0, numList(cfgGet({'trials_mode', name, 'time'}), {0})[1]),
+		time = time,
 		color = {col[1] or 0, col[2] or 0, col[3] or 0},
-	})
+		anim = art ~= nil and art.AnimData or nil,
+		sound = {snd[1], snd[2]},
+	}), art ~= nil
 end
 
 if trials.enabled then
@@ -1463,11 +1601,95 @@ if trials.enabled then
 		enabled = not (cfgGet({'trials_mode', 'trialresetenabled'}) == false
 			or strValue(cfgGet({'trials_mode', 'trialresetenabled'}), ''):lower() == 'false'),
 		keys = repositionKeys(),
-		fadeout = buildFade('fadeout'),
-		fadein = buildFade('fadein'),
 		fadeoutTime = math.max(0, numList(cfgGet({'trials_mode', 'fadeout', 'time'}), {0})[1]),
 		fadeinTime = math.max(0, numList(cfgGet({'trials_mode', 'fadein', 'time'}), {0})[1]),
 	}
+	-- Assigned rather than written into the constructor above, because buildFade answers
+	-- with two values and a constructor field takes only the first.
+	trials.reposition.fadeout, trials.reposition.fadeoutAnim = buildFade('fadeout')
+	trials.reposition.fadein, trials.reposition.fadeinAnim = buildFade('fadein')
+end
+
+--;===========================================================
+--; THE TRIALS BACKGROUND
+--;===========================================================
+-- The mode's own backdrop: a [TrialsBgDef] section, with its elements in [TrialsBg ...]
+-- sections beside it, drawn behind everything else this module puts on screen.
+--
+-- This is the one part of the presentation layer the closed motif struct cannot take
+-- away. bgNew is handed a DEF PATH and a SECTION NAME and parses the file itself, so
+-- `[TrialsBgDef]` resolves in full — scroll, sinx, velocity, every background element
+-- key the engine documents — even though the Go struct drops the section on the floor
+-- (motif.go:1330 has a map for `*resultsbgdef` and one for `*pausebgdef`, and nothing
+-- either would match). Nothing here reads trials.config for the elements; the merged
+-- table is consulted only for `spr`, which names the file the sprites come out of.
+--
+-- WHERE IT DRAWS. Over the stage, under the module's own elements, for the length of a
+-- live round — the module draws in a match and nowhere else, so that is where a mode
+-- backdrop can be. A screenpack positions it wherever its own artwork wants: a panel
+-- behind the Step block, a frame around the screen, a strip along the top. Absent, it
+-- is nothing at all, which is what a stock install gets.
+--
+-- Deliberately NOT the pause menu's background. That one is `[TrialsPauseBgDef]` and
+-- the engine resolves it natively from the game mode name (menu.lua:391, motif.go:1336),
+-- which is what the pre-refactor module's own trialsbgdef was doing by hand.
+--
+-- bgclearcolor is read by bgNew and then never used here: clearing the screen is what
+-- it does, and a mode drawn over a live match would erase the stage with it.
+if trials.enabled then
+	-- Which file to parse. bgNew re-reads the def rather than taking the merged table,
+	-- so the section has to be pointed at ONE file — and the one it points at is the
+	-- last layer that declared it, which is the precedence every other key resolves
+	-- under. config.ini can win it like any other layer; a player who writes the section
+	-- there gets it, and pays for the oddity of a def section in an ini by writing it.
+	local defPath = nil
+	for _, layer in ipairs(layers) do
+		if type(layer.ini.trialsbgdef) == 'table' then
+			defPath = layer.path
+		end
+	end
+	if defPath ~= nil then
+		-- The screenpack's own sff unless the section names another, which is the
+		-- fallback the pre-refactor module had and the one a screenpack styling the mode
+		-- out of its existing artwork wants. Guarded because sffNew raises rather than
+		-- returning nil on a missing file (src/script.go:2419), the way moduleSff is.
+		local sff = motif.Sff
+		-- The authored value and the resolved path are kept apart on purpose.
+		-- normalizePath answers '' both for a key nobody wrote and for one naming a file
+		-- searchFile could not find, and those are not the same thing: the second is a
+		-- typo the author wants told about, and folding it into the first would fall
+		-- back to the screenpack's sff in silence — drawing the wrong artwork, or none,
+		-- with nothing anywhere to say why.
+		local authored = strValue(cfgGet({'trialsbgdef', 'spr'}), '')
+		local spr = normalizePath(authored)
+		if authored ~= '' and spr == '' then
+			print('Trials: [TrialsBgDef] spr = ' .. authored .. ' was not found. ' ..
+				'Falling back to the screenpack\'s own sff.')
+		elseif spr ~= '' then
+			local ok, loaded = pcall(sffNew, spr)
+			if ok then
+				sff = loaded
+			else
+				print('Trials: [TrialsBgDef] spr = ' .. spr .. ' did not load (' ..
+					tostring(loaded) .. '). Falling back to the screenpack\'s own sff.')
+			end
+		end
+		trials.backgroundDef = defPath
+		-- What was asked for, not what resolved: the dump has to be able to tell a
+		-- missing file from an absent key, and the message above from silence.
+		trials.backgroundSpr = authored
+		trials.backgroundSprResolved = spr
+		-- bgNew raises on a def it cannot read, and a background is the most decorative
+		-- thing this module owns: a malformed one should cost its own absence and not
+		-- the mode.
+		local ok, bg = pcall(bgNew, sff, defPath, 'trialsbg')
+		if ok then
+			trials.background = bg
+		else
+			print('Trials: [TrialsBgDef] in ' .. defPath .. ' did not load (' ..
+				tostring(bg) .. '). No trials background is drawn.')
+		end
+	end
 end
 
 --;===========================================================
@@ -2091,6 +2313,92 @@ end
 if trials.enabled then
 	trials.f_discoverAll()
 end
+
+--;===========================================================
+--; SELECT SCREEN
+--;===========================================================
+-- Characters shipping no Trial Definition are drawn under a palette effect while Trials
+-- Mode is the active mode, so a player picking someone to practise with can see at a
+-- glance who has content. The roster was swept at load, so `t.trials` already answers
+-- the question for every character on the grid and nothing is parsed here.
+--
+-- The effect goes on the cell portrait's own Anim, which is what the engine's select
+-- screen batch-draws, and it is applied with time = -1 so it stands rather than lasting
+-- a tick — the same reason a Glyph's does (see readPalFX).
+--
+-- Every frame, and not once on entry. Portraits are preloaded lazily (main.lua:773
+-- replaces cell_data the frame a character's own artwork arrives), so a one-shot pass
+-- would tint whoever happened to be ready and leave the rest bright. Recording the Anim
+-- each character was tinted THROUGH is what makes the repeat cheap: a cell whose
+-- portrait has not changed costs one table lookup.
+--
+-- `start.selectScreenPalMod`, the module-global the pre-refactor version drove this
+-- from, is not recreated. The state is two fields on the module's own table.
+if trials.enabled then
+	trials.selectpalfx = {
+		fx = readPalFX({'trials_mode', 'selscreenpalfx'}),
+		-- The engine's identity, for taking the effect off again. A PalFX cannot be
+		-- removed from an Anim, only overwritten with one that does nothing.
+		neutral = {
+			time = -1,
+			add = {0, 0, 0},
+			mul = {256, 256, 256},
+			sinadd = {0, 0, 0, 0},
+			invertall = 0,
+			color = 256,
+		},
+		-- Which Anim each darkened character was last tinted through, keyed by the
+		-- character's own roster row. Both halves matter: the keys are who to clear on
+		-- the way out, the values are how a lazily-loaded portrait is noticed.
+		applied = {},
+		active = false,
+	}
+end
+
+hook.add('start.f_selectScreen', 'trials', function()
+	local sp = trials.selectpalfx
+	if sp == nil then
+		return
+	end
+	if not gameMode('trials') then
+		-- Off on the way out, and only on the way out: the select screen is shared with
+		-- every other mode, and a portrait this module darkened would otherwise stay
+		-- darkened in all of them. Cleared against the character's CURRENT Anim rather
+		-- than the recorded one, since a portrait that finished loading since is the one
+		-- carrying the effect now.
+		if sp.active then
+			for ch in pairs(sp.applied) do
+				if ch.cell_data ~= nil then
+					animSetPalFX(ch.cell_data, sp.neutral)
+				end
+				sp.applied[ch] = nil
+			end
+			sp.active = false
+		end
+		return
+	end
+	sp.active = true
+	for row = 1, motif.select_info.rows do
+		local grid = start.t_grid[row]
+		for col = 1, motif.select_info.columns do
+			local cell = grid ~= nil and grid[col] or nil
+			if cell ~= nil and cell.skip ~= 1 then
+				local ch = start.f_selGrid((row - 1) * motif.select_info.columns + col)
+				-- A real character in a visible cell, with no Trials, whose portrait has
+				-- not already been tinted through the Anim it is drawing with now.
+				-- randomselect is excluded for the reason the pre-refactor module
+				-- excluded it: it stands for whoever it picks, and dimming it would say
+				-- something about that character that is not known yet.
+				if type(ch) == 'table' and ch.char_ref ~= nil and ch.hidden == 0
+					and ch.char ~= 'randomselect' and not ch.trials
+					and ch.cell_data ~= nil and sp.applied[ch] ~= ch.cell_data then
+					animSetPalFX(ch.cell_data, sp.fx)
+					sp.applied[ch] = ch.cell_data
+				end
+			end
+		end
+	end
+end)
 
 --;===========================================================
 --; MAIN MENU ENTRY
@@ -4212,6 +4520,13 @@ local function drawSteps()
 
 	-- A Textbox displaces the whole block rather than being drawn over it.
 	local shift = m.shownTextbox and block.shift or {0, 0}
+	-- The panel first, under everything else the block draws. Deliberately not shifted
+	-- with the block: a Rect's geometry is its window, and the with-Textbox variant of
+	-- that window is what moves it — so a panel that also took the block's pos shift
+	-- would move twice.
+	if block.overlay ~= nil then
+		rectDraw(block.overlay.RectData)
+	end
 	-- Behind the whole list, and drawn exactly once. The pre-refactor module updated and
 	-- drew this same element twice per frame (old trials.lua:1133-1136), which on a
 	-- translucent sprite is visible: it composited over itself and read darker than it
@@ -4318,6 +4633,13 @@ hook.add('loop#trials', 'trials', function()
 	end
 	if trials.match == nil then
 		trials.match = resolveMatch()
+		-- The backdrop starts from the top with the match, the way the engine resets a
+		-- screen's own background when that screen is entered. Once per match and not
+		-- per round: a round restart is the same session of the mode, and a scrolling
+		-- background that jumped back on every retry would read as a glitch.
+		if trials.background ~= nil then
+			bgReset(trials.background)
+		end
 		selectTrial(trials.match.current)
 		trials.f_dumpState()
 	end
@@ -4339,6 +4661,14 @@ hook.add('loop#trials', 'trials', function()
 			clearBanner(m)
 		end
 		return
+	end
+
+	-- The mode's backdrop, behind everything below it. Both layers are drawn, at either
+	-- end of the module's own elements, which is how every engine screen draws its own:
+	-- layer 0 under them, layer 1 over. bgDraw steps the background as well as queueing
+	-- it, so a background only animates on the frames it is on screen for.
+	if trials.background ~= nil then
+		bgDraw(trials.background, 0)
 	end
 
 	-- Verification before drawing, so a Step completed this frame is already drawn as
@@ -4401,6 +4731,14 @@ hook.add('loop#trials', 'trials', function()
 	drawSteps()
 	drawReminder(m)
 	drawBanner(m)
+
+	-- The backdrop's front layer, over everything the module has just drawn. A
+	-- screenpack puts a frame or a foreground element here the same way it does on any
+	-- other screen; nothing is drawn for it unless a [TrialsBg ...] section asks for
+	-- layerno 1.
+	if trials.background ~= nil then
+		bgDraw(trials.background, 1)
+	end
 end)
 
 --;===========================================================
@@ -4631,6 +4969,24 @@ local function bgState(block)
 	local out = {
 		block = block.bg ~= nil,
 		art = whichArt(),
+		-- The panel behind the whole block. nil where no screenpack asked for one, which
+		-- is what a stock install gets; its two windows are here because a panel in the
+		-- wrong place and a panel that was never configured are the same blank screen.
+		-- Copied for the reason every window in this dump is: the pair are frequently
+		-- the same table, and the dump elides a table it has already printed.
+		overlay = block.overlay ~= nil and {
+			col = table.concat(block.overlay.col, ','),
+			alpha = table.concat(block.overlay.alpha, ','),
+			layerno = block.overlay.layerno,
+			window = {block.overlay.window[1], block.overlay.window[2],
+				block.overlay.window[3], block.overlay.window[4]},
+			windowWithTextbox = {
+				block.overlay.windowWithTextbox[1], block.overlay.windowWithTextbox[2],
+				block.overlay.windowWithTextbox[3], block.overlay.windowWithTextbox[4]},
+			activeWindow = {
+				block.overlay.activeWindow[1], block.overlay.activeWindow[2],
+				block.overlay.activeWindow[3], block.overlay.activeWindow[4]},
+		} or nil,
 	}
 	for _, status in ipairs(STEP_STATUSES) do
 		local bg = block.stepbg ~= nil and block.stepbg[status] or nil
@@ -4927,6 +5283,35 @@ function trials.f_dumpState()
 			-- deliberately did not use.
 			placed = trials.match.setup.placed == true,
 		} or nil,
+		-- The mode's own backdrop. Three answers and not two: no [TrialsBgDef] anywhere
+		-- (the stock install), one found and parsed, and one found that failed to parse
+		-- — which on screen is the same nothing as the first.
+		background = {
+			def = trials.backgroundDef or '',
+			-- Both, because a spr that resolves and one that does not are the same
+			-- backdrop on screen: `spr` is what the section asked for, `sprResolved` is
+			-- what searchFile found. Asked-for with nothing resolved is a typo.
+			spr = trials.backgroundSpr or '',
+			sprResolved = trials.backgroundSprResolved or '',
+			declared = trials.backgroundDef ~= nil,
+			loaded = trials.background ~= nil,
+		},
+		-- The select-screen effect, flattened the way copySteps flattens a Part's lists:
+		-- assertable without reasoning about which side of the dump elided the table.
+		-- `applied` is a live count and reads 0 outside the select screen, which is
+		-- where a startup dump is written from.
+		selectPalFX = trials.selectpalfx ~= nil and {
+			add = table.concat(trials.selectpalfx.fx.add, ','),
+			mul = table.concat(trials.selectpalfx.fx.mul, ','),
+			sinadd = table.concat(trials.selectpalfx.fx.sinadd, ','),
+			invertall = trials.selectpalfx.fx.invertall,
+			color = trials.selectpalfx.fx.color,
+			applied = (function()
+				local n = 0
+				for _ in pairs(trials.selectpalfx.applied) do n = n + 1 end
+				return n
+			end)(),
+		} or nil,
 		-- The mid-Trial reposition, as configured and as it stands. `phase` is empty
 		-- unless a fade is running, which is the one part of this a startup dump
 		-- cannot show.
@@ -4936,6 +5321,11 @@ function trials.f_dumpState()
 			keyCount = #trials.reposition.keys,
 			fadeout = trials.reposition.fadeoutTime,
 			fadein = trials.reposition.fadeinTime,
+			-- Whether an animation layer actually resolved onto each end of the fade.
+			-- A `spr` naming a sprite the file has none of still fades, silently, and
+			-- this is what tells that apart from a fade nobody asked to animate.
+			fadeoutAnim = trials.reposition.fadeoutAnim == true,
+			fadeinAnim = trials.reposition.fadeinAnim == true,
 			reminder = trials.elements.trialresetreminder ~= nil
 				and trials.elements.trialresetreminder.text or '',
 			phase = trials.match ~= nil and trials.match.repos or '',
@@ -4949,6 +5339,8 @@ function trials.f_dumpState()
 				and hook.lists['loop#trials']['trials'] ~= nil,
 			addCharFiles = hook.lists['main.f_addChar.files'] ~= nil
 				and hook.lists['main.f_addChar.files']['trials'] ~= nil,
+			selectScreen = hook.lists['start.f_selectScreen'] ~= nil
+				and hook.lists['start.f_selectScreen']['trials'] ~= nil,
 			pauseMenuLoop = hook.lists['menu.menu.loop'] ~= nil
 				and hook.lists['menu.menu.loop']['trials'] ~= nil,
 		},

@@ -1088,6 +1088,112 @@ def run_checks(tree, quiet=False):
                  or dig(repos, k) < 0], [])
         c.check("the reminder resolved to a string",
                 isinstance(dig(repos, "reminder"), str), True)
+        # An animation on a fade REPLACES its colour wipe rather than joining it — the
+        # engine takes the overlay's duration from colorFadeTime, which is 0 whenever an
+        # anim is present (src/rect.go:47). The module holds the sprite for the
+        # configured time so the fade lasts that long either way, which is what keeps
+        # `time` above the whole gate on whether a fade runs. So these flags say which
+        # of the two a fade draws, not whether it happens.
+        c.check("both fade animation flags are flags",
+                [k for k in ("fadeoutAnim", "fadeinAnim")
+                 if not isinstance(dig(repos, k), bool)], [])
+        for end in ("fadeout", "fadein"):
+            if not dig(repos, end + "Anim"):
+                c.skip(f"  {end} has no animation layer",
+                       f"set {end}.spr in your screenpack to exercise this")
+
+    c._print("\nThe presentation layer — background, overlay, select-screen palfx (#44)")
+    # The mode's own backdrop. Absent is the shipped state and is not a failure: the
+    # module declares no [TrialsBgDef] of its own, so a stock install draws no backdrop
+    # and this asserts only that the two answers stay consistent with each other.
+    bg = dig(tree, "background")
+    if bg is None:
+        c.check("the background block reached the dump", bg, "<missing>")
+    else:
+        declared = dig(bg, "declared")
+        c.check("whether a [TrialsBgDef] was declared is a flag",
+                isinstance(declared, bool), True)
+        c.check("a background that loaded was one that was declared",
+                not dig(bg, "loaded") or declared is True, True)
+        if declared:
+            c.check("a declared background names the file it was parsed out of",
+                    isinstance(dig(bg, "def"), str) and dig(bg, "def") != "", True)
+            # An spr the section asked for and searchFile could not find falls back to
+            # the screenpack's own sff, which draws the wrong artwork or none — and looks
+            # exactly like a section that named no spr at all. The pair is what tells
+            # them apart.
+            c.check("an spr the section named was found on disk",
+                    dig(bg, "spr") == "" or dig(bg, "sprResolved") != "", True)
+            # Loading is the part that can fail on a malformed section, and the module
+            # degrades to no backdrop rather than to no mode. Worth stating either way.
+            if not dig(bg, "loaded"):
+                c.check("a declared background parsed", dig(bg, "loaded"), True)
+        else:
+            c.skip("no [TrialsBgDef] in any layer",
+                   "the module ships none; define one in your screenpack to exercise this")
+
+    # The select-screen effect. Always configured — the module ships a default, which is
+    # what makes the feature work in a stock install — so this asserts the shape rather
+    # than the presence, plus the one thing that would silently disable it.
+    palfx = dig(tree, "selectPalFX")
+    if palfx is None:
+        c.check("the select-screen palfx resolved", palfx, "<missing>")
+    else:
+        for key, count in (("add", 3), ("mul", 3), ("sinadd", 4)):
+            value = dig(palfx, key)
+            c.check(f"selscreenpalfx.{key} resolved to {count} components",
+                    isinstance(value, str) and len(value.split(",")) == count, True)
+        c.check("selscreenpalfx.color is a number",
+                isinstance(dig(palfx, "color"), (int, float)), True)
+        c.check("selscreenpalfx.invertall is a number",
+                isinstance(dig(palfx, "invertall"), (int, float)), True)
+        # mul 256,256,256 with color 256 is the engine's identity, which is the effect
+        # doing nothing at all. Legal — it is how a screenpack turns the feature off —
+        # but it is also what a mistyped key silently degrades to, so it is named.
+        neutral = (dig(palfx, "mul") == "256,256,256"
+                   and dig(palfx, "add") == "0,0,0"
+                   and dig(palfx, "color") == 256
+                   and dig(palfx, "invertall") == 0)
+        if neutral:
+            c.skip("the effect is the engine's identity",
+                   "configured to do nothing — characters without Trials will not be dimmed")
+        else:
+            c.check("the effect changes something", neutral, False)
+        # A startup dump is written before any select screen has run, so nothing is
+        # applied yet; the count is here for a dump taken after one.
+        c.check("the applied count is a count",
+                isinstance(dig(palfx, "applied"), (int, float)), True)
+
+    # The panel behind the Step block, for the Layout in use. nil is the shipped state:
+    # the module draws artwork behind the Steps instead, and switching the panel on
+    # under it would darken a background authored at the alpha it wanted.
+    overlay = dig(tree, "steps", "bg", "overlay")
+    if overlay is None:
+        c.skip("no Step block overlay configured",
+               "set trialsteps.<layout>.bg.overlay.visible = true to exercise this")
+    else:
+        for key in ("window", "windowWithTextbox", "activeWindow"):
+            rect = dig(overlay, key)
+            if c.unreadable(f"overlay {key} is a rect", rect):
+                continue
+            c.check(f"overlay {key} is a rect of four",
+                    isinstance(rect, dict) and len(rect) == 4, True)
+            # A rect IS the panel's geometry, so an empty one is an invisible panel —
+            # and rectSetWindow refuses an all-zero rect outright rather than storing
+            # it (src/rect.go:331), which would leave the other variant's geometry in
+            # place on a switch. Both are silent on screen; neither is silent here.
+            if isinstance(rect, dict) and len(rect) == 4:
+                x1, y1, x2, y2 = (rect.get(i) for i in (1, 2, 3, 4))
+                c.check(f"  ... and encloses some area",
+                        x2 > x1 and y2 > y1, True)
+        # The active window is whichever variant the Trial on screen selected, so it has
+        # to be one of the two and not a third thing.
+        active = dig(overlay, "activeWindow")
+        c.check("the overlay is clipping to one of its two variants",
+                active in (dig(overlay, "window"), dig(overlay, "windowWithTextbox")), True)
+        c.check("the overlay resolved a colour and an alpha",
+                isinstance(dig(overlay, "col"), str)
+                and len(str(dig(overlay, "alpha")).split(",")) == 2, True)
 
     c._print("\nNative trials pause menu (#40)")
     pause = dig(tree, "pauseMenu")
@@ -1178,6 +1284,7 @@ def run_checks(tree, quiet=False):
     c.check("launchFight hook registered", dig(tree, "hooks", "launchFight"), True)
     c.check("loop#trials hook registered", dig(tree, "hooks", "loop"), True)
     c.check("main.f_addChar.files hook registered", dig(tree, "hooks", "addCharFiles"), True)
+    c.check("start.f_selectScreen hook registered", dig(tree, "hooks", "selectScreen"), True)
     c.check("menu.menu.loop hook registered", dig(tree, "hooks", "pauseMenuLoop"), True)
     c.check(
         "trials.zss resolves on disk",
