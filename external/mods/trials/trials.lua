@@ -370,6 +370,33 @@ local function strValue(v, default)
 	return tostring(v)
 end
 
+-- Coerces a Trials Config value into a boolean, taking `default` where the key is
+-- absent or holds a word this does not recognise.
+--
+-- Unrecognised takes the default rather than reading as false, so a typo cannot silently
+-- turn a feature off — the failure that leaves an author staring at a key they did set.
+--
+-- Distinct from boolValue below, which reads Trial Definitions: there an absent key is
+-- false and the only true word is `true`, which is what that format documents. This one
+-- reads the config files, where a flag is spelled `1` as often as `true` and every key
+-- has a shipped default that absence has to fall back to.
+local function flagValue(v, default)
+	if type(v) == 'boolean' then
+		return v
+	end
+	if v == nil then
+		return default
+	end
+	local word = tostring(v):lower()
+	if word == 'true' or word == 'yes' or word == 'on' or word == '1' then
+		return true
+	end
+	if word == 'false' or word == 'no' or word == 'off' or word == '0' then
+		return false
+	end
+	return default
+end
+
 --;===========================================================
 --; ELEMENT CONSTRUCTION
 --;===========================================================
@@ -925,6 +952,9 @@ local function buildGlyphs(layout, origin, foreign)
 		-- vertical gap between one Glyph and the next to mean.
 		spacing = length('spacing', {0, 0}),
 		scale = numList(g('scale'), {1, 1}),
+		-- Whether `scale` above is a multiplier on the size the accompanying text gives,
+		-- or the size itself. See glyphScale.
+		scalewithtext = flagValue(g('scalewithtext'), true),
 		align = numList(g('align'), {1})[1],
 		layerno = numList(g('layerno'), {0})[1],
 		-- One Anim per token per Step Status, built when a Trial that needs it is
@@ -3536,20 +3566,32 @@ end
 
 -- How big one Glyph draws beside a given Step Status.
 --
--- The engine's own formula (menu.lua:891): the Glyph is scaled so that its sprite
--- height matches the height of the font drawing the Step, times that element's own text
--- scale, times the configured multiplier. Both axes take the height ratio, so the
--- sprite keeps its proportions — and a Step Status a screenpack styles larger carries
--- its Glyphs up with it, which is what makes the run read as part of the Step.
+-- Two sizings, chosen by `glyphs.<layout>.scalewithtext`, and they are alternatives
+-- rather than a base and a multiplier.
 --
--- Where that Step Status resolved no font there is no height to match, and the Glyph
--- falls back to its own sprite's size, with the element's scale and the configured
--- multiplier still applied. It does NOT stop drawing. The font is a size reference and
--- nothing else; a Glyph is a sprite and can always be drawn, so treating an absent font
--- as "cannot size" took the icons down with the words — which is a configuration a
--- screenpack really does write, because the pre-refactor horizontal Layout drew Glyphs
--- and no text at all, and a screenpack migrating from it names no font here and expects
--- its icons regardless.
+-- ON, which is the default: the engine's own movelist formula (menu.lua:891). The Glyph
+-- is scaled so that its sprite height matches the height of the font drawing the Step,
+-- times that element's own text scale. Both axes take the height ratio, so the sprite
+-- keeps its proportions — and a Step Status a screenpack styles larger carries its
+-- Glyphs up with it, which is what makes the run read as part of the Step. The derived
+-- size REPLACES `glyphs.<layout>.scale`, exactly as the pre-refactor module's own
+-- toggle did (old trials.lua:894); with this on, that key is not read.
+--
+-- OFF: `glyphs.<layout>.scale` is the size, as written, and nothing about the text
+-- enters into it. This is what a screenpack sizing its Glyphs absolutely wants — the
+-- pre-refactor default was an absolute 0.3125 — and it is the only way to draw Glyphs
+-- at a size the words do not dictate.
+--
+-- ON but underivable takes the configured scale too, and for the same reason OFF does:
+-- there is no font height to match, so `scale` is the only size anyone has stated. A
+-- Glyph is a sprite and can always be drawn — treating an absent font as "cannot size"
+-- took the icons down with the words (#59), which is a configuration a screenpack
+-- really does write, because the pre-refactor horizontal Layout drew Glyphs and no text
+-- at all.
+--
+-- What is measured is the FONT's height, not the Step's string: a Step whose text is
+-- empty still sizes its Glyphs from the font its Step Status resolved, so a run does not
+-- change size from one Step to the next.
 --
 -- nil only where the sprite itself cannot be sized, which is a token this screenpack
 -- has no Glyph for. That one is skipped, exactly as menu.lua:887 skips it.
@@ -3562,16 +3604,16 @@ local function glyphScale(block, e, token)
 	if sprite <= 0 then
 		return nil
 	end
-	local size = e.fontdef ~= nil and e.fontdef.Size or nil
-	local height = size ~= nil and (tonumber(size[2]) or 0) or 0
-	-- The sprite as drawn where there is no font to match, the font's height where
-	-- there is one.
-	local base = e.scale[2]
-	if height > 0 then
-		base = height * e.scale[2] / sprite
-	end
 	local gl = block.glyphs
-	return base * gl.scale[1], base * gl.scale[2]
+	if gl.scalewithtext then
+		local size = e.fontdef ~= nil and e.fontdef.Size or nil
+		local height = size ~= nil and (tonumber(size[2]) or 0) or 0
+		if height > 0 then
+			local derived = height * e.scale[2] / sprite
+			return derived, derived
+		end
+	end
+	return gl.scale[1], gl.scale[2]
 end
 
 -- Walks one Step's Glyphs along a row, left to right, and returns how wide the run is.
@@ -4267,6 +4309,10 @@ local function glyphState(block)
 	return {
 		offset = gl.offset,
 		scale = gl.scale,
+		-- Which of the two sizings is in force, and therefore whether `scale` above is
+		-- being read at all. A run drawn at the wrong size is one or the other, and on
+		-- screen they look identical.
+		scalewithtext = gl.scalewithtext,
 		spacing = gl.spacing,
 		align = gl.align,
 		layerno = gl.layerno,

@@ -312,10 +312,31 @@ completedstep.horizontal.bg.palfx.mul = 110, 110, 110
 ; declares no Glyphs draws as text alone, and a token this screenpack has no Glyph for
 ; is skipped rather than drawn.
 ;
-; scale is a MULTIPLIER, not a size. A Glyph stands in for a word of the Step beside it,
-; so it is sized from that Step Status's own font height and text scale — the engine
-; sizes its movelist glyphs the same way — and this is applied on top. A Step Status a
-; screenpack styles larger therefore carries its Glyphs up with it.
+; HOW BIG A GLYPH IS, and the one key that decides it: scalewithtext.
+;
+; ON (the default). A Glyph stands in for a word of the Step beside it, so it is sized
+; from that Step Status's own font height and text scale — the engine sizes its movelist
+; glyphs the same way. A Step Status a screenpack styles larger carries its Glyphs up
+; with it, and the run always reads as part of the words.
+;
+;   scale is NOT READ while this is on. The size derived from the text replaces it,
+;   which is what the pre-refactor toggle of the same name did.
+;
+; OFF. scale IS the size, exactly as written here, and nothing about the text enters
+; into it. This is what to use for Glyphs sized absolutely — the pre-refactor default
+; was an absolute 0.3125 — and it is the only way to draw Glyphs at a size the words do
+; not dictate. A screenpack migrating a scalewithtext = false block keeps its old scale
+; value unchanged.
+;
+; One case falls back on its own: with scalewithtext ON but no font resolvable for that
+; Step Status — because its text.font is absent, so it draws no words — there is no
+; height to match, and scale is used as written. The Glyphs still draw. That is the
+; Glyph-only Step display the pre-refactor horizontal Layout was, and it needs no
+; special spelling: leave the font out and set the scale you want.
+;
+; What is measured is the FONT's height, not the Step's string. A Step whose text is
+; empty still sizes its Glyphs from the font its Step Status resolved, so a run does not
+; change size from one Step to the next.
 ;
 ; align is the engine's own three: 1 grows the run right from its anchor, -1 ends it
 ; there, 0 centres it on it. It is the vertical Layout's alone, because aligning against
@@ -345,6 +366,8 @@ completedstep.horizontal.bg.palfx.mul = 110, 110, 110
 ; offset and spacing are in 320x240, this file's own space (see trials.localcoord above).
 ; -----------------------------------------------------------------------------------
 glyphs.vertical.offset = 230, 2
+glyphs.vertical.scalewithtext = true
+; Read only when scalewithtext is false, or when the Step Status resolved no font.
 glyphs.vertical.scale = 1, 1
 glyphs.vertical.spacing = 1, 0
 glyphs.vertical.align = -1
@@ -352,6 +375,8 @@ glyphs.vertical.layerno = 0
 ; glyphs.vertical.localcoord =
 
 glyphs.horizontal.offset = 3, 2
+glyphs.horizontal.scalewithtext = true
+; Read only when scalewithtext is false, or when the Step Status resolved no font.
 glyphs.horizontal.scale = 1, 1
 glyphs.horizontal.spacing = 1, 0
 glyphs.horizontal.layerno = 0
