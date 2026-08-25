@@ -409,6 +409,111 @@ completedstep.horizontal.glyphs.palfx.mul = 110, 110, 110
 ; currentstep.horizontal.glyphs.palfx.color =
 ; completedstep.horizontal.glyphs.palfx.color =
 
+; TRIAL TEXTBOX --------------------------------------------------------------------
+; The explanatory prose a Trial can carry, with an optional portrait. A Trial declares
+; it with `trial.textbox` in its Trial Definition, and language variants with a key
+; suffix — `trial.textbox.es`. A Trial that declares none draws no Textbox and no empty
+; frame; whether a Trial that does declare one shows it is the player's, through
+; [Options] Trials.Textboxes in config.ini.
+;
+; Note the asymmetry, which is deliberate: a Trial DEFINITION spells a language with a
+; key suffix (trial.textbox.es), while this file spells one with a section prefix
+; ([ES.Trials Mode]). The two files are read by different parsers.
+;
+; Five elements on one origin. textbox.pos positions all of them and each spells only its
+; own offset, the way the Step Statuses share the Step block's origin. They draw in this
+; order, so front is over the words and bg is behind them:
+;
+;   .bg        artwork behind the whole box
+;   .portrait  the character being played, or a sprite from your sff
+;   .title     one line, usually the Trial's number and name
+;   .text      the Trial's own prose
+;   .front     artwork over everything, for a frame or a gloss
+;
+; The whole Textbox draws behind the Steps, because the Step block moves out of its way
+; rather than over it: see trialsteps.<layout>.pos.withtextbox and window.withtextbox
+; above, which are what a Trial carrying a Textbox switches the Steps to.
+;
+; TITLE TEXT takes %i for the Trial's number and %s for its name, following the engine's
+; own substitution convention. The pre-refactor spelling — %s for the number and %n for
+; the name — is still read, and writing %n anywhere in the string is what selects it, so
+; an existing screenpack needs no edit.
+;
+; BODY TEXT wraps inside textbox.text.window, which is doing two jobs: it is both what
+; the prose is clipped to and what it wraps inside. Set it to the inside of your box.
+; Wrapping is on unless you turn it off.
+;
+;   textbox.text.delay is frames per character, for prose that types itself out. 0 —
+;   the default — is the whole of it at once. The pre-refactor key was `drawspeed`.
+;   The reveal starts over whenever the Trial changes, and whenever a player switches
+;   Textboxes back on.
+;
+; PORTRAIT SOURCE is `char` or `system`. `char` draws the character being played, from
+; the sprites the select screen already preloaded — spr names which of that character's
+; sprites, 9000,0 being the small portrait every character has. Its scale is corrected
+; for the character's own coordinate space and portraitscale, so one scale here looks
+; right across characters that disagree about either. `system` draws a sprite out of an
+; sff, and follows the same rule every other element does: a spr this file ships means
+; the module's trials.sff, one your screenpack writes means yours.
+;
+; WHERE THE SHIPPED ONE SITS, and one thing to know before moving it. The Textbox is one
+; element set both Layouts share — there is one textbox.pos, not one per Layout — so the
+; shipped position has to clear BOTH Layouts' Steps. The vertical block ends at y 138 and
+; the horizontal one at y 70, so it sits below both, at y 150.
+;
+; trialsteps.horizontal.window.withtextbox reserves a right-hand strip instead, from a
+; run at the screen. Nothing is drawn in that strip today, so a Trial carrying prose
+; narrows the horizontal row for no gain. Reserving it costs one early row wrap; using it
+; would need either a per-Layout textbox.pos or a Textbox that overlaps the vertical
+; Layout's Steps. Left as tuned rather than quietly widened.
+;
+; pos is in 320x240, this file's own space (see trials.localcoord above). No artwork is
+; shipped switched on: a Textbox frame is a screenpack's own furniture, and one drawn in
+; artwork this module invented would sit oddly against every other screenpack. Give
+; textbox.bg a spr and it appears.
+; -----------------------------------------------------------------------------------
+textbox.pos = 20, 150
+; textbox.localcoord =
+
+textbox.title.text = "Trial %i: %s"
+textbox.title.font = 1, 0, 1, 255, 220, 100
+textbox.title.offset = 4, 8
+; textbox.title.scale =
+; textbox.title.font.height =
+; textbox.title.layerno =
+
+textbox.text.font = 1, 0, 1, 235, 235, 235
+textbox.text.offset = 4, 20
+; Stops short of y 228, where trialcounter.pos puts the Trial counter: the prose wraps
+; inside this rect, so its last line has to clear the counter rather than sit over it.
+textbox.text.window = 24, 158, 296, 216
+textbox.text.wrap = true
+textbox.text.delay = 0
+textbox.text.spacing = 0, 10
+; textbox.text.scale =
+; textbox.text.font.height =
+; textbox.text.layerno =
+
+; No shipped artwork — see above. spr here means the module's trials.sff; spr in your
+; screenpack's system.def means yours.
+; textbox.bg.spr =
+; textbox.bg.offset =
+; textbox.bg.scale =
+; textbox.bg.layerno =
+
+; textbox.front.spr =
+; textbox.front.offset =
+; textbox.front.scale =
+; textbox.front.layerno =
+
+textbox.portrait.source = char
+textbox.portrait.spr = 9000, 0
+textbox.portrait.offset = 250, 4
+textbox.portrait.scale = 1, 1
+; textbox.portrait.facing =
+; textbox.portrait.window =
+; textbox.portrait.layerno =
+
 ; TRIAL TIMERS --------------------------------------------------------------------
 ; Two stopwatches, both counting up: totaltrialtimer since the match began,
 ; currenttrialtimer since the current Trial started. Both freeze on All-Clear.

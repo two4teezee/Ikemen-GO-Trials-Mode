@@ -218,6 +218,10 @@ end
 local aliases = {
 	trials_mode = {
 		{from = {'trialcounter', 'notrialsdata', 'text'}, to = {'nodata', 'text'}},
+		-- The Textbox's typed reveal. README.md documents textbox.text.drawspeed and an
+		-- existing screenpack ships one; the modern key says what the number is —
+		-- frames per character — where "speed" reads as though larger were faster.
+		{from = {'textbox', 'text', 'drawspeed'}, to = {'textbox', 'text', 'delay'}},
 	},
 }
 
@@ -1195,6 +1199,166 @@ local function buildTimer(name)
 	return e
 end
 
+-- Breaks `text` into lines no wider than `width`, by inserting newlines.
+--
+-- Greedy and word-based: words are added to a line until the next one would not fit, and
+-- a word wider than the whole width is left to overflow rather than split, because
+-- splitting a word is worse than a line that runs long. Newlines the author wrote are
+-- kept, and each of the lines they make is wrapped on its own.
+--
+-- Measured the way every other width in this module is measured — textImgGetTextWidth in
+-- the font's own pixels, times the element's x scale — so the result is comparable with
+-- a width in that element's localcoord. That is the same pairing drawStepsHorizontal
+-- uses to decide where a row wraps.
+local function wrapProse(e, text, width)
+	if width <= 0 or text == '' then
+		return text
+	end
+	local ts = e.TextSpriteData
+	local out, n = {}, 0
+	for line in (text .. '\n'):gmatch('([^\n]*)\n') do
+		local built = nil
+		for word in line:gmatch('%S+') do
+			if built == nil then
+				built = word
+			elseif textImgGetTextWidth(ts, built .. ' ' .. word) * e.scale[1] > width then
+				n = n + 1
+				out[n] = built
+				built = word
+			else
+				built = built .. ' ' .. word
+			end
+		end
+		n = n + 1
+		out[n] = built or ''
+	end
+	return table.concat(out, '\n')
+end
+
+-- Puts one Trial's prose on the Textbox and starts its reveal over.
+--
+-- textImgReset is what zeroes the tick count the typed reveal is measured against
+-- (src/font.go:1456), and it also empties the text of a Lua-made sprite (see
+-- buildBanner) — so the words go back on after it, wrapped, and never before.
+local function setProse(box, text)
+	if box == nil then
+		return
+	end
+	textImgReset(box.text.TextSpriteData)
+	textImgSetText(box.text.TextSpriteData,
+		box.wrap and wrapProse(box.text, text, box.wrapWidth) or text)
+end
+
+-- The Textbox: the explanatory prose a Trial can carry, with an optional portrait.
+--
+-- Five elements on one origin. `textbox.pos` positions all of them and each spells only
+-- its own offset, the way the Step block's three Step Statuses share theirs:
+--
+--   .bg        artwork behind the whole box
+--   .portrait  the character being played, or a sprite from the screenpack
+--   .title     one line, usually the Trial's number and name
+--   .text      the Trial's own prose, wrapped and optionally typed out
+--   .front     artwork over everything, for a frame or a gloss
+--
+-- Drawn in that order, so `front` is over the words and `bg` behind them. Elements
+-- sharing a layer number draw in the order they are drawn in.
+--
+-- The portrait is not built here when it comes from the character: which character that
+-- is only becomes known when a match resolves, so that one is built on demand and cached
+-- per character. See charPortrait.
+local function buildTextbox()
+	local path = {'trials_mode', 'textbox'}
+	local g = elementReader(path)
+	local box = {path = path}
+
+	box.title = buildText(join(path, 'title'), path)
+	box.title.text = strValue(g('title', 'text'), '')
+	trials.elements['textbox.title'] = box.title
+
+	box.text = buildText(join(path, 'text'), path)
+	trials.elements['textbox.text'] = box.text
+
+	-- Line spacing and the typed-out reveal are the engine's own; WRAPPING IS NOT, and
+	-- the difference is not obvious from the binding list.
+	--
+	-- There is a textImgSetTextWrap, and it sets a flag — but that flag is read in one
+	-- place only, TextSprite.wrapText (src/font.go:1142), and wrapText is called from the
+	-- engine's own Go text paths (dialogue, win quotes, storyboards) and from nothing
+	-- else. It is not called from Draw, and no textImg binding reaches it. A Lua draw
+	-- splits the string on newlines and does nothing further (src/font.go:1412). So the
+	-- newlines have to be in the string before it is set, which is what wrapProse does —
+	-- the same job main.f_textRender and main.f_lineLength did for the pre-refactor
+	-- module before both were removed from the engine's main.lua.
+	--
+	-- The delay and the spacing below really are the engine's: draw honours textDelay
+	-- itself (src/font.go:1396) and advances each line by the font's height plus
+	-- textSpacing.y (src/font.go:1424).
+	box.wrap = flagValue(g('text', 'wrap'), true)
+	local spacing = numList(g('text', 'spacing'), {0, 0})
+	textImgSetTextSpacing(box.text.TextSpriteData, spacing[1], spacing[2])
+	box.spacing = spacing
+	-- Frames per character. 0 is the whole of the prose at once, which is what the
+	-- engine reads a non-positive delay as (src/font.go:1396) and what a screenpack that
+	-- says nothing gets. The pre-refactor key was `drawspeed` and meant the same thing.
+	box.delay = numList(g('text', 'delay'), {0})[1]
+	textImgSetTextDelay(box.text.TextSpriteData, box.delay)
+
+	-- How wide the prose may run before it turns, in the element's own coordinate space.
+	-- Resolved once: the window, the origin and the scale are all fixed at load, and
+	-- nothing in the draw path moves the body.
+	--
+	-- The three cases are the engine's own (getLineLength, src/font.go:1017), because
+	-- where an aligned line ends depends on which end is anchored. An all-zero window is
+	-- the engine's spelling of "do not clip", and prose with nothing to turn inside runs
+	-- to the edge of its coordinate space.
+	local win = box.text.window
+	local unclipped = win[1] == 0 and win[2] == 0 and win[3] == 0 and win[4] == 0
+	local left = unclipped and 0 or win[1]
+	local right = unclipped and box.text.localcoord[1] or win[3]
+	local align = box.text.font[3]
+	if align == 1 then
+		box.wrapWidth = right - box.text.pos[1]
+	elseif align == 0 then
+		box.wrapWidth = 2 * math.min(box.text.pos[1] - left, right - box.text.pos[1])
+	else
+		box.wrapWidth = box.text.pos[1] - left
+	end
+
+	box.bg = buildArt(join(path, 'bg'), path)
+	box.front = buildArt(join(path, 'front'), path)
+	if box.bg ~= nil then
+		trials.elements['textbox.bg'] = box.bg
+	end
+	if box.front ~= nil then
+		trials.elements['textbox.front'] = box.front
+	end
+
+	-- Where the portrait comes from. `char` is the character being played, drawn from
+	-- the sprites the select screen already preloaded; anything else is a sprite out of
+	-- an sff, through the same mapper every other element uses.
+	box.portraitSource = strValue(g('portrait', 'source'), 'system'):lower()
+	box.portraitPath = join(path, 'portrait')
+	if box.portraitSource ~= 'char' then
+		box.portrait = buildArt(box.portraitPath, path)
+		if box.portrait ~= nil then
+			trials.elements['textbox.portrait'] = box.portrait
+		end
+	else
+		-- Read now so the per-match build has them without re-reading config: the
+		-- geometry a character portrait draws under is the same element geometry
+		-- everything else resolves, and only the sprite is late.
+		local pg = elementReader(box.portraitPath, path)
+		box.portraitGeo = elementGeometry(pg, box.portraitPath, path)
+		box.portraitSpr = numList(pg('spr'), {9000, 0})
+		box.portraitFacing = numList(pg('facing'), {1})[1]
+		-- One Anim per character, built the first time that character's Textbox is
+		-- drawn. Keyed by char_ref because that is what animGetPreloadedCharData takes.
+		box.portraits = {}
+	end
+
+	return box
+end
+
 -- Success and All-Clear share one shape: a banner positioned by the parent key, with
 -- its words styled under `.text`, so `success.pos` moves both the text and everything
 -- a later slice draws behind it.
@@ -1281,6 +1445,7 @@ if trials.enabled then
 	trials.elements.trialresetreminder = buildText({'trials_mode', 'trialresetreminder'})
 	trials.elements.trialresetreminder.text =
 		strValue(cfgGet({'trials_mode', 'trialresetreminder', 'text'}), '')
+	trials.textbox = buildTextbox()
 	-- Both Layouts, built once. trials.stepblock is whichever one the Layout preference
 	-- selects, and applyStepLayout below points it at that — it cannot be resolved here,
 	-- because reading a preference is reading config.ini and that reader is defined with
@@ -2056,6 +2221,11 @@ local function resolveMatch()
 		local char = main.t_selChars[selected.ref + 1]
 		if type(char) == 'table' then
 			m.char = char.name
+			-- Kept whole for the Textbox's portrait, which needs the character's own
+			-- char_ref, portraitscale and localcoord — see charPortrait. Held rather
+			-- than copied out because it is the select screen's row and the module does
+			-- not own it.
+			m.charRow = char
 			if type(char.trials) == 'table' then
 				m.trials = char.trials
 				m.total = #char.trials
@@ -2170,6 +2340,17 @@ local function syncDisplay(m)
 	if trials.stepblock ~= nil then
 		applyStepWindow(trials.stepblock, m.textbox)
 	end
+	-- The prose on screen, alongside the Steps on screen and for the same reason: across
+	-- a Success the Textbox belongs to the Trial the player just finished, not to the one
+	-- the match has moved on to.
+	local trial = m.trials[m.shownCurrent]
+	m.shownText = type(trial) == 'table' and strValue(trial.textbox, '') or ''
+	-- The typed reveal is measured from a tick count textImgReset zeroes
+	-- (src/font.go:1456), so this is where it starts over: a new Trial types its own
+	-- prose out from the beginning rather than inheriting how far the last one got.
+	-- Reset empties a Lua-made sprite's text (see buildBanner), so the words go back on
+	-- after it.
+	setProse(trials.textbox, m.shownText)
 end
 
 -- Whether the Trial at `index` shows a Textbox: it has to carry one, and the player has
@@ -2320,7 +2501,14 @@ local function refreshTextbox()
 	-- lagging behind a Success catches up through syncDisplay, with the Trial it is
 	-- lagging towards.
 	if m.shownCurrent == m.current then
+		local appearing = m.textbox and not m.shownTextbox
 		m.shownTextbox = m.textbox
+		-- A Textbox the player has just switched back on types its prose out from the
+		-- beginning, rather than resuming wherever the reveal had got to before it was
+		-- hidden. It has only now appeared; starting mid-sentence would read as a bug.
+		if appearing then
+			setProse(trials.textbox, m.shownText or '')
+		end
 		if trials.stepblock ~= nil then
 			applyStepWindow(trials.stepblock, m.textbox)
 		end
@@ -3731,6 +3919,127 @@ local function drawStepBgHorizontal(block, status, x, y, content)
 	drawArt(bg.head, x + bg.tailWidth + span, y)
 end
 
+-- The Anim for one character's portrait, built once per character and cached.
+--
+-- charSpriteDraw is gone from the engine, which is what the pre-refactor module drew
+-- this with. animGetPreloadedCharData is the replacement: it hands back an Anim over the
+-- sprite the select screen already loaded for that character, so nothing is read off
+-- disk here and a character with no such sprite simply returns nil.
+--
+-- The scale correction is the engine's own, from main.f_materializeCharCell
+-- (main.lua:746): a portrait is authored in the CHARACTER's coordinate space, not in the
+-- space it is being drawn in, so the ratio between the two is applied on top of whatever
+-- scale the screenpack asked for. `portraitscale` is the character's own declared
+-- correction and is part of the same product.
+--
+-- The engine's version divides into motif.info.localcoord because that is the space its
+-- own select-screen cells resolve in. This one divides into the ELEMENT's localcoord,
+-- which is the space this portrait actually draws in — the module's own 320x240 unless a
+-- screenpack moved it. Taking the engine's constant here would size the portrait for a
+-- space it is not in.
+local function charPortrait(box, row)
+	if row == nil or row.char_ref == nil then
+		return nil
+	end
+	local cached = box.portraits[row.char_ref]
+	if cached ~= nil then
+		return cached ~= false and cached or nil
+	end
+	local geo = box.portraitGeo
+	local a = animGetPreloadedCharData(row.char_ref, box.portraitSpr[1], box.portraitSpr[2])
+	if a == nil then
+		box.portraits[row.char_ref] = false
+		return nil
+	end
+	local lc = geo.localcoord
+	local charLc = tonumber(row.localcoord) or lc[1]
+	local correction = (tonumber(row.portraitscale) or 1) * lc[1] / (charLc > 0 and charLc or lc[1])
+	animSetLocalcoord(a, lc[1], lc[2])
+	animSetPos(a, geo.pos[1], geo.pos[2])
+	animSetScale(a, geo.scale[1] * correction, geo.scale[2] * correction)
+	animSetFacing(a, box.portraitFacing)
+	animSetXShear(a, geo.xshear)
+	animSetAngle(a, geo.angle)
+	animSetXAngle(a, geo.xangle)
+	animSetYAngle(a, geo.yangle)
+	animSetProjection(a, geo.projection)
+	animSetFocalLength(a, geo.focallength)
+	animSetWindow(a, geo.window[1], geo.window[2], geo.window[3], geo.window[4])
+	animSetLayerno(a, geo.layerno)
+	box.portraits[row.char_ref] = a
+	return a
+end
+
+-- The Textbox's title line.
+--
+-- Two spellings, told apart the way counterText tells its two apart: the pre-refactor
+-- one spelled the Trial's number %s and its name %n, and the modern one follows the
+-- engine's own substitution convention — %i for the number, %s for the name. The
+-- presence of %n is what says which is meant, so an existing screenpack needs no edit
+-- and a new one does not have to know the old spelling existed.
+local function textboxTitle(m)
+	local fmt = trials.textbox ~= nil and trials.textbox.title.text or ''
+	local index = m.shownCurrent or m.current
+	local trial = m.trials[index]
+	local name = type(trial) == 'table' and trial.title or ''
+	if fmt:find('%%n') then
+		-- Rewritten onto the modern spelling rather than substituted into: %n becomes
+		-- %s and the old %s becomes %i, and the name then goes through f_formatBySpec as
+		-- an ARGUMENT like it does below.
+		--
+		-- Substituting the name into the format string instead looks simpler and is
+		-- wrong twice over. gsub reads `%` in its replacement as a capture reference,
+		-- and f_formatBySpec then runs string.format over the result, which reads a
+		-- surviving `%` as a format spec of its own — so a Trial an author named
+		-- "100% Damage" came out as "100%!D(MISSING)amage". A replacement FUNCTION is
+		-- used here because its return value is taken literally, which is what makes
+		-- one pass safe against both spellings at once regardless of order.
+		return main.f_formatBySpec(fmt:gsub('%%([ns])', function(c)
+			return c == 'n' and '%s' or '%i'
+		end), {i = index, s = name})
+	end
+	return main.f_formatBySpec(fmt, {i = index, s = name})
+end
+
+-- The Textbox, when the Trial on screen carries one and the player has not hidden them.
+--
+-- Nothing is constructed per frame except a character's portrait Anim, and that only the
+-- first time each character is seen.
+local function drawTextbox(m)
+	local box = trials.textbox
+	if box == nil or not m.shownTextbox then
+		return
+	end
+	local text = m.shownText or ''
+	if text == '' then
+		return
+	end
+	drawArt(box.bg, 0, 0)
+
+	if box.portraitSource == 'char' then
+		local a = charPortrait(box, m.charRow)
+		if a ~= nil then
+			animUpdate(a)
+			animDraw(a)
+		end
+	else
+		drawArt(box.portrait, 0, 0)
+	end
+
+	local title = box.title
+	textImgSetText(title.TextSpriteData, textboxTitle(m))
+	textImgDraw(title.TextSpriteData)
+
+	-- Neither reset nor re-position here: textImgReset zeroes the tick count the typed
+	-- reveal is measured against (src/font.go:1456), so resetting per frame would retype
+	-- the first character forever. The reset belongs to the moment the Trial changes,
+	-- which is where the reveal should start over — see syncDisplay.
+	textImgUpdate(box.text.TextSpriteData)
+	textImgDraw(box.text.TextSpriteData)
+
+	drawArt(box.front, 0, 0)
+end
+
 -- Draws one Step, with the element for the Step Status it currently has.
 --
 -- Nothing is constructed here. Each row is the engine's own list idiom
@@ -4088,6 +4397,7 @@ hook.add('loop#trials', 'trials', function()
 		end
 	end
 
+	drawTextbox(m)
 	drawSteps()
 	drawReminder(m)
 	drawBanner(m)
@@ -4337,6 +4647,48 @@ local function bgState(block)
 	return out
 end
 
+-- The Textbox as it resolved: which of its five elements were configured, where its
+-- prose wraps, and where a portrait comes from.
+--
+-- The prose itself is not here — it belongs to a Trial and is dumped with that Trial, in
+-- `chars`. What this answers is the question a blank Textbox actually raises: whether it
+-- was never configured, or configured and drawing nothing.
+local function textboxState()
+	local box = trials.textbox
+	if box == nil then
+		return nil
+	end
+	return {
+		-- Copied for the reason every other localcoord in this dump is: it is one table
+		-- the elements share, and the dump elides a table it has already printed.
+		localcoord = {box.title.localcoord[1], box.title.localcoord[2]},
+		titleText = box.title.text,
+		titlePos = {box.title.pos[1], box.title.pos[2]},
+		textPos = {box.text.pos[1], box.text.pos[2]},
+		-- The window is doing two jobs — what the prose clips to and what it wraps
+		-- inside — so a Textbox whose words run off the edge is diagnosable from here.
+		textWindow = {box.text.window[1], box.text.window[2],
+			box.text.window[3], box.text.window[4]},
+		wrap = box.wrap,
+		delay = box.delay,
+		spacing = {box.spacing[1], box.spacing[2]},
+		bg = box.bg ~= nil,
+		front = box.front ~= nil,
+		portraitSource = box.portraitSource,
+		-- For a system portrait, whether the sprite resolved at all. For a character
+		-- one there is nothing to resolve until a match names a character, so this
+		-- reports how many have been built rather than a yes or no.
+		portrait = box.portraitSource ~= 'char' and (box.portrait ~= nil) or nil,
+		portraitsBuilt = box.portraits ~= nil and (function()
+			local n = 0
+			for _, v in pairs(box.portraits) do
+				if v ~= false then n = n + 1 end
+			end
+			return n
+		end)() or nil,
+	}
+end
+
 -- The pause menu's items in the order the engine resolved them to, as one string. A
 -- list, not a table, for the reason copySteps flattens Parts into one: it is what makes
 -- an ordering assertable without reasoning about the dump's back-referencing.
@@ -4471,6 +4823,10 @@ function trials.f_dumpState()
 			bg = bgState(trials.stepblock),
 		} or nil,
 		chars = chars,
+		-- The Textbox as it resolved. Not under `steps`, because it is not the Step
+		-- block's: it is one element set both Layouts share, and what it displaces is
+		-- decided by whichever Layout is in use rather than the other way round.
+		textbox = textboxState(),
 		-- The live match: which Trial and Step the player is on, how far through the
 		-- current Step's Parts, and what has been completed. Copied scalar by scalar
 		-- rather than dumping trials.match wholesale, so nothing here is a second path
@@ -4489,6 +4845,14 @@ function trials.f_dumpState()
 			combo = trials.match.combo,
 			grace = trials.match.grace,
 			textbox = trials.match.textbox,
+			-- The prose actually on screen, and whether a Textbox is being drawn for it.
+			-- Both are the Trial ON SCREEN, which across a Success is the finished one
+			-- rather than the one the match has moved on to — and f_dumpState runs from
+			-- completeTrial, which is inside exactly that lag. Anything comparing the two
+			-- has to compare these with each other and not with `textbox` above, which is
+			-- the match's Trial and legitimately a different one.
+			shownTextbox = trials.match.shownTextbox == true,
+			shownText = trials.match.shownText or '',
 			completedCount = trials.match.completedCount,
 			allclear = trials.match.allclear,
 			banner = trials.match.banner or '',

@@ -872,6 +872,52 @@ def run_checks(tree, quiet=False):
                 c.check(f"{status} has a body to go with its head and tail",
                         False, True)
 
+    c._print("\nTrial Textbox (#43)")
+    # The Textbox is one element set both Layouts share. What is assertable from a
+    # startup dump is what it resolved to; whether it looks right needs a person.
+    tb = dig(tree, "textbox")
+    c.present("the Textbox resolved", tb)
+    if tb and not c.unreadable("the Textbox is its own", tb):
+        c.check("the title carries a format string", bool(dig(tb, "titleText")), True)
+        # The window is doing two jobs — what the prose clips to and what it wraps
+        # inside (src/font.go:995) — so an empty one means prose that runs to the edge
+        # of the coordinate space before it turns.
+        win = list((dig(tb, "textWindow") or {}).values())
+        if win and any(win):
+            c.check("the prose has a window to wrap and clip inside", len(win), 4)
+        else:
+            c.skip("the prose has a window to wrap and clip inside",
+                   "no window set, so the prose wraps at the edge of the screen")
+        c.check("wrap resolved to a boolean", isinstance(dig(tb, "wrap"), bool), True)
+        # Frames per character; 0 is the whole of it at once, which is the default.
+        c.check("the typed reveal resolved to a number",
+                isinstance(dig(tb, "delay"), (int, float)), True)
+        src = dig(tb, "portraitSource")
+        c.check("the portrait source is one the module knows",
+                src in ("char", "system"), True)
+        if src == "char":
+            # Nothing resolves until a match names a character, so a count of zero here
+            # is only meaningful once one has.
+            c._print(f"      (character portraits built so far: "
+                     f"{dig(tb, 'portraitsBuilt')})")
+        else:
+            c.check("a system portrait resolved its sprite", dig(tb, "portrait"), True)
+
+    # The prose on screen belongs to the Trial being shown, which across a Success is the
+    # finished one rather than the one the match has moved on to.
+    live = dig(tree, "match")
+    if live:
+        # Both of these are the Trial ON SCREEN. Comparing against match.textbox instead
+        # would be comparing two different Trials: f_dumpState runs from completeTrial,
+        # inside the lag where the match has advanced and the display has not.
+        shown, showing = dig(live, "shownText"), dig(live, "shownTextbox")
+        c.check("a Textbox is only drawn for a Trial that carries prose",
+                not showing or bool(shown), True)
+    else:
+        c.skip("a Textbox is only drawn for a Trial that carries prose",
+               "no match in this dump")
+
+    c._print("\nStep Parts and match progress")
     all_parts = [pt for st in dumped_steps for pt in (st.get("parts") or {}).values()
                  if isinstance(pt, dict)]
     c.check("Parts were found to check", bool(all_parts), True)

@@ -601,6 +601,23 @@ trialstep.1.stateno = 1010
 ;   Mid-trial, the player can put both characters back where the trial wants them by holding the key combination the screenpack sets as trialresetkeys - see REPOSITIONING in the system.def section above.
 ; trial.showvarvalpairs - optional - (comma-separated integers, specified in pairs, can specify 0..n pairs). Used to determine whether a trial should be displayed based on the specified variable and value pair(s) in this field. Useful if a trial should only be displayed when character has a specific variable/value pair set, such as being in a specific groove or mode. If specified, the trial will only be displayed if all variable-value pairs return true. These variable-value pairs should only be for the character (not for helpers). Finally, variables can have multiple specified values to test against, which should be separated by the "|" character (e.g. `trial.showforvarvalpairs = 12, 0|2|4` would test var(12) for values 0, 2, and 4).
 ; trial.textbox - optional - multilingual - displays specified text in a box specified in the textbox settings in system.def under [Trials Mode]. Supports specification as trial.textbox, or trial.textbox.en, trial.textbox.es, etc. for multilingual support. Will default to trial.textbox.en (or trial.textbox) if selected language cannot be matched.
+;
+; TWO WAYS TO SPELL A LANGUAGE, and they are not interchangeable. This file — a
+; character's Trials Definition — spells one as a KEY SUFFIX:
+;
+;   trial.textbox.es = Este es un cuadro de texto en español.
+;   trialstep.1.text.es = Rodillazo + patada extra
+;
+; A screenpack's system.def spells one as a SECTION PREFIX instead, which is the
+; engine's own convention for motif sections:
+;
+;   [ES.Trials Mode]
+;   trialcounter.text = "Prueba %i de %s"
+;
+; Both are intended. The two files are read by different parsers: a Trials Definition is
+; read key by key by this module, while system.def sections follow the engine. Resolution
+; is the same either way — the selected language, then en, then the unsuffixed or
+; unprefixed form.
 
 ; The options above are defined once per trial. The other parameters can be defined for each trial step - notice the syntax, where X is the trial number.
 
