@@ -3620,6 +3620,23 @@ local function applySetup()
 
 	if m.repos == 'out' then
 		if not fadeActive() then
+			-- The wait for a settled Dummy happens HERE, behind the fade, rather than in
+			-- front of it. She is regularly still in the hitstun of the combo that just
+			-- ended, so waiting before the fade means waiting on a LIT screen — up to
+			-- SETTLE_LIMIT frames of live match between the player asking for a Trial and
+			-- anything appearing to happen.
+			--
+			-- Picking a Trial out of the pause menu made that worst, because the menu
+			-- runs its own closing fade and then fades back IN to the match before
+			-- unpausing (motif.go:3401, ME_ClosingOut -> ME_ClosingIn). The player saw
+			-- the screen darken, brighten again on the Trial they had just left, sit
+			-- there while the Dummy settled, and only then start the fade they asked for.
+			-- Behind the fade the same wait is a screen that was already dark.
+			if not dummySettled() and (m.settleWait or 0) < SETTLE_LIMIT then
+				m.settleWait = (m.settleWait or 0) + 1
+				return
+			end
+			m.settleWait = 0
 			writeSetup(m)
 			m.repos = 'in'
 			if trials.reposition.fadeinTime > 0 then
@@ -3673,12 +3690,10 @@ local function applySetup()
 		m.settleWait = 0
 		return
 	end
-	-- Something wants the pair moved. It waits for the Dummy to be worth moving.
-	if not dummySettled() and (m.settleWait or 0) < SETTLE_LIMIT then
-		m.settleWait = (m.settleWait or 0) + 1
-		return
-	end
-	m.settleWait = 0
+	-- Something wants the pair moved, and the fade starts NOW — on the frame the request
+	-- is noticed, not once the Dummy has settled. Everything that has to wait waits in
+	-- the dark, in the 'out' branch above.
+	--
 	-- The first placement of a round goes straight in: there is nothing on screen yet
 	-- to fade away from, and the round's own fade already covers it.
 	if m.setupTrial ~= nil and fadesReposition() then
@@ -3688,6 +3703,14 @@ local function applySetup()
 		end
 		return
 	end
+	-- No fade to hide it behind — the first placement of a round, or a screenpack that
+	-- set both fade times to 0 asking for an instant cut. The wait for a settled Dummy
+	-- is all there is, so it happens here.
+	if not dummySettled() and (m.settleWait or 0) < SETTLE_LIMIT then
+		m.settleWait = (m.settleWait or 0) + 1
+		return
+	end
+	m.settleWait = 0
 	writeSetup(m)
 end
 
