@@ -2677,6 +2677,9 @@ local function syncDisplay(m)
 	m.shownCurrent = m.current
 	m.shownTextbox = m.textbox
 	m.shownComplete = false
+	-- The held progress goes with the held Trial: whatever was frozen on screen is
+	-- caught up here, in the one place the display catches up.
+	m.shownStep = nil
 	if trials.stepblock ~= nil then
 		applyStepWindow(trials.stepblock, m.textbox)
 	end
@@ -2705,7 +2708,9 @@ end
 -- Moves the match onto one Trial and resolves everything that depends on which Trial
 -- it is: the Steps to draw, whether a Textbox pushes the Step block into its
 -- with-Textbox window, and the progress and per-Trial timer, both of which start over.
-local function selectTrial(index)
+-- `defer` holds the display on whatever is already there, so the new Trial arrives with
+-- the fade rather than in front of it. See jumpToTrial.
+local function selectTrial(index, defer)
 	local m = trials.match
 	m.current = index
 	local trial = m.trials[index]
@@ -2717,10 +2722,11 @@ local function selectTrial(index)
 	m.textbox = trialTextbox(m, index)
 	resetProgress(m)
 	m.trialTicks = 0
-	-- Nothing on screen changes yet while a banner is up: syncDisplay runs when the pair
-	-- is placed. Selecting a Trial with nothing in the way — the start of a match, a
-	-- Trial picked out of a menu — shows it at once.
-	if m.banner == nil then
+	-- Nothing on screen changes yet while a banner is up, or when the caller is holding
+	-- the display back: syncDisplay runs when the pair is placed, which is behind the
+	-- fade. Selecting a Trial with nothing in the way — the start of a match — shows it
+	-- at once.
+	if m.banner == nil and not defer then
 		syncDisplay(m)
 	end
 end
@@ -2905,7 +2911,20 @@ local function jumpToTrial(index)
 	if m == nil or type(m.trials[index]) ~= 'table' then
 		return
 	end
-	selectTrial(index)
+	-- The Trial the player picked arrives with the fade, not in front of it.
+	--
+	-- The engine's pause menu fades back IN to the match before it unpauses
+	-- (motif.go:3401), so a display that changed on the key press would show the new
+	-- Trial's Steps standing over the old Trial's positions for the whole of that
+	-- fade-in — the new Steps, the old pair, the old corner. Held instead, the screen
+	-- comes back on the Trial the player was already looking at, darkens, and the new
+	-- one arrives with the pair already placed for it.
+	--
+	-- The progress is held with it. resetProgress runs below whatever the display is
+	-- doing, so without this the Trial being held on screen would visibly rewind to its
+	-- first Step while the screen was still lit.
+	m.shownStep = m.step
+	selectTrial(index, true)
 	m.reposRequest = true
 end
 
@@ -3615,6 +3634,11 @@ local function applySetup()
 		m.reposRequest = false
 		m.reposHeld = false
 		m.adoptTrial = nil
+		-- A held display goes with the half-run fade that was going to release it. The
+		-- round is starting over and the Trial it starts on is the one to draw, so a
+		-- Trial frozen on screen waiting for a fade that will now never finish would
+		-- otherwise be what the new round came back to.
+		m.shownStep = nil
 		return
 	end
 
@@ -4568,7 +4592,10 @@ local function drawSteps()
 	-- syncDisplay. A finished one reads as finished all the way down, rather than as the
 	-- next Trial's Step 1 highlighted over the Steps the player has just completed.
 	local steps = m.shownSteps or m.steps
-	local step = m.shownComplete and #steps + 1 or m.step
+	-- shownStep is the progress frozen with a held Trial, so a Trial waiting behind a
+	-- fade keeps the Step the player actually reached rather than the reset one the
+	-- match has already moved to. nil on every ordinary frame.
+	local step = m.shownComplete and #steps + 1 or (m.shownStep or m.step)
 	if #steps == 0 then
 		return
 	end
@@ -5274,6 +5301,10 @@ function trials.f_dumpState()
 			-- wrong Trial is being played" look identical in a screenshot.
 			shownTrial = trials.match.shownCurrent or trials.match.current,
 			shownComplete = trials.match.shownComplete == true,
+			-- The Step drawn on a held Trial, which across a pause-menu jump is the one
+			-- the player actually reached rather than the reset one the match is on. 0
+			-- on every ordinary frame, where the two are the same thing.
+			shownStep = trials.match.shownStep or 0,
 			advancement = autoAdvances() and 'autoadvance' or 'repeat',
 			resetOnSuccess = preferenceEnabled('ResetOnSuccess', true),
 			layout = tostring(preference('Layout', 'vertical')):lower(),
