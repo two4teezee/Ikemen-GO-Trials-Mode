@@ -89,6 +89,34 @@ Prior art to copy: the checklist on #35.
   worth the maintainer's time; call out regression risk explicitly when it exists.
 - If something was verified and later changed, it moves back to known-suspect.
 
+## Test fixtures
+
+Some features draw nothing until a screenpack asks for them — the Step block overlay
+and the trials background both do. Testing those means switching them on somewhere, and
+**that somewhere is the module's own `external/mods/trials/system.def`**, never the
+screenpack's `testbuild/data/ikemen1/system.def`.
+
+The module's system.def is the file anyone debugging this module opens. A fixture that
+cannot be found from there is indistinguishable from a bug: #44 put an overlay and a
+`layerno = 1` background element in the screenpack's file, they drew black rectangles
+over the Steps, and the testing pass was spent working out what was drawing them.
+
+- Mark a fixture clearly and make it one contiguous block that can be deleted by hand.
+- Say in the checklist that it is there, which file it is in, and what it makes appear.
+- Prefer `layerno = 0` for anything drawn near the Steps. Layer 1 draws *over* them,
+  which reads as a z-order bug to anyone who did not write the fixture.
+- Remove it once the feature is verified, and re-run to confirm the stock look is back.
+
+**The one exception** is a fixture whose purpose is to prove that the screenpack layer
+*wins* — the config-layering fixture from #36. Trials Config resolves module
+`+system.def` → module `config.ini` → screenpack `system.def`, so a fixture testing
+precedence has to sit in the screenpack's file; from the module's own it would be layer
+1 and could not test layer 3 at all. Leave that one where it is, and say why whenever it
+comes up.
+
+Fixtures in `testbuild/` are gitignored and therefore local to one machine. They are not
+a substitute for an assertion in `tools/check-trials-dump.py`, which is what survives.
+
 ## Running the build
 
 `tools/run-testbuild.sh` launches `testbuild/` and tees output to
