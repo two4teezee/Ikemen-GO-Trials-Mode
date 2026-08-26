@@ -1565,6 +1565,38 @@ local function buildFade(name)
 	local art = nil
 	if time > 0 and (cfgGet(join(path, 'spr')) ~= nil or cfgGet(join(path, 'anim')) ~= nil) then
 		art = buildArt(path, nil, false, time)
+		-- A fade is the one element with no position of its own, and that breaks the
+		-- rule the rest of them resolve their coordinate space by.
+		--
+		-- sharedLocalcoord asks who wrote `pos`, because for every other element that is
+		-- who decided where it sits and therefore whose space it sits in. Nobody writes
+		-- `fadeout.pos` — a fade covers the screen — so the answer comes back "nobody",
+		-- which it reads as this module's own 320x240. A screenpack's sprite then draws
+		-- in a space a quarter the width it was authored for: at 1280x720 the artwork
+		-- covers four screens and hangs off the top-left corner.
+		--
+		-- So the space follows the ARTWORK here, which is the only provenance a fade
+		-- actually has, and is the question artIsOurs already answers for the file the
+		-- sprite comes out of. A screenpack's sprite resolves in the screenpack's
+		-- localcoord — which is also what the engine's own fades get, since it threads
+		-- the motif's localcoord down to every element as the default
+		-- (src/iniutils.go:2782). An explicit pos or localcoord still wins.
+		if art ~= nil and sourceOf(path, 'pos') == nil
+			and sourceOf(path, 'localcoord') == nil then
+			local lc = artIsOurs(path, nil) and MODULE_LOCALCOORD
+				or {motif.info.localcoord[1], motif.info.localcoord[2]}
+			animSetLocalcoord(art.AnimData, lc[1], lc[2])
+			-- Copied, for the reason every localcoord in this file is: MODULE_LOCALCOORD
+			-- is one shared table and the dump elides a table it has already printed.
+			art.localcoord = {lc[1], lc[2]}
+		end
+		-- Registered like any other drawn element, so the dump reports the geometry it
+		-- resolved to. This is the one element whose coordinate space is decided by a
+		-- rule of its own, and a fade drawing its artwork at the wrong scale looks like
+		-- the fade being broken rather than like a localcoord.
+		if art ~= nil then
+			trials.elements[name] = art
+		end
 	end
 	return fadeNew({
 		time = time,

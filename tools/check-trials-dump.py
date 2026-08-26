@@ -1101,6 +1101,22 @@ def run_checks(tree, quiet=False):
             if not dig(repos, end + "Anim"):
                 c.skip(f"  {end} has no animation layer",
                        f"set {end}.spr in your screenpack to exercise this")
+                continue
+            # A fade is the one element with no pos, so the rule the others resolve
+            # their coordinate space by — who positioned it — answers "nobody" and
+            # falls back to this module's 320x240. A screenpack's sprite drawn there
+            # covers four screens and hangs off the corner. The space has to follow
+            # whoever supplied the ARTWORK, so a screenpack-supplied sprite must not
+            # be sitting in the module's own space.
+            lc = dig(tree, "elements", end, "localcoord")
+            if c.unreadable(f"  {end} animation localcoord", lc):
+                continue
+            c.check(f"  {end} animation resolved a coordinate space",
+                    isinstance(lc, dict) and len(lc) == 2, True)
+            if str(dig(tree, "configSource", f"trials_mode.{end}.spr") or "") \
+                    .startswith("screenpack"):
+                c.check(f"  ... a screenpack's sprite is not in the module's 320x240",
+                        [lc.get(1), lc.get(2)] != [320, 240], True)
 
     c._print("\nThe presentation layer — background, overlay, select-screen palfx (#44)")
     # The mode's own backdrop. Absent is the shipped state and is not a failure: the
