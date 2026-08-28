@@ -64,6 +64,10 @@ Two merge conventions are in play and they are opposites: the engine's `+system.
 concatenation is **first-instance-wins** with the screenpack concatenated first, while
 `main.f_tableMerge` is **last-wins**. Argument order has to be deliberate.
 
+One file is no longer read this way: a Trial Definition is parsed inside the module,
+because go-ini merges the same-named sections a character with modes depends on. See
+docs/adr/0004, which is scoped to that file and does not revisit anything here.
+
 A screenpack that defines trials sections in its *own* `system.def` will still trigger
 these warnings, because the engine parses the screenpack file regardless. That is
 outside a pure-Lua module's control and should be documented rather than worked around.

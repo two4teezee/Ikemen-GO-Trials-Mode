@@ -579,7 +579,9 @@ trialstep.1.stateno = 1010
 
 ; TrialDef Parameter Descriptions
 ; ===============================
-; [TriafDef, TrialTitle] - [TrialDef] mandatory - trial title after the comma is optional.
+; [TrialDef, TrialTitle] - [TrialDef] mandatory - trial title after the comma is optional.
+;
+;   A title is a label, not an identity. Two [TrialDef] sections may carry the SAME title, and they are two separate trials with their own steps and settings, offered in the order the file declares them. That is how a character with modes or grooves spells one combo once per mode, with trial.showforvarvalpairs (below) deciding which of them the player is shown.
 
 ; trial.dummymode - optional - valid options are stand (default), crouch, jump, wjump. Defaults to stand if unspecified.
 ; trial.guardmode - optional - valid options are none, auto. Defaults to none if unspecified.

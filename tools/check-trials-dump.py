@@ -213,6 +213,53 @@ def parse_scalar(raw):
     return raw
 
 
+def trialdef_sections(path):
+    """The [TrialDef] headers a Trial Definition declares, in order.
+
+    Read the way go-ini reads a header — from the opening bracket to the LAST closing
+    bracket on the line — so a header carrying a comment with a bracket in it is
+    counted here the same way the module counts it.
+
+    This is a second, independent reading of the file. That is the point: the failure
+    it guards against is two same-named sections merging in the ini parser, which
+    leaves a dump agreeing with itself. Eight of cvsryu's 38 Trials were unreachable
+    that way and nothing in the parsed state said so (#51).
+    """
+    out = []
+    with open(path, encoding="utf-8", errors="replace") as handle:
+        for line in handle:
+            line = line.lstrip()
+            if not line.startswith("["):
+                continue
+            close = line.rfind("]")
+            if close < 0:
+                continue
+            name = line[1:close].strip()
+            if name.lower().startswith("trialdef"):
+                out.append(name)
+    return out
+
+
+def trialdef_titles(path):
+    """The Trial titles a definition declares, in order.
+
+    The module's own rule, reproduced: whatever follows the FIRST comma of the section
+    name, and where that carries a `;` — which go-ini's last-bracket rule swallows into
+    the name along with the header's own closing bracket — the comment and the bracket
+    come back off (`trialTitle`, trials.lua).
+
+    Titles may repeat (#51), so this is a list and never a set.
+    """
+    out = []
+    for name in trialdef_sections(path):
+        title = name.split(",", 1)[1].strip() if "," in name else ""
+        if ";" in title:
+            title = re.sub(r"\s*;.*$", "", title)
+            title = re.sub(r"\s*\]\s*$", "", title)
+        out.append(title.rstrip())
+    return out
+
+
 def dig(tree, *path):
     cur = tree
     for part in path:
@@ -449,7 +496,7 @@ def run_self_tests():
     return 0
 
 
-def run_checks(tree, quiet=False):
+def run_checks(tree, quiet=False, dump_path=DEFAULT_PATH):
     """Every assertion, against one parsed dump. Returns the Checks that ran them.
 
     Separate from main() so the self-tests can drive the real assertions — not just
@@ -590,6 +637,42 @@ def run_checks(tree, quiet=False):
     for r in with_trials:
         c.present(f"{r.get('name')}: Trial Definition resolved", r.get("trialsDef"))
         c.present(f"{r.get('name')}: Trials read in authored order", dig(r, "titles", 1))
+
+    # Every [TrialDef] section is a Trial, whatever the titles are (#51). A title is a
+    # label and not an identity: a character with modes spells the same combo once per
+    # mode, and trial.showforvarvalpairs decides which of them the player is offered.
+    # The dump is compared against the file rather than against a number written here,
+    # so a definition that grows a Trial does not need this checker edited.
+    # The engine's own working directory, climbed out of the dump's path: the dump is
+    # written to <build>/debug/t_trials.txt and a Trial Definition's path is recorded
+    # relative to <build>. A fixture outside it is recorded absolute and needs no root.
+    build_root = os.path.dirname(os.path.dirname(os.path.abspath(dump_path)))
+    for r in with_trials:
+        name = r.get("name")
+        defpath = r.get("trialsDef")
+        label = f"{name}: one Trial per [TrialDef] section"
+        if not isinstance(defpath, str):
+            c.skip(label, "the dump does not name the file")
+            continue
+        full = defpath if os.path.isabs(defpath) else os.path.join(build_root, defpath)
+        if not os.path.exists(full):
+            c.skip(label, f"{defpath} is not on this machine")
+            continue
+        declared = trialdef_sections(full)
+        c.check(label, r.get("trialCount"), len(declared))
+        # The titles themselves, in order, not just how many: a parse that reached
+        # every section but lost the order of a repeated pair would pass on the count
+        # alone, and authored order is what the player is offered them in.
+        titles = r.get("titles")
+        order_label = f"  {name}: in the order the file declares them"
+        if not c.unreadable(order_label, titles):
+            found = ([titles[i] for i in sorted(titles) if isinstance(i, int)]
+                     if isinstance(titles, dict) else None)
+            c.check(order_label, found, trialdef_titles(full))
+        # Named separately from the count so a definition that has no repeated title
+        # says so rather than looking like it was not checked.
+        repeated = len(declared) - len(set(declared))
+        c._print(f"      ({len(declared)} sections, {repeated} of them a repeated title)")
 
     c._print("\nStep text, vertical layout (#37)")
     block = dig(tree, "steps")
@@ -1385,7 +1468,7 @@ def main():
         print("Run the build with Debug.DumpLuaTables = true in save/config.ini.")
         return 2
 
-    c = run_checks(tree)
+    c = run_checks(tree, dump_path=path)
     total = c.passed + c.failed
     print(f"\n  {c.passed}/{total} passed"
           + (f", {c.failed} failed" if c.failed else "")

@@ -15,7 +15,9 @@ defining Trials Config sections.
 **Trial**:
 One named challenge, authored as a single `[TrialDef, <name>]` section of a Trial
 Definition. Has its own dummy settings, optional textbox, and an ordered list of
-Steps.
+Steps. Its title is a label and not an identity — two Trials may share one, which is
+how a mode variant of a combo is spelled — and its position in the file is what
+identifies it.
 _Avoid_: challenge, combo, trial def (that's the file)
 
 **Step**:

@@ -41,17 +41,30 @@ local function normalizePath(path)
 	return searchFile(path, {'', trials.dir, motif.def, 'data/'})
 end
 
--- loadIni raises a Lua error on a missing file, which for a module installed by
--- copying a folder means an incomplete copy takes the whole game down with a raw
--- stack trace before the menu ever appears. Degrade with a message naming the file
--- instead: trials then disables itself and the rest of the game still runs.
-local function safeLoadIni(path, normalizeSections, keepMeta)
+-- An authored path resolved to a file that is there, or nil and why not.
+--
+-- Both readers below need this and neither may raise: a module installed by copying a
+-- folder can arrive incomplete, and loadIni and loadText both raise a Lua error on a
+-- missing file — which would take the whole game down with a raw stack trace before
+-- the menu ever appears.
+local function resolveFile(path)
 	if path == nil or path == '' then
 		return nil, 'no path configured'
 	end
 	local resolved = normalizePath(path)
 	if resolved == '' or not main.f_fileExists(resolved) then
 		return nil, 'file not found: ' .. tostring(path)
+	end
+	return resolved, nil
+end
+
+-- Trials Config, and every other ini the module reads through the engine. Degrades
+-- with a message naming the file: trials then disables itself and the rest of the game
+-- still runs.
+local function safeLoadIni(path, normalizeSections, keepMeta)
+	local resolved, err = resolveFile(path)
+	if resolved == nil then
+		return nil, err
 	end
 	local ok, result = pcall(loadIni, resolved, normalizeSections, keepMeta)
 	if not ok then
@@ -1725,36 +1738,560 @@ if trials.enabled then
 end
 
 --;===========================================================
---; TRIAL DEFINITION DISCOVERY
+--; TRIAL DEFINITION PARSING
 --;===========================================================
-
--- loadIni returns sections in a Lua table keyed by name, and a Lua table has no order,
--- so the authored Trial order cannot be recovered from it. Scan the file for its
--- section headers to get that back; every value still comes from loadIni.
+-- The one file the module parses itself. Everything else it reads goes through the
+-- engine's loadIni (docs/adr/0001); this does not, and docs/adr/0004 is why.
 --
--- The names have to come out byte-identical to loadIni's keys or the lookup misses, so
--- this reproduces go-ini's own rule rather than a tidier one: a header runs from the
--- opening bracket to the *last* closing bracket on the line, trimmed. That is why the
--- capture is greedy. A trailing `;comment` is therefore only dropped when it contains
--- no bracket of its own — which is exactly what go-ini does, and what the engine would
--- see for the same file.
-local function sectionOrder(path)
-	local ok, text = pcall(loadText, path)
-	if not ok or type(text) ~= 'string' then
-		return {}
-	end
-	local out = {}
-	for line in text:gmatch('[^\r\n]+') do
-		local name = line:match('^%s*%[(.*)%]')
-		if name ~= nil then
-			name = name:match('^%s*(.-)%s*$')
-			if name ~= '' then
-				table.insert(out, name)
-			end
+-- The short of it: go-ini merges same-named sections, so a character that spells the
+-- same combo once per mode as a repeated [TrialDef, <title>] loses every body but the
+-- last by the time loadIni returns (#51). The bodies are only recoverable from the raw
+-- text, and no Lua entry point parses ini out of a string, so the text is parsed here.
+--
+-- What follows is deliberately a copy rather than an improvement: a Trial Definition
+-- has to resolve to the same values whichever reader sees it. It reproduces go-ini's
+-- parser (parser.go:340, under the options src/script.go:4396 passes it) and then
+-- iniToLuaTable, setNestedLuaKey and parseIniLuaValue (src/script.go:450-630) with
+-- normalizeSections off and keepMeta on — the arguments readTrialDefinition used to
+-- hand loadIni. The one intended difference is the merge: sections come back as a
+-- list, in authored order, and two headers with the same name stay apart.
+
+-- Scoped rather than adding a dozen more file-level locals: Lua allows 200 to a scope
+-- and this file is well into them. Only the two the discovery below calls leave the
+-- block, and the helpers inside are named after the Go they reproduce.
+local parseIniText, safeLoadText
+do
+
+-- strings.TrimSpace, near enough: Go trims every unicode space and this trims the
+-- ASCII ones, which is every space an ini line is written with.
+local function trim(s)
+	return (s:gsub('^%s*(.-)%s*$', '%1'))
+end
+
+-- The last occurrence of `needle` in `s`, 1-based, or nil. strings.LastIndex.
+local function lastIndex(s, needle)
+	local at = nil
+	local from = 1
+	while true do
+		local p = s:find(needle, from, true)
+		if p == nil then
+			return at
 		end
+		at, from = p, p + 1
+	end
+end
+
+-- Splits a value on the commas that are not inside quotes, and reports a value that
+-- does not split as the single token it is. splitIniListOutsideQuotes, src/script.go:494.
+local function splitOutsideQuotes(s)
+	local out, buf = {}, {}
+	local inSingle, inDouble, escaped = false, false, false
+	local function flush()
+		local tok = trim(table.concat(buf))
+		buf = {}
+		if tok ~= '' then
+			out[#out + 1] = tok
+		end
+	end
+	for i = 1, #s do
+		local c = s:sub(i, i)
+		if escaped then
+			-- The escape is kept as written. It exists to stop \" and \' from
+			-- toggling the quote state, not to unescape anything here.
+			buf[#buf + 1] = c
+			escaped = false
+		elseif c == '\\' and (inSingle or inDouble) then
+			escaped = true
+			buf[#buf + 1] = c
+		elseif c == '"' then
+			if not inSingle then inDouble = not inDouble end
+			buf[#buf + 1] = c
+		elseif c == "'" then
+			if not inDouble then inSingle = not inSingle end
+			buf[#buf + 1] = c
+		elseif c == ',' and not inSingle and not inDouble then
+			flush()
+		else
+			buf[#buf + 1] = c
+		end
+	end
+	flush()
+	local whole = trim(s)
+	if #out == 0 then
+		return whole == '' and {} or {whole}
+	end
+	if #out == 1 and out[1] == whole then
+		return {whole}
 	end
 	return out
 end
+
+-- One code point, as UTF-8. What Go writes for a \u or \U escape, and the one part of
+-- unquoting below that Lua 5.1 has no library call for.
+local function utf8Char(cp)
+	if cp < 0x80 then
+		return string.char(cp)
+	elseif cp < 0x800 then
+		return string.char(0xC0 + math.floor(cp / 0x40), 0x80 + cp % 0x40)
+	elseif cp < 0x10000 then
+		return string.char(0xE0 + math.floor(cp / 0x1000),
+			0x80 + math.floor(cp / 0x40) % 0x40, 0x80 + cp % 0x40)
+	end
+	return string.char(0xF0 + math.floor(cp / 0x40000),
+		0x80 + math.floor(cp / 0x1000) % 0x40,
+		0x80 + math.floor(cp / 0x40) % 0x40, 0x80 + cp % 0x40)
+end
+
+-- strconv.Unquote, as far as an ini value can reach it, with Go's own fallback: where
+-- Unquote fails the outer quotes are stripped and the body kept verbatim
+-- (parseIniLuaValue, src/script.go:576). Every `return body` below is one of Go's
+-- syntax errors taking that fallback.
+--
+-- Single quotes take the fallback in Go for anything but a one-rune literal, so `'a b'`
+-- and `'a'` both come back as their body either way. The divergence left is `'\n'`,
+-- which Go reads as a newline and this reads as a backslash and an n; no Trial
+-- Definition writes a rune literal.
+local function unquote(s)
+	local body = s:sub(2, -2)
+	if s:sub(1, 1) ~= '"' or body:find('[\n\r]') then
+		return body
+	end
+	-- `\'` is missing on purpose: Go allows it only in a rune literal, and rejects the
+	-- whole string for it inside double quotes.
+	local simple = {
+		n = '\n', t = '\t', r = '\r', a = '\a', b = '\b', f = '\f', v = '\v',
+		['\\'] = '\\', ['"'] = '"',
+	}
+	local out, i = {}, 1
+	while i <= #body do
+		local c = body:sub(i, i)
+		if c ~= '\\' then
+			if c == '"' then
+				-- An unescaped quote inside the string: not a Go string literal.
+				return body
+			end
+			out[#out + 1] = c
+			i = i + 1
+		else
+			local e = body:sub(i + 1, i + 1)
+			if simple[e] ~= nil then
+				out[#out + 1] = simple[e]
+				i = i + 2
+			elseif e == 'x' or e == 'u' or e == 'U' then
+				-- Fixed widths, all three of them: \xNN, \uNNNN, \UNNNNNNNN.
+				local width = (e == 'x' and 2) or (e == 'u' and 4) or 8
+				local digits = body:sub(i + 2, i + 1 + width)
+				if #digits ~= width or digits:find('%X') then
+					return body
+				end
+				local n = tonumber(digits, 16)
+				if e == 'x' then
+					out[#out + 1] = string.char(n)
+				else
+					-- A surrogate half is not a code point, and Go says so.
+					if (n >= 0xD800 and n <= 0xDFFF) or n > 0x10FFFF then
+						return body
+					end
+					out[#out + 1] = utf8Char(n)
+				end
+				i = i + 2 + width
+			else
+				-- Octal, which Go spells in exactly three digits and no fewer, so `\0`
+				-- on its own is a syntax error rather than a NUL.
+				local digits = body:sub(i + 1, i + 3)
+				if not digits:match('^[0-7][0-7][0-7]$') then
+					return body
+				end
+				local n = tonumber(digits, 8)
+				if n > 255 then
+					return body
+				end
+				out[#out + 1] = string.char(n)
+				i = i + 4
+			end
+		end
+	end
+	return table.concat(out)
+end
+
+-- strconv.ParseInt(s, 0, 64): a base taken from the literal's own prefix, and the whole
+-- string or nothing. Lua's tonumber(s, base) is strconv.ParseInt(s, base) underneath
+-- (gopher-lua baselib), so it rejects the same digits.
+--
+-- Underscore separators, which Go allows at base 0, are not read here — `1_000` comes
+-- back as the string it was written as.
+local function parseInt(s)
+	local sign = 1
+	if s:sub(1, 1) == '+' then
+		s = s:sub(2)
+	elseif s:sub(1, 1) == '-' then
+		sign, s = -1, s:sub(2)
+	end
+	local base, digits = 10, s
+	local prefix = s:sub(1, 2):lower()
+	if prefix == '0x' then
+		base, digits = 16, s:sub(3)
+	elseif prefix == '0b' then
+		base, digits = 2, s:sub(3)
+	elseif prefix == '0o' then
+		base, digits = 8, s:sub(3)
+	elseif #s > 1 and s:sub(1, 1) == '0' then
+		base, digits = 8, s:sub(2)
+	end
+	-- gopher-lua's tonumber takes the base only for a string with no '.' in it: with one
+	-- it reaches strconv.ParseFloat and ignores the base entirely (baselib.go:412), so
+	-- `0.5` would come back from the octal branch as a float. ParseInt takes neither.
+	if digits == '' or digits:find('.', 1, true) then
+		return nil
+	end
+	local n = tonumber(digits, base)
+	if n == nil then
+		return nil
+	end
+	return sign * n
+end
+
+-- strconv.ParseFloat, which gopher-lua's tonumber is not: it only reaches ParseFloat
+-- when the string holds a '.', so `1e3` comes back nil from it (baselib.go:412) while
+-- the engine reads 1000. The exponent is split off and applied here for that reason.
+local function parseFloat(s)
+	local mantissa, exponent = s:match('^([^eE]*)[eE]([-+]?%d+)$')
+	if mantissa == nil then
+		mantissa = s
+	end
+	if not mantissa:match('^[-+]?%d*%.?%d*$') or mantissa:match('^[-+]?%.?$') then
+		return nil
+	end
+	-- A mantissa with no '.' is given one, so that tonumber takes the ParseFloat path
+	-- for it rather than the base path.
+	local n = tonumber(mantissa:find('.', 1, true) and mantissa or (mantissa .. '.0'))
+	if n == nil then
+		return nil
+	end
+	if exponent ~= nil then
+		n = n * 10 ^ tonumber(exponent)
+	end
+	return n
+end
+
+-- One ini value as the engine types it: a comma-separated list becomes an array, a
+-- quoted token a string, `true`/`false` a boolean, a number a number, and anything
+-- else the string it was written as. parseIniLuaValue, src/script.go:552.
+local function iniValue(raw)
+	local s = trim(raw)
+	if s == '' then
+		return ''
+	end
+	local parts = splitOutsideQuotes(s)
+	if #parts > 1 then
+		local list = {}
+		for _, p in ipairs(parts) do
+			list[#list + 1] = iniValue(p)
+		end
+		return list
+	end
+	local first, last = s:sub(1, 1), s:sub(-1)
+	if #s >= 2 and ((first == '"' and last == '"') or (first == "'" and last == "'")) then
+		return unquote(s)
+	end
+	local lower = s:lower()
+	if lower == 'true' then
+		return true
+	elseif lower == 'false' then
+		return false
+	end
+	local n = parseInt(s)
+	if n ~= nil then
+		return n
+	end
+	-- Rounded to six places, as RoundFloat does (src/common.go:383). Go's `inf` and
+	-- `nan` words and its hex floats are the values parseFloat does not read; they stay
+	-- the strings they were written as, which no Trial Definition notices.
+	n = parseFloat(s)
+	if n ~= nil then
+		-- math.Round is half away from zero, which floor(x + 0.5) is not below zero.
+		if n < 0 then
+			return -math.floor(-n * 1000000 + 0.5) / 1000000
+		end
+		return math.floor(n * 1000000 + 0.5) / 1000000
+	end
+	return s
+end
+
+-- keepMeta's key order: every table carries the keys written into it, in the order
+-- they were first written. luaIniAppendOrder, src/script.go:433.
+local function appendOrder(t, key)
+	local order = t.__order
+	if order == nil then
+		order = {}
+		t.__order = order
+	end
+	for i = 1, #order do
+		if order[i] == key then
+			return
+		end
+	end
+	order[#order + 1] = key
+end
+
+-- A dotted key written into its nested tables, with keepMeta's rule for a key that is
+-- both a value and a parent: the scalar is parked in __value rather than lost, whichever
+-- of the two was written first. setNestedLuaKey, src/script.go:450.
+local function setNestedKey(t, key, value)
+	local parts = {}
+	local from = 1
+	while true do
+		local p = key:find('.', from, true)
+		if p == nil then
+			parts[#parts + 1] = key:sub(from)
+			break
+		end
+		parts[#parts + 1] = key:sub(from, p - 1)
+		from = p + 1
+	end
+	local cur = t
+	for i, part in ipairs(parts) do
+		appendOrder(cur, part)
+		if i == #parts then
+			if type(cur[part]) == 'table' then
+				cur[part].__value = value
+			else
+				cur[part] = value
+			end
+			return
+		end
+		local existing = cur[part]
+		if type(existing) == 'table' then
+			cur = existing
+		else
+			local sub = {}
+			if existing ~= nil then
+				sub.__value = existing
+			end
+			cur[part] = sub
+			cur = sub
+		end
+	end
+end
+
+-- The lines of a file, however its author ended them. NormalizeNewlines,
+-- src/common.go:388, which is what the engine hands go-ini.
+local function iniLines(text)
+	text = text:gsub('\r\n', '\n'):gsub('\r', '\n')
+	local lines = {}
+	for line in (text .. '\n'):gmatch('([^\n]*)\n') do
+		lines[#lines + 1] = line
+	end
+	return lines
+end
+
+-- The key name on one line, and where its value starts. readKeyName, parser.go:124.
+--
+-- Returns nil for a line with no `=` or `:` on it and for one that starts with the
+-- delimiter, both of which SkipUnrecognizableLines drops; and nil plus a message for a
+-- key quote that is never closed, which go-ini fails the whole file over.
+local function readKeyName(line)
+	local quote = nil
+	local head = line:sub(1, 1)
+	if head == '"' then
+		-- go-ini measures the line with its newline still on it, so its `len > 6` is
+		-- six characters of key line here, and the value below is the same. The last
+		-- line of a file that ends without a newline is the one place that is a
+		-- character out, and it takes a `"""` with nothing after it to notice.
+		quote = (#line >= 6 and line:sub(1, 3) == '"""') and '"""' or '"'
+	elseif head == '`' then
+		quote = '`'
+	end
+	if quote ~= nil then
+		local q = #quote
+		local close = line:find(quote, q + 1, true)
+		if close == nil then
+			return nil, nil, 'missing closing key quote: ' .. line
+		end
+		local delim = line:find('[=:]', close + q)
+		if delim == nil then
+			return nil
+		end
+		return trim(line:sub(q + 1, close - 1)), delim + 1
+	end
+	local delim = line:find('[=:]')
+	if delim == nil or delim == 1 then
+		return nil
+	end
+	return trim(line:sub(1, delim - 1)), delim + 1
+end
+
+-- The value starting at `from` on line `n`, and the last line it consumed — a triple
+-- quoted or backquoted value runs to its closing quote and a value ending in a
+-- backslash runs to the first line that does not. readValue, parser.go:228.
+--
+-- Inline comments are cut at the first `#` or `;` anywhere in an unquoted value, which
+-- is go-ini's default and is why a Step's text cannot contain either character. The
+-- surrounding quotes of a quoted value are left on: PreserveSurroundedQuote is set, so
+-- stripping them is parseIniLuaValue's job and not this one's.
+local function readValue(lines, n, from)
+	local line = lines[n]:sub(from):gsub('^%s+', '')
+	if line == '' then
+		return '', n
+	end
+	local quote = nil
+	if #line >= 3 and line:sub(1, 3) == '"""' then
+		quote = '"""'
+	elseif line:sub(1, 1) == '`' then
+		quote = '`'
+	end
+	if quote ~= nil then
+		local rest = line:sub(#quote + 1)
+		local close = lastIndex(rest, quote)
+		if close ~= nil then
+			return rest:sub(1, close - 1), n
+		end
+		local val, i = rest .. '\n', n
+		while true do
+			i = i + 1
+			if lines[i] == nil then
+				return nil, nil, 'missing closing key quote: ' .. line
+			end
+			local nxt = lines[i] .. '\n'
+			local p = lastIndex(nxt, quote)
+			if p ~= nil then
+				return val .. nxt:sub(1, p - 1), i
+			end
+			val = val .. nxt
+		end
+	end
+	line = trim(line)
+	if line:sub(-1) == '\\' then
+		local val, i = line:sub(1, -2), n
+		while true do
+			i = i + 1
+			if lines[i] == nil then
+				return val, i - 1
+			end
+			local nxt = trim(lines[i])
+			if nxt == '' then
+				return val, i
+			end
+			val = val .. nxt
+			if val:sub(-1) ~= '\\' then
+				return val, i
+			end
+			val = val:sub(1, -2)
+		end
+	end
+	local comment = line:find('[#;]')
+	if comment ~= nil then
+		line = trim(line:sub(1, comment - 1))
+	end
+	return line, n
+end
+
+-- A Trial Definition's sections, in the order the file declares them: an array of
+-- {name = <section name>, data = <the section as loadIni would have built it>}.
+--
+-- Sections are not merged and neither are their names compared, which is the whole
+-- point of parsing here (#51). Keys inside one section still are: go-ini's NewKey
+-- overwrites a name it already holds and leaves it where it first appeared, so a key
+-- written twice in one body keeps its first position and its last value.
+--
+-- The name is read the way go-ini reads it — from the opening bracket to the *last*
+-- closing bracket on the line, then trimmed the way iniToLuaTable trims it. That is
+-- why a header's trailing `;comment` is only dropped when it holds no bracket of its
+-- own, which is what trialTitle then has to undo.
+--
+-- Returns nil and a message wherever go-ini refuses the whole file — an unclosed
+-- section, an empty section name, a key or value quote that never closes — so a
+-- definition the engine could not read is still not read here.
+function parseIniText(text)
+	local lines = iniLines(text)
+	local sections = {}
+	-- Keys written before the first header land in go-ini's DEFAULT section. Nothing
+	-- reads it; it exists so that stray keys cannot fall into the first Trial.
+	local current = {name = 'DEFAULT', keys = {}, values = {}}
+	sections[1] = current
+	local count = 1
+	local n = 1
+	while n <= #lines do
+		local line = lines[n]:gsub('^%s+', '')
+		local head = line:sub(1, 1)
+		if line == '' or head == '#' or head == ';' then
+			-- comment or blank
+		elseif head == '[' then
+			local close = lastIndex(line, ']')
+			if close == nil then
+				return nil, 'unclosed section: ' .. line
+			end
+			local name = line:sub(2, close - 1)
+			if name == '' then
+				return nil, 'empty section name'
+			end
+			current = {name = trim(name), keys = {}, values = {}}
+			sections[#sections + 1] = current
+			count = 1
+		else
+			local key, from, err = readKeyName(line)
+			if err ~= nil then
+				return nil, err
+			end
+			if key ~= nil then
+				-- go-ini's auto-increment key, kept for the same reason the DEFAULT
+				-- section is: so a line the engine would have read is not dropped.
+				if key == '-' then
+					key = '#' .. count
+					count = count + 1
+				end
+				local value, last, verr = readValue(lines, n, from)
+				if verr ~= nil then
+					return nil, verr
+				end
+				if current.values[key] == nil then
+					current.keys[#current.keys + 1] = key
+				end
+				current.values[key] = value
+				n = last
+			end
+		end
+		n = n + 1
+	end
+	-- Built here rather than as the file is read, so that the caller is handed the two
+	-- fields this documents and not the scanner's own key list behind them.
+	local out = {}
+	for i, sec in ipairs(sections) do
+		local data = {}
+		for _, key in ipairs(sec.keys) do
+			setNestedKey(data, key, iniValue(sec.values[key]))
+		end
+		out[i] = {name = sec.name, data = data}
+	end
+	return out, nil
+end
+
+-- A Trial Definition, as text. The other half of the pair safeLoadIni is in: same
+-- resolution, same degradation, a different reader at the end of it.
+--
+-- loadText hands back nil for a file it cannot read rather than raising
+-- (src/script.go:5038), so the nil is what has to be caught; the pcall is there for
+-- the argument errors the binding itself raises.
+function safeLoadText(path)
+	local resolved, err = resolveFile(path)
+	if resolved == nil then
+		return nil, err
+	end
+	local ok, result = pcall(loadText, resolved)
+	if not ok then
+		return nil, tostring(result)
+	end
+	if type(result) ~= 'string' then
+		return nil, 'unreadable: ' .. resolved
+	end
+	return result, nil
+end
+
+end
+
+--;===========================================================
+--; TRIAL DEFINITION DISCOVERY
+--;===========================================================
 
 -- The Trial title is whatever follows the first comma of the section name.
 --
@@ -2225,62 +2762,61 @@ end
 
 -- Parses a Trial Definition into its Trials, in the order the author wrote them.
 --
--- normalizeSections stays off so [TrialDef, <name>] survives and the title stays
--- readable; keepMeta is on for __order, which is what later slices read Steps back in
--- authored order with. go-ini merges same-named sections, so a duplicate Trial title
--- collapses into one section rather than being silently dropped — warn and keep the
--- first.
+-- One Trial per [TrialDef] section, whatever the section is called. Two sections may
+-- carry the same title and they are still two Trials: that is how a character with
+-- modes or grooves spells the same combo once per mode, with trial.showforvarvalpairs
+-- deciding which of them the player is offered (#51, #52). The title is a label from
+-- here on; the Trial's index is its identity.
 local function readTrialDefinition(path)
-	local ini, err = safeLoadIni(path, false, true)
-	if ini == nil then
+	local text, err = safeLoadText(path)
+	if text == nil then
 		return nil, err
 	end
+	local sections, perr = parseIniText(text)
+	if sections == nil then
+		return nil, perr
+	end
 	local list = {}
-	local seen = {}
 	-- The characters no Glyph in this screenpack's vocabulary accounted for, gathered
 	-- across the whole file so that a Trial Definition written for another screenpack
 	-- costs one line of console rather than one per Step.
 	local unknown = {}
-	for _, name in ipairs(sectionOrder(path)) do
-		if name:lower():match('^trialdef') and ini[name] ~= nil then
-			if seen[name] then
-				print('Trials: duplicate Trial "' .. name .. '" in ' .. path .. ' — keeping the first.')
-			else
-				seen[name] = true
-				-- Lowercased for the same reason Trials Config is: go-ini keeps key
-				-- case as authored and the pre-refactor parser lowercased everything
-				-- it read, so `TrialStep.1.Text` has always resolved.
-				local data = lowerKeys(ini[name])
-				table.insert(list, {
-					section = name,
-					title = trialTitle(name),
-					-- Read here rather than at draw time so a Trial's Textbox is known
-					-- before the first frame: it decides which window variant the Step
-					-- block clips to. Drawing the Textbox itself is #43.
-					textbox = strValue(localized(type(data.trial) == 'table' and data.trial.textbox or nil), ''),
-					steps = readSteps(data, unknown),
-					-- Resolved here rather than at Trial start so the whole triple is
-					-- known before the first frame, and so it lands in the debug dump
-					-- with everything else the Trial Definition parsed to.
-					dummy = readDummy(data, path, name),
-					-- Where the pair stands and what life they start with. Resolved
-					-- here for the same reason, and only as far as a stage-free parse
-					-- can go: the words and the gap between them are settled now, the
-					-- stage coordinates they land on at Trial start.
-					positions = readPositions(data, path, name),
-					life = readLife(data, path, name),
-					-- Which modes this Trial is offered in: the character variables it
-					-- is gated on, and the values they have to hold (#52). nil is an
-					-- ungated Trial, which is every Trial that does not say otherwise.
-					-- Read with the same function the Step gate is, because it is the
-					-- same format — see readVarPairs.
-					showfor = readVarPairs(type(data.trial) == 'table'
-						and data.trial.showforvarvalpairs or nil),
-					-- The section as parsed, kept for the keys no slice reads yet.
-					-- Nothing on the per-frame path touches it.
-					data = data,
-				})
-			end
+	for _, sec in ipairs(sections) do
+		if sec.name:lower():match('^trialdef') then
+			-- Lowercased for the same reason Trials Config is: go-ini keeps key
+			-- case as authored and the pre-refactor parser lowercased everything
+			-- it read, so `TrialStep.1.Text` has always resolved.
+			local name = sec.name
+			local data = lowerKeys(sec.data)
+			table.insert(list, {
+				section = name,
+				title = trialTitle(name),
+				-- Read here rather than at draw time so a Trial's Textbox is known
+				-- before the first frame: it decides which window variant the Step
+				-- block clips to. Drawing the Textbox itself is #43.
+				textbox = strValue(localized(type(data.trial) == 'table' and data.trial.textbox or nil), ''),
+				steps = readSteps(data, unknown),
+				-- Resolved here rather than at Trial start so the whole triple is
+				-- known before the first frame, and so it lands in the debug dump
+				-- with everything else the Trial Definition parsed to.
+				dummy = readDummy(data, path, name),
+				-- Where the pair stands and what life they start with. Resolved
+				-- here for the same reason, and only as far as a stage-free parse
+				-- can go: the words and the gap between them are settled now, the
+				-- stage coordinates they land on at Trial start.
+				positions = readPositions(data, path, name),
+				life = readLife(data, path, name),
+				-- Which modes this Trial is offered in: the character variables it
+				-- is gated on, and the values they have to hold (#52). nil is an
+				-- ungated Trial, which is every Trial that does not say otherwise.
+				-- Read with the same function the Step gate is, because it is the
+				-- same format — see readVarPairs.
+				showfor = readVarPairs(type(data.trial) == 'table'
+					and data.trial.showforvarvalpairs or nil),
+				-- The section as parsed, kept for the keys no slice reads yet.
+				-- Nothing on the per-frame path touches it.
+				data = data,
+			})
 		end
 	end
 	local dropped = {}
