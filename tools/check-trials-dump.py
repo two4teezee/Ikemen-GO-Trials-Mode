@@ -967,6 +967,68 @@ def run_checks(tree, quiet=False):
                 isinstance(dig(match, "totalTicks"), (int, float))
                 and isinstance(dig(match, "trialTicks"), (int, float)), True)
 
+    c._print("\ntrial.showforvarvalpairs gates which Trials are offered (#52)")
+    # The gate is parsed at load, so a startup dump carries every Trial's, and the
+    # format is flattened to a string here for the reason the Parts' state lists are:
+    # a nested table would be a second path the dump elides (#50).
+    gates = [str(t.get("showfor") or "") for t in parsed]
+    c.check("every Trial carries a gate field, empty or not", len(gates), len(parsed))
+    # `12=0|2|4, 20=3` — one pair per variable, comma-separated, "|" between values.
+    shape = re.compile(r"^-?\d+=-?\d+(\|-?\d+)*(, -?\d+=-?\d+(\|-?\d+)*)*$")
+    malformed = [g for g in gates if g and not shape.match(g)]
+    c.check("a gate that is written parses to variable/value pairs", malformed, [])
+    c.check("an ungated Trial has an empty gate, not a broken one",
+            bool([g for g in gates if g == ""]), True)
+
+    if match is None:
+        c.skip("the offered Trials are a subset of the declared ones",
+               "no match in this dump")
+        c.skip("the Trial Counter's total is what is on offer", "no match in this dump")
+    else:
+        total, declared = dig(match, "total"), dig(match, "declared")
+        offered = str(dig(match, "available") or "")
+        # Parsed leniently: anything that is not a number is kept as itself and fails
+        # the membership check below, rather than raising out of the whole suite. A
+        # checker that crashes on a bad dump reports nothing at all, which is worse
+        # than reporting one failure.
+        indices = []
+        for token in (t.strip() for t in offered.split(",")):
+            if token == "":
+                continue
+            try:
+                indices.append(int(token))
+            except ValueError:
+                indices.append(token)
+        c.check("the offered Trials are a subset of the declared ones",
+                isinstance(total, (int, float)) and isinstance(declared, (int, float))
+                and 0 <= total <= declared, True)
+        # `total` is what the Trial Counter renders and what All-Clear is measured
+        # against, so the two readings of "how many" have to be the same number.
+        c.check("the Trial Counter's total is what is on offer", len(indices), total)
+        c.check("every offered Trial is one the character declared",
+                [i for i in indices
+                 if not (isinstance(i, int) and isinstance(declared, (int, float))
+                         and 1 <= i <= declared)], [])
+        numeric = [i for i in indices if isinstance(i, int)]
+        c.check("the offering is in declared order, with no repeats",
+                numeric, sorted(set(numeric)))
+        # A dump taken before the round is live legitimately shows the unthinned list:
+        # the pairs are evaluated once a round, on the first frame past the round-state
+        # reset (docs/adr/0003). What must not happen is a resolved offering that has
+        # not been evaluated but is thinner than the file.
+        resolved = dig(match, "availableResolved")
+        c.check("an offering thinner than the file has actually been evaluated",
+                not (total != declared and resolved is False), True)
+        current = dig(match, "current")
+        c.check("the Trial the match is on is one of the offered ones",
+                total == 0 or (isinstance(current, (int, float)) and 1 <= current <= total),
+                True)
+        done = dig(match, "completedCount")
+        c.check("no more Trials are completed than are offered",
+                isinstance(done, (int, float)) and 0 <= done <= max(0, total or 0), True)
+        c.check("All-Clear is not claimed with Trials still on offer uncompleted",
+                not dig(match, "allclear") or (total or 0) > 0 and done >= total, True)
+
     c._print("\nPlayer and Dummy life and position are set per-Trial (#49)")
     # Both blocks are resolved at parse time, so a startup dump carries the whole set.
     placements = [t.get("positions") for t in parsed if isinstance(t.get("positions"), dict)]

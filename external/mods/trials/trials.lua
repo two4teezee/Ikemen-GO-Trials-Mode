@@ -2046,9 +2046,11 @@ local function boolValue(v)
 	return tostring(v or ''):lower() == 'true'
 end
 
--- trialstep.X.validforvarvalpairs = 12, 0|2|4 — a character variable and the values it
--- may hold, in pairs, all of which must hold for the Step to verify. Per Step and not
--- per Part, which is what the format documents.
+-- `12, 0|2|4` — a character variable and the values it may hold, in pairs, all of which
+-- must hold. Two keys are written in this format and both are read here rather than
+-- parsed twice: trialstep.X.validforvarvalpairs, which gates a Step (per Step and not
+-- per Part, which is what the format documents), and trial.showforvarvalpairs, which
+-- gates a whole Trial (#52).
 local function readVarPairs(v)
 	local list
 	if type(v) == 'table' and isValueList(v) then
@@ -2267,9 +2269,15 @@ local function readTrialDefinition(path)
 					-- stage coordinates they land on at Trial start.
 					positions = readPositions(data, path, name),
 					life = readLife(data, path, name),
-					-- The section as parsed, kept for the keys no slice reads yet:
-					-- trialstep.X.glyphs and showforvarvalpairs. Nothing on the
-					-- per-frame path touches it.
+					-- Which modes this Trial is offered in: the character variables it
+					-- is gated on, and the values they have to hold (#52). nil is an
+					-- ungated Trial, which is every Trial that does not say otherwise.
+					-- Read with the same function the Step gate is, because it is the
+					-- same format — see readVarPairs.
+					showfor = readVarPairs(type(data.trial) == 'table'
+						and data.trial.showforvarvalpairs or nil),
+					-- The section as parsed, kept for the keys no slice reads yet.
+					-- Nothing on the per-frame path touches it.
 					data = data,
 				})
 			end
@@ -2283,6 +2291,14 @@ local function readTrialDefinition(path)
 		table.sort(dropped)
 		print('Trials: ' .. path .. ' names glyphs this screenpack has none for (' ..
 			table.concat(dropped, ' ') .. ') — those are skipped, the rest still draw.')
+	end
+	-- Where each Trial sits in the file, carried on the Trial itself. Once
+	-- showforvarvalpairs starts thinning the list a match runs (#52), position in that
+	-- list is a moving target — it is rebuilt every round — and this is the one index
+	-- that does not move. Completion is recorded against it, and it is how the player
+	-- is kept on the Trial they were on across a re-evaluation.
+	for i, trial in ipairs(list) do
+		trial.index = i
 	end
 	return list, nil
 end
@@ -2541,15 +2557,29 @@ trials.match = nil
 -- nothing rather than raise mid-match.
 local function resolveMatch()
 	local m = {
-		trials = {}, total = 0, current = 1, steps = {}, textbox = false, char = nil,
+		-- `declared` is every Trial the character's file spells; `trials` is the ones
+		-- currently on offer, which is what everything downstream counts and indexes.
+		-- The two differ only where trial.showforvarvalpairs gates one out (#52), and
+		-- the thinning is applyAvailability's — once a round, see docs/adr/0003.
+		declared = {}, trials = {}, total = 0, current = 1, steps = {},
+		textbox = false, char = nil,
 		-- Progress. `step` and `part` are where the player is; `combo` is comboCount()
 		-- as of the last Part completed, which is what makes the next hit tell itself
 		-- apart from the one that has already been counted.
 		step = 1, part = 1, combo = 0, partHits = 0, partCombo = 0, grace = 0,
-		-- Which Trials have been completed at least once, and how many that is.
-		-- All-Clear is the moment that count reaches the total (CONTEXT.md), which is
-		-- not the same as walking off the end of the list.
+		-- Which Trials have been completed at least once, and how many of the ones
+		-- currently on offer that is. All-Clear is the moment that count reaches the
+		-- total (CONTEXT.md), which is not the same as walking off the end of the list.
+		--
+		-- Keyed by the Trial's DECLARED index, not by its position in `trials`: the
+		-- available list is rebuilt every round and positions move under it, so a
+		-- position-keyed record would credit the wrong Trial the moment a groove
+		-- changed. completedCount is recounted against the available set with it.
 		completed = {}, completedCount = 0, allclear = false,
+		-- Bumped whenever the available list is rebuilt into a different one, which is
+		-- what tells the pause menu's trials list to follow a change that did not move
+		-- the player off the Trial they were on.
+		availableGen = 0,
 		-- The Success or All-Clear banner currently on screen, and its remaining ticks.
 		banner = nil, bannerTimer = 0,
 		-- Both stopwatches count up. totalTicks runs for the whole match, trialTicks
@@ -2567,6 +2597,10 @@ local function resolveMatch()
 			-- not own it.
 			m.charRow = char
 			if type(char.trials) == 'table' then
+				-- Unthinned until the round is live enough to read the character's
+				-- variables. Nothing draws and nothing is written to the shared maps
+				-- before then, and applyAvailability runs ahead of both.
+				m.declared = char.trials
 				m.trials = char.trials
 				m.total = #char.trials
 				m.def = char.trials.def
@@ -3012,8 +3046,9 @@ local function buildTrialsList()
 	sub.moveTxt = 0
 end
 
--- The match and the Trial the menu was last caught up with.
-local menuMatch, menuTrial = nil, nil
+-- The match, the Trial and the availability generation the menu was last caught up
+-- with.
+local menuMatch, menuTrial, menuGen = nil, nil, nil
 
 -- Catches the pause menu up with the match that is running, and with the Trial it is on.
 --
@@ -3029,7 +3064,7 @@ local function syncPauseMenu()
 		return
 	end
 	if menuMatch ~= m then
-		menuMatch, menuTrial = m, nil
+		menuMatch, menuTrial, menuGen = m, nil, nil
 		syncPreferenceIndices()
 		for _, item in ipairs(menu.t_vardisplayPointers or {}) do
 			if MENU_PREFERENCE[item.itemname] ~= nil then
@@ -3037,8 +3072,11 @@ local function syncPauseMenu()
 			end
 		end
 	end
-	if menuTrial ~= m.current then
-		menuTrial = m.current
+	-- The generation with the Trial: a round that thinned the list differently changed
+	-- what the list should show even where the player did not move off their Trial
+	-- (#52).
+	if menuTrial ~= m.current or menuGen ~= m.availableGen then
+		menuTrial, menuGen = m.current, m.availableGen
 		buildTrialsList()
 	end
 end
@@ -3800,18 +3838,124 @@ local function satisfies(list, own, theirs)
 	return false
 end
 
--- Every character variable a Step is gated on holds its declared value.
--- trialstep.X.validforvarvalpairs gates the whole Step, not one of its Parts.
-local function varPairsHold(step)
-	if step.validfor == nil then
+-- Every character variable in a list of var/value pairs holds one of its declared
+-- values. The one evaluator both keys in that format go through: a Step's
+-- trialstep.X.validforvarvalpairs, which gates the whole Step rather than one of its
+-- Parts, and a Trial's trial.showforvarvalpairs, which gates the whole Trial (#52).
+--
+-- Takes the pairs rather than the thing they came off, because the two callers hold
+-- them under different names and neither has any business knowing the other's shape.
+-- nil is ungated and holds trivially. Reads through whatever redirect the caller has
+-- set: var() is P1's here in both cases.
+local function varPairsHold(gate)
+	if gate == nil then
 		return true
 	end
-	for _, pair in ipairs(step.validfor) do
+	for _, pair in ipairs(gate) do
 		if not satisfies(pair.values, var(pair.var), nil) then
 			return false
 		end
 	end
 	return true
+end
+
+-- Which of the character's Trials are on offer this round, and the bookkeeping that
+-- follows from the answer.
+--
+-- A Trial gated out by trial.showforvarvalpairs is not thinned at the point of use —
+-- it is taken out of m.trials, so the Trial Counter, Advancement, All-Clear and the
+-- pause menu's trials list all keep counting a plain array and none of them has to
+-- know why a Trial is missing. Everything they index is a position in the AVAILABLE
+-- list; the declared index is what survives the rebuild (see m.completed).
+--
+-- Once a round, on the first frame past the round-state reset, and stale again the
+-- moment the round state falls back — the same gate and the same marker applyDummy
+-- uses, and for the same reason. docs/adr/0003 is why it is not once a match and not
+-- every frame.
+local function applyAvailability(m)
+	if m == nil then
+		return
+	end
+	if roundState() < 1 then
+		m.availableRound = nil
+		return
+	end
+	if m.availableRound then
+		return
+	end
+	-- var() reads through whichever character the engine last left the redirect on, so
+	-- the gate is meaningless without this — it is the Trials player's variables the
+	-- Trial Definition names. Nothing is resolved on a frame there is no P1 to read:
+	-- the round is live, so this failing is a reason to wait rather than to answer
+	-- wrongly and mark the answer fresh. The redirect is left where it is put, which
+	-- is where the rest of the loop wants it anyway.
+	if not player(1) then
+		return
+	end
+	local before = m.trials
+	local available = {}
+	for _, trial in ipairs(m.declared) do
+		if varPairsHold(trial.showfor) then
+			available[#available + 1] = trial
+		end
+	end
+	m.availableRound = true
+
+	-- The Trial the player is on, by declared index rather than by position: the
+	-- position it sat at belongs to the list being replaced. Where it is still on offer
+	-- they stay on it; where it has been gated out there is nowhere to stay, and the
+	-- match falls back to the first available Trial.
+	local held = before[m.current]
+	local current = 1
+	for i, trial in ipairs(available) do
+		if held ~= nil and trial.index == held.index then
+			current = i
+			break
+		end
+	end
+
+	local changed = #available ~= #before
+	if not changed then
+		for i, trial in ipairs(available) do
+			if trial ~= before[i] then
+				changed = true
+				break
+			end
+		end
+	end
+
+	m.trials = available
+	m.total = #available
+	-- Recounted against the set now on offer. A Trial completed in another groove is
+	-- still completed — m.completed keeps it — but it does not hold this set's
+	-- All-Clear open, and it does not count towards it either.
+	m.completedCount = 0
+	for _, trial in ipairs(available) do
+		if m.completed[trial.index] then
+			m.completedCount = m.completedCount + 1
+		end
+	end
+	-- All-Clear can be lost by a re-evaluation and never silently gained: a set that
+	-- grew goes back to unfinished, and a set the player has in fact already completed
+	-- does not fire a banner they did not earn. completeTrial is the only thing that
+	-- turns it on.
+	m.allclear = m.allclear and m.total > 0 and m.completedCount >= m.total
+
+	if not changed then
+		return
+	end
+	-- The list is a different list, so the trials list built from it is stale even when
+	-- the player did not move.
+	m.availableGen = m.availableGen + 1
+	-- Resolves the Steps, the Textbox window and the per-Trial clock for wherever the
+	-- player has landed. Unconditional on the position having changed: the same
+	-- position in a rebuilt list is a different Trial.
+	selectTrial(current)
+	-- Written again for the reason applyDummy writes again: the gate is parsed at load
+	-- and evaluated many seconds later, so a dump taken before this point shows what
+	-- each Trial's pairs said and never which of them the character is actually being
+	-- offered.
+	trials.f_dumpState()
 end
 
 -- Whether the current Part registered this frame.
@@ -3837,7 +3981,7 @@ local function partRegisters(step, part, attacker, combo)
 	if not satisfies(part.animno, anim(), attacker.anim) then
 		return false
 	end
-	if not varPairsHold(step) then
+	if not varPairsHold(step.validfor) then
 		return false
 	end
 	-- A counter-hit Part only counts when the engine says the hit countered. Tested
@@ -3870,8 +4014,12 @@ end
 -- character had left, and moves the match on according to the Advancement preference.
 local function completeTrial(m)
 	local index = m.current
-	if not m.completed[index] then
-		m.completed[index] = true
+	-- Recorded against the DECLARED index, which is the one that survives the available
+	-- list being rebuilt next round (#52, docs/adr/0003). completedCount counts only
+	-- what is on offer, so it is the one that All-Clear is measured against.
+	local declared = type(m.trials[index]) == 'table' and m.trials[index].index or index
+	if not m.completed[declared] then
+		m.completed[declared] = true
 		m.completedCount = m.completedCount + 1
 	end
 
@@ -4725,6 +4873,11 @@ hook.add('loop#trials', 'trials', function()
 		selectTrial(trials.match.current)
 		trials.f_dumpState()
 	end
+	-- Ahead of both of the below, and before the roundState gate: which Trials are on
+	-- offer decides which Trial the match is on, and the Dummy settings and the pair's
+	-- positions are written from that Trial. Resolving it second would write them from
+	-- a Trial that is not offered and then correct itself in front of the player.
+	applyAvailability(trials.match)
 	-- Before the roundState gate below: the Dummy is configured during the intro, not
 	-- once the round is live.
 	applyDummy()
@@ -4975,6 +5128,39 @@ local function copySteps(steps)
 	return out
 end
 
+-- A list of var/value pairs, back in something close to how it was authored:
+-- `12=0|2|4, 20=3` for `trial.showforvarvalpairs = 12, 0|2|4, 20, 3`. Empty for a
+-- Trial or Step that is not gated at all.
+--
+-- A string rather than the parsed table, for the reason copySteps flattens its lists:
+-- the dump prints a table once and back-references it thereafter, so a nested table is
+-- a second path that elides to nothing an assertion would then pass against (#50).
+local function varPairsText(gate)
+	if gate == nil then
+		return ''
+	end
+	local out = {}
+	for i, pair in ipairs(gate) do
+		local values = {}
+		for j, v in ipairs(pair.values) do
+			values[j] = tostring(v)
+		end
+		out[i] = tostring(pair.var) .. '=' .. table.concat(values, '|')
+	end
+	return table.concat(out, ', ')
+end
+
+-- Which Trials a match is currently offering, by their declared index: `1, 2, 5` for a
+-- character whose third and fourth Trials are gated out of this mode (#52). Empty when
+-- every declared Trial is gated out, which is the no-data case.
+local function availableText(m)
+	local out = {}
+	for i, trial in ipairs(m.trials) do
+		out[i] = tostring(trial.index or i)
+	end
+	return table.concat(out, ', ')
+end
+
 -- The Glyph geometry of one Step block, and what its Anim cache resolved to.
 --
 -- Counted rather than listed: the cache holds one entry per token the Trials of the
@@ -5186,6 +5372,12 @@ function trials.f_dumpState()
 						stepCount = #v.steps,
 						firstStepText = v.steps[1] ~= nil and v.steps[1].text or '',
 						textbox = v.textbox ~= '',
+						-- The modes this Trial is offered in, as authored: `12=0|2|4`
+						-- per pair, comma-separated, and empty for a Trial that is
+						-- always offered. Flattened to a string for the reason the
+						-- Parts' lists are — a nested table here would be a second
+						-- path the dump elides (#50).
+						showfor = varPairsText(v.showfor),
 						-- The values written to the shared training maps when this
 						-- Trial starts, and the words they were resolved from — an
 						-- empty word is a Trial that named nothing and took the
@@ -5272,7 +5464,21 @@ function trials.f_dumpState()
 		match = trials.match ~= nil and {
 			char = trials.match.char,
 			def = trials.match.def,
+			-- `total` is what the Trial Counter reads and what All-Clear is measured
+			-- against: the Trials currently ON OFFER. `declared` is how many the file
+			-- spells. The two differ exactly where trial.showforvarvalpairs gated one
+			-- out (#52), and a character every Trial of which is gated out reads
+			-- total 0 with a non-zero declared — which is what tells that case apart
+			-- from a character shipping no Trial Definition at all.
 			total = trials.match.total,
+			declared = #trials.match.declared,
+			-- Whether the pairs have been evaluated for the round yet. False for the
+			-- whole of roundState 0, where the character's own variables are not set
+			-- and the list is still the unthinned one.
+			availableResolved = trials.match.availableRound == true,
+			-- The declared index of each Trial on offer, in the order they are offered.
+			-- Flattened for the same reason showfor above is.
+			available = availableText(trials.match),
 			current = trials.match.current,
 			step = trials.match.step,
 			stepCount = #trials.match.steps,
