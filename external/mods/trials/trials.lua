@@ -79,6 +79,12 @@ trials.enabled = true
 -- config.ini as authored: [Common] and [Files] are read back by exact key, so this
 -- copy keeps its section names and key case. The Trials Config layer built out of the
 -- same file below is a separate, normalized read.
+--
+-- Deliberately not lowercased the way a character def's [Files] is (#47). This is the
+-- module's own file, so no other author's spelling is at stake, and it is the table
+-- writePreference hands to saveIni: saveIni rewrites the file from this table, so a
+-- normalized copy would rewrite the player's config.ini with its sections and keys
+-- lowercased the first time they change a preference.
 local iniErr
 trials.ini, iniErr = safeLoadIni(trials.configPath, false)
 if trials.ini == nil then
@@ -2853,7 +2859,13 @@ local function discoverChar(t)
 	if def == nil or type(def.files) ~= 'table' then
 		return
 	end
-	local rel = def.files.trials
+	-- Lowercased for the same reason Trials Config and the Trial Definition are:
+	-- loadIni normalizes section names only, so a def that writes `Trials =` under
+	-- [Files] keeps that case. The pre-refactor module lowercased each line before
+	-- matching (old_trials.lua:1554) and every other reader of a character def in the
+	-- engine is case-insensitive, so a case-sensitive read here would silently drop
+	-- definition files that used to work (#47).
+	local rel = lowerKeys(def.files).trials
 	if type(rel) ~= 'string' or rel == '' then
 		return
 	end

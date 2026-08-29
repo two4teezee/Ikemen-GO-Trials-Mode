@@ -260,6 +260,37 @@ def trialdef_titles(path):
     return out
 
 
+def char_def_trials_key(path):
+    """The key a character def spells its Trial Definition with, as authored.
+
+    Returns 'Trials', 'TRIALS', 'trials' — whatever the [Files] section wrote — or
+    None when the def names no Trial Definition at all.
+
+    A second, independent reading of the def, for the reason trialdef_sections is one:
+    the failure it guards against is discovery matching on key case (#47), and a dump
+    built from the same case-sensitive read would agree with itself.
+    """
+    in_files = False
+    with open(path, encoding="utf-8", errors="replace") as handle:
+        for line in handle:
+            line = line.strip()
+            if line.startswith("["):
+                close = line.rfind("]")
+                if close >= 0:
+                    # go-ini's last-bracket rule, the way trialdef_sections reads one.
+                    in_files = line[1:close].strip().lower() == "files"
+                continue
+            # A commented-out `;trials = …` declares nothing, so the comment comes off
+            # before the key is read.
+            line = line.split(";", 1)[0].strip()
+            if not in_files or "=" not in line:
+                continue
+            key = line.split("=", 1)[0].strip()
+            if key.lower() == "trials":
+                return key
+    return None
+
+
 def dig(tree, *path):
     cur = tree
     for part in path:
@@ -673,6 +704,47 @@ def run_checks(tree, quiet=False, dump_path=DEFAULT_PATH):
         # says so rather than looking like it was not checked.
         repeated = len(declared) - len(set(declared))
         c._print(f"      ({len(declared)} sections, {repeated} of them a repeated title)")
+
+    # Discovery lowercases the def's [Files] keys, so a character whose def writes
+    # `Trials =` or `TRIALS =` is found rather than silently recorded as shipping none
+    # (#47). Asserted against the def files themselves rather than against a fixture,
+    # so it holds on any roster: whatever case a def spells the key in, a character
+    # that declares one must carry a resolved Trial Definition.
+    # Paired with the row rather than looked up by name: two characters on a stock
+    # roster are both called Kung Fu Man, and matching on the name would ask one of
+    # them about the other's def.
+    declaring = []
+    for r in rows:
+        defpath = r.get("def")
+        if not isinstance(defpath, str):
+            continue
+        full = defpath if os.path.isabs(defpath) else os.path.join(build_root, defpath)
+        if not os.path.exists(full):
+            continue
+        key = char_def_trials_key(full)
+        if key is not None:
+            declaring.append((r, key))
+    for r, key in declaring:
+        c.check(f"{r.get('name')} ({os.path.basename(str(r.get('def')))}): "
+                f"declares `{key} =` and its definition resolved",
+                isinstance(r.get("trialsDef"), str), True)
+    if declaring:
+        spellings = {}
+        for _, key in declaring:
+            spellings[key] = spellings.get(key, 0) + 1
+        c._print("      (spellings on this roster: " + ", ".join(
+            f"{k} ×{n}" for k, n in sorted(spellings.items())) + ")")
+    # Named separately, because the checks above only exercise the fix when a def on
+    # this roster actually spells the key with a capital. A roster that spells it
+    # lowercase throughout has nothing to prove — it says so rather than passing.
+    mixed = [(r, key) for r, key in declaring if key != key.lower()]
+    if mixed:
+        c.check("every def spelling the key with a capital was still resolved",
+                [key for r, key in mixed if not isinstance(r.get("trialsDef"), str)],
+                [])
+    else:
+        c.skip("case-insensitive discovery exercised",
+               "no def on this roster spells the key other than all-lowercase")
 
     c._print("\nStep text, vertical layout (#37)")
     block = dig(tree, "steps")
