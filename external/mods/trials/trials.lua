@@ -4404,10 +4404,20 @@ end
 -- know why a Trial is missing. Everything they index is a position in the AVAILABLE
 -- list; the declared index is what survives the rebuild (see m.completed).
 --
--- Once a round, on the first frame past the round-state reset, and stale again the
--- moment the round state falls back — the same gate and the same marker applyDummy
--- uses, and for the same reason. docs/adr/0003 is why it is not once a match and not
--- every frame.
+-- Once a round, and stale again the moment the round state falls back. docs/adr/0003
+-- is why it is not once a match and not every frame.
+--
+-- Twice within that round, though, and the second reading is the one that stands: a
+-- character can still be choosing the mode this gate reads through the whole of the
+-- intro. cvsryu's groove helper seeds var(20) with `random%7` and copies its selection
+-- to the root every frame until it destroys itself at `roundstate > 1` (groove.cns
+-- 27-48, 113-121), so a reading taken while the announcement is still on screen is a
+-- random groove as often as the player's own.
+--
+-- The provisional reading at roundState 1 is not wasted: applyDummy and applySetup run
+-- straight after this and write from the Trial the match is on, so having the list
+-- already thinned is what keeps the intro from placing the pair for a Trial that is not
+-- on offer and correcting itself in front of the player.
 local function applyAvailability(m)
 	if m == nil then
 		return
@@ -4416,7 +4426,10 @@ local function applyAvailability(m)
 		m.availableRound = nil
 		return
 	end
-	if m.availableRound then
+	-- 1 while the round is coming up, 2 once it is live. Anything past 2 is a round
+	-- ending, which re-reads nothing: the answer for this round was settled at 2.
+	local stage = roundState() >= 2 and 2 or 1
+	if m.availableRound ~= nil and m.availableRound >= stage then
 		return
 	end
 	-- var() reads through whichever character the engine last left the redirect on, so
@@ -4435,7 +4448,7 @@ local function applyAvailability(m)
 			available[#available + 1] = trial
 		end
 	end
-	m.availableRound = true
+	m.availableRound = stage
 
 	-- The Trial the player is on, by declared index rather than by position: the
 	-- position it sat at belongs to the list being replaced. Where it is still on offer
@@ -6011,7 +6024,13 @@ function trials.f_dumpState()
 			-- Whether the pairs have been evaluated for the round yet. False for the
 			-- whole of roundState 0, where the character's own variables are not set
 			-- and the list is still the unthinned one.
-			availableResolved = trials.match.availableRound == true,
+			-- Whether the pairs have been read at all this round, and whether the
+			-- reading that stands has been taken — the one at roundState 2, as
+			-- against the provisional one during the intro (docs/adr/0003). A
+			-- thinner-than-declared offering with the first of these false would be
+			-- a list nothing evaluated.
+			availableResolved = (trials.match.availableRound or 0) >= 1,
+			availableFinal = trials.match.availableRound == 2,
 			-- The declared index of each Trial on offer, in the order they are offered.
 			-- Flattened for the same reason showfor above is.
 			available = availableText(trials.match),

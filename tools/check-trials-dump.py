@@ -1096,12 +1096,17 @@ def run_checks(tree, quiet=False, dump_path=DEFAULT_PATH):
         c.check("the offering is in declared order, with no repeats",
                 numeric, sorted(set(numeric)))
         # A dump taken before the round is live legitimately shows the unthinned list:
-        # the pairs are evaluated once a round, on the first frame past the round-state
-        # reset (docs/adr/0003). What must not happen is a resolved offering that has
-        # not been evaluated but is thinner than the file.
+        # the pairs are evaluated once a round (docs/adr/0003). What must not happen is
+        # an offering thinner than the file that nothing evaluated.
         resolved = dig(match, "availableResolved")
         c.check("an offering thinner than the file has actually been evaluated",
                 not (total != declared and resolved is False), True)
+        # The reading taken at roundState 1 is provisional, because a character can
+        # still be choosing the mode this gate reads — cvsryu seeds its groove with
+        # `random%7` and settles it as the round goes live. The one at roundState 2 is
+        # what stands, and it cannot be the standing one without having happened.
+        c.check("a final offering is one that was evaluated",
+                not (dig(match, "availableFinal") and resolved is False), True)
         current = dig(match, "current")
         c.check("the Trial the match is on is one of the offered ones",
                 total == 0 or (isinstance(current, (int, float)) and 1 <= current <= total),

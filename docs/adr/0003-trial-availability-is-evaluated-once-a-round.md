@@ -30,22 +30,36 @@ available and the diff shows none of them, which is why this is written down:
 
 ## Decision
 
-**Availability is evaluated once per round, on the first frame at `roundState >= 1`,
-and marked stale whenever the round state falls back to 0.**
+**Availability is evaluated once per round, and marked stale whenever the round state
+falls back to 0. Within that round it is read twice: provisionally on the first frame
+at `roundState >= 1`, and finally on the first frame at `roundState >= 2`, which is the
+reading that stands.**
 
-This is the same gate and the same staleness marker `applyDummy` and `applySetup`
-already use, and for the same reason ADR-0002 gives: `trials.zss` clears the shared
-maps for the whole of `roundState` 0, so nothing the module resolves is worth anything
-until the round is past that reset. Availability is evaluated *before* both of them in
-the loop, so the Dummy settings and the pair's positions are never written from a Trial
-that is not on offer.
+`roundState >= 1` is the same gate and the same staleness marker `applyDummy` and
+`applySetup` use, and for the same reason ADR-0002 gives: `trials.zss` clears the
+shared maps for the whole of `roundState` 0, so nothing the module resolves is worth
+anything until the round is past that reset. Availability is evaluated *before* both of
+them in the loop, so the Dummy settings and the pair's positions are never written from
+a Trial that is not on offer — which is what the provisional reading is for.
 
-It is one gate earlier than the pre-refactor module's `roundstate() == 2`. The
-selection it is reading has already happened either way — `cvsryu` picks its groove
-during `roundState` 0 — and evaluating at `roundState >= 1` means the first Dummy write
-of the round is already made from the available list, rather than made from the
-unfiltered one during the intro and corrected with a visible reposition once the round
-went live.
+**The second reading is not optional, and the first version of this decision was wrong
+to leave it out.** It claimed the selection had already happened by `roundState` 1,
+because "`cvsryu` picks its groove during `roundState` 0". It does not. The groove
+helper (`chars/cvsryu/groove.cns`, Statedef 6000) is spawned at `roundState` 0 having
+seeded `var(20)` with `random%7`, adds the player's up/down to it, copies the result to
+the root with `ParentVarSet` on *every* frame, and destroys itself only at
+`roundstate > 1 && !var(0)`. A reading taken while the round announcement is still on
+screen is therefore a random groove as often as the player's own — which showed up in
+testing as the right list "sometimes", and an S-groove list under a player who had
+picked EX.
+
+The final reading is the pre-refactor module's `roundstate() == 2`, restored. The
+provisional one is what that version did not have and this keeps.
+
+A player who is *still* changing the mode after the round goes live — cvsryu's helper
+survives up to a second into `roundState` 2 while `var(0)` counts down from the last
+input — is not followed. That is the same "once a round" line as any other mid-round
+change, and restarting the round is the recovery.
 
 Two consequences follow deliberately:
 
