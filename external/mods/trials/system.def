@@ -1,49 +1,15 @@
-; TRIALS MODE — trials-specific motif defaults
-;
-; Deliberately NOT named "+system.def". The engine auto-merges files with that name
-; and logs a warning for every key its motif struct cannot assign, so trials-specific
-; keys placed there would produce a warning per key on every boot. This file is read
-; only by the module, via loadIni, and the engine never parses it.
-;
-; This is layer 1 of three. The module reads its own config.ini over it, and the
-; screenpack's system.def over that — so a screenpack overrides any key below by
-; defining the same section and key in its own system.def. Language variants use the
-; engine's section-prefix convention, e.g. [ES.Trials Mode], resolved the way the
-; engine resolves its own motif sections. See docs/adr/0001.
-;
-; Keys are dotted, matching how the engine's own element properties are written, and
-; loadIni splits them into nested tables. Element keys follow the engine's own
-; vocabulary — font, offset, scale, window, localcoord, layerno — so nothing here is a
-; second dialect.
-
 ;-----------------------------------------------------------------------------------
 [Trials Mode]
 ;-----------------------------------------------------------------------------------
 
-; Label used when the module appends its own main-menu entry, and only then: a
-; screenpack that defines [Title Info] menu.itemname.trials keeps full control.
+; TITLE SCREEN --------------------------------------------------------------------
+; The title of the mode, shown on the title screen and in the menu. Screenpacks can override this with their own title, but if they don't, this is what is shown.
+; -----------------------------------------------------------------------------------
 menu.itemname.trials = "TRIALS"
-
-; Shown in place of the counter when the selected character ships no Trial Definition.
-; The pre-refactor spelling, trialcounter.notrialsdata.text, is still read: a screenpack
-; that already sets it keeps working without an edit.
-nodata.text = "No trials available for this character."
 
 ; SELECT SCREEN --------------------------------------------------------------------
 ; The palette effect applied to the cell portrait of every character that ships NO Trial
-; Definition, for as long as Trials Mode is the mode being selected for. It is how a
-; player sees at a glance who has content, and it is taken off again on the way out, so
-; nothing here follows the player into another mode.
-;
-; The five keys are the engine's own palfx vocabulary and mean exactly what they mean on
-; any other element: mul and color are out of 256, where 256 is neutral, and color = 0
-; is fully greyscale. What ships below is a dimmed greyscale portrait — recognisable,
-; obviously not selectable-for-trials. Set mul = 256, 256, 256 and color = 256 to turn
-; the whole thing off.
-;
-; Only the small grid portraits are affected. The large face portrait of the character
-; under the cursor is drawn from a different anim and is left alone deliberately: it is
-; the one place a player looks to identify who they are hovering over.
+; Definition, for as long as Trials Mode is the mode being selected for. 
 ; -----------------------------------------------------------------------------------
 selscreenpalfx.mul = 100, 100, 100
 selscreenpalfx.color = 0
@@ -51,46 +17,17 @@ selscreenpalfx.color = 0
 ; selscreenpalfx.sinadd =
 ; selscreenpalfx.invertall =
 
-; SHARED --------------------------------------------------------------------------
-; Settings more than one trials element reads live here rather than being repeated on
-; each of them. An element may still carry its own value where it genuinely needs a
-; different one; these are what it falls back to.
-;
-; trials.localcoord is the coordinate space every trials element draws in.
-;
-; You do not have to set it, and leaving it out never moves anything. The space follows
-; whoever positioned the element:
-;
-;   - the positions in THIS file are written in 320x240, and resolve there
-;   - a position your screenpack sets is written in your screenpack's localcoord, and
-;     resolves there — which is what every existing trials integration already assumes,
-;     so one that sets trialcounter.pos and nothing else keeps working unchanged
-;   - setting trials.localcoord below overrides both
-;
-; Why 320x240 for this file's own coordinates: a match does not necessarily render at
-; the screenpack's aspect ratio. With Video.FightAspect set to the stage's (the shipped
-; default), a 4:3 stage renders 4:3 even in a 16:9 screenpack, and only the central 4:3
-; slice of a widescreen localcoord is on screen. For 1280x720 that is x = 160 to 1120,
-; so a default of "10 in from the left" would be invisible on exactly the setup this
-; module ships against. 320x240 has no such margins.
+; LOCALCOORD ----------------------------------------------------------------------
+; You can force the module's localcoord if needed.
 ; -----------------------------------------------------------------------------------
 ; trials.localcoord =
 
 ; TRIALS COUNTER ------------------------------------------------------------------
-; Which Trial the player is on, and how many the character ships.
-;
-; %i is the current Trial and %s the total, following the engine's own substitution
-; convention (main.f_formatBySpec). The pre-refactor "Trial %s of %t" spelling is still
-; read the way it always was, so an existing screenpack needs no edit.
-;
-; pos is in 320x240, this file's own space (see trials.localcoord above). A pos you set
-; in your screenpack is in your screenpack's space instead. trialcounter.localcoord
-; overrides that for this one element only, and is almost never what you want.
+; Shows which Trial the player is on, and how many are available.
+; The text argument is a format string, with %i for the current Trial number and %s for the total number of Trials.
+; nodata.text is the string displayed when no Trials are available for the character.
 ; -----------------------------------------------------------------------------------
 trialcounter.text = "Trial %i of %s"
-; What the counter reads once every Trial has been completed. The All-Clear moment has
-; its own banner below; this is what stays on screen after the banner has gone. Leave
-; it out and the counter keeps reading the ordinary Trial count.
 trialcounter.allclear.text = "All Trials Clear"
 trialcounter.font = 1, 0, 1
 trialcounter.scale = 1, 1
@@ -100,43 +37,15 @@ trialcounter.pos = 5, 228
 ; trialcounter.font.height =
 ; trialcounter.window =
 ; trialcounter.localcoord =
+nodata.text = "No trials available for this character."
 
 ; TRIAL TITLE ----------------------------------------------------------------------
-; The name of the Trial being played, drawn as an element of its own — one per Layout,
-; so the column and the row can each put it where that arrangement has room. Only the
-; Layout the player is in draws.
-;
-; OFF UNLESS YOU SET text.text. That string is both what the element says and what
-; switches it on: with none, no element is built and nothing is drawn. It ships off
-; because this file's own 320x240 space has no free strip beside the Steps to put a
-; title in — where yours goes is a screenpack decision, not a default worth guessing at.
-; The block below is every key it takes, commented out; uncomment the two you need.
+; The name of the Trial being played, optionally drawn element.
 ;
 ; %i is the Trial's number and %s its name, the engine's own substitution convention
 ; (main.f_formatBySpec), the same one the Textbox title takes. The pre-refactor spelling
 ; — %s for the number, %n for the name — is still read, and writing %n anywhere in the
 ; string is what selects it.
-;
-; UPGRADING FROM v0.99.x: the pre-refactor module declared text.text and then drew the
-; bare Trial name, ignoring it. It is applied now, so a screenpack already carrying
-; "Trial: %s" reads `Trial: <name>` where it used to read `<name>`. Write "%s" alone for
-; the old wording.
-;
-; Three elements on one origin, the way the Textbox is built: pos positions all of them
-; and each spells only its own offset. They draw bg, then the words, then front — the
-; pre-refactor module drew the words first and both anims over them, so a bg covered the
-; title it was meant to sit behind.
-;
-; displaytime is how many ticks one frame of bg or front artwork holds; -1, the default,
-; holds it for good. spr follows the same rule every other element does — one written
-; here means the module's trials.sff, one in your system.def means yours — but the module
-; ships no artwork for this element, so in practice it is always yours.
-;
-; The title does NOT move out of a Textbox's way the way the Step block does. Each Layout
-; positions it on its own; put it where it clears whatever else that Layout draws.
-;
-; pos is in 320x240, this file's own space (see trials.localcoord above). A pos you set
-; in your screenpack is in your screenpack's space instead.
 ; -----------------------------------------------------------------------------------
 ; trialtitle.vertical.pos =
 ; trialtitle.vertical.text.text = "Trial %i: %s"
@@ -147,12 +56,14 @@ trialcounter.pos = 5, 228
 ; trialtitle.vertical.text.window =
 ; trialtitle.vertical.text.layerno =
 ; trialtitle.vertical.bg.spr =
+; trialtitle.vertical.bg.anim =
 ; trialtitle.vertical.bg.offset =
 ; trialtitle.vertical.bg.scale =
 ; trialtitle.vertical.bg.facing =
 ; trialtitle.vertical.bg.displaytime =
 ; trialtitle.vertical.bg.layerno =
 ; trialtitle.vertical.front.spr =
+; trialtitle.vertical.front.anim =
 ; trialtitle.vertical.front.offset =
 ; trialtitle.vertical.front.scale =
 ; trialtitle.vertical.front.facing =
@@ -169,12 +80,14 @@ trialcounter.pos = 5, 228
 ; trialtitle.horizontal.text.window =
 ; trialtitle.horizontal.text.layerno =
 ; trialtitle.horizontal.bg.spr =
+; trialtitle.horizontal.bg.anim =
 ; trialtitle.horizontal.bg.offset =
 ; trialtitle.horizontal.bg.scale =
 ; trialtitle.horizontal.bg.facing =
 ; trialtitle.horizontal.bg.displaytime =
 ; trialtitle.horizontal.bg.layerno =
 ; trialtitle.horizontal.front.spr =
+; trialtitle.horizontal.front.anim =
 ; trialtitle.horizontal.front.offset =
 ; trialtitle.horizontal.front.scale =
 ; trialtitle.horizontal.front.facing =
@@ -182,35 +95,15 @@ trialcounter.pos = 5, 228
 ; trialtitle.horizontal.front.layerno =
 ; trialtitle.horizontal.localcoord =
 
-; --- TEST FIXTURE #63 — delete this whole block ------------------------------------
-; Switches the Trial Title on for both Layouts, since it draws nothing by default and
-; there would otherwise be nothing to look at. Both sit at the bottom left, one line
-; above the Trial Counter, and each Layout words and colours it differently so that
-; switching Layout from the pause menu shows the two are configured apart.
-trialtitle.vertical.pos = 5, 218
-trialtitle.vertical.text.text = "Trial %i: %s"
-trialtitle.vertical.text.font = 1, 0, 1, 255, 220, 100
-trialtitle.vertical.text.layerno = 0
-trialtitle.horizontal.pos = 5, 218
-trialtitle.horizontal.text.text = "%i — %s"
-trialtitle.horizontal.text.font = 1, 0, 1, 100, 220, 255
-trialtitle.horizontal.text.layerno = 0
-; --- end TEST FIXTURE #63 ----------------------------------------------------------
-
-; TRIAL STEPS — VERTICAL LAYOUT ----------------------------------------------------
-; The Steps of the current Trial, stacked. trialsteps.<layout> is the block the three
-; Step Status elements below share: rows lay out from its pos, one spacing apart, and
-; clip to its window. Each Step Status then spells only what distinguishes it.
+; TRIAL STEPS — GENERAL SETTINGS ----------------------------------------------------
+; TRIALSTEPS options can be specified for both vertical and horizontal layouts simultaneously.
 ;
-; window is X1,Y1, X2,Y2. Once the rows no longer fit inside it the list scrolls,
-; keeping two completed Steps above the current one. Leave it out for no clipping.
-;
-; The .withtextbox variants are used for a Trial that carries a trial.textbox, so the
-; two do not overlap. pos.withtextbox moves the block; window.withtextbox reshapes what
-; it clips to. Both fall back to the plain key, so a config that sets neither behaves
-; exactly as it did before.
-;
-; pos is in 320x240, this file's own space (see trials.localcoord above).
+; trialsteps.<layout>.pos: local origin from which trial steps are drawn. Other elements have their own origin specifications.
+; trialsteps.<layout>.spacing: spacing between trial steps. For horizontal layout, the second argument determines the spacing between rows.
+; trialsteps.<layout>.window: X1,Y1,X2,Y2: display window for trials--will create automated scrolling or line returns, depending on the trial layout of choice
+; trialsteps.<layout>.pos.withtextbox: local origin from which trial steps are drawn when a textbox is present. Other elements have their own origin specifications.
+; trialsteps.<layout>.window.withtextbox: X1,Y1,X2,Y2: display window for trials when a textbox is present--will create automated scrolling or line returns, depending on the trial layout of choice
+; trialsteps.horizontal.padding: horizontal layouts only - padding between glyphs and edges of the background element along the x (horizontal) axis.
 ; -----------------------------------------------------------------------------------
 trialsteps.vertical.pos = 35, 38
 trialsteps.vertical.spacing = 0, 9
@@ -218,15 +111,16 @@ trialsteps.vertical.window = 25, 34, 295, 138
 trialsteps.vertical.pos.withtextbox =
 trialsteps.vertical.window.withtextbox =
 
-; STEP STATUS — VERTICAL LAYOUT ----------------------------------------------------
-; Where a Step sits relative to the player's progress: upcoming, current, or completed.
-; Each is styled independently so progress is legible at a glance — here by colour
-; alone, the fourth to sixth font slots, so the three read as one list.
-;
-; offset is added to the block's pos, per Step Status. Everything an engine text
-; element takes works here too: scale, font.height, layerno. The window is the one
-; exception — it belongs to the block above, because it is what switches when a Trial
-; carries a Textbox, and all three Step Statuses have to clip to the same rect.
+trialsteps.horizontal.pos = 25, 38
+trialsteps.horizontal.spacing = 4, 11
+trialsteps.horizontal.window = 20, 34, 300, 70
+trialsteps.horizontal.pos.withtextbox = 25, 38
+trialsteps.horizontal.window.withtextbox = 20, 34, 250, 70
+trialsteps.horizontal.padding = 2
+
+; TRIAL STEPS TEXT OPTIONS -----------------------------------------------------
+; Sets font, offset, scale, and fontheight options for each step status, for both vertical and horizontal layouts.
+; Text can be shown for horizontal layouts as of 1.0 but has been left commented out by default.
 ; -----------------------------------------------------------------------------------
 upcomingstep.vertical.text.font = 1, 0, 1, 180, 180, 180
 upcomingstep.vertical.text.offset = 0, 0
@@ -243,60 +137,22 @@ completedstep.vertical.text.offset = 0, 0
 ; completedstep.vertical.text.scale =
 ; completedstep.vertical.text.font.height =
 
-; TRIAL STEPS — HORIZONTAL LAYOUT --------------------------------------------------
-; The same Steps flowed along a row instead of stacked, so the block is a ribbon a few
-; rows deep rather than a column. Which of the two is drawn is the player's, not the
-; screenpack's: the Layout preference in the module's config.ini, switchable from the
-; trials pause menu mid-match. Both blocks are built at load, so switching between them
-; is instant and a screenpack styles each independently.
-;
-; Steps lay out from pos, left to right, one spacing (first argument) apart. A Step that
-; would not fit inside the window's right edge starts a new row, one spacing (second
-; argument) down — so here the second argument is the row height, where in the vertical
-; block it is what separates one Step from the next.
-;
-; padding is the gap between a Step's text and the edges of its own item, applied on
-; both sides. It is what a background element drawn behind the Step needs in order not
-; to touch the words; with no background it simply insets the row.
-;
-; window is X1,Y1, X2,Y2. Its right edge is where rows wrap, and its bottom is how many
-; of them are shown: once the rows no longer fit, the list scrolls to keep the row the
-; player is on in view, exactly as the vertical block scrolls its Steps. Leave the window
-; out and rows wrap at the edge of the screen instead of not at all.
-;
-; The shipped origin is the vertical block's, and for a reason worth knowing before
-; moving it: the engine's own lifebars and power bars end around y = 32 in this space, so
-; a row drawn any higher than that sits across them.
-;
-; pos is in 320x240, this file's own space (see trials.localcoord above).
-; -----------------------------------------------------------------------------------
-trialsteps.horizontal.pos = 25, 38
-trialsteps.horizontal.spacing = 4, 11
-trialsteps.horizontal.padding = 2
-trialsteps.horizontal.window = 20, 34, 300, 70
-trialsteps.horizontal.pos.withtextbox = 25, 38
-trialsteps.horizontal.window.withtextbox = 20, 34, 250, 70
-
-; STEP STATUS — HORIZONTAL LAYOUT --------------------------------------------------
-; Styled apart the same way the vertical Layout's three are, and independently of them:
-; a screenpack that wants the row to read differently from the column says so here.
-; -----------------------------------------------------------------------------------
-upcomingstep.horizontal.text.font = 1, 0, 1, 180, 180, 180
-upcomingstep.horizontal.text.offset = 0, 0
+; upcomingstep.horizontal.text.font = 1, 0, 1, 180, 180, 180
+; upcomingstep.horizontal.text.offset = 0, 0
 ; upcomingstep.horizontal.text.scale =
 ; upcomingstep.horizontal.text.font.height =
 
-currentstep.horizontal.text.font = 1, 0, 1, 255, 255, 255
-currentstep.horizontal.text.offset = 0, 0
+; currentstep.horizontal.text.font = 1, 0, 1, 255, 255, 255
+; currentstep.horizontal.text.offset = 0, 0
 ; currentstep.horizontal.text.scale =
 ; currentstep.horizontal.text.font.height =
 
-completedstep.horizontal.text.font = 1, 0, 1, 110, 110, 110
-completedstep.horizontal.text.offset = 0, 0
+; completedstep.horizontal.text.font = 1, 0, 1, 110, 110, 110
+; completedstep.horizontal.text.offset = 0, 0
 ; completedstep.horizontal.text.scale =
 ; completedstep.horizontal.text.font.height =
 
-; STEP BACKGROUNDS ------------------------------------------------------------------
+; TRIAL STEP BACKGROUND OPTIONS ------------------------------------------------------------------
 ; The artwork drawn behind the Steps: what makes Step text and Glyphs readable over a
 ; busy stage, and what gives a screenpack its identity in this mode.
 ;
@@ -310,7 +166,7 @@ completedstep.horizontal.text.offset = 0, 0
 ; because elements sharing a layer draw in the order they are drawn in and the module
 ; draws these first.
 ;
-; TO TURN ONE OFF, set its spr to nothing:
+; TO TURN ONE OFF, set its spr to nothing — and its anim too, if it has one:
 ;
 ;   currentstep.horizontal.bg.spr =
 ;   currentstep.horizontal.bg.tail.spr =
@@ -334,10 +190,27 @@ completedstep.horizontal.text.offset = 0, 0
 ; with it comes along. trials.sff is only ever loaded if something still resolves to it,
 ; so a screenpack that styles every element of its own never pays for a second copy.
 ;
-; `spr` and not `anim`, on both sides. Every element here is one static sprite, so the
-; module ships no .air; and a screenpack's own [Begin Action N] cannot reach a Lua module
-; at all, because the engine's action table is unexported. Writing `anim = N` here draws
-; nothing and says so in the console. Use `spr = group, index`.
+; `spr` OR `anim`, on both sides. spr = group, index draws one static sprite; anim = N
+; draws [Begin Action N] — an animation, with its own frame timings, per-frame offsets,
+; flips and blends. Which file an action number means follows the same rule a sprite
+; number does: an anim written in THIS file is an action defined at the bottom of this
+; file, drawn out of trials.sff; one written in YOUR system.def is an action in your
+; file, drawn out of your sff. There is no mixing, in either direction.
+;
+; The module ships one action per sprite it ships, numbered to match — action 20 draws
+; sprite 0,20 — at the end of this file. Two frames of one sprite at two alphas is not
+; an animation anybody would ship as artwork; they are there so that every element in
+; this section can be moved to an anim and watched working before you draw anything.
+;
+; An element given both keys uses the anim, and an anim naming an action its own file
+; does not define draws nothing and says so in the console rather than quietly falling
+; back on the sprite — an action that failed to load is worth hearing about.
+;
+; SIZE IS MEASURED ONCE, FROM THE FIRST FRAME, when the module loads. The horizontal
+; body is stretched to that width, and the head and tail are placed from theirs; a Step
+; wrapping to the next row is decided by them. So an action whose frames differ in size
+; draws every one of them at the first frame's width. Animate the colour, the alpha, the
+; offset — not the dimensions.
 ;
 ; THE HORIZONTAL LAYOUT'S THREE PIECES. A vertical row is a fixed-width slot, so its
 ; background is one sprite drawn where the row is. A horizontal Step is only as wide as
@@ -465,173 +338,93 @@ completedstep.horizontal.bg.head.spr = 0, 22
 completedstep.horizontal.bg.head.offset = 0, -7
 completedstep.horizontal.bg.palfx.mul = 110, 110, 110
 
+; ===== TEST FIXTURE — anim as a Step background. DELETE THIS BLOCK WHEN VERIFIED. =====
+; Moves the background under the CURRENT Step, in both Layouts, from the sprite it ships
+; to the matching action at the bottom of this file. Nothing else changes: the upcoming
+; and completed Steps keep their sprites, so the pulsing one is the one being played.
+;
+; The horizontal Layout takes all three keys because the arrow is three elements and one
+; graphic — a shaft pulsing without its point would read as a seam.
+;
+; Delete the four lines below and the shipped look is back exactly as it was; they are
+; written after the keys they replace and override nothing else.
+currentstep.vertical.bg.anim = 10
+currentstep.horizontal.bg.anim = 20
+currentstep.horizontal.bg.tail.anim = 21
+currentstep.horizontal.bg.head.anim = 22
+; ===== END TEST FIXTURE =============================================================
+
 ; COMMAND GLYPHS ------------------------------------------------------------------
-; The icons drawn beside a Step's text, standing in for the inputs its words describe.
-; They come from the screenpack's own [Glyphs] vocabulary — the same one the engine's
-; movelists use — so a Trial Definition writing `trialstep.1.glyphs = _QCF^P` gets the
-; quarter-circle-forward and punch icons that screenpack already ships. A Step that
-; declares no Glyphs draws as text alone, and a token this screenpack has no Glyph for
-; is skipped rather than drawn.
+; GLYPHS options can be specified for both vertical and horizontal layouts simultaneously.
 ;
-; HOW BIG A GLYPH IS, and the one key that decides it: scalewithtext.
-;
-; ON (the default). A Glyph stands in for a word of the Step beside it, so it is sized
-; from that Step Status's own font height and text scale — the engine sizes its movelist
-; glyphs the same way. A Step Status a screenpack styles larger carries its Glyphs up
-; with it, and the run always reads as part of the words.
-;
-;   scale is NOT READ while this is on. The size derived from the text replaces it,
-;   which is what the pre-refactor toggle of the same name did.
-;
-; OFF. scale IS the size, exactly as written here, and nothing about the text enters
-; into it. This is what to use for Glyphs sized absolutely — the pre-refactor default
-; was an absolute 0.3125 — and it is the only way to draw Glyphs at a size the words do
-; not dictate. A screenpack migrating a scalewithtext = false block keeps its old scale
-; value unchanged.
-;
-; One case falls back on its own: with scalewithtext ON but no font resolvable for that
-; Step Status — because its text.font is absent, so it draws no words — there is no
-; height to match, and scale is used as written. The Glyphs still draw. That is the
-; Glyph-only Step display the pre-refactor horizontal Layout was, and it needs no
-; special spelling: leave the font out and set the scale you want.
-;
-; What is measured is the FONT's height, not the Step's string. A Step whose text is
-; empty still sizes its Glyphs from the font its Step Status resolved, so a run does not
-; change size from one Step to the next.
-;
-; align is the engine's own three: 1 grows the run right from its anchor, -1 ends it
-; there, 0 centres it on it. It is the vertical Layout's alone, because aligning against
-; an anchor only means something where the anchor stands still — see below.
-;
-; Where the run is anchored differs by Layout, because the two put a Step in a different
-; kind of place:
-;
-;   vertical   — every row starts at trialsteps.vertical.pos, so offset is measured from
-;                there. The run is a column beside text of varying length, which is what
-;                the shipped right-aligned default makes of it.
-;   horizontal — a Step sits wherever the flow put it, so offset is measured from the end
-;                of that Step's own text and the run follows the words, always growing
-;                right. It is also what separates the two, and a Step with no Glyphs is
-;                laid out without it.
-;
-; spacing reads its first argument only: a run is a row, and there is nothing for a
-; vertical gap between one Glyph and the next to mean.
-;
-; The y offset is a nudge, and 2 is the engine's own for the same job — its movelist
-; ships movelist.glyphs.offset = 0, 2 in this same space. It is needed because text and
-; sprites are positioned from different places: a sprite font draws its line above the y
-; it is given (src/font.go:636) while a Glyph's Anim draws from its sprite axis, so the
-; two only line up once the difference between them is spelled here. Expect to tune it
-; for a screenpack whose font height or glyph axis differs from the stock one.
-;
-; offset and spacing are in 320x240, this file's own space (see trials.localcoord above).
+; glyphs.<layout>.offset: x,y offset from current trialstep position
+; glyphs.<layout>.scale: x,y scale for glyphs
+; glyphs.<layout>.spacing: x,y spacing from one glyph element to another on the same trialstep
+; glyphs.<layout>.layerno: layer number for glyphs
+; glyphs.<layout>.localcoord: local coordinate space for glyphs (rarely required)
+; glyphs.vertical.align: alignment for glyphs (vertical layout only)
 ; -----------------------------------------------------------------------------------
 glyphs.vertical.offset = 230, 2
 glyphs.vertical.scalewithtext = true
-; Read only when scalewithtext is false, or when the Step Status resolved no font.
 glyphs.vertical.scale = 1, 1
 glyphs.vertical.spacing = 1, 0
-glyphs.vertical.align = -1
 glyphs.vertical.layerno = 0
 ; glyphs.vertical.localcoord =
+glyphs.vertical.align = -1
 
 glyphs.horizontal.offset = 3, 2
 glyphs.horizontal.scalewithtext = true
-; Read only when scalewithtext is false, or when the Step Status resolved no font.
 glyphs.horizontal.scale = 1, 1
 glyphs.horizontal.spacing = 1, 0
 glyphs.horizontal.layerno = 0
 ; glyphs.horizontal.localcoord =
 
 ; GLYPH PALETTE EFFECTS -------------------------------------------------------------
-; A Step Status styles its text by font and colour; this is how it styles the Glyphs
-; drawn beside that text, so that upcoming, current and completed read apart as icons
-; too. The keys are the engine's own palfx: add and mul are r,g,b; sinadd is r,g,b and
-; a period; invertall is 0 or 1; color is 0-256, where 256 is the sprite's own colour
-; and 0 is greyscale.
-;
-; The shipped muls are the grey levels the three Step Statuses already dim their text
-; by above — 180, 255, 110 — so that a completed Step reads as completed all the way
-; across rather than dimming its words and leaving its icons bright. 256 is neutral, so
-; a screenpack that would rather its Glyphs never be tinted sets these to 256, 256, 256.
+; Glyphs can receive a palfx effect, which is applied to the whole glyph set for each step status.
 ; -----------------------------------------------------------------------------------
 upcomingstep.vertical.glyphs.palfx.mul = 180, 180, 180
-currentstep.vertical.glyphs.palfx.mul = 255, 255, 255
-completedstep.vertical.glyphs.palfx.mul = 110, 110, 110
 ; upcomingstep.vertical.glyphs.palfx.color =
 ; upcomingstep.vertical.glyphs.palfx.add =
 ; upcomingstep.vertical.glyphs.palfx.sinadd =
 ; upcomingstep.vertical.glyphs.palfx.invertall =
+currentstep.vertical.glyphs.palfx.mul = 255, 255, 255
+; currentstep.vertical.glyphs.palfx.color =
+; currentstep.vertical.glyphs.palfx.add =
+; currentstep.vertical.glyphs.palfx.sinadd =
+; currentstep.vertical.glyphs.palfx.invertall =
+completedstep.vertical.glyphs.palfx.mul = 110, 110, 110
+; completedstep.vertical.glyphs.palfx.color =
+; completedstep.vertical.glyphs.palfx.add =
+; completedstep.vertical.glyphs.palfx.sinadd =
+; completedstep.vertical.glyphs.palfx.invertall =
 
 upcomingstep.horizontal.glyphs.palfx.mul = 180, 180, 180
-currentstep.horizontal.glyphs.palfx.mul = 255, 255, 255
-completedstep.horizontal.glyphs.palfx.mul = 110, 110, 110
 ; upcomingstep.horizontal.glyphs.palfx.color =
+; upcomingstep.horizontal.glyphs.palfx.add =
+; upcomingstep.horizontal.glyphs.palfx.sinadd =
+; upcomingstep.horizontal.glyphs.palfx.invertall =
+currentstep.horizontal.glyphs.palfx.mul = 255, 255, 255
 ; currentstep.horizontal.glyphs.palfx.color =
+; currentstep.horizontal.glyphs.palfx.add =
+; currentstep.horizontal.glyphs.palfx.sinadd =
+; currentstep.horizontal.glyphs.palfx.invertall =
+completedstep.horizontal.glyphs.palfx.mul = 110, 110, 110
 ; completedstep.horizontal.glyphs.palfx.color =
+; completedstep.horizontal.glyphs.palfx.add =
+; completedstep.horizontal.glyphs.palfx.sinadd =
+; completedstep.horizontal.glyphs.palfx.invertall =
 
 ; TRIAL TEXTBOX --------------------------------------------------------------------
-; The explanatory prose a Trial can carry, with an optional portrait. A Trial declares
-; it with `trial.textbox` in its Trial Definition, and language variants with a key
-; suffix — `trial.textbox.es`. A Trial that declares none draws no Textbox and no empty
-; frame; whether a Trial that does declare one shows it is the player's, through
-; [Options] Trials.Textboxes in config.ini.
+; A textbox can accompany each trial if it is specified within the trials definition file.
+; The only element defined within the trials definition file is the text to be displayed for that trial.
 ;
-; Note the asymmetry, which is deliberate: a Trial DEFINITION spells a language with a
-; key suffix (trial.textbox.es), while this file spells one with a section prefix
-; ([ES.Trials Mode]). The two files are read by different parsers.
-;
-; Five elements on one origin. textbox.pos positions all of them and each spells only its
-; own offset, the way the Step Statuses share the Step block's origin. They draw in this
-; order, so front is over the words and bg is behind them:
-;
-;   .bg        artwork behind the whole box
-;   .portrait  the character being played, or a sprite from your sff
-;   .title     one line, usually the Trial's number and name
-;   .text      the Trial's own prose
-;   .front     artwork over everything, for a frame or a gloss
-;
-; The whole Textbox draws behind the Steps, because the Step block moves out of its way
-; rather than over it: see trialsteps.<layout>.pos.withtextbox and window.withtextbox
-; above, which are what a Trial carrying a Textbox switches the Steps to.
-;
-; TITLE TEXT takes %i for the Trial's number and %s for its name, following the engine's
-; own substitution convention. The pre-refactor spelling — %s for the number and %n for
-; the name — is still read, and writing %n anywhere in the string is what selects it, so
-; an existing screenpack needs no edit.
-;
-; BODY TEXT wraps inside textbox.text.window, which is doing two jobs: it is both what
-; the prose is clipped to and what it wraps inside. Set it to the inside of your box.
-; Wrapping is on unless you turn it off.
-;
-;   textbox.text.delay is frames per character, for prose that types itself out. 0 —
-;   the default — is the whole of it at once. The pre-refactor key was `drawspeed`.
-;   The reveal starts over whenever the Trial changes, and whenever a player switches
-;   Textboxes back on.
-;
-; PORTRAIT SOURCE is `char` or `system`. `char` draws the character being played, from
-; the sprites the select screen already preloaded — spr names which of that character's
-; sprites, 9000,0 being the small portrait every character has. Its scale is corrected
-; for the character's own coordinate space and portraitscale, so one scale here looks
-; right across characters that disagree about either. `system` draws a sprite out of an
-; sff, and follows the same rule every other element does: a spr this file ships means
-; the module's trials.sff, one your screenpack writes means yours.
-;
-; WHERE THE SHIPPED ONE SITS, and one thing to know before moving it. The Textbox is one
-; element set both Layouts share — there is one textbox.pos, not one per Layout — so the
-; shipped position has to clear BOTH Layouts' Steps. The vertical block ends at y 138 and
-; the horizontal one at y 70, so it sits below both, at y 150.
-;
-; trialsteps.horizontal.window.withtextbox reserves a right-hand strip instead, from a
-; run at the screen. Nothing is drawn in that strip today, so a Trial carrying prose
-; narrows the horizontal row for no gain. Reserving it costs one early row wrap; using it
-; would need either a per-Layout textbox.pos or a Textbox that overlaps the vertical
-; Layout's Steps. Left as tuned rather than quietly widened.
-;
-; pos is in 320x240, this file's own space (see trials.localcoord above). No artwork is
-; shipped switched on: a Textbox frame is a screenpack's own furniture, and one drawn in
-; artwork this module invented would sit oddly against every other screenpack. Give
-; textbox.bg a spr and it appears.
+; textbox.pos: local origin from which other textbox elements are drawn. 
+; textbox.text.<options>: specify text window, offset, font type, and drawspeed
+; textbox.title.<options>: specify text, offset, font type, scale
+; textbox.overlay.<options>: draw an overlay behind any other bg, text or front element
+; textbox.bg.<options>: optional background displayed behind text but over overlay; standard options for background elements, etc.
+; textbox.front.<options>: optional background displayed in front of text; standard options for background elements, etc.
+; textbox.portrait.<options>: allows a portrait to be drawn with or in the textbox. Sprite can be sourced from the character or the screenpack.
 ; -----------------------------------------------------------------------------------
 textbox.pos = 20, 150
 ; textbox.localcoord =
@@ -655,14 +448,14 @@ textbox.text.spacing = 0, 10
 ; textbox.text.font.height =
 ; textbox.text.layerno =
 
-; No shipped artwork — see above. spr here means the module's trials.sff; spr in your
-; screenpack's system.def means yours.
 ; textbox.bg.spr =
+; textbox.bg.anim =
 ; textbox.bg.offset =
 ; textbox.bg.scale =
 ; textbox.bg.layerno =
 
 ; textbox.front.spr =
+; textbox.front.anim =
 ; textbox.front.offset =
 ; textbox.front.scale =
 ; textbox.front.layerno =
@@ -676,18 +469,10 @@ textbox.portrait.scale = 1, 1
 ; textbox.portrait.layerno =
 
 ; TRIAL TIMERS --------------------------------------------------------------------
-; Two stopwatches, both counting up: totaltrialtimer since the match began,
-; currenttrialtimer since the current Trial started. Both freeze on All-Clear.
-;
-; The engine's own timers count DOWN and are driven by main.f_drawTimer, so its
-; formula is not reusable here — but framespercount means the same thing in both, and
-; is what a build running at something other than 60 ticks a second sets.
-;
-; %s is the elapsed time, formatted mm:ss:cc. Whether either timer is shown at all is
-; a Player Preference, [Options] Trials.TotalTimer and Trials.TrialTimer in config.ini,
-; not a screenpack setting: it is the player who wants to practise without a clock.
-;
-; pos is in 320x240, this file's own space (see trials.localcoord above).
+; trialresetenabled allows the user to reset the player and dummy position to center stage (or specified trials position) when the d and w keys are pressed simultaneously
+; trialresetreminder displays a string that reminds the player they can reset the trial position with the specified key input
+; 
+; The framespercount option is how many ticks it takes to count one second, and is used to convert the engine's own tick count into a seconds display. The module ships 60, which is what the engine runs at, but a screenpack that runs at 30 or 120 can change it here.
 ; -----------------------------------------------------------------------------------
 totaltrialtimer.text = "Total %s"
 totaltrialtimer.font = 1, 0, -1
@@ -712,26 +497,7 @@ currenttrialtimer.framespercount = 60
 ; currenttrialtimer.localcoord =
 
 ; SUCCESS AND ALL-CLEAR -------------------------------------------------------------
-; Success is the moment every Step of one Trial is completed. All-Clear is the moment
-; every Trial the character ships has been completed, and replaces the Success banner
-; on the Trial that finishes the set.
-;
-; Both are one banner: pos positions it, .text styles the words, .text.displaytime is
-; how many ticks it stays up, and .snd is a group,index pair played once as it appears.
-; A negative sound group plays nothing, which is what this file ships — the module
-; carries no sounds of its own, and a screenpack's snd numbers are the screenpack's to
-; choose.
-;
-; The .bg and .front animation layers are not read. The banner is its words and its
-; sound; a screenpack wanting artwork behind SUCCESS draws it from the trials background
-; below, which is a full background definition and can do considerably more. Configuring
-; them does nothing, and nothing is broken by leaving them in a screenpack that has them.
-;
-; The fade that follows a Success is the reposition fade further down — fadeout.* and
-; fadein.* — not a banner setting. It runs after the banner, not under it, and only when
-; the player's Reset on Success preference is on.
-;
-; pos is in 320x240, this file's own space (see trials.localcoord above).
+; Success is displayed when a trial is completed, while All-Clear is displayed when all trials for a character are completed.
 ; -----------------------------------------------------------------------------------
 success.pos = 160, 100
 success.snd = -1, 0
@@ -741,8 +507,18 @@ success.text.offset = 0, 0
 success.text.scale = 2, 2
 success.text.displaytime = 70
 ; success.text.font.height =
-; success.bg.anim =        ; not read
-; success.front.anim =     ; not read
+; success.bg.spr =
+; success.bg.anim =
+; success.bg.offset =
+; success.bg.scale =
+; success.bg.displaytime =
+; success.bg.layerno =
+; success.front.spr =
+; success.front.anim =
+; success.front.offset =
+; success.front.scale =
+; success.front.displaytime =
+; success.front.layerno =
 
 allclear.pos = 160, 100
 allclear.snd = -1, 0
@@ -752,90 +528,67 @@ allclear.text.offset = 0, 0
 allclear.text.scale = 2, 2
 allclear.text.displaytime = 120
 ; allclear.text.font.height =
-; allclear.bg.anim =       ; not read
-; allclear.front.anim =    ; not read
+; allclear.bg.spr =
+; allclear.bg.anim =
+; allclear.bg.offset =
+; allclear.bg.scale =
+; allclear.bg.displaytime =
+; allclear.bg.layerno =
+; allclear.front.spr =
+; allclear.front.anim =
+; allclear.front.offset =
+; allclear.front.scale =
+; allclear.front.displaytime =
+; allclear.front.layerno =
+
+; ===== TEST FIXTURE — artwork on the banners. DELETE THIS BLOCK WHEN VERIFIED. =======
+; The module ships no banner artwork, so there is nothing to look at until something
+; declares some. This borrows sprites already in trials.sff:
+;
+;   Success   a static plate behind the word, and the arrow's point pulsing OVER it,
+;             just to the right — which is what tells .bg from .front on screen.
+;   All-Clear the same plate, animated: it is the one that proves an action restarts
+;             each time a banner is raised, since All-Clear fires once per set.
+;
+; Offsets are from each banner's own pos (160, 100) in this file's 320x240 space. The
+; plate is 280 x 36 drawn from its top-left corner, so -140 centres it.
+success.bg.spr = 0, 1
+success.bg.offset = -140, -30
+success.bg.layerno = 0
+success.front.anim = 22
+success.front.offset = 60, -20
+success.front.layerno = 0
+allclear.bg.anim = 1
+allclear.bg.offset = -140, -30
+allclear.bg.layerno = 0
+; ===== END TEST FIXTURE =============================================================
 
 ; REPOSITIONING --------------------------------------------------------------------
-; The pair is placed at the positions the Trial asked for (trial.playerpos and
-; trial.dummypos) when that Trial starts. Two things below soften and extend that:
-;
-;   * a fade, so the pair moving between Trials is a cut rather than a teleport;
-;   * a key combination the player can hold during a Trial to put both characters back
-;     where the Trial wants them, after a combo has carried them across the stage.
-;
-; The fade wraps the reposition: the screen fades out, the characters are placed while
-; it is dark, and it fades back in. It runs when the player moves between Trials and
-; when the key combination below is held — never on the first placement of a round,
-; which the round's own fade already covers. Set fadeout.time and fadein.time to 0 for
-; an instant cut.
-;
-; Whether a Success moves the pair at all is the player's, not the screenpack's: the
-; Reset on Success preference in the module's config.ini. Switched off, a finished Trial
-; hands straight on to the next one where the combo left the two characters, and neither
-; the move nor the fade below happens. The key combination still does both.
-;
-; col is r, g, b.
-;
-; Each end takes its own artwork and sound: spr = group, index draws that sprite for the
-; whole of that end of the fade, and snd = group, index plays once as it starts. Both
-; are optional, and nothing is loaded for a fade that names neither — the module ships
-; no artwork or sound for these, so what a screenpack writes here is drawn out of its
-; own sff and played out of its own snd.
-;
-; ARTWORK REPLACES THE COLOUR WIPE. Set spr and the screen no longer darkens to col: the
-; sprite is drawn over the unfaded screen instead, for `time` ticks. That is the engine's
-; own rule for its own fades, not this module's — set one or the other, not both, and
-; expect the sprite to win. The fade still lasts exactly `time` either way, and time = 0
-; is still no fade at all, artwork or not.
-;
-; `anim = N` is accepted and will not work, for the reason it does not work anywhere
-; else in this file: the engine's action table is unexported and cannot be reached from
-; a Lua module. Spell it spr = group, index. Writing anim says so in the console.
-;
-; A move after a Success also waits for the Dummy to have control back. Her banner runs
-; on a timer and the knockdown that finished the Trial does not, so the banner regularly
-; clears while she is still in hitstun, and moving her then snatches her out of the combo
-; that just landed. Nothing verifies during that wait either — a Trial has not started
-; until its pair has been placed.
-;
-; The camera is handed back to its ordinary fighting view a frame after the move, not in
-; the same tick. It has to be: the fighting camera recomputes from where the characters
-; were before they were placed, and moves only when somebody crosses into its tension
-; zone, so restoring it too early leaves it wherever it had drifted to.
+; trialresetenabled allows the user to reset the player and dummy position to center stage (or specified trials position) when the d and w keys are pressed simultaneously
+; trialresetreminder displays a string that reminds the player they can reset the trial position with the specified key input
+; fadeout and fadein are the transitions that play when the player resets the positions mid-Trial. 
 ; -----------------------------------------------------------------------------------
+trialresetenabled = true
+
 fadeout.time = 12
 fadeout.col = 0, 0, 0
 ; fadeout.spr =
+; fadeout.anim =
 ; fadeout.snd =
 ; fadeout.scale =
 ; fadeout.pos =
 fadein.time = 12
 fadein.col = 0, 0, 0
 ; fadein.spr =
+; fadein.anim =
 ; fadein.snd =
 ; fadein.scale =
 ; fadein.pos =
 
-; Whether the player can reposition mid-Trial at all. Set to false and the keys below
-; do nothing and the reminder is not drawn.
-;
-; A Trial that names no playerpos or dummypos still has somewhere to go back to: the
-; stage's own start positions, which is where the engine itself puts the pair when the
-; round begins. So the combination is worth offering on every Trial, not only the ones
-; that ask for a corner.
-trialresetenabled = true
-
-; The keys held together to trigger it, from the engine's own input vocabulary:
-; B D F U L R (directions), a b c x y z s (buttons), d w m. Any number of them; all
-; must be held at once. Keep trialresetreminder.text below in step with whatever you
-; set here — nothing derives one from the other.
+; The keys held together to trigger trials reset, from the engine's own input vocabulary:
+; B D F U L R (directions), a b c x y z s (buttons), d w m. 
 trialresetkeys = d, w
 
-; The on-screen reminder of that combination. Leave the text empty and nothing is
-; drawn, which is what a screenpack that would rather say it elsewhere should do.
-;
-; pos is in 320x240, this file's own space (see trials.localcoord above).
-; -----------------------------------------------------------------------------------
 trialresetreminder.text = "D + W: Reset Positions"
 trialresetreminder.font = 1, 0, -1
 trialresetreminder.scale = 1, 1
@@ -904,3 +657,62 @@ trialresetreminder.pos = 315, 8
 ; artwork that will be drawn over a live match, and will cover the stage. Either give
 ; its elements positions and a size that suit a backdrop drawn over a fight, or move
 ; them to [TrialsPauseBgDef], where the old full-screen reading still holds.
+
+;-----------------------------------------------------------------------------------
+; THE MODULE'S OWN ACTIONS — [Begin Action N]
+;-----------------------------------------------------------------------------------
+; One action per sprite trials.sff ships, numbered to match it: action 20 draws sprite
+; 0,20. Any element in [Trials Mode] above can be moved from spr = 0, N to anim = N
+; without a line of artwork being drawn first, which is what these are for.
+;
+; NOT AN ANIMATION ANYBODY WOULD SHIP. Each is the one sprite it names held at full
+; alpha and then at half, so what it demonstrates is that frame timing and per-frame
+; blending reach the screen. The shipped defaults use the sprites, not these — a
+; screenpack that never mentions an action number is drawn exactly as it was before
+; these existed.
+;
+; DEFINE YOUR OWN IN YOUR OWN system.def, not here. An action number in your file is
+; read out of your file and drawn out of your sff; one in this file is read out of this
+; file and drawn out of trials.sff. That is the same rule sprite numbers follow, and
+; there is no way to cross it in either direction.
+;
+; THE ENGINE NEVER READS THIS FILE. It reads every screenpack's actions itself, and it
+; reads the module's `+system.def` beside this one, but this file is the module's alone
+; — read with the engine's own action parser, handed trials.sff. So nothing here can
+; collide with a screenpack's numbering, however plain the numbers look.
+;
+; FRAME FORMAT is the engine's own: group, index, xoffset, yoffset, time, flip, blend.
+; AS128D128 is the ordinary half-transparency spelling. Keep every frame of one action
+; the same size — a background is measured once, from its first frame.
+; -----------------------------------------------------------------------------------
+
+; The panel behind the whole Step list, vertical Layout.
+[Begin Action 0]
+0,0, 0,0, 20
+0,0, 0,0, 20, , AS128D128
+
+; The same, horizontal Layout.
+[Begin Action 1]
+0,1, 0,0, 20
+0,1, 0,0, 20, , AS128D128
+
+; The plate under one Step, vertical Layout.
+[Begin Action 10]
+0,10, 0,0, 20
+0,10, 0,0, 20, , AS128D128
+
+; The arrow's shaft, horizontal Layout. Stretched along x to the Step's own width, so
+; this and the two below are the three pieces of one graphic and animate together.
+[Begin Action 20]
+0,20, 0,0, 20
+0,20, 0,0, 20, , AS128D128
+
+; Its nock.
+[Begin Action 21]
+0,21, 0,0, 20
+0,21, 0,0, 20, , AS128D128
+
+; Its point.
+[Begin Action 22]
+0,22, 0,0, 20
+0,22, 0,0, 20, , AS128D128

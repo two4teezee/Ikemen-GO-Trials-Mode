@@ -1,9 +1,22 @@
--- ikemenversion: 1.0
---;===========================================================
---; TRIALS MODE
---;===========================================================
--- Universal trials module for Ikemen GO.
--- Config model: docs/adr/0001. Dummy namespace: docs/adr/0002. Vocabulary: CONTEXT.md.
+-- IKEMEN GO TRIALS MODE EXTERNAL MODULE --------------------------------
+-- Last tested on Ikemen GO v1.00 RC3
+-- Module developed by two4teezee
+-------------------------------------------------------------------------
+-- This external module implements TRIALS game mode. Features full 
+-- screenpack integration via system.def, ability to create and read trials 
+-- for any character, and a trials menu option, as well as a timer for the 
+--speed demons out there.
+--
+-- The trials mode and verification thresholds can be modified to suit your
+-- custome game if needed. For more info on lua external modules:
+-- https://github.com/K4thos/Ikemen_GO/wiki/Miscellaneous-Info#lua_modules
+-- This mode is detectable by GameMode trigger as trials.
+--
+-- Only characters with a trials.def in their character folder will have
+-- trials available for them; the character's def file also needs to be
+-- modified to point to that trials.def. Documentation on how to use trials
+-- mode is in README.md.
+-------------------------------------------------------------------------
 
 local trials = {}
 
@@ -200,6 +213,12 @@ end
 addLayer('defaults', defaultsPath, true)
 addLayer('config.ini', trials.configPath, false)
 addLayer('screenpack', gameOption('Config.Motif'), false)
+
+-- Which file an `anim = N` written in a given layer names an action in.
+trials.defPaths = {}
+for _, layer in ipairs(layers) do
+	trials.defPaths[layer.name] = layer.path
+end
 
 local screenpackIni = {}
 for _, layer in ipairs(layers) do
@@ -438,16 +457,51 @@ local function moduleSff()
 	return moduleArtSff
 end
 
+local actionCache = {}
+local function actionsOf(ours)
+	local key = ours and 'defaults' or 'screenpack'
+	local cached = actionCache[key]
+	if cached ~= nil then
+		return cached ~= false and cached or nil
+	end
+	local def = ours and trials.defPaths.defaults
+		or (trials.defPaths.screenpack or motif.def)
+	local sff = ours and moduleSff() or motif.Sff
+	local loaded = nil
+	if type(loadAnimTable) ~= 'function' then
+		print('Trials: this engine build has no loadAnimTable, so anim = N cannot be ' ..
+			'read and elements given one draw nothing. Spell them spr = group, index.')
+	elseif def ~= nil and def ~= '' and sff ~= nil then
+		local ok, result = pcall(loadAnimTable, def, sff)
+		if ok and type(result) == 'table' then
+			loaded = result
+		else
+			print('Trials: could not read the actions in ' .. tostring(def) .. ' (' ..
+				tostring(result) .. '). Elements given anim = N draw nothing.')
+		end
+	end
+	actionCache[key] = loaded or false
+	return loaded
+end
+
 -- AnimationProperties -> Anim.
-local function buildAnim(path, sff, origin, frametime)
+local function buildAnim(path, sff, ours, origin, frametime)
 	local g = elementReader(path, origin)
 	local geo = elementGeometry(g, path, origin)
 	local anim = tonumber(g('anim'))
 	local spr = numList(g('spr'), {-1, 0})
-
 	local a = nil
-	if anim ~= nil and anim >= 0 and type(motif.AnimTable) == 'table' and motif.AnimTable[anim] ~= nil then
-		a = animNew(sff, motif.AnimTable[anim])
+	if anim ~= nil and anim >= 0 then
+		local actions = actionsOf(ours)
+		local action = actions ~= nil and actions[anim] or nil
+		if action == nil then
+			print('Trials: ' .. table.concat(path, '.') .. '.anim = ' .. anim ..
+				' names no [Begin Action ' .. anim .. '] in the file its artwork comes ' ..
+				'from, so nothing is drawn for this element. Define the action in that ' ..
+				'file, or spell the element spr = group, index.')
+		else
+			a = animNew(sff, action)
+		end
 	elseif spr[1] >= 0 then
 		a = animNew(sff, spr[1] .. ',' .. spr[2] .. ', 0,0, ' .. (frametime or -1))
 	end
@@ -510,15 +564,9 @@ local function buildArt(path, origin, foreign, frametime)
 		if sff == nil then
 			return nil
 		end
-		return buildAnim(path, sff, origin, frametime)
+		return buildAnim(path, sff, true, origin, frametime)
 	end
-	if sourceOf(path, 'spr', origin) == nil or sourceOf(path, 'spr', origin) == 'defaults' then
-		print('Trials: ' .. table.concat(path, '.') .. '.anim names an action, and a ' ..
-			'screenpack\'s actions cannot be reached from a Lua module. Spell it as ' ..
-			'spr = group, index instead. Nothing is drawn for this element.')
-		return nil
-	end
-	return buildAnim(path, motif.Sff, origin, frametime)
+	return buildAnim(path, motif.Sff, false, origin, frametime)
 end
 
 trials.f_buildText = buildText
@@ -932,22 +980,34 @@ local function buildTextbox()
 	return box
 end
 
--- Success and All-Clear share one shape.
+-- Success and All-Clear share one shape: words, a sound, and two layers of artwork.
 local function buildBanner(name)
 	local path = {'trials_mode', name}
-	local e = buildText({'trials_mode', name, 'text'}, path)
-	e.text = strValue(cfgGet(join(path, 'text', 'text')), '')
-	e.displaytime = numList(cfgGet({'trials_mode', name, 'text', 'displaytime'}), {70})[1]
+	local g = elementReader(path)
+	local e = {path = path}
+	e.text = buildText(join(path, 'text'), path)
+	e.text.text = strValue(g('text', 'text'), '')
+	trials.elements[name .. '.text'] = e.text
+	e.displaytime = numList(g('text', 'displaytime'), {70})[1]
 	if e.displaytime <= 0 then
 		e.displaytime = 70
 	end
-	e.snd = numList(cfgGet({'trials_mode', name, 'snd'}), {-1, 0})
+	e.snd = numList(g('snd'), {-1, 0})
+
+	-- The same two layers, read the same way, as the Trial Title's: displaytime here is
+	-- how long one frame of the artwork holds, not how long the banner stays up.
+	for _, layer in ipairs({'bg', 'front'}) do
+		local art = buildArt(join(path, layer), path, false,
+			numList(g(layer, 'displaytime'), {-1})[1])
+		if art ~= nil then
+			e[layer] = art
+			trials.elements[name .. '.' .. layer] = art
+		end
+	end
 	return e
 end
 
--- The Trial's name as its own element, one per Layout. nil for a Layout whose text
--- format is unset, which is how the element is switched off — building it anyway would
--- warn about a font nobody meant to name.
+-- The Trial's name as its own element, one per Layout. 
 local function buildTrialTitle(layout)
 	local path = {'trials_mode', 'trialtitle', layout}
 	local g = elementReader(path)
@@ -961,8 +1021,7 @@ local function buildTrialTitle(layout)
 	e.text.text = fmt
 	trials.elements['trialtitle.' .. layout .. '.text'] = e.text
 
-	-- displaytime is legacy's spelling of how long one frame of the artwork holds, and
-	-- means here what it meant there: -1 holds it for good.
+	-- displaytime is legacy's spelling of how long one frame of the artwork holds
 	for _, layer in ipairs({'bg', 'front'}) do
 		local art = buildArt(join(path, layer), path, false,
 			numList(g(layer, 'displaytime'), {-1})[1])
@@ -1033,8 +1092,7 @@ if trials.enabled then
 	trials.elements.trialcounter = buildText({'trials_mode', 'trialcounter'})
 	trials.elements.totaltrialtimer = buildTimer('totaltrialtimer')
 	trials.elements.currenttrialtimer = buildTimer('currenttrialtimer')
-	trials.elements.success = buildBanner('success')
-	trials.elements.allclear = buildBanner('allclear')
+	trials.banners = {success = buildBanner('success'), allclear = buildBanner('allclear')}
 	trials.elements.trialresetreminder = buildText({'trials_mode', 'trialresetreminder'})
 	trials.elements.trialresetreminder.text =
 		strValue(cfgGet({'trials_mode', 'trialresetreminder', 'text'}), '')
@@ -3030,10 +3088,17 @@ local function completeTrial(m)
 	end
 	m.shownComplete = true
 	local banner = finished and 'allclear' or 'success'
-	local e = trials.elements[banner]
+	local e = trials.banners ~= nil and trials.banners[banner] or nil
 	if e ~= nil then
 		m.banner = banner
 		m.bannerTimer = e.displaytime
+		-- Its artwork was last left wherever the previous banner ran to, so start it
+		-- over: a Success that came up mid-animation would read as a dropped frame.
+		for _, layer in ipairs({'bg', 'front'}) do
+			if e[layer] ~= nil then
+				animReset(e[layer].AnimData, {'anim'})
+			end
+		end
 		if e.snd[1] >= 0 then
 			sndPlay(motif.Snd, e.snd[1], e.snd[2])
 		end
@@ -3344,9 +3409,7 @@ local function charPortrait(box, row)
 	return a
 end
 
--- A title line naming the Trial on screen: %i is its number and %s its name. The
--- pre-refactor spelling — %s for the number, %n for the name — is still read, and
--- writing %n anywhere in the string is what selects it.
+-- A title line naming the Trial on screen: %i is its number and %s its name. 
 local function titleText(fmt, m)
 	if fmt == '' then
 		return ''
@@ -3399,10 +3462,7 @@ local function drawTextbox(m)
 	drawArt(box.front, 0, 0)
 end
 
--- The current Trial's name, for the Layout being drawn. Unlike the Steps it does not
--- move out of a Textbox's way: it is positioned in its own right, and both Layouts
--- configure it separately, so a screenpack that wants it clear of the Textbox says
--- where rather than having the module guess.
+-- The current Trial's name, for the Layout being drawn. 
 local function drawTrialTitle(m)
 	local block = trials.stepblock
 	local e = block ~= nil and trials.trialtitles ~= nil
@@ -3585,13 +3645,15 @@ end
 
 -- The Success or All-Clear banner, for as long as its displaytime lasts.
 local function drawBanner(m)
-	local e = m.banner ~= nil and trials.elements[m.banner] or nil
+	local e = m.banner ~= nil and trials.banners ~= nil and trials.banners[m.banner] or nil
 	if e == nil then
 		return
 	end
-	textImgReset(e.TextSpriteData)
-	textImgSetText(e.TextSpriteData, e.text)
-	textImgDraw(e.TextSpriteData)
+	drawArt(e.bg, 0, 0)
+	textImgReset(e.text.TextSpriteData)
+	textImgSetText(e.text.TextSpriteData, e.text.text)
+	textImgDraw(e.text.TextSpriteData)
+	drawArt(e.front, 0, 0)
 	m.bannerTimer = m.bannerTimer - 1
 	if m.bannerTimer <= 0 then
 		clearBanner(m)
@@ -3914,8 +3976,7 @@ local function textboxState()
 	}
 end
 
--- The Trial Title as it resolved, per Layout. A Layout that declares no text format
--- builds no element and is absent here, which is what "switched off" looks like.
+-- The Trial Title as it resolved, per Layout. 
 local function trialTitleState()
 	if trials.trialtitles == nil then
 		return nil

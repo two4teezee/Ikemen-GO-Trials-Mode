@@ -7,7 +7,10 @@ testbuild/
 **/.DS_Store
 
 # Test-loop artifacts
-tools/*.local
+tools/
 
-# Python bytecode from tools/
-__pycache__/
+# Agentic artifacts
+CLAUDE.md
+CONTEXT.md
+.claude/
+.docs/

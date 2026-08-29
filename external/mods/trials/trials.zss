@@ -1,33 +1,4 @@
-# Trials Mode global code
-#
-# A fresh fork of the engine's data/training.zss with trials deltas applied on top,
-# rather than a file carried forward independently. Re-fork when upstream changes
-# rather than patching around drift; every delta below is marked "Trials delta".
-#
-# Dummy state deliberately shares the engine's _iksys_training* map namespace: these are
-# the names the engine's own functions.zss and pause-menu handlers already understand,
-# so trials writes them from Lua and forks no dummy logic. The values come from the
-# Trial Definition and nowhere else — no trials pause-menu item writes them. See
-# docs/adr/0002.
-#
-# _iksys_trainingDummyControl: 0 - cooperative, 1 - ai, 2 - manual
-# _iksys_trainingGuardMode: 0 - none, 1 - auto, 2 - all, 3 - random
-#   Trials delta: a Trial Definition's `trial.guardmode = auto` is written here as
-#   2, not 1. 1 only starts guarding once a hit has landed, which has already let
-#   the combo starter through. Only 0 and 2 are reachable from a Trial.
-# _iksys_trainingFallRecovery: 0 - none, 1 - ground, 2 - air, 3 - random
-# _iksys_trainingDummyMode: 0 - stand, 1 - crouch, 2 - jump, 3 - wjump
-# _iksys_trainingDistance: 0 - any, 1 - close, 2 - medium, 3 - far
-# _iksys_trainingButtonJam: 0 - none, 1-9 - a/b/c/x/y/z/s/d/w
-#
-# Trials-specific state keeps the _iksys_trials* prefix, since nothing in the engine
-# writes it:
-# _iksys_trialsReposition: non-zero requests a reposition on the next tick
-# _iksys_trialsCameraReset: non-zero requests a camera reset
-# _iksys_trialsCameraPosX: camera x used by the reposition
-# _iksys_trialsPlayerPosX / Y: player position used by the reposition
-# _iksys_trialsDummyPosX / Y: dummy position used by the reposition
-# _iksys_trialsSetLife: per-Trial life value; 0 means use lifeMax
+# Ikemen GO Trials Mode - Global Code
 
 #===============================================================================
 # Functions (Trials delta: not present in training.zss)
