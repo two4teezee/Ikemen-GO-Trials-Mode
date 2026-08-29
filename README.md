@@ -569,6 +569,7 @@ trialstep.1.glyphs = _QDF^Y
 trialstep.1.stateno = 1010
 
 ; trialstep.1.animno =
+; trialstep.1.projid =
 ; trialstep.1.hitcount =
 ; trialstep.1.isthrow =
 ; trialstep.1.iscounterhit =
@@ -629,14 +630,19 @@ trialstep.1.stateno = 1010
 
 ; trialstep.X.text - optional - multilingual - (string). Text for trial step (only displayed in vertical trials layout). Supports specification as trialstep.X.text, or trialstep.X.text.en, trialstep.X.text.es, etc. for multilingual support. Will default to trialstep.X.text.en (or trialstep.X.text) if selected language cannot be matched.
 ; trialstep.X.glyphs - optional - (string, see Glyph documentation [https://github.com/ikemen-engine/Ikemen-GO/wiki/Miscellaneous-info#movelists] for syntax). Same syntax as movelist glyphs. Glyphs are displayed in vertical and horizontal trials layouts.
-; trialstep.X.stateno - mandatory - (integer or comma-separated integers). State to be checked to pass trial. This is the state whether it's the main character, a helper, or even a projectile.
+; trialstep.X.stateno - mandatory except on a projectile step - (integer or comma-separated integers). State to be checked to pass trial. This is the state whether it's the main character or a helper. A PROJECTILE HAS NO STATE: name its projid instead, and see the note under trialstep.X.projid.
 
-; trialstep.X.animno - optional - (integer or comma-separated integers). Identifies animno to be checked to pass trial. Useful in certain cases.
+; trialstep.X.animno - optional - (integer or comma-separated integers). Identifies animno to be checked to pass trial. Useful in certain cases. Like stateno, this is the animation of the main character or of a helper, never of a projectile.
+; trialstep.X.projid - mandatory on a projectile step, meaningless elsewhere - (integer or comma-separated integers). The ProjID of the Projectile controller whose hit passes the trial step, matched against gethitvar(projid) on the dummy.
+;
+;   A PROJECTILE IS NOT IDENTIFIED BY A STATE. The usual fireball is a helper running a Projectile controller, and the engine credits the hit to whoever OWNS the projectile - which is the root character, not the helper, unless the helper declared ownprojectile. The helper's state number never reaches the hit, so a projectile step written as `stateno = 7000` cannot pass. Neither can the projectile's animation: a projectile with the usual projremove is already gone by the time the module is asked about the hit, and characters routinely draw every fireball they own with the same projanim.
+;
+;   The ProjID is the one thing that survives the hit and tells the moves apart, and characters already give theirs distinct values because their own CNS counts them with NumProjID. Read it out of the Projectile controller in the character's CNS. Where a move fires more than one projectile, or picks its ProjID with an expression, list every value it can take with the "|" character - e.g. `trialstep.1.projid = 3005|3006` for a ProjID written as `3005+(var(5)=2)`.
 ; trialstep.X.hitcount - optional - (integer or comma-separated integers), will default to 1 if not defined. In some instances, you might want to specify a trial step to meet a hit count criteria before proceeding to the next trial step. Useful for multi-hit moves, or for moves that don't hit (e.g. taunts).
 ; trialstep.X.isthrow - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step is a throw. Should be 'true' is trial step is a throw.
 ; trialstep.X.iscounterhit - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step should be a counter hit. Typically does not work with helpers or projectiles.
 ; trialstep.X.ishelper - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step is a helper. Should be 'true' is trial step is a hit from a helper.
-; trialstep.X.isproj - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step is a projectile. Should be 'true' is trial step is a hit from a projectile.
+; trialstep.X.isproj - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step is a projectile. Should be 'true' is trial step is a hit from a projectile. A step naming a projid is treated as a projectile step whether or not this flag is also spelled.
 ; trialstep.X.validforvarvalpairs - optional - (comma-separated integers, specified in pairs, can specify 0..n pairs). Sister functionality to "showforvarvalpairs". These variable-value pairs are used to optionally check a trial step. Useful if you are forcing the trial step to be completed when certain var-val pairs are met (for instance, while in a custom combo state). Variable-value pairs are considered valid for entire trial step (regardless if the trial step is specified using condensed terminology).
 ; trialstep.X.validfortickcount - optional (integer, or comma-separate integers), will default to nil if not defined. Makes the trials checking logic pause until the next hit is registered for the tickcount specified.
 
@@ -685,7 +691,7 @@ trialstep.1.stateno = 200, 210
 trialstep.1.hitcount = 1, 1
 
 ; When desired, you can collapse multiple steps into a single one but using comma separated values in the following parameters:
-; stateno, animno, hitcount, isthrow, iscounterhit, ishelper, isproj
+; stateno, animno, projid, hitcount, isthrow, iscounterhit, ishelper, isproj
 ; If one parameter on the trial step is defined using comma separated values, all parameters on that trial step must be defined similarly.
 
 ;---------------------------------------------

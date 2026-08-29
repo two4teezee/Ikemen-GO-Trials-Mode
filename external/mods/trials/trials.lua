@@ -2529,7 +2529,7 @@ local defaultLife = readLife(nil)
 -- as the longest list decides how many Parts the Step has, so a field missing from
 -- this list would be silently unable to create one.
 local CONDITION_KEYS = {
-	'stateno', 'animno', 'hitcount',
+	'stateno', 'animno', 'projid', 'hitcount',
 	'isthrow', 'iscounterhit', 'ishelper', 'isproj',
 	'validfortickcount',
 }
@@ -2639,6 +2639,9 @@ local function readPart(raw, index)
 	return {
 		stateno = alternatives(partValue(raw.stateno, index)),
 		animno = alternatives(partValue(raw.animno, index)),
+		-- The Projectile controller's ProjID, and the only thing that identifies a
+		-- projectile once it has connected. See readAttacker for why not stateno.
+		projid = alternatives(partValue(raw.projid, index)),
 		hitcount = math.max(0, math.floor(tonumber(partValue(raw.hitcount, index)) or 1)),
 		isthrow = boolValue(partValue(raw.isthrow, index)),
 		iscounterhit = boolValue(partValue(raw.iscounterhit, index)),
@@ -4334,17 +4337,34 @@ end
 
 -- What last hit the Dummy, as far as a Step's conditions are concerned.
 --
--- A Step can name a state belonging to the player, to one of its helpers, or to a
--- projectile, and only the player's own is readable directly. The rest comes off the
--- Dummy's hit variables — they describe the character that was *hit*, so they are read
--- through the P2 redirect: getHitVar('playerid') names whoever landed the hit, and
--- getHitVar('projid') is non-negative when it was a projectile, in which case there is
--- no state to compare against and the projectile's anim is what identifies it.
+-- A Step can name a state belonging to the player or to one of its helpers, and only
+-- the player's own is readable directly. The helper's comes off the Dummy's hit
+-- variables — they describe the character that was *hit*, so they are read through the
+-- P2 redirect: getHitVar('playerid') names whoever landed the hit, and redirecting to
+-- it gives the state and animation the Step's stateno and animno are matched against.
+--
+-- A projectile is a different thing entirely, and this is where the format's projid
+-- comes from. Three engine facts decide it:
+--
+--   - a projectile's Hitdef carries `playerid = proj.owner().id`, and a helper only
+--     owns its projectiles when it declared `ownprojectile`. The usual fireball — a
+--     plain helper running a Projectile controller — hands ownership to the root, so
+--     the redirect lands on the player, not on the helper whose state the move is.
+--   - projVar cannot fill the gap. A projectile with the usual projremove is already
+--     in ProjHit by the time Lua runs (globalTick precedes the Common.Lua call in
+--     System.action), so getSingleProj finds nothing on the very frame the hit lands.
+--   - projanim is not an identity either: a character commonly draws every one of its
+--     fireballs with the same sprite (CVS Ryu spends 7050 on four different moves).
+--
+-- What does survive the hit and does identify the move is the projectile's own ID —
+-- the Projectile controller's ProjID, which authors already give distinct values
+-- because their own CNS counts projectiles with NumProjID. getHitVar('projid') is that
+-- number, and -1 on a hit that was not a projectile's.
 --
 -- Returns empty fields on a frame with no hit, which read as "matches nothing" rather
 -- than as "matches anything".
 local function readAttacker()
-	local out = {stateno = nil, anim = nil}
+	local out = {stateno = nil, anim = nil, projid = nil}
 	if not player(2) then
 		return out
 	end
@@ -4352,12 +4372,7 @@ local function readAttacker()
 		local id = getHitVar('playerid')
 		local projid = getHitVar('projid')
 		if projid >= 0 then
-			if playerId(id) then
-				-- A projectile with the usual remove = 1 is destroyed on the tick it
-				-- connects, before this runs, and the engine hands back something that is
-				-- not a number when it has none to read. Keep only a number.
-				out.anim = tonumber(projVar(projid, 0, 'anim'))
-			end
+			out.projid = projid
 		elseif playerId(id) then
 			out.stateno = stateNo()
 			out.anim = anim()
@@ -4523,8 +4538,9 @@ end
 --
 -- Three routes, one per kind of Step the format spells:
 --
---   - a helper or projectile Part passes on state and animation alone. The hit it
---     produces is not the player's own, so there is no moveHit to wait for.
+--   - a helper Part passes on state and animation alone, and a projectile Part on its
+--     projid. The hit either produces is not the player's own, so there is no moveHit
+--     to wait for.
 --   - a throw, or a Part declaring hitcount = 0 — a taunt, a movement, a stance change
 --     — passes on state alone: neither extends a combo.
 --   - anything else has to land a hit of its own that takes the combo further than the
@@ -4542,6 +4558,12 @@ local function partRegisters(step, part, attacker, combo)
 	if not satisfies(part.animno, anim(), attacker.anim) then
 		return false
 	end
+	-- Only ever satisfied by a projectile's hit: attacker.projid is nil on every other
+	-- frame, and nil is not any of the numbers a Part can name. Passing nil as the
+	-- player's own reading is what says so — a player has no projid of their own.
+	if not satisfies(part.projid, nil, attacker.projid) then
+		return false
+	end
 	if not varPairsHold(step.validfor) then
 		return false
 	end
@@ -4552,7 +4574,10 @@ local function partRegisters(step, part, attacker, combo)
 		and not (comboCount() > 0 and moveCountered() > 0) then
 		return false
 	end
-	if part.ishelper or part.isproj then
+	-- A hit landed by something that is not the player does not raise the player's own
+	-- moveHit, so there is nothing to wait for. A Part naming a projid says so on its
+	-- own, whether or not the author also wrote the isproj flag.
+	if part.ishelper or part.isproj or part.projid ~= nil then
 		return true
 	end
 	return (moveHit() > 0 and comboCount() > combo) or part.isthrow or part.hitcount == 0
@@ -5665,6 +5690,7 @@ local function copySteps(steps)
 			parts[j] = {
 				stateno = list(part.stateno),
 				animno = list(part.animno),
+				projid = list(part.projid),
 				hitcount = part.hitcount,
 				isthrow = part.isthrow,
 				iscounterhit = part.iscounterhit,
