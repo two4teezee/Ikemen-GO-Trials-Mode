@@ -79,6 +79,12 @@ When shown, the Step block shifts to its with-textbox window so the two do not
 overlap.
 _Avoid_: tooltip, description, hint
 
+**Trial Title**:
+The name of the Trial being played, drawn as an element of its own. Configured per
+Layout and off unless a screenpack gives it a text format. Distinct from the
+Textbox's own title line, which only exists for a Trial carrying prose.
+_Avoid_: trial name (that is the Trial's `title` field), header, label
+
 **Glyph**:
 A sprite standing in for one input token in a Step's notation, drawn from the
 screenpack's shared glyph vocabulary — the same one the engine's movelists use.

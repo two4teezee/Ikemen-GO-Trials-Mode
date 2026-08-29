@@ -76,6 +76,13 @@ Everything else keeps working:
   write dotted keys (`trialsteps.vertical.bg.anim`), and the new parser splits dotted
   keys into nested tables. Section names are matched case- and whitespace-insensitively,
   so `[Trials Mode]` resolves the same as it always did.
+- **`trialtitle.<layout>.*` is read again**, for both Layouts, key for key. One change:
+  the pre-refactor module declared `text.text` and then drew the bare Trial name,
+  ignoring the format. It is applied now — `%i` is the Trial's number and `%s` its name —
+  so a screenpack carrying `"Trial: %s"` reads `Trial: <name>` where it used to read
+  `<name>`. Write `"%s"` alone for the old wording. The three layers also draw in the
+  order `bg`, words, `front`, where the pre-refactor module drew the words first and both
+  animations over them.
 
 A handful of keys were retired, and a screenpack that still sets them is simply ignored:
 
@@ -84,7 +91,6 @@ A handful of keys were retired, and a screenpack that still sets them is simply 
 | `trialsresetonsuccess`, `trialslayout` | Player Preferences in `config.ini` — a value the player owns cannot also be authored. |
 | `textbox.visible` | The `Trials.Textboxes` Player Preference. |
 | `textbox.overlay.*` | `trialsteps.<layout>.bg.overlay.*` — the overlay belongs to the Step block, because it is what has to reshape when a Textbox appears. |
-| `trialtitle.*` | The Trial Counter and the Textbox title, which already carry the Trial's number and name. |
 | `success.bg.*`, `success.front.*`, and the same on `allclear` | Text, sound and display time only. |
 | `trialcounter.notrialsdata.text` | `nodata.text`. Still read under the old spelling. |
 | `textbox.text.drawspeed` | `textbox.text.delay`. Still read under the old spelling. |

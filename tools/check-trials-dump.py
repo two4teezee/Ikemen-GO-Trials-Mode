@@ -1072,6 +1072,37 @@ def run_checks(tree, quiet=False, dump_path=DEFAULT_PATH):
         c.skip("a Textbox is only drawn for a Trial that carries prose",
                "no match in this dump")
 
+    c._print("\nTrial Title (#63)")
+    # Off unless a screenpack sets trialtitle.<layout>.text.text, so an absent block is
+    # a configuration, not a fault. What is assertable is that a Layout which declares
+    # one built it, and that the element it built has something to say.
+    titles = dig(tree, "trialtitles")
+    if titles is None:
+        c.skip("the Trial Title resolved for the Layouts that declare one",
+               "no Layout declares a Trial Title, which is the shipped default")
+    elif not c.unreadable("the Trial Title is its own", titles):
+        declared = [k for k in ("vertical", "horizontal") if dig(titles, k)]
+        c.check("a declared Trial Title belongs to a Layout the module draws",
+                sorted(set(titles) - {"vertical", "horizontal"}), [])
+        c.check("the Trial Title resolved for the Layouts that declare one",
+                bool(declared), True)
+        for layout in declared:
+            e = dig(titles, layout)
+            if c.unreadable(f"the {layout} Trial Title is its own", e):
+                continue
+            # The text format is what switches the element on, so an element that
+            # resolved without one is one the module built when it should not have.
+            c.check(f"the {layout} Trial Title carries a format string",
+                    bool(dig(e, "text")), True)
+            # Both Layouts configure it apart. Sharing one origin is legal, but a
+            # Layout that declares nothing of its own resolves to 0,0 and draws in the
+            # top-left corner, which is never what anybody meant.
+            pos = list((dig(e, "pos") or {}).values())
+            c.check(f"the {layout} Trial Title is positioned",
+                    len(pos) == 2 and any(pos), True)
+            c.check(f"the {layout} Trial Title resolved a coordinate space",
+                    len(list((dig(e, "localcoord") or {}).values())), 2)
+
     c._print("\nStep Parts and match progress")
     all_parts = [pt for st in dumped_steps for pt in (st.get("parts") or {}).values()
                  if isinstance(pt, dict)]

@@ -101,6 +101,102 @@ trialcounter.pos = 5, 228
 ; trialcounter.window =
 ; trialcounter.localcoord =
 
+; TRIAL TITLE ----------------------------------------------------------------------
+; The name of the Trial being played, drawn as an element of its own — one per Layout,
+; so the column and the row can each put it where that arrangement has room. Only the
+; Layout the player is in draws.
+;
+; OFF UNLESS YOU SET text.text. That string is both what the element says and what
+; switches it on: with none, no element is built and nothing is drawn. It ships off
+; because this file's own 320x240 space has no free strip beside the Steps to put a
+; title in — where yours goes is a screenpack decision, not a default worth guessing at.
+; The block below is every key it takes, commented out; uncomment the two you need.
+;
+; %i is the Trial's number and %s its name, the engine's own substitution convention
+; (main.f_formatBySpec), the same one the Textbox title takes. The pre-refactor spelling
+; — %s for the number, %n for the name — is still read, and writing %n anywhere in the
+; string is what selects it.
+;
+; UPGRADING FROM v0.99.x: the pre-refactor module declared text.text and then drew the
+; bare Trial name, ignoring it. It is applied now, so a screenpack already carrying
+; "Trial: %s" reads `Trial: <name>` where it used to read `<name>`. Write "%s" alone for
+; the old wording.
+;
+; Three elements on one origin, the way the Textbox is built: pos positions all of them
+; and each spells only its own offset. They draw bg, then the words, then front — the
+; pre-refactor module drew the words first and both anims over them, so a bg covered the
+; title it was meant to sit behind.
+;
+; displaytime is how many ticks one frame of bg or front artwork holds; -1, the default,
+; holds it for good. spr follows the same rule every other element does — one written
+; here means the module's trials.sff, one in your system.def means yours — but the module
+; ships no artwork for this element, so in practice it is always yours.
+;
+; The title does NOT move out of a Textbox's way the way the Step block does. Each Layout
+; positions it on its own; put it where it clears whatever else that Layout draws.
+;
+; pos is in 320x240, this file's own space (see trials.localcoord above). A pos you set
+; in your screenpack is in your screenpack's space instead.
+; -----------------------------------------------------------------------------------
+; trialtitle.vertical.pos =
+; trialtitle.vertical.text.text = "Trial %i: %s"
+; trialtitle.vertical.text.font = 1, 0, 1, 255, 220, 100
+; trialtitle.vertical.text.offset =
+; trialtitle.vertical.text.scale =
+; trialtitle.vertical.text.font.height =
+; trialtitle.vertical.text.window =
+; trialtitle.vertical.text.layerno =
+; trialtitle.vertical.bg.spr =
+; trialtitle.vertical.bg.offset =
+; trialtitle.vertical.bg.scale =
+; trialtitle.vertical.bg.facing =
+; trialtitle.vertical.bg.displaytime =
+; trialtitle.vertical.bg.layerno =
+; trialtitle.vertical.front.spr =
+; trialtitle.vertical.front.offset =
+; trialtitle.vertical.front.scale =
+; trialtitle.vertical.front.facing =
+; trialtitle.vertical.front.displaytime =
+; trialtitle.vertical.front.layerno =
+; trialtitle.vertical.localcoord =
+
+; trialtitle.horizontal.pos =
+; trialtitle.horizontal.text.text = "Trial %i: %s"
+; trialtitle.horizontal.text.font = 1, 0, 1, 255, 220, 100
+; trialtitle.horizontal.text.offset =
+; trialtitle.horizontal.text.scale =
+; trialtitle.horizontal.text.font.height =
+; trialtitle.horizontal.text.window =
+; trialtitle.horizontal.text.layerno =
+; trialtitle.horizontal.bg.spr =
+; trialtitle.horizontal.bg.offset =
+; trialtitle.horizontal.bg.scale =
+; trialtitle.horizontal.bg.facing =
+; trialtitle.horizontal.bg.displaytime =
+; trialtitle.horizontal.bg.layerno =
+; trialtitle.horizontal.front.spr =
+; trialtitle.horizontal.front.offset =
+; trialtitle.horizontal.front.scale =
+; trialtitle.horizontal.front.facing =
+; trialtitle.horizontal.front.displaytime =
+; trialtitle.horizontal.front.layerno =
+; trialtitle.horizontal.localcoord =
+
+; --- TEST FIXTURE #63 — delete this whole block ------------------------------------
+; Switches the Trial Title on for both Layouts, since it draws nothing by default and
+; there would otherwise be nothing to look at. Both sit at the bottom left, one line
+; above the Trial Counter, and each Layout words and colours it differently so that
+; switching Layout from the pause menu shows the two are configured apart.
+trialtitle.vertical.pos = 5, 218
+trialtitle.vertical.text.text = "Trial %i: %s"
+trialtitle.vertical.text.font = 1, 0, 1, 255, 220, 100
+trialtitle.vertical.text.layerno = 0
+trialtitle.horizontal.pos = 5, 218
+trialtitle.horizontal.text.text = "%i — %s"
+trialtitle.horizontal.text.font = 1, 0, 1, 100, 220, 255
+trialtitle.horizontal.text.layerno = 0
+; --- end TEST FIXTURE #63 ----------------------------------------------------------
+
 ; TRIAL STEPS — VERTICAL LAYOUT ----------------------------------------------------
 ; The Steps of the current Trial, stacked. trialsteps.<layout> is the block the three
 ; Step Status elements below share: rows lay out from its pos, one spacing apart, and

@@ -945,6 +945,35 @@ local function buildBanner(name)
 	return e
 end
 
+-- The Trial's name as its own element, one per Layout. nil for a Layout whose text
+-- format is unset, which is how the element is switched off — building it anyway would
+-- warn about a font nobody meant to name.
+local function buildTrialTitle(layout)
+	local path = {'trials_mode', 'trialtitle', layout}
+	local g = elementReader(path)
+	local fmt = strValue(g('text', 'text'), '')
+	if fmt == '' then
+		return nil
+	end
+
+	local e = {path = path, layout = layout}
+	e.text = buildText(join(path, 'text'), path)
+	e.text.text = fmt
+	trials.elements['trialtitle.' .. layout .. '.text'] = e.text
+
+	-- displaytime is legacy's spelling of how long one frame of the artwork holds, and
+	-- means here what it meant there: -1 holds it for good.
+	for _, layer in ipairs({'bg', 'front'}) do
+		local art = buildArt(join(path, layer), path, false,
+			numList(g(layer, 'displaytime'), {-1})[1])
+		if art ~= nil then
+			e[layer] = art
+			trials.elements['trialtitle.' .. layout .. '.' .. layer] = art
+		end
+	end
+	return e
+end
+
 local INPUT_KEYS = {
 	B = true, D = true, F = true, U = true, L = true, R = true,
 	a = true, b = true, c = true, x = true, y = true, z = true, s = true,
@@ -1011,8 +1040,10 @@ if trials.enabled then
 		strValue(cfgGet({'trials_mode', 'trialresetreminder', 'text'}), '')
 	trials.textbox = buildTextbox()
 	trials.stepblocks = {}
+	trials.trialtitles = {}
 	for _, layout in ipairs(STEP_LAYOUTS) do
 		trials.stepblocks[layout] = buildStepBlock(layout)
+		trials.trialtitles[layout] = buildTrialTitle(layout)
 	end
 	trials.stepblock = trials.stepblocks[STEP_LAYOUTS[1]]
 	trials.reposition = {
@@ -3313,9 +3344,13 @@ local function charPortrait(box, row)
 	return a
 end
 
--- The Textbox's title line.
-local function textboxTitle(m)
-	local fmt = trials.textbox ~= nil and trials.textbox.title.text or ''
+-- A title line naming the Trial on screen: %i is its number and %s its name. The
+-- pre-refactor spelling — %s for the number, %n for the name — is still read, and
+-- writing %n anywhere in the string is what selects it.
+local function titleText(fmt, m)
+	if fmt == '' then
+		return ''
+	end
 	local index = m.shownCurrent or m.current
 	local trial = m.trials[index]
 	local name = type(trial) == 'table' and trial.title or ''
@@ -3325,6 +3360,11 @@ local function textboxTitle(m)
 		end), {i = index, s = name})
 	end
 	return main.f_formatBySpec(fmt, {i = index, s = name})
+end
+
+-- The Textbox's title line.
+local function textboxTitle(m)
+	return titleText(trials.textbox ~= nil and trials.textbox.title.text or '', m)
 end
 
 -- The Textbox, when the Trial carries one and the player has not hidden it.
@@ -3357,6 +3397,27 @@ local function drawTextbox(m)
 	textImgDraw(box.text.TextSpriteData)
 
 	drawArt(box.front, 0, 0)
+end
+
+-- The current Trial's name, for the Layout being drawn. Unlike the Steps it does not
+-- move out of a Textbox's way: it is positioned in its own right, and both Layouts
+-- configure it separately, so a screenpack that wants it clear of the Textbox says
+-- where rather than having the module guess.
+local function drawTrialTitle(m)
+	local block = trials.stepblock
+	local e = block ~= nil and trials.trialtitles ~= nil
+		and trials.trialtitles[block.layout] or nil
+	if e == nil or m.total == 0 then
+		return
+	end
+	local text = titleText(e.text.text, m)
+	if text == '' then
+		return
+	end
+	drawArt(e.bg, 0, 0)
+	textImgSetText(e.text.TextSpriteData, text)
+	textImgDraw(e.text.TextSpriteData)
+	drawArt(e.front, 0, 0)
 end
 
 -- Draws one Step, with the element for the Step Status it currently has.
@@ -3603,6 +3664,7 @@ hook.add('loop#trials', 'trials', function()
 	end
 
 	drawTextbox(m)
+	drawTrialTitle(m)
 	drawSteps()
 	drawReminder(m)
 	drawBanner(m)
@@ -3852,6 +3914,30 @@ local function textboxState()
 	}
 end
 
+-- The Trial Title as it resolved, per Layout. A Layout that declares no text format
+-- builds no element and is absent here, which is what "switched off" looks like.
+local function trialTitleState()
+	if trials.trialtitles == nil then
+		return nil
+	end
+	local out = nil
+	for _, layout in ipairs(STEP_LAYOUTS) do
+		local e = trials.trialtitles[layout]
+		if e ~= nil then
+			out = out or {}
+			out[layout] = {
+				text = e.text.text,
+				pos = {e.text.pos[1], e.text.pos[2]},
+				localcoord = {e.text.localcoord[1], e.text.localcoord[2]},
+				layerno = e.text.layerno,
+				bg = e.bg ~= nil,
+				front = e.front ~= nil,
+			}
+		end
+	end
+	return out
+end
+
 -- The pause menu's items in the order the engine resolved them to.
 local function pauseMenuItems()
 	local sec = pauseMenuSection()
@@ -3951,6 +4037,7 @@ function trials.f_dumpState()
 		} or nil,
 		chars = chars,
 		textbox = textboxState(),
+		trialtitles = trialTitleState(),
 		match = trials.match ~= nil and {
 			char = trials.match.char,
 			def = trials.match.def,
