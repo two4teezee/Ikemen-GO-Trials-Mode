@@ -11,6 +11,10 @@
 -- trials definitions and use trials mode is in README.md.
 -------------------------------------------------------------------------
 
+--;===========================================================
+--; Read Configuration Files
+--;===========================================================
+
 local modulePath = "external/mods/trials/"
 
 local zss = gameOption("Common.States")
@@ -22,6 +26,7 @@ trials = loadIni(modulePath .. 'system.def')
 trials.sprData = {}
 
 trials.configPath = modulePath .. 'config.ini'
+
 local cfgok, cfg = pcall(loadIni, trials.configPath, false)
 if not cfgok then
 	print('Trials: cannot read ' .. trials.configPath .. '. Player preferences will not persist.')
@@ -601,21 +606,6 @@ main.t_itemname.trials = function()
 	hook.run("main.t_itemname")
 	return start.f_selectMode
 end
-
--- -- This code creates data out of optional [trialsbgdef] sff file.
--- -- Defaults to motif.files.spr_data, defined in screenpack, if not declared.
--- if motif.trialsbgdef.spr ~= nil and motif.trialsbgdef.spr ~= '' then
--- 	motif.trialsbgdef.spr = searchFile(motif.trialsbgdef.spr, {motif.fileDir, '', 'data/'})
--- 	motif.trialsbgdef.spr_data = sffNew(motif.trialsbgdef.spr)
--- else
--- 	motif.trialsbgdef.spr = motif.files.spr
--- 	motif.trialsbgdef.spr_data = motif.files.spr_data
--- end
-
--- -- Background data generation.
--- -- Refer to official Elecbyte docs for information how to define backgrounds.
--- -- http://www.elecbyte.com/mugendocs/bgs.html#description-of-background-elements
--- motif.trialsbgdef.bg = bgNew(motif.trialsbgdef.spr_data, motif.def, 'trialsbg')
 
 --trials spr/anim data
 local tr_pos = trials.trials_mode
@@ -2087,11 +2077,11 @@ if trials.mtlcy ~= trials.stlcy then
 		end
 	end
 
-				if trials.p1selref == nil then
-				if start.p[1].t_selected[1].ref ~= nil then
-				trials.p1selref = start.p[1].t_selected[1].ref
-					end
-					end
+	if trials.p1selref == nil then
+		if start.p[1].t_selected[1].ref ~= nil then
+			trials.p1selref = start.p[1].t_selected[1].ref
+		end
+	end
 					
 	if trialsExist and roundState() == 2 and not trials.data.trialsInitialized then
 		-- Initialize the trials based on parsed file and char state at roundState() == 2
@@ -2104,9 +2094,9 @@ if trials.mtlcy ~= trials.stlcy then
 		trials.f_trialsChecker('root')
 		if numHelper() > 0 and trials.draw.success == 0 then
 			for i = 1, numHelper(), 1 do
-			trials.f_trialsChecker(i)
+				trials.f_trialsChecker(i)
 			end
-			end
+		end
 		player(1)
 	elseif roundState() == 2 then
 		-- No trials present!
@@ -2126,21 +2116,20 @@ end
 --; menu.lua
 --;===========================================================
 
-		if menu.trialadvancement == nil then
-menu.trialadvancement = 1
-			end
-		if menu.trialresetonsuccess == nil then
-menu.trialresetonsuccess = 1
-			end
-		if menu.trialslayout == nil then
-menu.trialslayout = 1
-			end
-		if menu.trialstextboxes == nil then
-menu.trialstextboxes = 1
-			end
+if menu.trialadvancement == nil then
+	menu.trialadvancement = 1
+end
+if menu.trialresetonsuccess == nil then
+	menu.trialresetonsuccess = 1
+end
+if menu.trialslayout == nil then
+	menu.trialslayout = 1
+end
+if menu.trialstextboxes == nil then
+	menu.trialstextboxes = 1
+end
 
-local pmv = motif.pause_menu ~= nil and motif.pause_menu.trials_pause_menu ~= nil
-	and motif.pause_menu.trials_pause_menu.menu.valuename or {}
+local pmv = motif.pause_menu ~= nil and motif.pause_menu.trials_pause_menu ~= nil and motif.pause_menu.trials_pause_menu.menu.valuename or {}
 
 menu.t_valuename.trialadvancement = {
 	{itemname = "autoadvance", displayname = pmv.trialadvancement_autoadvance or "Auto-Advance"},
