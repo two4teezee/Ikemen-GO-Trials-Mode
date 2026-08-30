@@ -17,6 +17,17 @@ trialsresetonsuccess = false
 trialslayout = vertical
 trialslocalcoord = 1280,720
 
+; BACKGROUND ELEMENT LAYERS ------------------------------------------------
+; Every bg and front element below (including the horizontal layout's bg.tail and bg.head)
+; accepts a "layerno" parameter. Valid values are -1, 0, 1 and 2; anything higher is clamped
+; to 2. Defaults to 0, which is where every trials element used to be drawn.
+; All of these layers are drawn on top of the stage and the characters - layerno only orders
+; trials elements against each other. Elements sharing a layer keep their usual draw order
+; (trialsteps bg, trial title, textbox, then the individual steps and their glyphs), so
+; raising an element's layerno is how you pull it in front of something that would normally
+; be drawn after it.
+; --------------------------------------------------------------------------
+
 ; SELSCREENPALFX -----------------------------------------------------------
 ; Sets specified palfx color to character portraits WITHOUT trials files in the trials select screen. See definition for palfx for different fields and options.
 ; --------------------------------------------------------------------------
@@ -51,12 +62,14 @@ trialtitle.vertical.bg.anim = -1
 trialtitle.vertical.bg.scale = 1.0, 1.0
 trialtitle.vertical.bg.facing = 1
 trialtitle.vertical.bg.displaytime = -1
+trialtitle.vertical.bg.layerno = 0
 trialtitle.vertical.front.offset = 0, 0
 trialtitle.vertical.front.spr = 
 trialtitle.vertical.front.anim = -1
 trialtitle.vertical.front.scale = 1.0, 1.0
 trialtitle.vertical.front.facing = 1
 trialtitle.vertical.front.displaytime = -1
+trialtitle.vertical.front.layerno = 0
 ; TRIALTITLE HORIZONTAL ----------------------------------------------------
 trialtitle.horizontal.pos = 140,140
 trialtitle.horizontal.text.offset = 0,-17
@@ -70,12 +83,14 @@ trialtitle.horizontal.bg.anim = -1
 trialtitle.horizontal.bg.scale = 1.0, 1.0
 trialtitle.horizontal.bg.facing = 1
 trialtitle.horizontal.bg.displaytime = -1
+trialtitle.horizontal.bg.layerno = 0
 trialtitle.horizontal.front.offset = 0, 0
 trialtitle.horizontal.front.spr = 
 trialtitle.horizontal.front.anim = -1
 trialtitle.horizontal.front.scale = 1.0, 1.0
 trialtitle.horizontal.front.facing = 1
 trialtitle.horizontal.front.displaytime = -1
+trialtitle.horizontal.front.layerno = 0
 
 ; TRIALSTEPS OPTIONS -------------------------------------------------------
 ; TRIALSTEPS options can be specified for both vertical and horizontal layouts simultaneously.
@@ -95,6 +110,7 @@ trialsteps.vertical.bg.anim = -1
 trialsteps.vertical.bg.scale = 1.0, 1.0
 trialsteps.vertical.bg.facing = 1
 trialsteps.vertical.bg.displaytime = -1
+trialsteps.vertical.bg.layerno = 0
 ; TRIALSTEPS HORIZONTAL ----------------------------------------------------
 trialsteps.horizontal.pos = 140,175
 trialsteps.horizontal.spacing = 1,40
@@ -107,6 +123,7 @@ trialsteps.horizontal.bg.anim = -1
 trialsteps.horizontal.bg.scale = 1.0, 1.0
 trialsteps.horizontal.bg.facing = 1
 trialsteps.horizontal.bg.displaytime = -1
+trialsteps.horizontal.bg.layerno = 0
 
 ; UPCOMINGSTEP -------------------------------------------------------------
 ; UPCOMINGSTEP options can be specified for both vertical and horizontal layouts simultaneously.
@@ -120,6 +137,7 @@ upcomingstep.vertical.bg.spr =
 upcomingstep.vertical.bg.scale = 1.0, 1.0
 upcomingstep.vertical.bg.facing = 1
 upcomingstep.vertical.bg.displaytime = -1
+upcomingstep.vertical.bg.layerno = 0
 upcomingstep.vertical.bg.palfx.color = 200
 upcomingstep.vertical.bg.palfx.invertall = 0
 upcomingstep.vertical.bg.palfx.sinadd = 0, 0, 0, 0
@@ -137,18 +155,21 @@ upcomingstep.horizontal.bg.spr =
 upcomingstep.horizontal.bg.scale = 1.0, 1.0
 upcomingstep.horizontal.bg.facing = 1
 upcomingstep.horizontal.bg.displaytime = -1
+upcomingstep.horizontal.bg.layerno = 0
 upcomingstep.horizontal.bg.tail.offset = 0,-14
 upcomingstep.horizontal.bg.tail.anim = -1
 upcomingstep.horizontal.bg.tail.spr = 402,0
 upcomingstep.horizontal.bg.tail.scale = 1.0, 1.0
 upcomingstep.horizontal.bg.tail.facing = 1
 upcomingstep.horizontal.bg.tail.displaytime = -1
+upcomingstep.horizontal.bg.tail.layerno = 0
 upcomingstep.horizontal.bg.head.offset = 0, 0
 upcomingstep.horizontal.bg.head.anim = -1
 upcomingstep.horizontal.bg.head.spr = 
 upcomingstep.horizontal.bg.head.scale = 1.0, 1.0
 upcomingstep.horizontal.bg.head.facing = 1
 upcomingstep.horizontal.bg.head.displaytime = -1
+upcomingstep.horizontal.bg.head.layerno = 0
 upcomingstep.horizontal.bg.palfx.color = 200
 upcomingstep.horizontal.bg.palfx.invertall = 0
 upcomingstep.horizontal.bg.palfx.sinadd = 0, 0, 0, 0
@@ -174,6 +195,7 @@ currentstep.vertical.bg.spr =
 currentstep.vertical.bg.scale = 1.0, 1.0
 currentstep.vertical.bg.facing = 1
 currentstep.vertical.bg.displaytime = -1
+currentstep.vertical.bg.layerno = 0
 currentstep.vertical.bg.palfx.color = 256
 currentstep.vertical.bg.palfx.invertall = 0
 currentstep.vertical.bg.palfx.sinadd = 0, 0, 0, 0
@@ -191,18 +213,21 @@ currentstep.horizontal.bg.spr =
 currentstep.horizontal.bg.scale = 1.0, 1.0
 currentstep.horizontal.bg.facing = 1
 currentstep.horizontal.bg.displaytime = -1
+currentstep.horizontal.bg.layerno = 0
 currentstep.horizontal.bg.tail.offset = 0,-14
 currentstep.horizontal.bg.tail.anim = -1
 currentstep.horizontal.bg.tail.spr = 402,0
 currentstep.horizontal.bg.tail.scale = 1.0, 1.0
 currentstep.horizontal.bg.tail.facing = 1
 currentstep.horizontal.bg.tail.displaytime = -1
+currentstep.horizontal.bg.tail.layerno = 0
 currentstep.horizontal.bg.head.offset = 0, 0
 currentstep.horizontal.bg.head.anim = -1
 currentstep.horizontal.bg.head.spr = 
 currentstep.horizontal.bg.head.scale = 1.0, 1.0
 currentstep.horizontal.bg.head.facing = 1
 currentstep.horizontal.bg.head.displaytime = -1
+currentstep.horizontal.bg.head.layerno = 0
 currentstep.horizontal.bg.palfx.color = 200
 currentstep.horizontal.bg.palfx.invertall = 0
 currentstep.horizontal.bg.palfx.sinadd = 0, 0, 0, 0
@@ -227,6 +252,7 @@ completedstep.vertical.bg.spr =
 completedstep.vertical.bg.scale = 1.0, 1.0
 completedstep.vertical.bg.facing = 1
 completedstep.vertical.bg.displaytime = -1
+completedstep.vertical.bg.layerno = 0
 completedstep.vertical.bg.palfx.color = 256
 completedstep.vertical.bg.palfx.invertall = 0
 completedstep.vertical.bg.palfx.sinadd = 0, 0, 0, 0
@@ -244,18 +270,21 @@ completedstep.horizontal.bg.spr =
 completedstep.horizontal.bg.scale = 1.0, 1.0
 completedstep.horizontal.bg.facing = 1
 completedstep.horizontal.bg.displaytime = -1
+completedstep.horizontal.bg.layerno = 0
 completedstep.horizontal.bg.tail.offset = 0,-14
 completedstep.horizontal.bg.tail.anim = -1
 completedstep.horizontal.bg.tail.spr = 402,0
 completedstep.horizontal.bg.tail.scale = 1.0, 1.0
 completedstep.horizontal.bg.tail.facing = 1
 completedstep.horizontal.bg.tail.displaytime = -1
+completedstep.horizontal.bg.tail.layerno = 0
 completedstep.horizontal.bg.head.offset = 0, 0
 completedstep.horizontal.bg.head.anim = -1
 completedstep.horizontal.bg.head.spr = 
 completedstep.horizontal.bg.head.scale = 1.0, 1.0
 completedstep.horizontal.bg.head.facing = 1
 completedstep.horizontal.bg.head.displaytime = -1
+completedstep.horizontal.bg.head.layerno = 0
 completedstep.horizontal.bg.palfx.color = 0
 completedstep.horizontal.bg.palfx.invertall = 0
 completedstep.horizontal.bg.palfx.sinadd = 0, 0, 0, 0
@@ -355,12 +384,14 @@ textbox.bg.offset = 0, 0
 textbox.bg.facing = 1
 textbox.bg.scale = 1.0, 1.0
 textbox.bg.displaytime = -1
+textbox.bg.layerno = 0
 textbox.front.anim = -1
 textbox.front.spr = 
 textbox.front.offset = 0, 0
 textbox.front.facing = 1
 textbox.front.scale = 1.0, 1.0
 textbox.front.displaytime = -1
+textbox.front.layerno = 0
 textbox.portrait.source = "char" ; valid options are "system" or "char"
 textbox.portrait.spr = 9000, 0
 textbox.portrait.offset = 5,5
@@ -383,11 +414,13 @@ success.bg.anim = -1
 success.bg.scale = 1.0, 1.0
 success.bg.spr = 
 success.bg.displaytime = -1
+success.bg.layerno = 0
 success.front.offset = 0, 0
 success.front.anim = -1
 success.front.scale = 1.0, 1.0
 success.front.spr = 
 success.front.displaytime = -1
+success.front.layerno = 0
 
 ; TRIALS ALL CLEAR BANNER --------------------------------------------------
 ; --------------------------------------------------------------------------
@@ -404,8 +437,10 @@ allclear.bg.anim = -1
 allclear.bg.scale = 1.0, 1.0
 allclear.bg.spr = 
 allclear.bg.displaytime = -1
+allclear.bg.layerno = 0
 allclear.front.offset = 0, 0
 allclear.front.anim = -1
 allclear.front.scale = 1.0, 1.0
 allclear.front.spr = 
 allclear.front.displaytime = -1
+allclear.front.layerno = 0

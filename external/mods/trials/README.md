@@ -48,9 +48,22 @@ The [Trials Mode wiki](https://github.com/two4teezee/Ikemen-GO-Trials-Mode/wiki)
 ; GENERAL TRIALS OPTIONS ---------------------------------------------------
 ; trialsresetonsuccess: set to "true" to reset character positions after each trial success (except the final one). Can optionally specify fadein and fadeout parameters - will default to shown values.
 ; trialslayout: "vertical" or "horizontal" are the only valid values. Defaults to "vertical" if not specified. Affects scrolling logic, as stated above, also enables dynamic step width. Can be changed via the pause menu if screenpack author leaves the option in.
+; trialslocalcoord: localcoord for the trials mode. Defaults to 320,240 if not specified.
 ; --------------------------------------------------------------------------
 trialsresetonsuccess = false
 trialslayout = vertical
+trialslocalcoord = 1280,720
+
+; BACKGROUND ELEMENT LAYERS ------------------------------------------------
+; Every bg and front element below (including the horizontal layout's bg.tail and bg.head)
+; accepts a "layerno" parameter. Valid values are -1, 0, 1 and 2; anything higher is clamped
+; to 2. Defaults to 0, which is where every trials element used to be drawn.
+; All of these layers are drawn on top of the stage and the characters - layerno only orders
+; trials elements against each other. Elements sharing a layer keep their usual draw order
+; (trialsteps bg, trial title, textbox, then the individual steps and their glyphs), so
+; raising an element's layerno is how you pull it in front of something that would normally
+; be drawn after it.
+; --------------------------------------------------------------------------
 
 ; SELSCREENPALFX -----------------------------------------------------------
 ; Sets specified palfx color to character portraits WITHOUT trials files in the trials select screen. See definition for palfx for different fields and options.
@@ -86,12 +99,14 @@ trialtitle.vertical.text.font = 2,0,1, 255, 200, 100
 ; trialtitle.vertical.bg.scale = 
 ; trialtitle.vertical.bg.facing = 
 ; trialtitle.vertical.bg.displaytime = 
+; trialtitle.vertical.bg.layerno = 0
 ; trialtitle.vertical.front.offset = 
 ; trialtitle.vertical.front.spr = 
 ; trialtitle.vertical.front.anim = 
 ; trialtitle.vertical.front.scale = 
 ; trialtitle.vertical.front.facing = 
 ; trialtitle.vertical.front.displaytime = 
+; trialtitle.vertical.front.layerno = 0
 ; TRIALTITLE HORIZONTAL ----------------------------------------------------
 trialtitle.horizontal.pos = 140,140
 trialtitle.horizontal.text.offset = 0,-17
@@ -105,12 +120,14 @@ trialtitle.horizontal.text.font = 2,0,1, 255, 200, 100
 ; trialtitle.horizontal.bg.scale = 
 ; trialtitle.horizontal.bg.facing = 
 ; trialtitle.horizontal.bg.displaytime = 
+; trialtitle.horizontal.bg.layerno = 0
 ; trialtitle.horizontal.front.offset = 
 ; trialtitle.horizontal.front.spr = 
 ; trialtitle.horizontal.front.anim = 
 ; trialtitle.horizontal.front.scale = 
 ; trialtitle.horizontal.front.facing = 
 ; trialtitle.horizontal.front.displaytime = 
+; trialtitle.horizontal.front.layerno = 0
 
 ; TRIALSTEPS OPTIONS -------------------------------------------------------
 ; TRIALSTEPS options can be specified for both vertical and horizontal layouts simultaneously.
@@ -130,6 +147,7 @@ trialsteps.vertical.window.withtextbox = 100,175, 1180,550
 ; trialsteps.vertical.bg.scale = 
 ; trialsteps.vertical.bg.facing = 
 ; trialsteps.vertical.bg.displaytime =   
+; trialsteps.vertical.bg.layerno = 0
 ; TRIALSTEPS HORIZONTAL ----------------------------------------------------
 trialsteps.horizontal.pos = 140,175
 trialsteps.horizontal.spacing = 1,40
@@ -142,6 +160,7 @@ trialsteps.horizontal.padding = 10
 ; trialsteps.horizontal.bg.scale = 
 ; trialsteps.horizontal.bg.facing = 
 ; trialsteps.horizontal.bg.displaytime =  
+; trialsteps.horizontal.bg.layerno = 0
 
 ; UPCOMINGSTEP -------------------------------------------------------------
 ; UPCOMINGSTEP options can be specified for both vertical and horizontal layouts simultaneously.
@@ -155,6 +174,7 @@ upcomingstep.vertical.text.font = 2,0,1, 200, 200, 200
 ; upcomingstep.vertical.bg.scale = 
 ; upcomingstep.vertical.bg.facing =
 ; upcomingstep.vertical.bg.displaytime = 
+; upcomingstep.vertical.bg.layerno = 0
 upcomingstep.vertical.bg.palfx.color = 200
 ; upcomingstep.vertical.bg.palfx.invertall = 0
 ; upcomingstep.vertical.bg.palfx.sinadd = 0, 0, 0, 0
@@ -172,18 +192,21 @@ upcomingstep.vertical.bg.palfx.mul = 200, 200, 200
 ; upcomingstep.horizontal.bg.scale = 
 ; upcomingstep.horizontal.bg.facing = 
 ; upcomingstep.horizontal.bg.displaytime = 
+; upcomingstep.horizontal.bg.layerno = 0
 upcomingstep.horizontal.bg.tail.offset = 0,-14
 ; upcomingstep.horizontal.bg.tail.anim = 
 upcomingstep.horizontal.bg.tail.spr = 402,0
 ; upcomingstep.horizontal.bg.tail.scale = 
 ; upcomingstep.horizontal.bg.tail.facing = 
 ; upcomingstep.horizontal.bg.tail.displaytime = 
+; upcomingstep.horizontal.bg.tail.layerno = 0
 ; upcomingstep.horizontal.bg.head.offset = 
 ; upcomingstep.horizontal.bg.head.anim = 
 ; upcomingstep.horizontal.bg.head.spr = 
 ; upcomingstep.horizontal.bg.head.scale = 
 ; upcomingstep.horizontal.bg.head.facing = 
 ; upcomingstep.horizontal.bg.head.displaytime = 
+; upcomingstep.horizontal.bg.head.layerno = 0
 upcomingstep.horizontal.bg.palfx.color = 200
 ; upcomingstep.horizontal.bg.palfx.invertall = 
 ; upcomingstep.horizontal.bg.palfx.sinadd = 
@@ -209,6 +232,7 @@ currentstep.vertical.text.font = 2,0,1
 ; currentstep.vertical.bg.scale = 
 ; currentstep.vertical.bg.facing = 
 ; currentstep.vertical.bg.displaytime = 
+; currentstep.vertical.bg.layerno = 0
 ; currentstep.vertical.bg.displaytime = 
 ; currentstep.vertical.bg.palfx.color = 
 ; currentstep.vertical.bg.palfx.invertall = 
@@ -227,18 +251,21 @@ currentstep.vertical.text.font = 2,0,1
 ; currentstep.horizontal.bg.scale = 
 ; currentstep.horizontal.bg.facing = 
 ; currentstep.horizontal.bg.displaytime = 
+; currentstep.horizontal.bg.layerno = 0
 currentstep.horizontal.bg.tail.offset = 0,-14
 ; currentstep.horizontal.bg.tail.anim = 
 currentstep.horizontal.bg.tail.spr = 402,0
 ; currentstep.horizontal.bg.tail.scale = 
 ; currentstep.horizontal.bg.tail.facing = 
 ; currentstep.horizontal.bg.tail.displaytime = 
+; currentstep.horizontal.bg.tail.layerno = 0
 ; currentstep.horizontal.bg.head.offset = 
 ; currentstep.horizontal.bg.head.anim = 
 ; currentstep.horizontal.bg.head.spr = 
 ; currentstep.horizontal.bg.head.scale = 
 ; currentstep.horizontal.bg.head.facing = 
 ; currentstep.horizontal.bg.head.displaytime = 
+; currentstep.horizontal.bg.head.layerno = 0
 currentstep.horizontal.bg.palfx.color = 200
 ; currentstep.horizontal.bg.palfx.invertall = 
 ; currentstep.horizontal.bg.palfx.sinadd = 
@@ -263,6 +290,7 @@ completedstep.vertical.text.font = 2,0,1, 100, 100, 100
 ; completedstep.vertical.bg.scale = 
 ; completedstep.vertical.bg.facing =
 ; completedstep.vertical.bg.displaytime = 
+; completedstep.vertical.bg.layerno = 0
 ; completedstep.vertical.bg.palfx.color = 
 ; completedstep.vertical.bg.palfx.invertall = 
 ; completedstep.vertical.bg.palfx.sinadd = 
@@ -280,18 +308,21 @@ completedstep.vertical.glyphs.palfx.color = 0
 ; completedstep.horizontal.bg.scale = 
 ; completedstep.horizontal.bg.facing = 
 ; completedstep.horizontal.bg.displaytime = 
+; completedstep.horizontal.bg.layerno = 0
 completedstep.horizontal.bg.tail.offset = 0,-14
 ; completedstep.horizontal.bg.tail.anim = 
 completedstep.horizontal.bg.tail.spr = 402,0
 ; completedstep.horizontal.bg.tail.scale =
 ; completedstep.horizontal.bg.tail.facing = 
 ; completedstep.horizontal.bg.tail.displaytime = 
+; completedstep.horizontal.bg.tail.layerno = 0
 ; completedstep.horizontal.bg.head.offset = 
 ; completedstep.horizontal.bg.head.anim = 
 ; completedstep.horizontal.bg.head.spr = 
 ; completedstep.horizontal.bg.head.scale = 
 ; completedstep.horizontal.bg.head.facing = 
 ; completedstep.horizontal.bg.head.displaytime = 
+; completedstep.horizontal.bg.head.layerno = 0
 completedstep.horizontal.bg.palfx.color = 0
 ; completedstep.horizontal.bg.palfx.invertall = 
 ; completedstep.horizontal.bg.palfx.sinadd = 
@@ -391,12 +422,14 @@ textbox.bg.offset = 0, 0
 textbox.bg.facing = 1
 textbox.bg.scale = 1.0, 1.0
 textbox.bg.displaytime = -1
+textbox.bg.layerno = 0
 textbox.front.anim = -1
 textbox.front.spr = 
 textbox.front.offset = 0, 0
 textbox.front.facing = 1
 textbox.front.scale = 1.0, 1.0
 textbox.front.displaytime = -1
+textbox.front.layerno = 0
 textbox.portrait.source = "char" ; valid options are "system" or "char"
 textbox.portrait.spr = 9000, 0
 textbox.portrait.offset = 5,5
@@ -419,11 +452,13 @@ success.text.scale = 3,3
 ; success.bg.scale = 
 ; success.bg.spr = 
 ; success.bg.displaytime = 
+; success.bg.layerno = 0
 ; success.front.offset = 
 ; success.front.anim = 
 ; success.front.scale = 
 ; success.front.spr = 
 ; success.front.displaytime	= 
+; success.front.layerno = 0
 
 ; TRIALS ALL CLEAR BANNER --------------------------------------------------
 ; --------------------------------------------------------------------------
@@ -440,11 +475,13 @@ allclear.text.scale	= 3,3
 ; allclear.bg.scale = 
 ; allclear.bg.spr = 
 ; allclear.bg.displaytime = 
+; allclear.bg.layerno = 0
 ; allclear.front.offset = 
 ; allclear.front.anim = 
 ; allclear.front.scale = 
 ; allclear.front.spr = 
 ; allclear.front.displaytime = 
+; allclear.front.layerno = 0
 
 [Trials Pause Menu]
 ; The engine turns any section whose name matches "*pause*menu" into a pause menu, and opens

@@ -208,6 +208,16 @@ if opts.Textboxes ~= nil then
 	trials.trials_mode.textbox.visible = visible
 end
 
+-- Resolve trialslocalcoord up front. Every anim built below lives in this coordinate
+-- space, and animSetLocalcoord only affects setters called *after* it, so the value has
+-- to exist before the sprite data is loaded (not just once f_trialsMode starts running).
+if type(trials.trials_mode.trialslocalcoord) ~= 'table' then
+	trials.trials_mode.trialslocalcoord = {320, 240}
+end
+trials.mtlcx = tonumber(trials.trials_mode.trialslocalcoord[1]) or 320
+trials.mtlcy = tonumber(trials.trials_mode.trialslocalcoord[2]) or 240
+trials.trials_mode.trialslocalcoord = {trials.mtlcx, trials.mtlcy}
+
 --split strings
 local function f_strsplit(delimiter, text)
 	local list = {}
@@ -462,6 +472,23 @@ local function f_getSprNode(t, path)
 	return node
 end
 
+-- Render layer for a motif element. The engine buckets Lua draw calls into a pre-pass plus
+-- three layers (see System.luaQueueLayerDraw), all of which are flushed after the stage and
+-- the characters, so this only orders trials elements against each other. Within one layer
+-- the draw order is the order the elements are drawn by f_trialsDrawer.
+-- Defaults to 0, which is what every element used before layerno was configurable.
+local function f_clampLayerno(...)
+	for i = 1, select('#', ...) do
+		local n = tonumber(select(i, ...))
+		if n ~= nil then
+			n = math.floor(n)
+			if n < -1 then n = -1 elseif n > 2 then n = 2 end
+			return n
+		end
+	end
+	return 0
+end
+
 function f_loadSprData(t, v, sff)
 	local data = v.s .. 'data'
 	local sprData = sff or motif.files.spr_data
@@ -471,6 +498,7 @@ function f_loadSprData(t, v, sff)
 	local animNo = node.anim
 	local spr = node.spr
 	local facingNo = node.facing
+	local layerNo = node.layerno
 	if v.prefix ~= nil then
 		data = v.s .. v.prefix .. 'data'
 		if type(node[v.prefix]) == 'table' then
@@ -480,19 +508,23 @@ function f_loadSprData(t, v, sff)
 			animNo = node.anim
 			spr = node.spr
 			facingNo = node.facing
+			layerNo = node.layerno
 		end
 	end
 	if facingNo == nil then facingNo = 1 end
+	layerNo = f_clampLayerno(layerNo, v.layerno)
+	local isAnim = false
 	if type(animNo) == 'number' and animNo ~= -1 and type(motif.anim) == 'table' and motif.anim[animNo] ~= nil then --create animation data
 		t[data] = f_animFromTable(
 			motif.anim[animNo],
 			sprData,
-			(offset[1] + (v.x or 0)) / scale[1],
-			(offset[2] + (v.y or 0)) / scale[2],
+			0,
+			0,
 			scale[1],
 			scale[2],
 			facingNo
 		)
+		isAnim = true
 	else
 		if type(spr) == 'string' then
 			if spr == '' then
@@ -502,7 +534,9 @@ function f_loadSprData(t, v, sff)
 			end
 		end
 	end
-	if type(spr) == 'table' and #spr > 0 then --create sprite data
+	if isAnim then
+		--nothing more to build, the anim data already exists
+	elseif type(spr) == 'table' and #spr > 0 then --create sprite data
 		if #spr == 1 then --fix values
 			if type(spr[1]) == 'string' then
 				spr = {tonumber(spr[1]:match('^([0-9]+)')), 0}
@@ -511,14 +545,19 @@ function f_loadSprData(t, v, sff)
 			end
 		end
 		if facingNo == -1 then facing = ', H' else facing = '' end
-		t[data] = animNew(sprData, spr[1] .. ', ' .. spr[2] .. ', ' .. (offset[1] + (v.x or 0)) / scale[1] .. ', ' .. (offset[2] + (v.y or 0)) / scale[2] .. ', -1' .. facing)
-		animSetScale(t[data], scale[1], scale[2])
-		animUpdate(t[data])
+		t[data] = animNew(sprData, spr[1] .. ', ' .. spr[2] .. ', 0, 0, -1' .. facing)
 	else --create dummy data
 		t[data] = animNew(sprData, '-1,0, 0,0, -1')
-		animUpdate(t[data])
 	end
-	animSetWindow(t[data], 0, 0, motif.info.localcoord[1], motif.info.localcoord[2])
+	-- Order matters: animSetLocalcoord only stores the scale factor, it does not re-derive
+	-- values that were already committed. Position, scale and window all have to be applied
+	-- *after* it or they stay in 320x240 space and the element renders unscaled.
+	animSetLocalcoord(t[data], trials.mtlcx, trials.mtlcy)
+	animSetPos(t[data], offset[1] + (v.x or 0), offset[2] + (v.y or 0))
+	animSetScale(t[data], scale[1], scale[2])
+	animSetWindow(t[data], 0, 0, trials.mtlcx, trials.mtlcy)
+	animSetLayerno(t[data], layerNo)
+	animUpdate(t[data])
 end
 
 --generate anim from table
