@@ -1,11 +1,10 @@
-;-----------------------------------------------------------------------------------
 [Trials Mode]
-;-----------------------------------------------------------------------------------
 
 ; TITLE SCREEN --------------------------------------------------------------------
-; The title of the mode, shown on the title screen and in the menu. Screenpacks can override this with their own title, but if they don't, this is what is shown.
+; The title of the mode, shown on the title screen and in the menu. 
+; Screenpacks can override this with their own title, but if they don't, this is what is shown.
 ; -----------------------------------------------------------------------------------
-menu.itemname.trials = "TRIALS"
+menu.itemname.trials = "TRIALS MODE"
 
 ; SELECT SCREEN --------------------------------------------------------------------
 ; The palette effect applied to the cell portrait of every character that ships NO Trial
@@ -108,8 +107,8 @@ nodata.text = "No trials available for this character."
 trialsteps.vertical.pos = 35, 38
 trialsteps.vertical.spacing = 0, 9
 trialsteps.vertical.window = 25, 34, 295, 138
-trialsteps.vertical.pos.withtextbox =
-trialsteps.vertical.window.withtextbox =
+; trialsteps.vertical.pos.withtextbox =
+; trialsteps.vertical.window.withtextbox =
 
 trialsteps.horizontal.pos = 25, 38
 trialsteps.horizontal.spacing = 4, 11
@@ -152,99 +151,13 @@ completedstep.vertical.text.offset = 0, 0
 ; completedstep.horizontal.text.scale =
 ; completedstep.horizontal.text.font.height =
 
-; TRIAL STEP BACKGROUND OPTIONS ------------------------------------------------------------------
-; The artwork drawn behind the Steps: what makes Step text and Glyphs readable over a
-; busy stage, and what gives a screenpack its identity in this mode.
-;
-; Two kinds, both per Layout:
-;
-;   trialsteps.<layout>.bg.*      one background behind the whole Step list
-;   <status>step.<layout>.bg.*    one under each Step, styled per Step Status
-;
-; Every element takes the ordinary engine keys — spr, anim, offset, scale, facing,
-; window, localcoord, layerno — and draws behind the Step text at the same layer number,
-; because elements sharing a layer draw in the order they are drawn in and the module
-; draws these first.
-;
-; TO TURN ONE OFF, set its spr to nothing — and its anim too, if it has one:
-;
-;   currentstep.horizontal.bg.spr =
-;   currentstep.horizontal.bg.tail.spr =
-;   currentstep.horizontal.bg.head.spr =
-;
-; All three, in the horizontal Layout — they are separate elements and clearing the body
-; leaves the head and tail. A Step Status with no background draws none and reserves no
-; room for one, so its Steps lay out exactly as they would if this section were not here.
-;
-; ONE CASE WHERE THESE DEFAULTS DROP THEMSELVES. If your screenpack sets
-; trialsteps.<layout>.pos, the block resolves into YOUR coordinate space, and the sprites
-; below are drawn at 320x240 — the shipped 280-unit panel would cover a quarter of the
-; width it was drawn for at 1280x720. So the module's own artwork is dropped rather than
-; drawn at the wrong scale, exactly as the block's own default window is. Style your own
-; backgrounds here and they are used as written; that is what this section is for.
-;
-; WHICH FILE A SPRITE NUMBER MEANS. `spr = 0, 10` below is a sprite in the module's own
-; trials.sff. The same key in YOUR system.def is a sprite in YOUR sff — the file follows
-; whoever wrote the key, exactly as the coordinate space does. There is no way to mix
-; the two on one element, and no reason to want to: state the key and the file that goes
-; with it comes along. trials.sff is only ever loaded if something still resolves to it,
-; so a screenpack that styles every element of its own never pays for a second copy.
-;
-; `spr` OR `anim`, on both sides. spr = group, index draws one static sprite; anim = N
-; draws [Begin Action N] — an animation, with its own frame timings, per-frame offsets,
-; flips and blends. Which file an action number means follows the same rule a sprite
-; number does: an anim written in THIS file is an action defined at the bottom of this
-; file, drawn out of trials.sff; one written in YOUR system.def is an action in your
-; file, drawn out of your sff. There is no mixing, in either direction.
-;
-; The module ships one action per sprite it ships, numbered to match — action 20 draws
-; sprite 0,20 — at the end of this file. Two frames of one sprite at two alphas is not
-; an animation anybody would ship as artwork; they are there so that every element in
-; this section can be moved to an anim and watched working before you draw anything.
-;
-; An element given both keys uses the anim, and an anim naming an action its own file
-; does not define draws nothing and says so in the console rather than quietly falling
-; back on the sprite — an action that failed to load is worth hearing about.
-;
-; SIZE IS MEASURED ONCE, FROM THE FIRST FRAME, when the module loads. The horizontal
-; body is stretched to that width, and the head and tail are placed from theirs; a Step
-; wrapping to the next row is decided by them. So an action whose frames differ in size
-; draws every one of them at the first frame's width. Animate the colour, the alpha, the
-; offset — not the dimensions.
-;
-; THE HORIZONTAL LAYOUT'S THREE PIECES. A vertical row is a fixed-width slot, so its
-; background is one sprite drawn where the row is. A horizontal Step is only as wide as
-; whatever it renders, so its background is an arrow in three parts:
-;
-;   .bg.tail.*   the nock, fixed width, drawn at the start of the Step
-;   .bg.*        the shaft, STRETCHED along x to the width of that Step's own content
-;   .bg.head.*   the point, fixed width, drawn at the end of the Step
-;
-; The body is stretched and not tiled, which is why the shipped one is four units wide
-; and uniform across — a sprite with detail along x would smear. The head and tail are
-; measured from their own sprites, and both are part of the width that decides where a
-; row wraps: one item spans tail + padding + content + padding + head, with
-; trialsteps.horizontal.spacing between items.
-;
-; Content is the Step's text AND its Glyphs together. The pre-refactor module drew
-; Glyphs alone in this Layout and sized the background to the Glyph line, so a Trial
-; Definition shipping no Glyphs collapsed to nothing; here it gets a background sized to
-; its words.
-;
-; palfx belongs to the whole background, head and tail included — they are one graphic,
-; and tinting the shaft without its point would read as a seam. The shipped muls are the
-; grey levels the three Step Statuses already dim their text and Glyphs by, so a
-; completed Step reads as completed all the way through. 256 is neutral.
-;
-; offsets are in 320x240, this file's own space (see trials.localcoord above), and are
-; measured from trialsteps.<layout>.pos. The shipped ones put each block background over
-; exactly the window its Layout clips to, and each Step background around the row it
-; sits under — a sprite font draws its line above the y it is given (src/font.go:636),
-; which is why the y offsets are negative.
+; TRIALS BACKGROUND -----------------------------------------------------------------
+; Here you can specify a background for the trial steps, for both vertical and 
+; horizontal layouts.
 ; -----------------------------------------------------------------------------------
-trialsteps.vertical.bg.spr = 0, 0
-trialsteps.vertical.bg.offset = -10, -4
-trialsteps.vertical.bg.layerno = 0
+; trialsteps.vertical.bg.spr = 0, 0
+; trialsteps.vertical.bg.offset = -10, -4
+; trialsteps.vertical.bg.layerno = 0
 ; trialsteps.vertical.bg.scale =
 ; trialsteps.vertical.bg.facing =
 
@@ -254,32 +167,9 @@ trialsteps.horizontal.bg.layerno = 0
 ; trialsteps.horizontal.bg.scale =
 ; trialsteps.horizontal.bg.facing =
 
-; THE STEP BLOCK OVERLAY -------------------------------------------------------------
-; A flat panel drawn under everything else the Step block draws: the plain colour at an
-; alpha that makes Step text readable over a busy stage without anyone having to draw a
-; sprite for it. Same five keys the engine's own menu overlays take.
-;
-; OFF unless you set visible = true. The module already ships artwork behind the Steps
-; (trialsteps.<layout>.bg above), and a panel underneath it would darken a background
-; authored at the alpha it wanted. This is for a screenpack that clears that artwork and
-; wants a panel instead — which is the cheapest way to style this mode.
-;
-; A rect has no position: its WINDOW is its whole geometry, X1,Y1, X2,Y2. Leave the
-; window out and it takes the Step block's own, in both variants — so a panel that
-; covers exactly the Steps costs one line, and follows the block if you move it. Set
-; window and it is yours, in the same coordinate space as the pos that positioned the
-; block; window.withtextbox is the variant used for a Trial that carries a Textbox, and
-; falls back to the plain one.
-;
-; alpha is src, dst, the engine's own additive pair: 0, 128 is the half-transparent
-; panel most screenpacks want, 255, 0 is opaque, and 0, 255 contributes nothing and is
-; invisible. col is r, g, b.
-;
-; Setting visible = true and nothing else gives you the 0, 128 panel in black. The
-; engine's own default for an overlay's alpha is 0, 255 — invisible — which would make
-; the one key that turns this on do nothing at all, so this key carries its own.
-;
-; It draws under the block background and under each Step's own, at its own layerno.
+; TRIALS OVERLAY --------------------------------------------------------------------
+; A flat panel drawn under everything else. Can help with readability, or be used to 
+; style the module to a screenpack's own look.
 ; -----------------------------------------------------------------------------------
 ; trialsteps.vertical.bg.overlay.visible = false
 ; trialsteps.vertical.bg.overlay.col = 0, 0, 0
@@ -297,30 +187,39 @@ trialsteps.horizontal.bg.layerno = 0
 ; trialsteps.horizontal.bg.overlay.layerno = 0
 ; trialsteps.horizontal.bg.overlay.localcoord =
 
-; One plate per row in the vertical Layout, the same sprite under all three Step
-; Statuses and told apart by its palfx alone — which is what keeps the list reading as
-; one list rather than as three kinds of thing.
-upcomingstep.vertical.bg.spr = 0, 10
+
+; TRIAL STEPS BACKGROUND ELEMENTS ---------------------------------------------------
+; Background elements can be specified for each trial step status, for both vertical and horizontal layouts.
+; For horizontal layouts, the background is split into three elements: tail, body, and head. 
+; The body is stretched to fit the width of the step, while the tail and head are fixed width.
+; -----------------------------------------------------------------------------------
 upcomingstep.vertical.bg.offset = -2, -7
-upcomingstep.vertical.bg.palfx.mul = 180, 180, 180
+upcomingstep.vertical.bg.spr = 0, 10
+; upcomingstep.vertical.bg.anim = 
+; upcomingstep.vertical.bg.scale = 
+; upcomingstep.vertical.bg.facing = 
+; upcomingstep.vertical.bg.displaytime = 
 
-currentstep.vertical.bg.spr = 0, 10
 currentstep.vertical.bg.offset = -2, -7
-currentstep.vertical.bg.palfx.mul = 255, 255, 255
+currentstep.vertical.bg.spr = 0, 10
+; currentstep.vertical.bg.anim = 
+; currentstep.vertical.bg.scale = 
+; currentstep.vertical.bg.facing = 
+; currentstep.vertical.bg.displaytime = 
 
-completedstep.vertical.bg.spr = 0, 10
 completedstep.vertical.bg.offset = -2, -7
-completedstep.vertical.bg.palfx.mul = 110, 110, 110
+completedstep.vertical.bg.spr = 0, 10
+; completedstep.vertical.bg.anim = 
+; completedstep.vertical.bg.scale = 
+; completedstep.vertical.bg.facing = 
+; completedstep.vertical.bg.displaytime = 
 
-; The arrow, per Step Status. Tail 4 units wide, head 6; both are added to the width
-; that decides where a row wraps, so changing a sprite here reflows the row.
 upcomingstep.horizontal.bg.spr = 0, 20
 upcomingstep.horizontal.bg.offset = 0, -7
 upcomingstep.horizontal.bg.tail.spr = 0, 21
 upcomingstep.horizontal.bg.tail.offset = 0, -7
 upcomingstep.horizontal.bg.head.spr = 0, 22
 upcomingstep.horizontal.bg.head.offset = 0, -7
-upcomingstep.horizontal.bg.palfx.mul = 180, 180, 180
 
 currentstep.horizontal.bg.spr = 0, 20
 currentstep.horizontal.bg.offset = 0, -7
@@ -328,7 +227,6 @@ currentstep.horizontal.bg.tail.spr = 0, 21
 currentstep.horizontal.bg.tail.offset = 0, -7
 currentstep.horizontal.bg.head.spr = 0, 22
 currentstep.horizontal.bg.head.offset = 0, -7
-currentstep.horizontal.bg.palfx.mul = 255, 255, 255
 
 completedstep.horizontal.bg.spr = 0, 20
 completedstep.horizontal.bg.offset = 0, -7
@@ -336,23 +234,46 @@ completedstep.horizontal.bg.tail.spr = 0, 21
 completedstep.horizontal.bg.tail.offset = 0, -7
 completedstep.horizontal.bg.head.spr = 0, 22
 completedstep.horizontal.bg.head.offset = 0, -7
-completedstep.horizontal.bg.palfx.mul = 110, 110, 110
 
-; ===== TEST FIXTURE — anim as a Step background. DELETE THIS BLOCK WHEN VERIFIED. =====
-; Moves the background under the CURRENT Step, in both Layouts, from the sprite it ships
-; to the matching action at the bottom of this file. Nothing else changes: the upcoming
-; and completed Steps keep their sprites, so the pulsing one is the one being played.
-;
-; The horizontal Layout takes all three keys because the arrow is three elements and one
-; graphic — a shaft pulsing without its point would read as a seam.
-;
-; Delete the four lines below and the shipped look is back exactly as it was; they are
-; written after the keys they replace and override nothing else.
-currentstep.vertical.bg.anim = 10
-currentstep.horizontal.bg.anim = 20
-currentstep.horizontal.bg.tail.anim = 21
-currentstep.horizontal.bg.head.anim = 22
-; ===== END TEST FIXTURE =============================================================
+; TRIAL STEPS BACKGROUND ELEMENTS PALETTE EFFECTS -----------------------------------
+; Palette effects can be applied to the background elements for each trial step type,
+; for both vertical and horizontal layouts.
+; -----------------------------------------------------------------------------------
+; upcomingstep.vertical.bg.palfx.color = 
+; upcomingstep.vertical.bg.palfx.invertall = 
+; upcomingstep.vertical.bg.palfx.sinadd = 
+upcomingstep.vertical.bg.palfx.mul = 180, 180, 180
+; upcomingstep.vertical.bg.palfx.add = 
+
+; currentstep.vertical.bg.palfx.color = 
+; currentstep.vertical.bg.palfx.invertall = 
+; currentstep.vertical.bg.palfx.sinadd = 
+currentstep.vertical.bg.palfx.mul = 255, 255, 255
+; currentstep.vertical.bg.palfx.add = 
+
+; completedstep.vertical.bg.palfx.color = 
+; completedstep.vertical.bg.palfx.invertall = 
+; completedstep.vertical.bg.palfx.sinadd = 
+completedstep.vertical.bg.palfx.mul = 110, 110, 110
+; completedstep.vertical.bg.palfx.add = 
+
+; upcomingstep.horizontal.bg.palfx.color = 
+; upcomingstep.horizontal.bg.palfx.invertall = 
+; upcomingstep.horizontal.bg.palfx.sinadd = 
+upcomingstep.horizontal.bg.palfx.mul = 180, 180, 180
+; upcomingstep.horizontal.bg.palfx.add = 
+
+; currentstep.horizontal.bg.palfx.color = 
+; currentstep.horizontal.bg.palfx.invertall = 
+; currentstep.horizontal.bg.palfx.sinadd = 
+currentstep.horizontal.bg.palfx.mul = 255, 255, 255
+; currentstep.horizontal.bg.palfx.add = 
+
+; completedstep.horizontal.bg.palfx.color = 
+; completedstep.horizontal.bg.palfx.invertall = 
+; completedstep.horizontal.bg.palfx.sinadd = 
+completedstep.horizontal.bg.palfx.mul = 110, 110, 110
+; completedstep.horizontal.bg.palfx.add = 
 
 ; COMMAND GLYPHS ------------------------------------------------------------------
 ; GLYPHS options can be specified for both vertical and horizontal layouts simultaneously.
@@ -379,8 +300,8 @@ glyphs.horizontal.spacing = 1, 0
 glyphs.horizontal.layerno = 0
 ; glyphs.horizontal.localcoord =
 
-; GLYPH PALETTE EFFECTS -------------------------------------------------------------
-; Glyphs can receive a palfx effect, which is applied to the whole glyph set for each step status.
+; COMMAND GLYPH PALETTE EFFECTS -----------------------------------------------------
+; Glyphs can receive a palfx effect, which is applied to the whole glyph set for each step type.
 ; -----------------------------------------------------------------------------------
 upcomingstep.vertical.glyphs.palfx.mul = 180, 180, 180
 ; upcomingstep.vertical.glyphs.palfx.color =
@@ -541,28 +462,6 @@ allclear.text.displaytime = 120
 ; allclear.front.displaytime =
 ; allclear.front.layerno =
 
-; ===== TEST FIXTURE — artwork on the banners. DELETE THIS BLOCK WHEN VERIFIED. =======
-; The module ships no banner artwork, so there is nothing to look at until something
-; declares some. This borrows sprites already in trials.sff:
-;
-;   Success   a static plate behind the word, and the arrow's point pulsing OVER it,
-;             just to the right — which is what tells .bg from .front on screen.
-;   All-Clear the same plate, animated: it is the one that proves an action restarts
-;             each time a banner is raised, since All-Clear fires once per set.
-;
-; Offsets are from each banner's own pos (160, 100) in this file's 320x240 space. The
-; plate is 280 x 36 drawn from its top-left corner, so -140 centres it.
-success.bg.spr = 0, 1
-success.bg.offset = -140, -30
-success.bg.layerno = 0
-success.front.anim = 22
-success.front.offset = 60, -20
-success.front.layerno = 0
-allclear.bg.anim = 1
-allclear.bg.offset = -140, -30
-allclear.bg.layerno = 0
-; ===== END TEST FIXTURE =============================================================
-
 ; REPOSITIONING --------------------------------------------------------------------
 ; trialresetenabled allows the user to reset the player and dummy position to center stage (or specified trials position) when the d and w keys are pressed simultaneously
 ; trialresetreminder displays a string that reminds the player they can reset the trial position with the specified key input
@@ -600,119 +499,13 @@ trialresetreminder.pos = 315, 8
 ; trialresetreminder.localcoord =
 
 ;-----------------------------------------------------------------------------------
-; THE TRIALS BACKGROUND — [TrialsBgDef]
+; Trial Module Animations
 ;-----------------------------------------------------------------------------------
-; The mode's own backdrop, drawn over the stage and behind everything this module puts
-; on screen. It is a full background definition — the same format a stage or a title
-; screen uses — so anything the engine's background elements can do, it can do here:
-; scrolling, sin movement, velocity, tiling, multiple layered elements.
-;
-; NOT SHIPPED, AND NOT REQUIRED. No section, no backdrop, and the mode draws its Steps
-; straight over the stage, which is what a stock install looks like. This exists for a
-; screenpack that wants the mode to have an identity of its own.
-;
-; DEFINE IT IN YOUR OWN system.def, not here. The module reads it out of whichever
-; layer declares it, and reads it with the ENGINE's own parser rather than through the
-; merged config: it is handed the file and the section name, and parses the whole block
-; itself. That is why it survives at all — the engine's motif struct has no field for
-; this section and drops it, but nothing about that reaches the parser underneath.
-;
-; WHAT IT LOOKS LIKE, in your system.def:
-;
-;   [TrialsBgDef]
-;   spr = trials.sff        ; optional; your screenpack's own sff is used without it
-;
-;   [TrialsBg Panel]
-;   type  = normal
-;   spriteno = 100, 0
-;   start = 0, 0
-;   layerno = 0             ; 0 draws under the Steps, 1 over them
-;
-;   [TrialsBg Frame]
-;   type  = normal
-;   spriteno = 100, 1
-;   start = 0, 0
-;   layerno = 1
-;
-; Element sections are [TrialsBg <name>] — the engine matches on the prefix, so the
-; name after it is yours. Refer to the Elecbyte background documentation for the full
-; element vocabulary; every key of it is available.
-;
-; EXPECT CONSOLE WARNINGS. The engine parses your system.def into its own motif struct
-; before this module ever sees the file, and that struct has no field for these
-; sections — so it logs "Failed to assign key [trialsbgdef.spr]", and one more per key
-; of every element section. They are harmless and unavoidable: the same lines appear for
-; [Trials Mode] itself, and the background works regardless, because this module reads
-; the file with the engine's background parser rather than through the motif.
-;
-; bgclearcolor is parsed and deliberately ignored. Clearing the screen is what it does,
-; and this background is drawn over a live match — honouring it would erase the stage.
-;
-; NOT the pause menu's background. That is [TrialsPauseBgDef], which the engine resolves
-; natively from the game mode name; you do not need this module for it.
-;
-; IF YOU ALREADY HAD ONE, CHECK IT. Before the rebuild this section backed the module's
-; own trials MENU screen, which was a full screen of its own and is gone — the pause
-; menu is the engine's now. So a [TrialsBgDef] carried over from then is full-screen
-; artwork that will be drawn over a live match, and will cover the stage. Either give
-; its elements positions and a size that suit a backdrop drawn over a fight, or move
-; them to [TrialsPauseBgDef], where the old full-screen reading still holds.
-
-;-----------------------------------------------------------------------------------
-; THE MODULE'S OWN ACTIONS — [Begin Action N]
-;-----------------------------------------------------------------------------------
-; One action per sprite trials.sff ships, numbered to match it: action 20 draws sprite
-; 0,20. Any element in [Trials Mode] above can be moved from spr = 0, N to anim = N
-; without a line of artwork being drawn first, which is what these are for.
-;
-; NOT AN ANIMATION ANYBODY WOULD SHIP. Each is the one sprite it names held at full
-; alpha and then at half, so what it demonstrates is that frame timing and per-frame
-; blending reach the screen. The shipped defaults use the sprites, not these — a
-; screenpack that never mentions an action number is drawn exactly as it was before
-; these existed.
-;
-; DEFINE YOUR OWN IN YOUR OWN system.def, not here. An action number in your file is
-; read out of your file and drawn out of your sff; one in this file is read out of this
-; file and drawn out of trials.sff. That is the same rule sprite numbers follow, and
-; there is no way to cross it in either direction.
-;
-; THE ENGINE NEVER READS THIS FILE. It reads every screenpack's actions itself, and it
-; reads the module's `+system.def` beside this one, but this file is the module's alone
-; — read with the engine's own action parser, handed trials.sff. So nothing here can
-; collide with a screenpack's numbering, however plain the numbers look.
-;
-; FRAME FORMAT is the engine's own: group, index, xoffset, yoffset, time, flip, blend.
-; AS128D128 is the ordinary half-transparency spelling. Keep every frame of one action
-; the same size — a background is measured once, from its first frame.
+; If you are specifying animations for any of the trial module elements, you can 
+; define them here the same way you would in any other screenpack. The module will 
+; read these animations from this file and use them for the specified elements.
 ; -----------------------------------------------------------------------------------
 
-; The panel behind the whole Step list, vertical Layout.
-[Begin Action 0]
-0,0, 0,0, 20
-0,0, 0,0, 20, , AS128D128
-
-; The same, horizontal Layout.
-[Begin Action 1]
-0,1, 0,0, 20
-0,1, 0,0, 20, , AS128D128
-
-; The plate under one Step, vertical Layout.
-[Begin Action 10]
-0,10, 0,0, 20
-0,10, 0,0, 20, , AS128D128
-
-; The arrow's shaft, horizontal Layout. Stretched along x to the Step's own width, so
-; this and the two below are the three pieces of one graphic and animate together.
-[Begin Action 20]
-0,20, 0,0, 20
-0,20, 0,0, 20, , AS128D128
-
-; Its nock.
-[Begin Action 21]
-0,21, 0,0, 20
-0,21, 0,0, 20, , AS128D128
-
-; Its point.
-[Begin Action 22]
-0,22, 0,0, 20
-0,22, 0,0, 20, , AS128D128
+; [Begin Action 0]
+; 0,0, 0,0, 20
+; 0,0, 0,0, 20, , AS128D128

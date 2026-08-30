@@ -1,90 +1,61 @@
 # Ikemen GO Trials Mode v1.0
 
 > Requires an Ikemen GO nightly newer than the late-2025 motif refactor.
-> Verified against engine revision `fb3750f4`.
+> Verified against engine revision `fb3750f4` (v1.00 RC3).
 
 > For older engine builds, use [Trials Mode v0.99.5](https://github.com/two4teezee/Ikemen-GO-Trials-Mode/releases).
-> The two are not interchangeable: v0.99.5 does not run on current Ikemen GO, and this
-> version does not run on the builds v0.99.5 targeted.
 
 > Module developed by two4teezee
 
 ---
 
-Trials Mode is an external module that adds a combo-trial game mode to Ikemen GO: a
-player picks a character and works through a list of authored input sequences, each one
-verified against the engine's own state as it is performed.
+Trials Mode is an external module that adds a combo-trial game mode to Ikemen GO: a player picks a character and works through a list of authored input sequences, each one verified against the engine's own state as it is performed.
 
-The module is universal — it ships no character content of its own. Characters opt in by
-supplying a **Trial Definition**, and screenpacks opt in to styling the mode by defining
-**Trials Config** sections. Neither is required for the mode to work.
+The module is universal — it ships no character content of its own. Characters opt in by supplying a **Trial Definition**, and screenpacks opt in to styling the mode by defining **Trials Config** sections.
 
-Sample Trial Definitions for a number of characters live in
-[this repo](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files). The
-[wiki](https://github.com/two4teezee/Ikemen-GO-Trials-Mode/wiki) covers the same ground
-as this file at greater length.
+Sample Trial Definitions for a number of characters live in [this repo](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files). The [wiki](https://github.com/two4teezee/Ikemen-GO-Trials-Mode/wiki) covers the same ground as this file at greater length.
 
 ## Installation
 
-Copy the `external/mods/trials/` folder into your Ikemen GO installation, so that you end
-up with `<ikemen>/external/mods/trials/`.
+Copy the `external/mods/trials/` folder into your Ikemen GO installation, so that you end up with `<ikemen>/external/mods/trials/`.
 
-That is the whole installation. **There is nothing to paste into a screenpack's
-`system.def`, and nothing to add to `save/config.ini`.** The engine walks
-`external/mods` recursively and loads what it finds; the module merges its own
-engine-native defaults into the motif through `+system.def`, and injects its state file
-into the match's common states for the duration of a Trials match only.
+That is the whole installation. 
+**There is nothing to paste into a screenpack's `system.def`, and nothing to add to `save/config.ini`.** 
+The engine walks`external/mods` recursively and loads what it finds; the module merges its own engine-native defaults into the motif through `+system.def`, and injects its state file into the match's common states for the duration of a Trials match only.
 
-Trials then appears in the main menu. Every character is selectable; one that ships no
-Trial Definition says so in place of the Trial Counter, so a player always learns
-something from that spot.
+To give a character trials, write a Trial Definition and point the character's def file at it — see [Creating a Character's Trial Definition](#creating-a-characters-trial-definition).
 
-To give a character trials, write a Trial Definition and point the character's def file
-at it — see [Creating a Character's Trial Definition](#creating-a-characters-trial-definition).
-
-## What ships in the module
+## What Ships in the Module
 
 | File | What it is |
 | --- | --- |
-| `trials.lua` | The module. The engine `require`s every `.lua` under `external/mods`, so it loads itself. |
-| `+system.def` | **Engine-native** motif defaults — only sections the engine's own motif struct understands: the select-screen title and `[Trials Pause Menu]`. The `+` prefix is what makes the engine concatenate this file into its motif parse. |
-| `system.def` | **Trials Config** defaults — every trials-specific setting, commented key by key. Deliberately no `+`: the engine never reads this file, only the module does. This is the settings reference. |
+| `trials.lua` | The module core, contains all logic. |
+| `+system.def` | Engine-native motif defaults — only sections the engine's own motif struct understands: the select-screen title and `[Trials Pause Menu]`. |
+| `system.def` | Trials Mode UI configuration — every trials-specific setting. This is where you will configure Trials Mode to look a certain way. |
 | `config.ini` | The module's own configuration: the state file to inject, where to read defaults from, and the `[Options]` block holding Player Preferences. |
 | `trials.zss` | The state file that keeps a Trials match a practice session — no KO, life and power recovery, no round or fight announcements, dummy behaviour, and the repositioning of the pair. |
-| `trials.sff` | The module's default artwork for the Step display, so a stock screenpack gets a readable mode with no art of its own. Generated by `tools/make-trials-sff.py`. |
-| `fight.luascript` | The match launcher for Trials matches, so that `Config.TrainingStage` is honoured. **The extension is deliberate** — a file named `.lua` here would be `require`d at boot and launch a match with no context. |
+| `trials.sff` | The module's sprite file. You can use this file as a template for your screenpack. |
+| `glyphs.sff` | (Optional) Trials Mode can use a standalone glyphs file. If not specified or provided, Trials Mode will use the screenpack's glyphs. |
+| `fight.luascript` | The match launcher for Trials matches, so that `Config.TrainingStage` is honoured. The extension is deliberate — a file named `.lua` here would be `require`d at boot and launch a match with no context. |
 
-The two `system.def` files must stay separate. The engine parses `+system.def` against
-its motif struct and warns about every key it cannot assign, so a trials-specific key
-placed there produces console noise on every boot. See `docs/adr/0001`.
+## Upgrading from Versions Prior to 1.0
 
-## Upgrading from v0.99.x
+One breaking change: `[Trials Info]` is now `[Trials Pause Menu]`. 
+If your screenpack defines `[Trials Info]`, rename the section — the body is unchanged. 
+The engine turns any m`system.def` section matching `*pause*menu*` into a pause menu and resolves which one to open from the game mode's name, so the old name cannot be registered as one. The module still reads `[Trials Info]` and folds it into the pause menu, warning once on the console; that alias goes away in a later release.
 
-**One breaking change: `[Trials Info]` is now `[Trials Pause Menu]`.** If your screenpack
-defines `[Trials Info]`, rename the section — the body is unchanged. The engine turns any
-`system.def` section matching `*pause*menu*` into a pause menu and resolves which one to
-open from the game mode's name, so the old name cannot be registered as one. The module
-still reads `[Trials Info]` and folds it into the pause menu, warning once on the
-console; that alias goes away in a later release.
+- **Trial Definitions are unchanged.** Every existing `trials.def` still runs, key for key — the format did not change. 
+  The section below documents it, with new notes on [hit count](#hit-count) and on projectile Steps.
+- **Screenpack Trials Config sections still resolve.** 
+  Authors were always documented to write dotted keys (`trialsteps.vertical.bg.anim`), and the new parser splits dotted keys into nested tables. 
+  Section names are matched case- and whitespace-insensitively, so `[Trials Mode]` resolves the same as it always did.
+- **`trialtitle.<layout>.*` is read again**, for both Layouts, key for key. 
+  One change: the pre-refactor module declared `text.text` and then drew the bare Trial name, ignoring the format. 
+  It is applied now — `%i` is the Trial's number and `%s` its name — so a screenpack carrying `"Trial: %s"` reads `Trial: <name>` where it used to read `<name>`. 
+  Write `"%s"` alone for the old wording. 
+  The three layers also draw in the order `bg`, words, `front`, where the pre-refactor module drew the words first and both animations over them.
 
-Everything else keeps working:
-
-- **Trial Definitions are unchanged.** Every existing `trials.def` still runs, key for
-  key — the format did not change. The section below documents it, with new notes on
-  [hit count](#hit-count) and on projectile Steps.
-- **Screenpack Trials Config sections still resolve.** Authors were always documented to
-  write dotted keys (`trialsteps.vertical.bg.anim`), and the new parser splits dotted
-  keys into nested tables. Section names are matched case- and whitespace-insensitively,
-  so `[Trials Mode]` resolves the same as it always did.
-- **`trialtitle.<layout>.*` is read again**, for both Layouts, key for key. One change:
-  the pre-refactor module declared `text.text` and then drew the bare Trial name,
-  ignoring the format. It is applied now — `%i` is the Trial's number and `%s` its name —
-  so a screenpack carrying `"Trial: %s"` reads `Trial: <name>` where it used to read
-  `<name>`. Write `"%s"` alone for the old wording. The three layers also draw in the
-  order `bg`, words, `front`, where the pre-refactor module drew the words first and both
-  animations over them.
-
-A handful of keys were retired, and a screenpack that still sets them is simply ignored:
+### Retired Keys
 
 | Retired | Now |
 | --- | --- |
@@ -106,109 +77,16 @@ Warning: Failed to assign key [trials mode.<key>]: field 'trials_mode' not found
 This is cosmetic. The module reads those sections itself, and your overrides still apply.
 It is outside a pure-Lua module's control.
 
-## Configuration
-
-### The three layers
-
-Trials Config resolves from three layers, each overriding the one before it:
-
-1. `external/mods/trials/system.def` — the module's defaults.
-2. `external/mods/trials/config.ini` — Player Preferences.
-3. The screenpack's `system.def` — **wins.**
-
-So a stock screenpack gets a working mode drawn with the module's own art, and a
-screenpack that wants trials to match its look defines the same `[Trials Mode]` section
-it always did, setting only the keys it cares about.
-
-### The settings reference is the module's `system.def`
-
-Rather than repeat several hundred keys here, the shipped
-`external/mods/trials/system.def` is the reference: every key is present, with a comment
-explaining what it does and what happens if it is left out. Copy the keys you want to
-change into your own screenpack's `[Trials Mode]` section. The file is grouped as:
-
-| Group | Keys |
-| --- | --- |
-| Menu and no-data | `menu.itemname.trials`, `nodata.text` |
-| Select screen | `selscreenpalfx.*` — the palette effect on characters with no Trial Definition |
-| Shared | `trials.localcoord` — the coordinate space every trials element falls back to |
-| Trial counter | `trialcounter.*` |
-| Step block | `trialsteps.<layout>.*` — origin, spacing, padding, window, and the `.withtextbox` variants |
-| Step status | `upcomingstep.<layout>.text.*`, and the same for `currentstep` and `completedstep` |
-| Step backgrounds | `trialsteps.<layout>.bg.*`, `<status>step.<layout>.bg.*`, plus `.head`/`.tail` in the horizontal Layout |
-| Step block overlay | `trialsteps.<layout>.bg.overlay.*` |
-| Command Glyphs | `glyphs.<layout>.*`, and `<status>step.<layout>.glyphs.palfx.*` |
-| Textbox | `textbox.*` — title, body, background, front, portrait |
-| Timers | `totaltrialtimer.*`, `currenttrialtimer.*` |
-| Success and All-Clear | `success.*`, `allclear.*` |
-| Repositioning | `fadein.*`, `fadeout.*`, `trialresetenabled`, `trialresetkeys`, `trialresetreminder.*` |
-
-`<layout>` is `vertical` or `horizontal`, and both are configured independently — the
-player chooses between them at runtime.
-
-A screenpack may also define `[TrialsBgDef]` (with `[TrialsBg …]` element sections) to
-give the mode its own backdrop, and `[TrialsPauseBgDef]` for the pause menu's. Leave them
-out and the screenpack's own backgrounds are used.
-
-### Authored config versus Player Preferences
-
-Everything above is **authored config**: a screenpack sets it, and a player never
-touches it.
-
-**Player Preferences** are the opposite — they belong to the player, and live in
-`external/mods/trials/config.ini` under `[Options]`. A screenpack cannot set them,
-because a value the player owns cannot also be authored.
-
-| Preference | Values | Changed from |
-| --- | --- | --- |
-| `Trials.Advancement` | `autoadvance`, `repeat` | Pause menu |
-| `Trials.Layout` | `vertical`, `horizontal` | Pause menu |
-| `Trials.ResetOnSuccess` | `true`, `false` | Pause menu |
-| `Trials.Textboxes` | `show`, `hide` | Pause menu |
-| `Trials.TotalTimer` | `true`, `false` | The file |
-| `Trials.TrialTimer` | `true`, `false` | The file |
-
-The four with a pause-menu item are written back the moment the player changes them, so
-they survive a restart. The two timers have no menu item and are edited in the file.
-
-`config.ini` is rewritten whole every time a preference changes, which keeps every value
-in it and none of the comments. The copy in this repository is the documented one.
-
-### Two ways to spell a language
-
-The two kinds of file use opposite conventions, and they are not interchangeable.
-
-A **Trials Config** section in a `system.def` takes a language **section prefix**, which
-is the engine's own convention for motif sections:
-
-```
-[ES.Trials Mode]
-trialcounter.text = "Prueba %i de %s"
-```
-
-A **Trial Definition** takes a language **key suffix**:
-
-```
-trial.textbox.es = Este es un cuadro de texto en español.
-trialstep.1.text.es = Rodillazo + patada extra
-```
-
-Both are intended. The two files are read by different parsers: `system.def` sections
-follow the engine, while a Trial Definition is parsed key by key inside the module.
-Resolution is the same either way — the selected language, then `en`, then the
-unsuffixed or unprefixed form.
-
 ## Creating a Character's Trial Definition
 
-Trials are authored per character, in a file in the character's own folder. This file is
-conventionally called `trials.def`, but the name is yours to choose. A character can have
-as many Trials as you like, presented in the order the file declares them.
+Trials are authored per character, in a file in the character's own folder. 
+This file is conventionally called `trials.def`, but the name is yours to choose. 
+A character can have as many Trials as you like, presented in the order the file declares them.
 
-Here is a sample `trials.def` for kfmZ:
+You should consult [this repo](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files) for sample trials definition files.
+Here is an excerpt from the sample trial file provided for KFM:
 
 ```
-; KFMZ TRIALS LIST ---------------------------
-
 [TrialDef, KFM's First Trial]
 
 trial.dummymode = stand
@@ -224,7 +102,6 @@ trial.dummybuttonjam = none
 trialstep.1.text = Strong Kung Fu Palm
 trialstep.1.glyphs = _QDF^Y
 trialstep.1.stateno = 1010
-
 ; trialstep.1.animno =
 ; trialstep.1.projid =
 ; trialstep.1.hitcount =
@@ -234,110 +111,17 @@ trialstep.1.stateno = 1010
 ; trialstep.1.isproj =
 ; trialstep.1.validforvarvalpairs =
 ; trialstep.1.validfortickcount =
-
-;---------------------------------------------
-
-[TrialDef, Kung Fu Throw]
-trialstep.1.text = Kung Fu Throw
-trialstep.1.glyphs = [_B/_F]_+^Y
-trialstep.1.stateno = 810
-trialstep.1.isthrow = true
-
-;---------------------------------------------
-
-[TrialDef, Kung Fu Taunt]
-trial.textbox.en = This is an English textbox!
-trial.textbox.es = Este es un cuadro de texto en español.
-
-trialstep.1.text.en = Kung Fu Taunt
-trialstep.1.text.es = Kung Fu Pulla
-trialstep.1.glyphs = ^S
-trialstep.1.stateno = 195
-trialstep.1.hitcount = 0
-
-;---------------------------------------------
-
-[TrialDef, Standing Punch Chain]
-trialstep.1.text = Standing Light Punch
-trialstep.1.glyphs = ^X
-trialstep.1.stateno = 200
-
-trialstep.2.text = Standing Strong Punch
-trialstep.2.glyphs = ^Y
-trialstep.2.stateno = 210
-
-;---------------------------------------------
-
-[TrialDef, Condensed Standing Punch Chain]
-; The same Trial as the one above, with its two Steps condensed into one.
-
-trialstep.1.text = Standing Light to Strong Punch Chain
-trialstep.1.glyphs = ^X_-^Y
-trialstep.1.stateno = 200, 210
-trialstep.1.hitcount = 1, 1
-
-;---------------------------------------------
-
-[TrialDef, KFM Kung Fu Palm]
-; Either state passes this Step.
-
-trialstep.1.text = Kung Fu Palm
-trialstep.1.glyphs = _QDF^P
-trialstep.1.stateno = 1000|1010
-
-;---------------------------------------------
-
-[TrialDef, Kung Fu Juggle Combo]
-; The dummy starts in the right corner, with the player a medium gap away.
-trial.dummypos = right-corner
-
-trialstep.1.text = Kung Fu Knee and Extra Kick
-trialstep.1.glyphs = _F_F_+^K_.^K
-trialstep.1.stateno = 1060, 1055
-
-trialstep.2.text = Crouching Jab
-trialstep.2.glyphs = _D_+^X
-trialstep.2.stateno = 400
-
-trialstep.3.text = Weak Kung Fu Palm
-trialstep.3.glyphs = _QCF_+^X
-trialstep.3.stateno = 1000
-
-;---------------------------------------------
-
-[TrialDef, Kung Fu Super Cancel]
-trialstep.1.text = Jumping Strong Kick
-trialstep.1.glyphs = _AIR^B
-trialstep.1.stateno = 640
-
-trialstep.2.text = Standing Light Kick
-trialstep.2.glyphs = ^A
-trialstep.2.stateno = 230
-
-trialstep.3.text = Standing Strong Kick
-trialstep.3.glyphs = ^B
-trialstep.3.stateno = 240
-
-trialstep.4.text = Fast Kung Fu Zankou
-trialstep.4.glyphs = _QDF^A^B
-trialstep.4.stateno = 1420
-
-trialstep.5.text = Triple Kung Fu Palm
-trialstep.5.glyphs = _QDF_QDF^P
-trialstep.5.stateno = 3000
-trialstep.5.hitcount = 3
 ```
-
-### Trial parameters
 
 Each `[TrialDef, <title>]` section is one Trial. `[TrialDef]` is mandatory; the title
 after the comma is optional.
 
-**A title is a label, not an identity.** Two `[TrialDef]` sections may carry the *same*
-title and they remain two separate Trials, with their own Steps and settings, offered in
-the order the file declares them. That is how a character with modes or grooves spells
-one combo once per mode, with `trial.showforvarvalpairs` deciding which of them the
-player is shown.
+Trial parameters are split into two categories - parameters that inform general attributes of that trial, and per-step definitions.
+
+### General Trial Parameters
+
+All of these parameters are optionally defined.
+If undefined, the default value is selected.
 
 | Key | Values | Default |
 | --- | --- | --- |
@@ -351,48 +135,29 @@ player is shown.
 | `trial.showforvarvalpairs` | Comma-separated var/value pairs | Always shown |
 | `trial.textbox` | String, multilingual | No Textbox |
 
-Life recovery holds the dummy at `trial.dummylife` rather than refilling it to maximum,
-so a Trial that needs a specific life state gets one. `trial.playerlife` is the same for
-the player, and is what desperation-move Trials want.
+#### About `trial.dummypos` and `trial.playerpos`
+The two position keys are read separately, and the five words split into two kinds:
 
-**Positions.** The two position keys are read separately, and the five words split into
-two kinds:
+- `left-corner` and `right-corner` are **places**, and belong to the character whose key named them. Only one character can stand in a corner — a Trial naming two keeps the dummy's and warns about the other.
+- `close`, `medium` and `far` are **distances**, describing the gap between the two characters rather than either one's position. 
+  Either key may name one and it means the same thing. 
+  Two different distances keep the dummy's and warn about the other.
 
-- `left-corner` and `right-corner` are **places**, and belong to the character whose key
-  named them. Only one character can stand in a corner — a Trial naming two keeps the
-  dummy's and warns about the other.
-- `close`, `medium` and `far` are **distances**, describing the gap between the two
-  characters rather than either one's position. Either key may name one and it means the
-  same thing. Two different distances keep the dummy's and warn about the other.
+So `trial.dummypos = left-corner` puts the dummy in the left corner with the player a medium gap away, and adding `trial.playerpos = far` widens that gap without moving anyone
+out of the corner. 
+A distance on its own, with no corner named, starts the pair that far apart around centre stage.
 
-So `trial.dummypos = left-corner` puts the dummy in the left corner with the player a
-medium gap away, and adding `trial.playerpos = far` widens that gap without moving anyone
-out of the corner. A distance on its own, with no corner named, starts the pair that far
-apart around centre stage.
+Positions and life totals are applied when the Trial starts, and re-applied when the player moves to another Trial or the round restarts. 
+A Trial that names none of them gets the stage's own start positions and full life, never the previous Trial's. Mid-Trial, the player can put both characters back where the Trial wants them with the `trialresetkeys` combination.
 
-Positions and life totals are applied when the Trial starts, and re-applied when the
-player moves to another Trial or the round restarts. A Trial that names none of them gets
-the stage's own start positions and full life, never the previous Trial's. Mid-Trial, the
-player can put both characters back where the Trial wants them with the `trialresetkeys`
-combination.
+#### About `trial.showforvarvalpairs`
 
-**`trial.showforvarvalpairs`** takes comma-separated integers in pairs, and the Trial is
-offered only when *all* of them hold. It is how a Trial is scoped to one groove or mode.
-The pairs are for the character, never for a helper, and a variable can name several
-acceptable values with `|` — `trial.showforvarvalpairs = 12, 0|2|4` tests `var(12)`
-against 0, 2 and 4.
+**`trial.showforvarvalpairs`** takes comma-separated integers in pairs, and the Trial is offered only when *all* of them hold. 
+It is how a Trial is scoped to one groove or mode.
+The pairs are for the character, never for a helper, and a variable can name several acceptable values with `|` — `trial.showforvarvalpairs = 12, 0|2|4` tests `var(12)` against 0, 2 and 4.
+The cvsryu [sample trials definition file](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files) provides a great example of how `trial.showforvarvalparis` can be used to maximum effect.
 
-A Trial that is not shown is not offered at all: not counted by the Trial Counter, not
-reached by advancement, and not part of All-Clear — exactly as if the character did not
-ship it. A character whose every Trial is gated out shows the same no-data message as one
-shipping no Trial Definition at all.
-
-The pairs are read **once per round**, on the first frame after the round state resets. A
-character whose mode variable changes mid-round keeps the Trials it started the round
-with; restarting the round picks up the new mode. This is why a Trial the player is
-part-way through can never disappear underneath them.
-
-### Step parameters
+### Trial Step Parameters
 
 Steps are numbered: `trialstep.X.<key>`, where X starts at 1.
 
@@ -411,10 +176,20 @@ Steps are numbered: `trialstep.X.<key>`, where X starts at 1.
 | `trialstep.X.validforvarvalpairs` | Comma-separated var/value pairs | Not checked |
 | `trialstep.X.validfortickcount` | Integer | Not set |
 
-`stateno` and `animno` are the state and animation of the **main character or of a
-helper** — never of a projectile. A Step declaring no glyphs draws as text alone, with no
-gap reserved for them, and a token the screenpack has no glyph for is skipped rather than
-drawn.
+`stateno` and `animno` are the state and animation of the character or of a
+helper — never of a projectile. 
+A Step declaring no glyphs draws as text alone, with no gap reserved for them, and a token the glyph set has no sprite for is skipped rather than drawn.
+
+### Where the glyphs come from
+
+By default Trials Mode uses the screenpack's glyphs.
+The module can also draw them out of its own file. 
+Drop a `glyphs.sff` into the module folder beside `trials.sff` and the module uses that artwork instead; remove it and the screenpack's glyphs come back. 
+Nothing else changes — the glyph vocabulary is still the
+screenpack's, so `_QDF`, `^P` and the rest keep meaning what they always meant. 
+Only the artwork those tokens resolve to swaps.
+A `glyphs.sff` follows the same sprite numbering wherever it came from, so an ordinary one drops straight in. 
+Any token whose sprite your file happens to lack is skipped and reported once at load, the same as a token the screenpack has no sprite for.
 
 `validforvarvalpairs` is the sister of `showforvarvalpairs`, applied to a Step rather
 than a Trial: useful when a Step should only clear while the character is in a custom

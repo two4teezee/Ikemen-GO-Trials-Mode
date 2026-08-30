@@ -195,7 +195,27 @@ local function applyAliases(section, src, layerLabel)
 	end
 end
 
-local defaultsPath = (trials.ini.Files or {}).defaults or (trials.dir .. 'system.def')
+-- The module's own four files. Every one falls back to a sibling of config.ini, which is
+-- what makes the copy-a-folder install work with no [Files] section at all.
+local files = trials.ini.Files or {}
+local defaultsPath = files.defaults or (trials.dir .. 'system.def')
+local artPath = files.spr or (trials.dir .. 'trials.sff')
+-- Left nil where nothing names it: a glyphs.sff is optional, and moduleGlyphs has to tell
+-- "nobody asked for one" from "the one asked for is missing".
+local glyphsPath = files.glyphs
+
+-- system.def and trials.sff are a pair — an `anim = N` is read out of the def and drawn
+-- out of the sff — but they are configured separately, so one can be moved without the
+-- other. That draws the new file's actions from the old file's artwork, silently.
+local function movedFrom(key, sibling)
+	return files[key] ~= nil and normalizePath(files[key]) ~= normalizePath(trials.dir .. sibling)
+end
+if movedFrom('defaults', 'system.def') ~= movedFrom('spr', 'trials.sff') then
+	print('Trials: [Files] defaults and [Files] spr are a pair — an anim = N is read out ' ..
+		'of the def and drawn out of the sff. One has been pointed somewhere new and the ' ..
+		'other has not, so actions will be read from one file and drawn from another\'s ' ..
+		'artwork. Move both, or neither.')
+end
 
 local layers = {}
 local function addLayer(name, path, required)
@@ -444,7 +464,10 @@ local moduleArtTried, moduleArtSff = false, nil
 local function moduleSff()
 	if not moduleArtTried then
 		moduleArtTried = true
-		local path = trials.dir .. 'trials.sff'
+		-- Searched for like any other configured path; where the search comes up empty the
+		-- literal path is handed to sffNew anyway, so the error names what the author wrote.
+		local resolved = normalizePath(artPath)
+		local path = resolved ~= '' and resolved or artPath
 		local ok, sff = pcall(sffNew, path)
 		if ok then
 			moduleArtSff = sff
@@ -455,6 +478,44 @@ local function moduleSff()
 		end
 	end
 	return moduleArtSff
+end
+
+-- The module can important its own Glyphs.sff, or fall back to the screenpack's Glyphs.
+local moduleGlyphsTried, moduleGlyphsSff = false, nil
+-- The path moduleGlyphs settled on, for the messages that name it: with [Files] glyphs in
+-- play it is not necessarily the sibling any more.
+local moduleGlyphsPath = nil
+local function moduleGlyphs()
+	if not moduleGlyphsTried then
+		moduleGlyphsTried = true
+		local named = glyphsPath ~= nil and glyphsPath ~= ''
+		local path = named and glyphsPath or (trials.dir .. 'glyphs.sff')
+		if named then
+			-- Naming a file is a deliberate request, so it is searched for like any other
+			-- configured path and a miss is worth saying out loud.
+			local resolved = normalizePath(path)
+			if resolved == '' then
+				print('Trials: [Files] glyphs = ' .. path .. ' was not found. ' ..
+					'Falling back to the screenpack\'s Glyphs.')
+				return nil
+			end
+			path = resolved
+		elseif not main.f_fileExists(path) then
+			-- The unnamed sibling is optional, so its absence is silent. It is checked at
+			-- its exact path rather than searched for because searchFile also looks in
+			-- data/, where the engine's own stock glyphs.sff lives — finding that one
+			-- would read as the module shipping a set it does not.
+			return nil
+		end
+		local ok, sff = pcall(sffNew, path)
+		if ok then
+			moduleGlyphsSff, moduleGlyphsPath = sff, path
+		else
+			print('Trials: ' .. path .. ' is there but did not load (' ..
+				tostring(sff) .. '). Falling back to the screenpack\'s Glyphs.')
+		end
+	end
+	return moduleGlyphsSff
 end
 
 local actionCache = {}
@@ -823,6 +884,7 @@ local function applyStepWindow(block, withTextbox)
 end
 
 local glyphsWarned = false
+local glyphSet, glyphSff, glyphsAreOurs
 
 -- The Anim one Glyph draws with, built and cached per token, Step Status and Layout.
 local function glyphAnim(block, status, token)
@@ -832,13 +894,13 @@ local function glyphAnim(block, status, token)
 	if cached ~= nil then
 		return cached ~= false and cached or nil
 	end
-	local g = type(motif.glyphs) == 'table' and motif.glyphs[token] or nil
+	local g = glyphSet()[token]
 	if g == nil or type(g.Spr) ~= 'table' or type(g.Size) ~= 'table'
 		or (tonumber(g.Size[2]) or 0) <= 0 then
 		cache[token] = false
 		return nil
 	end
-	local a = animNew(motif.GlyphsSff, g.Spr[1] .. ',' .. g.Spr[2] .. ', 0,0, -1')
+	local a = animNew(glyphSff(), g.Spr[1] .. ',' .. g.Spr[2] .. ', 0,0, -1')
 	animSetLocalcoord(a, gl.localcoord[1], gl.localcoord[2])
 	animSetLayerno(a, gl.layerno)
 	animSetWindow(a, block.activeWindow[1], block.activeWindow[2],
@@ -870,8 +932,10 @@ local function prepareGlyphs(steps)
 	end
 	if asked > 0 and built == 0 and not glyphsWarned then
 		glyphsWarned = true
-		print('Trials: this screenpack has no Glyph sprites for any token these Trials ' ..
-			'use — check [Files] glyphs. Steps still draw their text.')
+		print('Trials: ' .. (glyphsAreOurs()
+			and tostring(moduleGlyphsPath) .. ' has no Glyph sprites for any token these Trials use.'
+			or 'this screenpack has no Glyph sprites for any token these Trials use — ' ..
+				'check [Files] glyphs.') .. ' Steps still draw their text.')
 	end
 end
 
@@ -1605,6 +1669,82 @@ end
 end
 
 --;===========================================================
+--; GLYPH SOURCE
+--;===========================================================
+local function remapToModuleSff(sff)
+	local out, missing = {}, 0
+	for token, g in pairs(motif.glyphs) do
+		if type(g) == 'table' and type(g.Spr) ~= 'table' then
+			missing = missing + 1
+		elseif type(g) == 'table' then
+			-- animUpdate first, so the Anim is sitting on its one frame when the sprite
+			-- is read back off it.
+			local ok, info = pcall(function()
+				local a = animNew(sff, g.Spr[1] .. ',' .. g.Spr[2] .. ', 0,0, -1')
+				animUpdate(a)
+				return animGetSpriteInfo(a)
+			end)
+			if not ok or type(info) ~= 'table' or type(info.Size) ~= 'table'
+				or (tonumber(info.Size[2]) or 0) <= 0 then
+				-- The screenpack names this token but our glyphs.sff has no such sprite.
+				-- Dropped rather than carried as a token that can never draw, so that
+				-- readGlyphs reports it as unknown like any other.
+				missing = missing + 1
+			else
+				out[token] = {
+					Spr = {g.Spr[1], g.Spr[2]},
+					Size = {tonumber(info.Size[1]) or 0, tonumber(info.Size[2]) or 0},
+				}
+			end
+		end
+	end
+	return out, missing
+end
+
+local glyphSource = nil
+local function resolveGlyphSource()
+	if glyphSource ~= nil then
+		return glyphSource
+	end
+	local screenpack = {
+		sff = motif.GlyphsSff,
+		set = type(motif.glyphs) == 'table' and motif.glyphs or {},
+		ours = false,
+	}
+	local sff = moduleGlyphs()
+	if sff == nil or type(motif.glyphs) ~= 'table' then
+		glyphSource = screenpack
+		return glyphSource
+	end
+	local set, missing = remapToModuleSff(sff)
+	if next(set) == nil then
+		print('Trials: ' .. tostring(moduleGlyphsPath) .. ' loaded, but it has no sprite for ' ..
+			'any Glyph this screenpack names. Falling back to the screenpack\'s Glyphs.')
+		glyphSource = screenpack
+		return glyphSource
+	end
+	if missing > 0 then
+		print('Trials: ' .. missing .. ' of the Glyphs this screenpack names have no ' ..
+			'sprite in ' .. tostring(moduleGlyphsPath) .. '. Those are skipped; the rest ' ..
+			'draw.')
+	end
+	glyphSource = {sff = sff, set = set, ours = true}
+	return glyphSource
+end
+
+glyphSet = function()
+	return resolveGlyphSource().set
+end
+
+glyphSff = function()
+	return resolveGlyphSource().sff
+end
+
+-- Which of the two the Glyphs on screen are coming from, for the warnings that name it.
+glyphsAreOurs = function()
+	return resolveGlyphSource().ours
+end
+--;===========================================================
 --; TRIAL DEFINITION DISCOVERY
 --;===========================================================
 
@@ -1864,12 +2004,10 @@ local function glyphTokenLengths()
 	end
 	glyphLengths = {}
 	local seen = {}
-	if type(motif.glyphs) == 'table' then
-		for token in pairs(motif.glyphs) do
-			if type(token) == 'string' and #token > 0 and not seen[#token] then
-				seen[#token] = true
-				glyphLengths[#glyphLengths + 1] = #token
-			end
+	for token in pairs(glyphSet()) do
+		if type(token) == 'string' and #token > 0 and not seen[#token] then
+			seen[#token] = true
+			glyphLengths[#glyphLengths + 1] = #token
 		end
 	end
 	table.sort(glyphLengths, function(a, b) return a > b end)
@@ -1880,13 +2018,14 @@ end
 local function readGlyphs(raw, unknown)
 	local text = strValue(raw, '')
 	local lengths = glyphTokenLengths()
+	local set = glyphSet()
 	local out = {}
 	local i = 1
 	while i <= #text do
 		local matched = nil
 		for _, n in ipairs(lengths) do
 			local token = text:sub(i, i + n - 1)
-			if #token == n and motif.glyphs[token] ~= nil then
+			if #token == n and set[token] ~= nil then
 				matched = token
 				break
 			end
@@ -3247,7 +3386,7 @@ end
 
 -- How big one Glyph draws beside a given Step Status.
 local function glyphScale(block, e, token)
-	local g = type(motif.glyphs) == 'table' and motif.glyphs[token] or nil
+	local g = glyphSet()[token]
 	if g == nil or type(g.Size) ~= 'table' then
 		return nil
 	end
@@ -3272,6 +3411,7 @@ local function glyphRun(block, status, glyphs, fn)
 	local gl = block.glyphs
 	local e = block.text[status]
 	local cache = gl.anims[status]
+	local set = glyphSet()
 	local x = 0
 	local drawn = 0
 	for _, token in ipairs(glyphs) do
@@ -3281,7 +3421,7 @@ local function glyphRun(block, status, glyphs, fn)
 			if fn ~= nil then
 				fn(a, x, sx, sy)
 			end
-			x = x + (tonumber(motif.glyphs[token].Size[1]) or 0) * sx + gl.spacing[1]
+			x = x + (tonumber(set[token].Size[1]) or 0) * sx + gl.spacing[1]
 			drawn = drawn + 1
 		end
 	end
