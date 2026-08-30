@@ -1,0 +1,38 @@
+[Title Info]
+; You need to add itemname to the main system.def so menu items keep the expected order. Grouping rules:
+; https://github.com/ikemen-engine/Ikemen-GO/wiki/Screenpack-features#menus
+;menu.itemname.bossrush = "BOSS RUSH"
+
+[Select Info]
+
+title.trials.text = "Trials Mode"
+
+[Trials Pause Menu]
+
+menu.valuename.trialadvancement_autoadvance = Auto-Advance
+menu.valuename.trialadvancement_repeat = Repeat
+menu.valuename.trialresetonsuccess_enabled = Yes
+menu.valuename.trialresetonsuccess_disabled = No
+menu.valuename.trialslayout_vertical = Vertical
+menu.valuename.trialslayout_horizontal = Horizontal
+menu.valuename.trialstextboxes_show = Show
+menu.valuename.trialstextboxes_hide = Hide
+
+menu.itemname.back = Continue
+menu.itemname.trialslist = Trials List
+menu.itemname.trialslist.back = Back
+; menu.itemname.nexttrial = Next Trial ; Feature is supported.
+; menu.itemname.previoustrial = Previous Trial ; Feature is supported.
+menu.itemname.trialadvancement = Advancement
+menu.itemname.trialresetonsuccess = Reset on Success
+menu.itemname.trialslayout = Layout
+menu.itemname.trialstextboxes = Textboxes
+menu.itemname.menuinput = Button Config
+menu.itemname.menuinput.keyboard = Key Config
+menu.itemname.menuinput.gamepad = Joystick Config
+menu.itemname.menuinput.spacer = -
+menu.itemname.menuinput.inputdefault = Default
+menu.itemname.menuinput.back = Back
+menu.itemname.commandlist = Command List
+menu.itemname.characterchange = Character Change
+menu.itemname.exit = Exit

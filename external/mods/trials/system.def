@@ -1,16 +1,21 @@
 [Trials Mode]
 ; NOTE: Values provided in this sample meant for `mugen1` screenpack, 1280x720 resolution.
 ; Please modify the values in this file to properly configure the trials mode for your screenpack.
-;
+
+; TITLE SCREEN --------------------------------------------------------------------
+; The title of the mode, shown on the title screen and in the menu. 
+; Screenpacks can override this with their own title, but if they don't, this is what is shown.
+; -----------------------------------------------------------------------------------
+menu.itemname.trials = "TRIALS MODE"
+
 ; GENERAL TRIALS OPTIONS ---------------------------------------------------
 ; trialsresetonsuccess: set to "true" to reset character positions after each trial success (except the final one). Can optionally specify fadein and fadeout parameters - will default to shown values.
 ; trialslayout: "vertical" or "horizontal" are the only valid values. Defaults to "vertical" if not specified. Affects scrolling logic, as stated above, also enables dynamic step width. Can be changed via the pause menu if screenpack author leaves the option in.
+; trialslocalcoord: localcoord for the trials mode. Defaults to 320,240 if not specified.
 ; --------------------------------------------------------------------------
 trialsresetonsuccess = false
 trialslayout = vertical
-
 trialslocalcoord = 1280,720
-
 
 ; SELSCREENPALFX -----------------------------------------------------------
 ; Sets specified palfx color to character portraits WITHOUT trials files in the trials select screen. See definition for palfx for different fields and options.

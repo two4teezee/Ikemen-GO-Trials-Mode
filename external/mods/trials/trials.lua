@@ -1,23 +1,24 @@
 -- IKEMEN GO TRIALS MODE EXTERNAL MODULE --------------------------------
 -- Last tested on Ikemen GO v1.0.0-nightly-20260124 - Jan 24, 2026
 -- Module developed by two4teezee
+-- With contributions from:
+---- Cable Dorado 2 (CD2)
 -------------------------------------------------------------------------
 -- This external module implements TRIALS game mode. Features full 
--- screenpack integration via config.def and system.def, ability to create
--- and read trials definitions for any character, and a trials menu option. 
--- Documentation on how to create trials definitions and use trials mode is 
--- in README.md.
+-- screenpack integration via config.ini, +system.def and system.def, 
+-- providing the ability to create and read trials definitions for any 
+-- character, and a trials menu option. Documentation on how to create 
+-- trials definitions and use trials mode is in README.md.
 -------------------------------------------------------------------------
---Set Common Module Files Path & Auto-Load ZSS Module
---Author: Cable Dorado 2 (CD2)
+
 local modulePath = "external/mods/trials/"
 
 local zss = gameOption("Common.States")
 table.insert(zss, modulePath.."trials.zss")
 modifyGameOption("Common.States", zss)
-------------------------------------------------------------------------------------
+
 trials = {}
-trials = loadIni('external/mods/trials/config.def')
+trials = loadIni('external/mods/trials/system.def')
 trials.sprData = {}
 
 motif = loadMotif()
@@ -300,27 +301,27 @@ function text:update(t,lcd)
 		end
 		if not ok then return end
 		if fontChange and self.font ~= -1 then
-		if main.font_def == nil then
-			main.font_def = fontGetDef(main.font[self.font])
+			if main.font_def == nil then
+				main.font_def = fontGetDef(main.font[self.font])
+			end
+			if main.font_def[font] == nil then
+				main.font_def = fontGetDef(main.font[self.font])
+			end
+			textImgSetFont(self.ti, main.font[self.font])
 		end
-		if main.font_def[font] == nil then
-			main.font_def = fontGetDef(main.font[self.font])
-		end
-		textImgSetFont(self.ti, main.font[self.font])
-	end
 	
-			if lcd ==  1 then
-	if trials.lcdx00 ~= 1 then
-	if trials.mtlcx > trials.stlcx then
-	if self.x >= trials.mtlcx * 0.5 then
-	self.x = self.x - trials.stlcx * 0.5
-	end
-	if self.x < trials.mtlcx * 0.5 then
-	self.x = self.x + trials.stlcx * 0.5
-	end
-	end
-	end
-	end
+		if lcd ==  1 then
+			if trials.lcdx00 ~= 1 then
+				if trials.mtlcx > trials.stlcx then
+					if self.x >= trials.mtlcx * 0.5 then
+						self.x = self.x - trials.stlcx * 0.5
+					end
+					if self.x < trials.mtlcx * 0.5 then
+						self.x = self.x + trials.stlcx * 0.5
+					end
+				end
+			end
+		end
 		textImgSetLocalcoord(self.ti, trials.mtlcx, trials.mtlcy)
 		textImgSetBank(self.ti, self.bank)
 		textImgSetAlign(self.ti, self.align)
@@ -347,7 +348,7 @@ function text:draw()
 	if self.font == -1 then return end
 		textImgSetLocalcoord(self.ti, trials.mtlcx, trials.mtlcy)
 		textImgSetText(self.ti, self.text)
-	textImgDraw(self.ti)
+		textImgDraw(self.ti)
 	return self
 end
 
@@ -355,7 +356,7 @@ end
 function f_createTextImg(t, prefix, mod)
 	local mod = mod or {}
 	if t[prefix] == nil then
-	t[prefix] = {}
+		t[prefix] = {}
 	end
 	if t[prefix]['font'] == nil then t[prefix]['font'] = {-1} end
 	if t[prefix]['offset'] == nil then t[prefix]['offset'] = {0,0} end
@@ -366,12 +367,12 @@ function f_createTextImg(t, prefix, mod)
 		scaleX = (t[prefix]['scale'][1] or 1) * (mod.scaleX or 1)
 		scaleY = (t[prefix]['scale'][2] or 1) * (mod.scaleY or 1)
 	if t[prefix]['pos'] ~= nil then
-	x = t[prefix]['pos'][1]
-	y = t[prefix]['pos'][2]
+		x = t[prefix]['pos'][1]
+		y = t[prefix]['pos'][2]
 	end
 	if t[prefix]['scale'] ~= nil then
-	scaleX = t[prefix]['scale'][1]
-	scaleY = t[prefix]['scale'][2]
+		scaleX = t[prefix]['scale'][1]
+		scaleY = t[prefix]['scale'][2]
 	end
 	
 	return text:create({
