@@ -14,12 +14,31 @@
 local modulePath = "external/mods/trials/"
 
 local zss = gameOption("Common.States")
-table.insert(zss, modulePath.."trials.zss")
+table.insert(zss, modulePath .. "trials.zss")
 modifyGameOption("Common.States", zss)
 
 trials = {}
-trials = loadIni('external/mods/trials/system.def')
+trials = loadIni(modulePath .. 'system.def')
 trials.sprData = {}
+
+trials.configPath = modulePath .. 'config.ini'
+local cfgok, cfg = pcall(loadIni, trials.configPath, false)
+if not cfgok then
+	print('Trials: cannot read ' .. trials.configPath .. '. Player preferences will not persist.')
+end
+trials.ini = cfgok and cfg or {}
+if type(trials.ini.Options) ~= 'table' then trials.ini.Options = {} end
+if type(trials.ini.Options.Trials) ~= 'table' then trials.ini.Options.Trials = {} end
+local opts = trials.ini.Options.Trials
+
+-- Persists one Player Preference the moment it changes.
+function trials.f_savePref(key, value)
+	opts[key] = value
+	local ok, err = pcall(saveIni, trials.ini, trials.configPath)
+	if not ok then
+		print('Trials: could not write ' .. trials.configPath .. ' (' .. tostring(err) .. ').')
+	end
+end
 
 motif = loadMotif()
 motif.files.spr_data = sffNew(motif.files.spr)
@@ -169,6 +188,20 @@ local function f_buildCompatConfig(root)
 end
 
 trials.trials_mode = f_buildCompatConfig(trials.trials_mode or {})
+
+-- config.ini's [Options] override the screenpack's authored defaults, but only where the
+-- player has actually set one. 
+if opts.Layout ~= nil then
+	trials.trials_mode.trialslayout = tostring(opts.Layout):lower()
+end
+if opts.ResetOnSuccess ~= nil then
+	trials.trials_mode.trialsresetonsuccess = opts.ResetOnSuccess ~= false
+end
+if opts.Textboxes ~= nil then
+	local visible = tostring(opts.Textboxes):lower() ~= 'hide'
+	trials.trials_mode.textbox_visible = visible
+	trials.trials_mode.textbox.visible = visible
+end
 
 --split strings
 local function f_strsplit(delimiter, text)
@@ -668,13 +701,13 @@ function trials.f_inittrialsData()
 		},
 		draw = {},
 		displaytimers = {
-			totaltimer = true,
-			trialtimer = true,
+			totaltimer = opts.TotalTimer ~= false,
+			trialtimer = opts.TrialTimer ~= false,
 		},
 	}
 
-	-- Initialize trialadvancement based on last-left menu value
-	if menu.t_valuename.trialadvancement[menu.trialadvancement or 1].itemname == "Auto-Advance" then
+	-- Initialize trialadvancement from the player's saved preference
+	if tostring(opts.Advancement or 'autoadvance'):lower() == 'autoadvance' then
 		trials.data.trialadvancement = true
 	else
 		trials.data.trialadvancement = false
@@ -873,10 +906,47 @@ function trials.f_trialsBuilder()
 		end
 	end
 
-	-- Build list out all of the available trials for Pause menu
-	menu.t_valuename.trialslist = {}
-	for i = 1, #trials.data.trial, 1 do
-		table.insert(menu.t_valuename.trialslist, {itemname = tostring(i), displayname = trials.data.trial[i].name})
+	-- Build list out all of the available trials for Pause menu.
+	local sub = nil
+	local stack = {type(menu) == 'table' and menu.trials or nil}
+	while #stack > 0 do
+		local node = table.remove(stack)
+		if type(node) == 'table' and type(node.submenu) == 'table' then
+			if type(node.submenu.trialslist) == 'table' and type(node.submenu.trialslist.items) == 'table' then
+				sub = node.submenu.trialslist
+				break
+			end
+			for _, child in pairs(node.submenu) do
+				stack[#stack + 1] = child
+			end
+		end
+	end
+	trials.listNode = sub
+	if sub ~= nil then
+		if trials.listTail == nil then
+			trials.listTail = sub.items
+		end
+		local items = {}
+		for i = 1, #trials.data.trial, 1 do
+			items[i] = {
+				itemname = 'trialsentry',
+				paramname = 'trialsentry',
+				displayname = trials.data.trial[i].name,
+				vardisplay = '',
+				selected = i == trials.data.currenttrial,
+				trial = i,
+			}
+		end
+		for _, item in ipairs(trials.listTail) do
+			items[#items + 1] = item
+		end
+		if #items == 0 then
+			items[1] = {itemname = 'back', paramname = 'back', displayname = 'Back', vardisplay = '', selected = false}
+		end
+		sub.items = items
+		sub.item = 1
+		sub.cursorPosY = 1
+		sub.moveTxt = 0
 	end
 
 	trials.data.trialsInitialized = true
@@ -985,17 +1055,12 @@ function trials.f_trialsDrawer()
 		trials.data.active = true
 	end
 
-	-- Check if game is paused - if so, set pause menu loop
-	-- if paused() and not trials.data.trialsPaused then
-	-- trials.data.trialsPaused = true
-	-- menu.currentMenu = {menu.trials.loop, menu.trials.loop}
-	-- elseif not paused() then
-	-- trials.data.trialsPaused = false
-	-- end
-
+	-- Track whether the pause menu is open. The fade and reposition machinery is held while it
+	-- is, because Common.Lua runs every tick regardless - without this a Trial picked from the
+	-- list starts its fade behind the menu it was picked from, then waits on the menu's own
+	-- closing fade, which is the same fade object.
 	if paused() and not trials.data.trialsPaused then
 		trials.data.trialsPaused = true
-		-- menu.currentMenu = {menu.trials.loop, menu.trials.loop}
 	elseif not paused() then
 		trials.data.trialsPaused = false
 	end
@@ -1041,7 +1106,7 @@ function trials.f_trialsDrawer()
 			end
 
 			-- Draw trial reset reminder if enabled
-			if menu.trialreset == 1 then
+			if trials.trials_mode.trialreset.enabled then
 				trials.draw.trialreset_text:update({text = trials.trials_mode.trialreset.text.text})
 				trials.draw.trialreset_text:draw()
 			end
@@ -1718,6 +1783,8 @@ function trials.f_trialsChecker(CheckIt)
 	--If the trial was completed successfully, draw the trials success
 	if trials.draw.success > 0 then
 		trials.f_trialsSuccess('success', ct)
+	elseif trials.data.trialsPaused then
+		-- Hold the fade and reposition where they are while the pause menu is open.
 	elseif trials.draw.fade > 0 and (trials.trials_mode.trialsresetonsuccess == true or trials.draw.fadetriggered) and CheckIt == 'root' then
 		if trials.draw.fade < trials.draw.fadein + trials.draw.fadeout then
 			trials.f_trialsFade()
@@ -1729,7 +1796,7 @@ function trials.f_trialsChecker(CheckIt)
 			end
 			player(1)
 		end
-	elseif f_checkKeyCombo(trials.trials_mode.trialreset_buttonpress) and trials.draw.fade == 0 and menu.trialreset == 1 and trials.data.currenttrial <= #trials.data.trial then
+	elseif f_checkKeyCombo(trials.trials_mode.trialreset_buttonpress) and trials.draw.fade == 0 and trials.trials_mode.trialreset.enabled and trials.data.currenttrial <= #trials.data.trial then
 		trials.draw.fadein = trials.trials_mode.fadein_time
 		trials.draw.fadeout = trials.trials_mode.fadeout_time
 		trials.draw.fade = trials.draw.fadein + trials.draw.fadeout
@@ -1998,6 +2065,13 @@ if trials.mtlcy ~= trials.stlcy then
 					
 	if roundStart() then
 		trials.data = nil
+		-- Empty the trials list back to the items the section declared.
+		if trials.listNode ~= nil and trials.listTail ~= nil then
+			trials.listNode.items = trials.listTail
+			trials.listNode.item = 1
+			trials.listNode.cursorPosY = 1
+			trials.listNode.moveTxt = 0
+		end
 		trials.p1selref = nil
 		Temporarysan9000 = nil
 		trialsanim = nil
@@ -2052,9 +2126,6 @@ end
 --; menu.lua
 --;===========================================================
 
-		if menu.trialslist == nil then
-menu.trialslist = 1
-			end
 		if menu.trialadvancement == nil then
 menu.trialadvancement = 1
 			end
@@ -2067,71 +2138,70 @@ menu.trialslayout = 1
 		if menu.trialstextboxes == nil then
 menu.trialstextboxes = 1
 			end
-		if menu.trialreset == nil then
-menu.trialreset = 1
-			end
-		motif.option_info.menu.valuename.trialslist_1 = "Select Trial"
-menu.t_valuename.trialslist = {
- 	{itemname = "Select Trial", displayname = motif.option_info.menu.valuename.trialslist_1}
-}
-		motif.option_info.menu.valuename.trialadvancement_1 = "Auto-Advance"
-		motif.option_info.menu.valuename.trialadvancement_2 = "Repeat"
+
+local pmv = motif.pause_menu ~= nil and motif.pause_menu.trials_pause_menu ~= nil
+	and motif.pause_menu.trials_pause_menu.menu.valuename or {}
+
 menu.t_valuename.trialadvancement = {
-	{itemname = "Auto-Advance", displayname = motif.option_info.menu.valuename.trialadvancement_1},
-	{itemname = "Repeat", displayname = motif.option_info.menu.valuename.trialadvancement_2}
+	{itemname = "autoadvance", displayname = pmv.trialadvancement_autoadvance or "Auto-Advance"},
+	{itemname = "repeat", displayname = pmv.trialadvancement_repeat or "Repeat"}
 }
-		motif.option_info.menu.valuename.trialresetonsuccess_1 = "Yes"
-		motif.option_info.menu.valuename.trialresetonsuccess_2 = "No"
 menu.t_valuename.trialresetonsuccess = {
-	{itemname = "Yes", displayname = motif.option_info.menu.valuename.trialresetonsuccess_1},
-	{itemname = "No", displayname = motif.option_info.menu.valuename.trialresetonsuccess_2}
+	{itemname = "enabled", displayname = pmv.trialresetonsuccess_enabled or "Yes"},
+	{itemname = "disabled", displayname = pmv.trialresetonsuccess_disabled or "No"}
 }
-		motif.option_info.menu.valuename.trialslayout_1 = "Vertical"
-		motif.option_info.menu.valuename.trialslayout_2 = "Horizontal"
 menu.t_valuename.trialslayout = {
-	{itemname = "Vertical", displayname = motif.option_info.menu.valuename.trialslayout_1},
-	{itemname = "Horizontal", displayname = motif.option_info.menu.valuename.trialslayout_2}
+	{itemname = "vertical", displayname = pmv.trialslayout_vertical or "Vertical"},
+	{itemname = "horizontal", displayname = pmv.trialslayout_horizontal or "Horizontal"}
 }
-		motif.option_info.menu.valuename.trialstextboxes_1 = "Show"
-		motif.option_info.menu.valuename.trialstextboxes_2 = "Hide"
 menu.t_valuename.trialstextboxes = {
-	{itemname = "Show", displayname = motif.option_info.menu.valuename.trialstextboxes_1},
-	{itemname = "Hide", displayname = motif.option_info.menu.valuename.trialstextboxes_2}
+	{itemname = "show", displayname = pmv.trialstextboxes_show or "Show"},
+	{itemname = "hide", displayname = pmv.trialstextboxes_hide or "Hide"}
 }
-		motif.option_info.menu.valuename.trialreset_1 = "enabled"
-		motif.option_info.menu.valuename.trialreset_2 = "disabled"
-menu.t_valuename.trialreset = {
-	{itemname = "enabled", displayname = motif.option_info.menu.valuename.trialreset_1},
-	{itemname = "disabled", displayname = motif.option_info.menu.valuename.trialreset_2}
-}
-menu.t_itemname['trialslist'] = function(t, item, cursorPosY, movTeTxt, sec)
-	if menu.f_valueChanged(t.items[item], sec) then
-		trials.data.currenttrialstep = 1
-		trials.data.currenttrialmicrostep = 1
-		trials.data.currenttrial = menu.trialslist
-		trials.data.trial[trials.data.currenttrial].complete = false
-		trials.data.trial[trials.data.currenttrial].active = false
-		trials.data.active = false
-		trials.data.displaytimers.totaltimer = false
-		trials.data.trial[trials.data.currenttrial].starttick = roundTime()
+-- Moves the match to one Trial and leaves the pause menu, the way its own Continue does.
+-- Latching the fade is what actually repositions the pair: f_trialsFade sets
+-- _iksys_trialsReposition, f_trialsDummySetup only sets life and dummy mode.
+function trials.f_gotoTrial(index)
+	if trials.data == nil or not trials.data.trialsInitialized or trials.data.trial[index] == nil then
+		return true
+	end
+	trials.data.currenttrialstep = 1
+	trials.data.currenttrialmicrostep = 1
+	trials.data.comboCounter = 0
+	trials.data.currenttrial = index
+	trials.data.trial[index].complete = false
+	trials.data.trial[index].active = false
+	trials.data.active = false
+	trials.data.displaytimers.totaltimer = false
+	trials.data.trial[index].starttick = roundTime()
+	trials.draw.fadein = trials.trials_mode.fadein_time
+	trials.draw.fadeout = trials.trials_mode.fadeout_time
+	trials.draw.fade = trials.draw.fadein + trials.draw.fadeout
+	trials.draw.fadetriggered = true
+	menu.currentMenu[1] = menu.currentMenu[2]
+	menu.pauseExitDelay = gameOption('Input.PauseExitDelay')
+	return false
+end
+
+menu.t_itemname['trialsentry'] = function(t, item, cursorPosY, moveTxt, sec)
+	if getInput(-1, sec.menu.done.key) then
+		sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
+		return trials.f_gotoTrial(t.items[item].trial)
 	end
 	return true
 end
-menu.t_vardisplay['trialslist'] = function()
-	return menu.t_valuename.trialslist[menu.trialslist or 1].displayname
-end
-
-options.t_vardisplay['trialslist'] = function()
-	return menu.t_valuename.trialslist[menu.trialslist or 1].displayname
-end
 
 menu.t_itemname['trialadvancement'] = function(t, item, cursorPosY, moveTxt, sec)
-	if menu.f_valueChanged(t.items[item], sec) then
-		if menu.t_valuename.trialadvancement[menu.trialadvancement or 1].itemname == "Auto-Advance" then
-			trials.data.trialadvancement = true
-		else
-			trials.data.trialadvancement = false
+	local changed, value = menu.f_valueChanged(t.items[item], sec)
+	if changed then
+		if trials.data ~= nil then
+			if value == "autoadvance" then
+				trials.data.trialadvancement = true
+			else
+				trials.data.trialadvancement = false
+			end
 		end
+		trials.f_savePref('Advancement', value)
 	end
 	return true
 end
@@ -2144,12 +2214,14 @@ options.t_vardisplay['trialadvancement'] = function()
 end
 
 menu.t_itemname['trialslayout'] = function(t, item, cursorPosY, moveTxt, sec)
-	if menu.f_valueChanged(t.items[item], sec) then
-		if menu.t_valuename.trialslayout[menu.trialslayout or 1].itemname == "Vertical" then
+	local changed, value = menu.f_valueChanged(t.items[item], sec)
+	if changed then
+		if value == "vertical" then
 			trials.trials_mode.trialslayout = "vertical"
 		else
 			trials.trials_mode.trialslayout = "horizontal"
 		end
+		trials.f_savePref('Layout', trials.trials_mode.trialslayout)
 	end
 	return true
 end
@@ -2162,12 +2234,14 @@ options.t_vardisplay['trialslayout'] = function()
 end
 
 menu.t_itemname['trialresetonsuccess'] = function(t, item, cursorPosY, moveTxt, sec)
-	if menu.f_valueChanged(t.items[item], sec) then
-		if menu.t_valuename.trialresetonsuccess[menu.trialresetonsuccess or 1].itemname == "Yes" then
+	local changed, value = menu.f_valueChanged(t.items[item], sec)
+	if changed then
+		if value == "enabled" then
 			trials.trials_mode.trialsresetonsuccess = true
 		else
 			trials.trials_mode.trialsresetonsuccess = false
 		end
+		trials.f_savePref('ResetOnSuccess', trials.trials_mode.trialsresetonsuccess)
 	end
 	return true
 end
@@ -2180,12 +2254,15 @@ options.t_vardisplay['trialresetonsuccess'] = function()
 end
 
 menu.t_itemname['trialstextboxes'] = function(t, item, cursorPosY, moveTxt, sec)
-	if menu.f_valueChanged(t.items[item], sec) then
-		if menu.t_valuename.trialstextboxes[menu.trialstextboxes or 1].itemname == "Show" then
+	local changed, value = menu.f_valueChanged(t.items[item], sec)
+	if changed then
+		if value == "show" then
 			trials.trials_mode.textbox_visible = true
 		else
 			trials.trials_mode.textbox_visible = false
 		end
+		trials.trials_mode.textbox.visible = trials.trials_mode.textbox_visible
+		trials.f_savePref('Textboxes', value)
 	end
 	return true
 end
@@ -2197,85 +2274,57 @@ options.t_vardisplay['trialstextboxes'] = function()
 	return menu.t_valuename.trialstextboxes[menu.trialstextboxes or 1].displayname
 end
 
-menu.t_itemname['trialreset'] = function(t, item, cursorPosY, moveTxt, sec)
-	if menu.f_valueChanged(t.items[item], sec) then
-		if menu.t_valuename.trialreset[menu.trialreset or 1].itemname == "enabled" then
-			trials.trials_mode.trialreset_enabled = true
-		else
-			trials.trials_mode.trialreset_enabled = false
-		end
-	end
-	return true
-end
-menu.t_vardisplay['trialreset'] = function()
-	return menu.t_valuename.trialreset[menu.trialreset or 1].displayname
-end
-
-options.t_vardisplay['trialreset'] = function()
-	return menu.t_valuename.trialreset[menu.trialreset or 1].displayname
-end
 
 menu.t_itemname['nexttrial'] = function(t, item, cursorPosY, moveTxt, sec)
-	if getInput(-1, motif.option_info.menu.done.key) then
-		trials.data.currenttrialstep = 1
-		trials.data.currenttrialmicrostep = 1
-		sndPlay(motif.Snd, motif.option_info.cursor.move.snd[1], motif.option_info.cursor.move.snd[2])
-		trials.data.currenttrial = math.min(trials.data.currenttrial + 1, #trials.data.trial)
-		trials.data.trial[trials.data.currenttrial].complete = false
-		trials.data.trial[trials.data.currenttrial].active = false
-		trials.data.active = false
-		trials.data.displaytimers.totaltimer = false
-		trials.data.trial[trials.data.currenttrial].starttick = roundTime()
+	if getInput(-1, sec.menu.done.key) and trials.data ~= nil and #trials.data.trial > 0 then
+		sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
+		return trials.f_gotoTrial(trials.data.currenttrial % #trials.data.trial + 1)
 	end
 	return true
 end
 
 menu.t_itemname['previoustrial'] = function(t, item, cursorPosY, moveTxt, sec)
-	if getInput(-1, motif.option_info.menu.done.key) then
-		trials.data.currenttrialstep = 1
-		trials.data.currenttrialmicrostep = 1
-		sndPlay(motif.Snd, motif.option_info.cursor.move.snd[1], motif.option_info.cursor.move.snd[2])
-		trials.data.currenttrial = math.max(trials.data.currenttrial - 1, 1)
-		trials.data.trial[trials.data.currenttrial].complete = false
-		trials.data.trial[trials.data.currenttrial].active = false
-		trials.data.active = false
-		trials.data.displaytimers.totaltimer = false
-		trials.data.trial[trials.data.currenttrial].starttick = roundTime()
+	if getInput(-1, sec.menu.done.key) and trials.data ~= nil and #trials.data.trial > 0 then
+		sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
+		return trials.f_gotoTrial((trials.data.currenttrial - 2) % #trials.data.trial + 1)
 	end
 	return true
 end
 
+local t_trialsPrefs = {
+	trialadvancement = true,
+	trialresetonsuccess = true,
+	trialslayout = true,
+	trialstextboxes = true,
+}
+
 function menu.f_trialsReset()
-	for k, _ in pairs(menu.t_valuename) do
-		menu[k] = 1
-	end
-	if trials.data.trialadvancement == true then
+	if tostring(opts.Advancement or 'autoadvance'):lower() == 'autoadvance' then
 		menu.trialadvancement = 1
 	else
 		menu.trialadvancement = 2
 	end
-	if trials.trials_mode.trialsresetonsuccess == true then
+	if (opts.ResetOnSuccess ~= nil and opts.ResetOnSuccess ~= false)
+		or (opts.ResetOnSuccess == nil and trials.trials_mode.trialsresetonsuccess == true) then
 		menu.trialresetonsuccess = 1
 	else
 		menu.trialresetonsuccess = 2
 	end
-	if trials.trials_mode.trialslayout == "vertical" then
+	if tostring(opts.Layout or trials.trials_mode.trialslayout):lower() == "vertical" then
 		menu.trialslayout = 1
 	else
 		menu.trialslayout = 2
 	end
-	if trials.trials_mode.textbox_visible == true then
+	if (opts.Textboxes ~= nil and tostring(opts.Textboxes):lower() ~= "hide")
+		or (opts.Textboxes == nil and trials.trials_mode.textbox_visible == true) then
 		menu.trialstextboxes = 1
 	else
 		menu.trialstextboxes = 2
 	end
-	if trials.trials_mode.trialreset_enabled == true then
-		menu.trialreset = 1
-	else
-		menu.trialreset = 2
-	end
 	for _, v in ipairs(menu.t_vardisplayPointers) do
-		v.vardisplay = menu.f_vardisplay(v.itemname)
+		if t_trialsPrefs[v.itemname] then
+			v.vardisplay = menu.f_vardisplay(v.itemname)
+		end
 	end
 	player(2)
 	setAILevel(0)
@@ -2561,3 +2610,13 @@ end
 --;===========================================================
 hook.add("loop#trials", "f_trialsMode", trials.f_trialsMode)
 hook.add("start.f_selectScreen", "f_trialsSelectScreen", trials.f_trialsSelectScreen)
+
+hook.add("menu.menu.loop", "f_trialsListMark", function()
+	local sub = trials.listNode
+	if not gameMode('trials') or trials.data == nil or type(sub) ~= 'table' then
+		return
+	end
+	for _, item in ipairs(sub.items) do
+		item.selected = item.trial == trials.data.currenttrial
+	end
+end)
