@@ -23,7 +23,6 @@ modifyGameOption("Common.States", zss)
 
 trials = {}
 trials = loadIni(modulePath .. 'system.def')
-trials.sprData = {}
 
 trials.configPath = modulePath .. 'config.ini'
 
@@ -46,8 +45,34 @@ function trials.f_savePref(key, value)
 end
 
 motif = loadMotif()
-motif.files.spr_data = sffNew(motif.files.spr)
-motif.files.snd_data = sndNew(motif.files.snd)
+
+-- The engine already loaded and owns the screenpack's sprites, sounds and fonts; reach for
+-- those rather than re-parsing the files (motif.Sff / motif.Snd / motif.Fnt, see src/motif.go).
+local sff = motif.Sff
+local snd = motif.Snd
+
+-- Optional module-owned assets. trials.sff holds the sprites this mode ships with; trials.air
+-- holds the actions an "anim = N" in system.def refers to. Both fall back to the screenpack's,
+-- so a screenpack that defines everything itself keeps working untouched.
+local trialsSff = sff
+if main.f_fileExists(modulePath .. 'trials.sff') then
+	trialsSff = sffNew(searchFile(modulePath .. 'trials.sff', {motif.def, '', 'data/'}))
+end
+local trialsAnims = {}
+do
+	local path, animSff = modulePath .. 'trials.air', trialsSff
+	if main.f_fileExists(path) then
+		path = searchFile(path, {motif.def, '', 'data/'})
+	else
+		path, animSff = motif.def, sff
+	end
+	local ok, t = pcall(loadAnimTable, path, animSff)
+	if ok and type(t) == 'table' then
+		trialsAnims = t
+	else
+		print('Trials: could not read actions from ' .. tostring(path) .. '; "anim" parameters will be ignored.')
+	end
+end
 
 --;===========================================================
 --; Local Functions
@@ -131,22 +156,6 @@ local function f_str2number(str)
     return array
 end
 
-local function f_deepCopy(orig)
-	-- copies a table into a local instance that can be modified freely
-    local orig_type = type(orig)
-    local copy
-    if orig_type == 'table' then
-        copy = {}
-        for orig_key, orig_value in next, orig, nil do
-            copy[f_deepCopy(orig_key)] = f_deepCopy(orig_value)
-        end
-        setmetatable(copy, f_deepCopy(getmetatable(orig)))
-    else -- number, string, boolean, etc
-        copy = orig
-    end
-    return copy
-end
-
 local function f_collectCompatKeys(node, path, aliases)
 	if type(node) ~= 'table' then
 		if #path > 0 then
@@ -218,31 +227,22 @@ trials.mtlcx = tonumber(trials.trials_mode.trialslocalcoord[1]) or 320
 trials.mtlcy = tonumber(trials.trials_mode.trialslocalcoord[2]) or 240
 trials.trials_mode.trialslocalcoord = {trials.mtlcx, trials.mtlcy}
 
---split strings
-local function f_strsplit(delimiter, text)
-	local list = {}
-	local pos = 1
-	if string.find('', delimiter, 1) then
-		if string.len(text) == 0 then
-			table.insert(list, text)
-		else
-			for i = 1, string.len(text) do
-				table.insert(list, string.sub(text, i, i))
-			end
-		end
-	else
-		while true do
-			local first, last = string.find(text, delimiter, pos)
-			if first then
-				table.insert(list, string.sub(text, pos, first - 1))
-				pos = last + 1
-			else
-				table.insert(list, string.sub(text, pos))
-				break
-			end
-		end
+-- Font metrics, memoized per font index. motif.Fnt is the engine's loaded font map.
+local t_fontDef = {}
+local function f_fontDef(n)
+	if n == nil or n == -1 then return nil end
+	if t_fontDef[n] == nil and motif.Fnt[n] ~= nil then
+		t_fontDef[n] = fontGetDef(motif.Fnt[n])
 	end
-	return list
+	return t_fontDef[n]
+end
+
+-- Legacy MUGEN nudge: left-aligned text sits one pixel further right than the engine places it.
+local function f_alignOffset(align)
+	if align == -1 then
+		return 1
+	end
+	return 0
 end
 
 text = {}
@@ -288,50 +288,30 @@ function text:create(t)
 	t.window[4] = (t.window[4] * trials.lcdy00)
 	t.xshear = t.xshear or 0
 	t.angle = t.angle or 0
-	t.defsc = t.defsc or false
 		if t.ti == nil then
 	t.ti = textImgNew()
 		end
 	setmetatable(t, self)
 	self.__index = self
-	if t.font ~= -1 then
-		if main.font_def == nil then
-			main.font_def = fontGetDef(main.font[t.font])
-		end
-		if main.font_def[font] == nil then
-			main.font_def = fontGetDef(main.font[t.font])
-		end
-		textImgSetFont(t.ti, main.font[t.font])
+	if t.font ~= -1 and motif.Fnt[t.font] ~= nil then
+		textImgSetFont(t.ti, motif.Fnt[t.font])
 	end
+	-- Setter order follows the engine's own SetTextSprite (src/iniutils.go): localcoord first,
+	-- because it only stores a scale factor and does not re-derive values already committed.
 		textImgSetLocalcoord(t.ti, trials.mtlcx, trials.mtlcy)
 	textImgSetBank(t.ti, t.bank)
 	textImgSetAlign(t.ti, t.align)
 	textImgSetText(t.ti, t.text)
 	textImgSetColor(t.ti, t.r, t.g, t.b, t.a)
-	if t.defsc then disableLuaScale() end
 	textImgSetPos(t.ti, t.x + f_alignOffset(t.align), t.y)
 	textImgSetScale(t.ti, t.scaleX, t.scaleY)
 	textImgSetWindow(t.ti, t.window[1], t.window[2], t.window[3] - t.window[1], t.window[4] - t.window[2])
 	textImgSetXShear(t.ti, t.xshear)
 	textImgSetAngle(t.ti, t.angle)
-	if t.defsc then setLuaScale() end
 	return t
 end
 
 text.new = text.create
-
---align text
-function text:setAlign(align)
-	if align:lower() == "left" then
-		self.align = -1
-	elseif align:lower() == "center" or align:lower() == "middle" then
-		self.align = 0
-	elseif align:lower() == "right" then
-		self.align = 1
-	end
-	textImgSetAlign(self.ti,self.align)
-	return self
-end
 
 --update text
 function text:update(t,lcd)
@@ -348,16 +328,10 @@ function text:update(t,lcd)
 			end
 		end
 		if not ok then return end
-		if fontChange and self.font ~= -1 then
-			if main.font_def == nil then
-				main.font_def = fontGetDef(main.font[self.font])
-			end
-			if main.font_def[font] == nil then
-				main.font_def = fontGetDef(main.font[self.font])
-			end
-			textImgSetFont(self.ti, main.font[self.font])
+		if fontChange and self.font ~= -1 and motif.Fnt[self.font] ~= nil then
+			textImgSetFont(self.ti, motif.Fnt[self.font])
 		end
-	
+
 		if lcd ==  1 then
 			if trials.lcdx00 ~= 1 then
 				if trials.mtlcx > trials.stlcx then
@@ -375,13 +349,11 @@ function text:update(t,lcd)
 		textImgSetAlign(self.ti, self.align)
 		textImgSetText(self.ti, self.text)
 		textImgSetColor(self.ti, self.r, self.g, self.b, self.a)
-		--if self.defsc then disableLuaScale() end
 		textImgSetPos(self.ti, self.x + f_alignOffset(self.align), self.y)
 		textImgSetScale(self.ti, self.scaleX, self.scaleY)
 		textImgSetWindow(self.ti, self.window[1], self.window[2], self.window[3] - self.window[1], self.window[4] - self.window[2])
 		textImgSetXShear(self.ti, self.xshear)
 		textImgSetAngle(self.ti, self.angle)
-		--if self.defsc then setLuaScale() end
 	else
 		self.text = t
 		textImgSetLocalcoord(self.ti, trials.mtlcx, trials.mtlcy)
@@ -394,82 +366,36 @@ end
 --draw text
 function text:draw()
 	if self.font == -1 then return end
-		textImgSetLocalcoord(self.ti, trials.mtlcx, trials.mtlcy)
-		textImgSetText(self.ti, self.text)
 		textImgDraw(self.ti)
 	return self
 end
 
---create textImg based on usual motif parameters
-function f_createTextImg(t, prefix, mod)
-	local mod = mod or {}
-	if t[prefix] == nil then
-		t[prefix] = {}
-	end
-	if t[prefix]['font'] == nil then t[prefix]['font'] = {-1} end
-	if t[prefix]['offset'] == nil then t[prefix]['offset'] = {0,0} end
-	if t[prefix]['scale'] == nil then t[prefix]['scale'] = {1,1} end
-	
-		x =      (t[prefix]['offset'][1] or 0) + (mod.x or 0)
-		y =      (t[prefix]['offset'][2] or 0) + (mod.y or 0)
-		scaleX = (t[prefix]['scale'][1] or 1) * (mod.scaleX or 1)
-		scaleY = (t[prefix]['scale'][2] or 1) * (mod.scaleY or 1)
-	if t[prefix]['pos'] ~= nil then
-		x = t[prefix]['pos'][1]
-		y = t[prefix]['pos'][2]
-	end
-	if t[prefix]['scale'] ~= nil then
-		scaleX = t[prefix]['scale'][1]
-		scaleY = t[prefix]['scale'][2]
-	end
-	
+-- Builds a text object straight from a system.def node, e.g. f_newText(trials.trials_mode.success.text)
+-- for the "success.text.*" keys. Position comes from "pos" when the node has one, otherwise
+-- "offset"; callers that need a different origin reposition through :update afterwards.
+-- The node's "window" is deliberately not read: trials treats textbox.text.window as an offset
+-- pair (see f_trialsDrawer), not as a clipping window.
+function f_newText(node)
+	local node = type(node) == 'table' and node or {}
+	local font = type(node.font) == 'table' and node.font or {-1}
+	local offset = type(node.pos) == 'table' and node.pos or (type(node.offset) == 'table' and node.offset or {0, 0})
+	local scale = type(node.scale) == 'table' and node.scale or {1, 1}
 	return text:create({
-		font =   t[prefix]['font'][1],
-		bank =   t[prefix]['font'][2],
-		align =  t[prefix]['font'][3],
-		text =   t[prefix .. '.text'],
-		x =      x,
-		y =      y,
-		scaleX = scaleX,
-		scaleY = scaleY,
-		r =     t[prefix]['font'][4],
-		g =     t[prefix]['font'][5],
-		b =     t[prefix]['font'][6],
-		a =     t[prefix]['font'][7],
-		height =t[prefix]['font'][8],
-		xshear = t[prefix .. '.xshear'] or 0,
-		angle  = t[prefix .. '.angle'] or 0,
-		window = t[prefix .. '.window'],
-		defsc = mod.defsc or false,
+		font =   font[1],
+		bank =   font[2],
+		align =  font[3],
+		text =   node.text,
+		x =      offset[1] or 0,
+		y =      offset[2] or 0,
+		scaleX = scale[1] or 1,
+		scaleY = scale[2] or 1,
+		r =      font[4],
+		g =      font[5],
+		b =      font[6],
+		a =      font[7],
+		xshear = node.xshear or 0,
+		angle  = node.angle or 0,
 	})
-end
-
-
-function f_alignOffset(align)
-	if align == -1 then
-		return 1
-	end
-	return 0
-end
-
---creates sprite data out of table values
-local facing = ''
-local function f_getSprNode(t, path)
-	if type(t) ~= 'table' then
-		return nil
-	end
-	local node = t
-	local normalized = path:gsub('[_%.]$', ''):gsub('_', '.')
-	for part in normalized:gmatch('[^%.]+') do
-		if type(node) ~= 'table' then
-			return nil
-		end
-		node = node[part]
-	end
-	if type(node) ~= 'table' then
-		return nil
-	end
-	return node
 end
 
 -- Render layer for a motif element. The engine buckets Lua draw calls into a pre-pass plus
@@ -489,128 +415,49 @@ local function f_clampLayerno(...)
 	return 0
 end
 
-function f_loadSprData(t, v, sff)
-	local data = v.s .. 'data'
-	local sprData = sff or motif.files.spr_data
-	local node = f_getSprNode(t, v.s) or {}
+-- Builds an Anim from a system.def element node (the table holding offset/scale/spr/anim/
+-- facing/layerno) and returns it. Mirrors the engine's own SetAnim (src/iniutils.go):
+-- an "anim = N" resolves through the action table, otherwise "spr = group, index" becomes a
+-- single-frame anim, and an element with neither gets a blank one so the drawer can stay simple.
+function f_loadAnimData(node, x, y, sffOverride, animsOverride)
+	local node = type(node) == 'table' and node or {}
+	local sprData = sffOverride or trialsSff
+	local animData = animsOverride or trialsAnims
 	local offset = type(node.offset) == 'table' and node.offset or {0, 0}
 	local scale = type(node.scale) == 'table' and node.scale or {1.0, 1.0}
-	local animNo = node.anim
 	local spr = node.spr
-	local facingNo = node.facing
-	local layerNo = node.layerno
-	if v.prefix ~= nil then
-		data = v.s .. v.prefix .. 'data'
-		if type(node[v.prefix]) == 'table' then
-			node = node[v.prefix]
-			offset = type(node.offset) == 'table' and node.offset or offset
-			scale = type(node.scale) == 'table' and node.scale or scale
-			animNo = node.anim
-			spr = node.spr
-			facingNo = node.facing
-			layerNo = node.layerno
+	if type(spr) == 'string' then
+		if spr == '' then
+			spr = nil
+		else
+			spr = {tonumber(spr:match('^([0-9]+)')), 0}
+		end
+	elseif type(spr) == 'table' and #spr == 1 then
+		if type(spr[1]) == 'string' then
+			spr = {tonumber(spr[1]:match('^([0-9]+)')), 0}
+		else
+			spr = {spr[1], 0}
 		end
 	end
-	if facingNo == nil then facingNo = 1 end
-	layerNo = f_clampLayerno(layerNo, v.layerno)
-	local isAnim = false
-	if type(animNo) == 'number' and animNo ~= -1 and type(motif.anim) == 'table' and motif.anim[animNo] ~= nil then --create animation data
-		t[data] = f_animFromTable(
-			motif.anim[animNo],
-			sprData,
-			0,
-			0,
-			scale[1],
-			scale[2],
-			facingNo
-		)
-		isAnim = true
+	local a
+	if type(node.anim) == 'number' and node.anim >= 0 and animData[node.anim] ~= nil then
+		a = animNew(sprData, animData[node.anim])
+	elseif type(spr) == 'table' and #spr > 0 then
+		a = animNew(sprData, spr[1] .. ', ' .. spr[2] .. ', 0, 0, -1')
 	else
-		if type(spr) == 'string' then
-			if spr == '' then
-				spr = nil
-			else
-				spr = {tonumber(spr:match('^([0-9]+)')), 0}
-			end
-		end
-	end
-	if isAnim then
-		--nothing more to build, the anim data already exists
-	elseif type(spr) == 'table' and #spr > 0 then --create sprite data
-		if #spr == 1 then --fix values
-			if type(spr[1]) == 'string' then
-				spr = {tonumber(spr[1]:match('^([0-9]+)')), 0}
-			else
-				spr = {spr[1], 0}
-			end
-		end
-		if facingNo == -1 then facing = ', H' else facing = '' end
-		t[data] = animNew(sprData, spr[1] .. ', ' .. spr[2] .. ', 0, 0, -1' .. facing)
-	else --create dummy data
-		t[data] = animNew(sprData, '-1,0, 0,0, -1')
+		a = animNew(sprData, '-1,0, 0,0, -1')
 	end
 	-- Order matters: animSetLocalcoord only stores the scale factor, it does not re-derive
 	-- values that were already committed. Position, scale and window all have to be applied
 	-- *after* it or they stay in 320x240 space and the element renders unscaled.
-	animSetLocalcoord(t[data], trials.mtlcx, trials.mtlcy)
-	animSetPos(t[data], offset[1] + (v.x or 0), offset[2] + (v.y or 0))
-	animSetScale(t[data], scale[1], scale[2])
-	animSetWindow(t[data], 0, 0, trials.mtlcx, trials.mtlcy)
-	animSetLayerno(t[data], layerNo)
-	animUpdate(t[data])
-end
-
---generate anim from table
-local function f_animFromTable(t, sff, x, y, scaleX, scaleY, facing, infFrame, defsc)
-	local t = t or {}
-	local x = x or 0
-	local y = y or 0
-	local scaleX = scaleX or 1.0
-	local scaleY = scaleY or 1.0
-	local facing = facing or '0'
-	local infFrame = infFrame or 1
-	local facing_sav = ''
-	local animText = ''
-	local length = 0
-	for i = 1, #t do
-		local t_anim = {}
-		for j, c in ipairs(f_strsplit(',', t[i])) do --split using "," delimiter
-			table.insert(t_anim, c)
-		end
-		if #t_anim > 1 then
-			--required parameters
-			t_anim[3] = tonumber(t_anim[3]) + x
-			t_anim[4] = tonumber(t_anim[4]) + y
-			if tonumber(t_anim[5]) == -1 then
-				length = length + infFrame
-			else
-				length = length + tonumber(t_anim[5])
-			end
-			--optional parameters
-			if t_anim[6] ~= nil and not t_anim[6]:match(facing) then --flip parameter not negated by repeated flipping
-				if t_anim[6]:match('[Hh]') then t_anim[3] = t_anim[3] + 1 end --fix for wrong offset after flipping sprites
-				if t_anim[6]:match('[Vv]') then t_anim[4] = t_anim[4] + 1 end --fix for wrong offset after flipping sprites
-				t_anim[6] = facing .. t_anim[6]
-			end
-		end
-		for j = 1, #t_anim do
-			if j == 1 then
-				animText = animText .. t_anim[j]
-			else
-				animText = animText .. ', ' .. t_anim[j]
-			end
-		end
-		anim = anim .. '\n'
-	end
-	if defsc then disableLuaScale() end
-	if animText == '' then
-		animText = '-1,0, 0,0, -1'
-	end
-	local data = animNew(sff, animText)
-	animSetScale(data, scaleX, scaleY)
-	animUpdate(data)
-	if defsc then setLuaScale() end
-	return data, length
+	animSetLocalcoord(a, trials.mtlcx, trials.mtlcy)
+	animSetPos(a, offset[1] + (x or 0), offset[2] + (y or 0))
+	animSetScale(a, scale[1], scale[2])
+	animSetFacing(a, node.facing or 1)
+	animSetWindow(a, 0, 0, trials.mtlcx, trials.mtlcy)
+	animSetLayerno(a, f_clampLayerno(node.layerno))
+	animUpdate(a)
+	return a
 end
 
 --;===========================================================
@@ -648,57 +495,47 @@ end
 
 --trials spr/anim data
 local tr_pos = trials.trials_mode
-for _, v in ipairs({
-	{s = 'trialsteps_vertical_bg_',				x = tr_pos.trialsteps.vertical.pos[1] + tr_pos.trialsteps.vertical.bg.offset[1],		y = tr_pos.trialsteps.vertical.pos[2] + tr_pos.trialsteps.vertical.bg.offset[2],		},
-	{s = 'trialsteps_horizontal_bg_',			x = tr_pos.trialsteps.horizontal.pos[1] + tr_pos.trialsteps.horizontal.bg.offset[1],	y = tr_pos.trialsteps.horizontal.pos[2] + tr_pos.trialsteps.horizontal.bg.offset[2],	},
-	{s = 'success_bg_',    						x = tr_pos.success.pos[1] + tr_pos.success.bg.offset[1],								y = tr_pos.success.pos[2] + tr_pos.success.bg.offset[2],								},
-	{s = 'allclear_bg_',	   					x = tr_pos.allclear.pos[1] + tr_pos.allclear.bg.offset[1],								y = tr_pos.allclear.pos[2] + tr_pos.allclear.bg.offset[2],								},
-	{s = 'textbox_bg_',	   						x = tr_pos.textbox.pos[1] + tr_pos.textbox.bg.offset[1],								y = tr_pos.textbox.pos[2] + tr_pos.textbox.bg.offset[2],								},
-	{s = 'success_front_',  	  				x = tr_pos.success.pos[1] + tr_pos.success.front.offset[1],								y = tr_pos.success.pos[2] + tr_pos.success.front.offset[2],								},
-	{s = 'allclear_front_',   					x = tr_pos.allclear.pos[1] + tr_pos.allclear.front.offset[1],							y = tr_pos.allclear.pos[2] + tr_pos.allclear.front.offset[2],							},
-	{s = 'textbox_front_',	   					x = tr_pos.textbox.pos[1] + tr_pos.textbox.front.offset[1],								y = tr_pos.textbox.pos[2] + tr_pos.textbox.front.offset[2],								},
-	{s = 'upcomingstep_vertical_bg_',			x = 0,																					y = 0,																					},
-	{s = 'upcomingstep_vertical_bg_tail_',		x = 0,																					y = 0,																					},
-	{s = 'upcomingstep_vertical_bg_head_',		x = 0,																					y = 0,																					},
-	{s = 'currentstep_vertical_bg_',			x = 0,																					y = 0,																					},
-	{s = 'currentstep_vertical_bg_tail_',		x = 0,																					y = 0,																					},
-	{s = 'currentstep_vertical_bg_head_',		x = 0,																					y = 0,																					},
-	{s = 'completedstep_vertical_bg_',			x = 0,																					y = 0,																					},
-	{s = 'completedstep_vertical_bg_tail_',		x = 0,																					y = 0,																					},
-	{s = 'completedstep_vertical_bg_head_',		x = 0,																					y = 0,																					},
-    {s = 'upcomingstep_horizontal_bg_',			x = 0,																					y = 0,																					},
-	{s = 'upcomingstep_horizontal_bg_tail_',	x = 0,																					y = 0,																					},
-	{s = 'upcomingstep_horizontal_bg_head_',	x = 0,																					y = 0,																					},
-	{s = 'currentstep_horizontal_bg_',			x = 0,																					y = 0,																					},
-	{s = 'currentstep_horizontal_bg_tail_',		x = 0,																					y = 0,																					},
-	{s = 'currentstep_horizontal_bg_head_',		x = 0,																					y = 0,																					},
-	{s = 'completedstep_horizontal_bg_',		x = 0,																					y = 0,																					},
-	{s = 'completedstep_horizontal_bg_tail_',	x = 0,																					y = 0,																					},
-	{s = 'completedstep_horizontal_bg_head_',	x = 0,																					y = 0,																					},
-	{s = 'trialtitle_vertical_bg_',    			x = tr_pos.trialtitle.vertical.pos[1] + tr_pos.trialtitle.vertical.bg.offset[1],		y = tr_pos.trialtitle.vertical.pos[2] + tr_pos.trialtitle.vertical.bg.offset[2],		},
-	{s = 'trialtitle_vertical_front_',    		x = tr_pos.trialtitle.vertical.pos[1] + tr_pos.trialtitle.vertical.front.offset[1],		y = tr_pos.trialtitle.vertical.pos[2] + tr_pos.trialtitle.vertical.front.offset[2],		},
-    {s = 'trialtitle_horizontal_bg_',    		x = tr_pos.trialtitle.horizontal.pos[1] + tr_pos.trialtitle.horizontal.bg.offset[1],	y = tr_pos.trialtitle.horizontal.pos[2] + tr_pos.trialtitle.horizontal.bg.offset[2],	},
-	{s = 'trialtitle_horizontal_front_',    	x = tr_pos.trialtitle.horizontal.pos[1] + tr_pos.trialtitle.horizontal.front.offset[1],	y = tr_pos.trialtitle.horizontal.pos[2] + tr_pos.trialtitle.horizontal.front.offset[2],	},
-}) do
-	if main.f_fileExists('external/mods/trials/trials.sff') then
-		motif.files.data = sffNew(searchFile('external/mods/trials/trials.sff', {motif.fileDir, '', 'data/'}))
-	 	main.f_loadingRefresh()
-	 	f_loadSprData(trials.trials_mode, v, motif.files.data)
-	else
-		f_loadSprData(trials.trials_mode, v)
+
+-- Walks to a system.def node, creating empty tables for any level a screenpack left out, so
+-- every element the drawer reaches for ends up with at least a blank anim.
+local function f_node(t, ...)
+	local node = t
+	for i = 1, select('#', ...) do
+		local k = select(i, ...)
+		if type(node[k]) ~= 'table' then node[k] = {} end
+		node = node[k]
 	end
+	return node
 end
 
-if trials.trials_mode.textbox.portrait.source == "system" and trials.trials_mode.textbox.portrait.spr ~= nil then
-	f_loadSprData(trials.trials_mode, {s = 'textbox.portrait_', x = trials.trials_mode.textbox.pos[1] + trials.trials_mode.textbox.portrait.offset[1], y = trials.trials_mode.textbox.pos[2] + trials.trials_mode.textbox.portrait.offset[2]})
+-- Each element caches its Anim on its own config node as .AnimData, the same convention the
+-- engine uses for motif elements (and that textbox.overlay.RectData already follows here).
+-- x/y is the element's origin; f_loadAnimData adds the node's own offset on top of it.
+local t_elems = {
+	{n = f_node(tr_pos, 'trialsteps', 'vertical', 'bg'),   x = tr_pos.trialsteps.vertical.pos[1],   y = tr_pos.trialsteps.vertical.pos[2]},
+	{n = f_node(tr_pos, 'trialsteps', 'horizontal', 'bg'), x = tr_pos.trialsteps.horizontal.pos[1], y = tr_pos.trialsteps.horizontal.pos[2]},
+	{n = f_node(tr_pos, 'success', 'bg'),                  x = tr_pos.success.pos[1],               y = tr_pos.success.pos[2]},
+	{n = f_node(tr_pos, 'success', 'front'),               x = tr_pos.success.pos[1],               y = tr_pos.success.pos[2]},
+	{n = f_node(tr_pos, 'allclear', 'bg'),                 x = tr_pos.allclear.pos[1],              y = tr_pos.allclear.pos[2]},
+	{n = f_node(tr_pos, 'allclear', 'front'),              x = tr_pos.allclear.pos[1],              y = tr_pos.allclear.pos[2]},
+	{n = f_node(tr_pos, 'textbox', 'bg'),                  x = tr_pos.textbox.pos[1],               y = tr_pos.textbox.pos[2]},
+	{n = f_node(tr_pos, 'textbox', 'front'),               x = tr_pos.textbox.pos[1],               y = tr_pos.textbox.pos[2]},
+}
+for _, layout in ipairs({'vertical', 'horizontal'}) do
+	t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'trialtitle', layout, 'bg'),    x = tr_pos.trialtitle[layout].pos[1], y = tr_pos.trialtitle[layout].pos[2]}
+	t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'trialtitle', layout, 'front'), x = tr_pos.trialtitle[layout].pos[1], y = tr_pos.trialtitle[layout].pos[2]}
 end
-
--- fadein/fadeout anim data generation.
-if trials.trials_mode.fadein.anim ~= -1 then
-	f_loadSprData(trials.trials_mode, {s = 'fadein.'})
+-- Per-step backgrounds are placed by the draw loop, so they are built at the origin. Horizontal
+-- layouts additionally use a fixed-width head and tail either side of the stretched body.
+for _, sub in ipairs({'upcomingstep', 'currentstep', 'completedstep'}) do
+	t_elems[#t_elems + 1] = {n = f_node(tr_pos, sub, 'vertical', 'bg')}
+	t_elems[#t_elems + 1] = {n = f_node(tr_pos, sub, 'horizontal', 'bg')}
+	t_elems[#t_elems + 1] = {n = f_node(tr_pos, sub, 'horizontal', 'bg', 'tail')}
+	t_elems[#t_elems + 1] = {n = f_node(tr_pos, sub, 'horizontal', 'bg', 'head')}
 end
-if trials.trials_mode.fadeout.anim ~= -1 then
-	f_loadSprData(trials.trials_mode, {s = 'fadeout.'})
+for _, v in ipairs(t_elems) do
+	v.n.AnimData = f_loadAnimData(v.n, v.x, v.y)
+	main.f_loadingRefresh()
 end
 
 --;===========================================================
@@ -723,7 +560,7 @@ function trials.f_inittrialsData()
 		maxsteps = 0,
 		starttick = roundTime(),
 		elapsedtime = 0,
-		trial = f_deepCopy(start.f_getCharData(start.p[1].t_selected[1].ref).trialsdata),
+		trial = main.f_tableCopy(start.f_getCharData(start.p[1].t_selected[1].ref).trialsdata),
 		bgelemdata = {
 			vertical = {},
 			horizontal = {},
@@ -747,11 +584,12 @@ function trials.f_trialsBuilder()
 	--This function will initialize once to build all the trial tables based on the motif information and the trials information loaded when the char was selected
 	--Populate background elements information
 	for _, v in ipairs({'vertical','horizontal'}) do
-		for _, k in ipairs({'currentstep_','upcomingstep_','completedstep_'}) do
-			trials.data.bgelemdata[v][k .. 'bgsize'] = animGetSpriteInfo(trials.trials_mode[k .. v .. '_bg_data'])
+		for _, k in ipairs({'currentstep','upcomingstep','completedstep'}) do
+			local bg = trials.trials_mode[k][v].bg
+			trials.data.bgelemdata[v][k .. '_bgsize'] = animGetSpriteInfo(bg.AnimData)
 			if v == 'horizontal' then
-				trials.data.bgelemdata[v][k .. 'bgtailwidth'] = animGetSpriteInfo(trials.trials_mode[k .. v .. '_bg_tail_data'])
-				trials.data.bgelemdata[v][k .. 'bgheadwidth'] = animGetSpriteInfo(trials.trials_mode[k .. v .. '_bg_head_data'])
+				trials.data.bgelemdata[v][k .. '_bgtailwidth'] = animGetSpriteInfo(bg.tail.AnimData)
+				trials.data.bgelemdata[v][k .. '_bgheadwidth'] = animGetSpriteInfo(bg.head.AnimData)
 			end
 		end
 	end
@@ -844,12 +682,10 @@ function trials.f_trialsBuilder()
 				local alignOffset = 0
 				local align = 1
 				local width = 0
-				local font_def = 0
 				--Some fonts won't give us the data we need to scale glyphs from, but sometimes that doesn't matter anyway
-				if layout == "vertical" and trials.trials_mode.currentstep.vertical.text.font[7] == nil and trials.trials_mode.glyphs.vertical.scalewithtext == "true" then
-					font_def = main.font_def[trials.trials_mode.currentstep.vertical.text.font[1] .. trials.trials_mode.currentstep.vertical.text.font.height]
-				elseif layout == "vertical" and trials.trials_mode.glyphs.vertical.scalewithtext == "true" then
-					font_def = main.font_def[trials.trials_mode.currentstep.vertical.text.font[1] .. trials.trials_mode.currentstep.vertical.text.font[7]]
+				local font_def = nil
+				if layout == "vertical" and trials.trials_mode.glyphs.vertical.scalewithtext == "true" then
+					font_def = f_fontDef(trials.trials_mode.currentstep.vertical.text.font[1])
 				end
 				for m in pairs(trials.data.trial[i].trialstep[j].glyphline[layout].glyph) do
 					if motif.glyphs[trials.data.trial[i].trialstep[j].glyphline[layout].glyph[m]] ~= nil then
@@ -868,7 +704,7 @@ function trials.f_trialsBuilder()
 							alignOffset = alignOffset - motif.glyphs[trials.data.trial[i].trialstep[j].glyphline[layout].glyph[m]].Size[1] * scaleX
 						end
 						trials.data.trial[i].trialstep[j].glyphline[layout].alignOffset[m] = alignOffset
-						if layout == "vertical" and trials.trials_mode.glyphs.vertical.scalewithtext == "true" then
+						if font_def ~= nil then
 							scaleY = (font_def.Size[2] * trials.trials_mode.currentstep.vertical.text.scale[2] / motif.glyphs[trials.data.trial[i].trialstep[j].glyphline[layout].glyph[m]].Size[2])
 							 * trials.lcdy00
 							scaleX = scaleY
@@ -904,24 +740,24 @@ function trials.f_trialsBuilder()
 		fadein = 0,
 		fadeout = 0,
 		fadetriggered = false,
-		textbox_text = f_createTextImg(trials.trials_mode.textbox, 'text'),
-		textbox_title = f_createTextImg(trials.trials_mode.textbox, 'title'),
-		success_text = f_createTextImg(trials.trials_mode.success, 'text'),
-		allclear = math.max(animGetLength(trials.trials_mode.allclear_front_data), animGetLength(trials.trials_mode.allclear_bg_data), trials.trials_mode.allclear.text.displaytime),
-		allclear_text = f_createTextImg(trials.trials_mode.allclear, 'text'),
-		trialcounter = f_createTextImg(trials.trials_mode, 'trialcounter'),
-		totaltrialtimer = f_createTextImg(trials.trials_mode, 'totaltrialtimer'),
-		currenttrialtimer = f_createTextImg(trials.trials_mode, 'currenttrialtimer'),
-		trialreset_text = f_createTextImg(trials.trials_mode.trialreset, 'text'),
+		textbox_text = f_newText(trials.trials_mode.textbox.text),
+		textbox_title = f_newText(trials.trials_mode.textbox.title),
+		success_text = f_newText(trials.trials_mode.success.text),
+		allclear = math.max(animGetLength(trials.trials_mode.allclear.front.AnimData), animGetLength(trials.trials_mode.allclear.bg.AnimData), trials.trials_mode.allclear.text.displaytime),
+		allclear_text = f_newText(trials.trials_mode.allclear.text),
+		trialcounter = f_newText(trials.trials_mode.trialcounter),
+		totaltrialtimer = f_newText(trials.trials_mode.totaltrialtimer),
+		currenttrialtimer = f_newText(trials.trials_mode.currenttrialtimer),
+		trialreset_text = f_newText(trials.trials_mode.trialreset.text),
 	}
 	for _, v in ipairs({'vertical','horizontal'}) do
 		trials.draw[v] = {
 			upcomingtextline = {},
 			currenttextline = {},
 			completedtextline = {},
-			trialtitle = math.max(animGetLength(trials.trials_mode['trialtitle_' .. v .. '_front_data']), animGetLength(trials.trials_mode['trialtitle_' .. v .. '_bg_data'])),
+			trialtitle = math.max(animGetLength(trials.trials_mode.trialtitle[v].front.AnimData), animGetLength(trials.trials_mode.trialtitle[v].bg.AnimData)),
 			--trialtitle = 100,
-			trialtitle_text = f_createTextImg(trials.trials_mode, 'trialtitle.' .. v .. '.text'),
+			trialtitle_text = f_newText(trials.trials_mode.trialtitle[v].text),
 			windowXrange = trials.trials_mode.trialsteps[v].window.withouttextbox[3] - trials.trials_mode.trialsteps[v].window.withouttextbox[1],
 			windowYrange = trials.trials_mode.trialsteps[v].window.withouttextbox[4] - trials.trials_mode.trialsteps[v].window.withouttextbox[2],
 			windowXrangeWtext = trials.trials_mode.trialsteps[v].window.withtextbox[3] - trials.trials_mode.trialsteps[v].window.withtextbox[1],
@@ -929,9 +765,9 @@ function trials.f_trialsBuilder()
 		}
 		trials.draw[v].trialtitle_text:update({x = trials.trials_mode.trialtitle[v].pos[1]+trials.trials_mode.trialtitle[v].text.offset[1], y = trials.trials_mode.trialtitle[v].pos[2]+trials.trials_mode.trialtitle[v].text.offset[2],})
 		for i = 1, trials.data.maxsteps, 1 do
-			trials.draw[v].upcomingtextline[i] = f_createTextImg(trials.trials_mode.upcomingstep[v], 'text')
-			trials.draw[v].currenttextline[i] = f_createTextImg(trials.trials_mode.currentstep[v], 'text')
-			trials.draw[v].completedtextline[i] = f_createTextImg(trials.trials_mode.completedstep[v], 'text')
+			trials.draw[v].upcomingtextline[i] = f_newText(trials.trials_mode.upcomingstep[v].text)
+			trials.draw[v].currenttextline[i] = f_newText(trials.trials_mode.currentstep[v].text)
+			trials.draw[v].completedtextline[i] = f_newText(trials.trials_mode.completedstep[v].text)
 		end
 	end
 
@@ -1053,30 +889,29 @@ function trials.f_trialsDummySetup()
 	player(1)
 end
 
+-- The portrait beside the textbox is a per-step anim: the trials definition's "iconanim" is
+-- already a raw anim string once split, so it goes straight to animNew. Source "char" pulls it
+-- from the selected character's own sff, source "system" from the screenpack's.
+local function f_iconAnimString(step)
+	local t = {}
+	for _, k in ipairs(step.iconanim) do
+		t[#t + 1] = tostring(k)
+	end
+	return table.concat(t, ',')
+end
+
 function trials.textboxportrait()
-Temporarysan0000 = loadText(getCharFileName(trials.p1selref))
-Temporarysan0000 = Temporarysan0000:lower()
-Temporarysan0000 = Temporarysan0000:gsub('([^\r\n;]*)%s*;[^\r\n]*', '%1')
-Temporarysan0000 = Temporarysan0000:gsub('\n%s*\n', '\n')
-Temporarysan0000 = Temporarysan0000:gsub('.*sprite.*=%s*(.*sff).*','%1')
-
-Temporarysan0001 = getCharFileName(trials.p1selref):gsub('(.*)%/.*def.*','%1/')
-Temporarysan0000 = Temporarysan0001 .. Temporarysan0000
-				if Temporarysan9000 == nil then
-Temporarysan9000 = sffNew(Temporarysan0000)
+	-- Cached until roundStart clears it, because the selected character can change.
+	if trials.charPortraitSff == nil then
+		local spr = loadText(getCharFileName(trials.p1selref)):lower()
+		spr = spr:gsub('([^\r\n;]*)%s*;[^\r\n]*', '%1')
+		spr = spr:gsub('\n%s*\n', '\n')
+		spr = spr:gsub('.*sprite.*=%s*(.*sff).*', '%1')
+		trials.charPortraitSff = sffNew(getCharFileName(trials.p1selref):gsub('(.*)%/.*def.*', '%1/') .. spr)
 	end
-
-trialsanim = ""
-	for i,k in pairs(trials.data.trial[ct].trialstep[cts].iconanim) do
-		k = tostring(k)
-		k = k:gsub('(%d*)','%1')
-		trialsanim = trialsanim .. "," .. k
-			end
-				trialsanim = trialsanim:gsub('\,(%d*.*)','%1')
-				trialsanim = tostring(trialsanim)
-				
-	trials.trials_mode.textbox.portrait.anim = animNew(Temporarysan9000,trialsanim)
-	end
+	trialsanim = f_iconAnimString(trials.data.trial[ct].trialstep[cts])
+	trials.trials_mode.textbox.portrait.anim = animNew(trials.charPortraitSff, trialsanim)
+end
 	
 function trials.f_trialsDrawer()
 	if trials.data.trialsInitialized and roundState() == 2 and not trials.data.active and trials.draw.fade == 0 then
@@ -1165,22 +1000,16 @@ function trials.f_trialsDrawer()
 			-- end
 
 			-- Draw trialstep background
-				animSetLocalcoord(trials.trials_mode['trialsteps_' .. layout .. '_bg_data'], trials.mtlcx, trials.mtlcy)
-			animUpdate(trials.trials_mode['trialsteps_' .. layout .. '_bg_data'])
-			animDraw(trials.trials_mode['trialsteps_' .. layout .. '_bg_data'])
-				animSetLocalcoord(trials.trials_mode['trialsteps_' .. layout .. '_bg_data'], trials.mtlcx, trials.mtlcy)
-			animUpdate(trials.trials_mode['trialsteps_' .. layout .. '_bg_data'])
-			animDraw(trials.trials_mode['trialsteps_' .. layout .. '_bg_data'])
+			animUpdate(trials.trials_mode.trialsteps[layout].bg.AnimData)
+			animDraw(trials.trials_mode.trialsteps[layout].bg.AnimData)
 
 			-- Draw trial title
-				animSetLocalcoord(trials.trials_mode['trialtitle_' .. layout .. '_bg_data'], trials.mtlcx, trials.mtlcy)
-			animUpdate(trials.trials_mode['trialtitle_' .. layout .. '_bg_data'])
-			animDraw(trials.trials_mode['trialtitle_' .. layout .. '_bg_data'])
+			animUpdate(trials.trials_mode.trialtitle[layout].bg.AnimData)
+			animDraw(trials.trials_mode.trialtitle[layout].bg.AnimData)
 			trials.draw[layout].trialtitle_text:update({text = trials.data.trial[ct].name})
 			trials.draw[layout].trialtitle_text:draw()
-				animSetLocalcoord(trials.trials_mode['trialtitle_' .. layout .. '_front_data'], trials.mtlcx, trials.mtlcy)
-			animUpdate(trials.trials_mode['trialtitle_' .. layout .. '_front_data'])
-			animDraw(trials.trials_mode['trialtitle_' .. layout .. '_front_data'])
+			animUpdate(trials.trials_mode.trialtitle[layout].front.AnimData)
+			animDraw(trials.trials_mode.trialtitle[layout].front.AnimData)
 
 			local startonstep = 1
 			local drawtothisstep = #trials.data.trial[ct].trialstep
@@ -1239,9 +1068,10 @@ textboxwindow4 = trials.mtlcx
 		rectSetLocalcoord(trials.trials_mode.textbox.overlay.RectData, trials.stlcx, trials.stlcy)
 		rectDraw(trials.trials_mode.textbox.overlay.RectData)
 				
-				animSetLocalcoord(trials.trials_mode.textbox_bg_data, trials.stlcx, trials.stlcy)
-				animUpdate(trials.trials_mode.textbox_bg_data)
-				animDraw(trials.trials_mode.textbox_bg_data)
+				-- The textbox sits in stage space, unlike the rest of the trials elements.
+				animSetLocalcoord(trials.trials_mode.textbox.bg.AnimData, trials.stlcx, trials.stlcy)
+				animUpdate(trials.trials_mode.textbox.bg.AnimData)
+				animDraw(trials.trials_mode.textbox.bg.AnimData)
 
 				-- Draw text
 				local trtext = trials.trials_mode.textbox.title.text
@@ -1253,14 +1083,10 @@ textboxwindow4 = trials.mtlcx
 					trials.data.trial[ct].textcnt = trials.data.trial[ct].textcnt + 1
 				end
 				
-		if main.font_def == nil then
-			main.font_def = fontGetDef(main.font[trials.draw.textbox_text.font])
+		if motif.Fnt[trials.draw.textbox_text.font] ~= nil then
+			textImgSetFont(trials.draw.textbox_text.ti, motif.Fnt[trials.draw.textbox_text.font])
 		end
-		if main.font_def[font] == nil then
-			main.font_def = fontGetDef(main.font[trials.draw.textbox_text.font])
-		end
-		textImgSetFont(trials.draw.textbox_text.ti, main.font[trials.draw.textbox_text.font])
-	
+
 	textboxtext_offset1 = textboxwindow1 * trials.lcdx00 + trials.trials_mode.textbox_text_window[1]+trials.trials_mode.textbox_text_offset[1]
 	textboxtext_offset2 = textboxwindow2 * trials.lcdy00 + trials.trials_mode.textbox_text_window[2]+trials.trials_mode.textbox_text_offset[2]
 		textboxtext_offset1 = textboxtext_offset1 / trials.lcdx00
@@ -1273,89 +1099,59 @@ textboxwindow4 = trials.mtlcx
 		textImgDraw(trials.draw.textbox_text.ti)
 
 
-				-- Draw portrait depending on desired source
+				-- Draw portrait depending on desired source. Both sources feed the same draw
+				-- below; the anim is rebuilt every frame because iconanim is per trial step.
 				if trials.trials_mode.textbox_portrait_source == "system" then
-	if trials.trials_mode.textbox.portrait.anim == nil then
-Temporarysan9000 = sffNew(motif.files.spr)
-			end
-trialsanim = ""
-	for i,k in pairs(trials.data.trial[ct].trialstep[cts].iconanim) do
-		k = tostring(k)
-		k = k:gsub('(%d*)','%1')
-		trialsanim = trialsanim .. "," .. k
-			end
-				trialsanim = trialsanim:gsub('\,(%d*.*)','%1')
-				trialsanim = tostring(trialsanim)
-				
-	trials.trials_mode.textbox.portrait.anim = animNew(Temporarysan9000,trialsanim)
+					trialsanim = f_iconAnimString(trials.data.trial[ct].trialstep[cts])
+					trials.trials_mode.textbox.portrait.anim = animNew(sff, trialsanim)
 				elseif trials.trials_mode.textbox_portrait_source == "char" then
-				trials.textboxportrait()
-	
-	if trials.trials_mode.textbox.portrait.anim ~= nil then
-	
-trialsanimoffset = trials.data.trial[ct].trialstep[cts].iconanimoffset
-animposx = (textboxwindow1 * trials.lcdx00 + trials.trials_mode.textbox_portrait_offset[1] + trialsanimoffset[1])
-animposy = (textboxwindow2 * trials.lcdx00 + trials.trials_mode.textbox_portrait_offset[2] + trialsanimoffset[2])
-	
-	trialsanimscalex = trials.trials_mode.textbox_portrait_scale[1] * trials.data.trial[ct].trialstep[cts].iconanimscale[1]
-	trialsanimscaley = trials.trials_mode.textbox_portrait_scale[2] * trials.data.trial[ct].trialstep[cts].iconanimscale[2]
-trialsanimwindow3 = trials.trials_mode.textbox_portrait_window[3] + trials.data.trial[ct].trialstep[cts].iconanimwindow[3] + trials.mtlcx
-trialsanimwindow4 = trials.trials_mode.textbox_portrait_window[4] + trials.data.trial[ct].trialstep[cts].iconanimwindow[4] + trials.mtlcy
-		
-	if trials.lcdx00 ~= 1 then
-	if trials.mtlcx > trials.stlcx then
-	trialsanimscalex = trialsanimscalex / trials.lcdy00
-	trialsanimscaley = trialsanimscaley / trials.lcdy00
-	animposx = const720p(animposx)
-	animposy = const720p(animposy)
-	end
-	if trials.mtlcx < trials.stlcx then
-	trialsanimscalex = trialsanimscalex / trials.lcdy00
-	trialsanimscaley = trialsanimscaley / trials.lcdy00
-	animposx = animposx / trials.lcdx00
-	animposy = animposy / trials.lcdx00
-trialsanimwindow3 = trialsanimwindow3 * 2 / trials.lcdx00
-trialsanimwindow4 = trialsanimwindow4 * 2 / trials.lcdy00
-	end
-	end
+					trials.textboxportrait()
+				end
 
-trialsanimwindow1 = animposx + trials.trials_mode.textbox_portrait_window[1] + trials.data.trial[ct].trialstep[cts].iconanimwindow[1]
-trialsanimwindow2 = animposy + trials.trials_mode.textbox_portrait_window[2] + trials.data.trial[ct].trialstep[cts].iconanimwindow[2]
+				if trials.trials_mode.textbox.portrait.anim ~= nil then
+					trialsanimoffset = trials.data.trial[ct].trialstep[cts].iconanimoffset
+					animposx = (textboxwindow1 * trials.lcdx00 + trials.trials_mode.textbox_portrait_offset[1] + trialsanimoffset[1])
+					animposy = (textboxwindow2 * trials.lcdx00 + trials.trials_mode.textbox_portrait_offset[2] + trialsanimoffset[2])
+					trialsanimscalex = trials.trials_mode.textbox_portrait_scale[1] * trials.data.trial[ct].trialstep[cts].iconanimscale[1]
+					trialsanimscaley = trials.trials_mode.textbox_portrait_scale[2] * trials.data.trial[ct].trialstep[cts].iconanimscale[2]
+					trialsanimwindow3 = trials.trials_mode.textbox_portrait_window[3] + trials.data.trial[ct].trialstep[cts].iconanimwindow[3] + trials.mtlcx
+					trialsanimwindow4 = trials.trials_mode.textbox_portrait_window[4] + trials.data.trial[ct].trialstep[cts].iconanimwindow[4] + trials.mtlcy
 
-	
-		if trialsanim ~= nil then
-			local a = trials.trials_mode.textbox.portrait.anim
-			if a then
-				animSetLocalcoord(a, trials.stlcx, trials.stlcy)
-				animSetLayerno(a, 0)
-				animSetPos(a, 
-						math.floor(animposx),
-						math.floor(animposy))
-				animSetScale(
-					a,
-						trialsanimscalex,
-						trialsanimscaley
-				)
-				animSetFacing(a, 
-						trials.trials_mode.textbox_portrait_facing)
-				animSetWindow(a, 
-						trialsanimwindow1,
-						trialsanimwindow2,
-						trialsanimwindow3,
-						trialsanimwindow4)
-				animUpdate(a)
-				animDraw(a)
+					if trials.lcdx00 ~= 1 then
+						if trials.mtlcx > trials.stlcx then
+							trialsanimscalex = trialsanimscalex / trials.lcdy00
+							trialsanimscaley = trialsanimscaley / trials.lcdy00
+							animposx = const720p(animposx)
+							animposy = const720p(animposy)
+						end
+						if trials.mtlcx < trials.stlcx then
+							trialsanimscalex = trialsanimscalex / trials.lcdy00
+							trialsanimscaley = trialsanimscaley / trials.lcdy00
+							animposx = animposx / trials.lcdx00
+							animposy = animposy / trials.lcdx00
+							trialsanimwindow3 = trialsanimwindow3 * 2 / trials.lcdx00
+							trialsanimwindow4 = trialsanimwindow4 * 2 / trials.lcdy00
+						end
+					end
 
-			end
-			end
-		end
-	end
-	
+					trialsanimwindow1 = animposx + trials.trials_mode.textbox_portrait_window[1] + trials.data.trial[ct].trialstep[cts].iconanimwindow[1]
+					trialsanimwindow2 = animposy + trials.trials_mode.textbox_portrait_window[2] + trials.data.trial[ct].trialstep[cts].iconanimwindow[2]
+
+					local a = trials.trials_mode.textbox.portrait.anim
+					-- Portraits are placed in stage space, like the textbox they sit in.
+					animSetLocalcoord(a, trials.stlcx, trials.stlcy)
+					animSetLayerno(a, 0)
+					animSetPos(a, math.floor(animposx), math.floor(animposy))
+					animSetScale(a, trialsanimscalex, trialsanimscaley)
+					animSetFacing(a, trials.trials_mode.textbox_portrait_facing)
+					animSetWindow(a, trialsanimwindow1, trialsanimwindow2, trialsanimwindow3, trialsanimwindow4)
+					animUpdate(a)
+					animDraw(a)
+				end
 
 				-- Draw textbox front
-				animSetLocalcoord(trials.trials_mode.textbox_front_data, trials.mtlcx, trials.mtlcy)
-				animUpdate(trials.trials_mode.textbox_front_data)
-				animDraw(trials.trials_mode.textbox_front_data)
+				animUpdate(trials.trials_mode.textbox.front.AnimData)
+				animDraw(trials.trials_mode.textbox.front.AnimData)
 			else
 				windowYrange = trials.draw[layout].windowYrange
 				windowXrange = trials.draw[layout].windowXrange
@@ -1409,28 +1205,28 @@ trialsanimwindow2 = animposy + trials.trials_mode.textbox_portrait_window[2] + t
 				if layout == "vertical" then
 					--Vertical layouts are the simplest - they have a constant width sprite or anim that the text is drawn on top of, and the glyphs are displayed wherever specified.
 					--The vertical layouts do NOT support incrementors (see notes below for horizontal layout).
+					local stepbg = trials.trials_mode[sub .. 'step'].vertical.bg
 					animSetPos(
-						trials.trials_mode[sub .. 'step_vertical_bg_data'],
-						trials.trials_mode.trialsteps.vertical.pos[1] + trials.trials_mode[sub .. 'step'].vertical.bg.offset[1] + tempoffset[1],
-						trials.trials_mode.trialsteps.vertical.pos[2] + trials.trials_mode[sub .. 'step'].vertical.bg.offset[2] + tempoffset[2]
+						stepbg.AnimData,
+						trials.trials_mode.trialsteps.vertical.pos[1] + stepbg.offset[1] + tempoffset[1],
+						trials.trials_mode.trialsteps.vertical.pos[2] + stepbg.offset[2] + tempoffset[2]
 					)
 					trials.draw.vertical[sub .. 'textline'][i]:update({
 						x = trials.trials_mode.trialsteps.vertical.pos[1]+trials.trials_mode[sub .. 'step'].vertical.text.offset[1]+trials.trials_mode.trialsteps.vertical.spacing[1]*(i-startonstep),
 						y = trials.trials_mode.trialsteps.vertical.pos[2]+trials.trials_mode[sub .. 'step'].vertical.text.offset[2]+trials.trials_mode.trialsteps.vertical.spacing[2]*(i-startonstep),
 						text = trials.data.trial[ct].trialstep[i].text
 					},1)
-					animSetPalFX(trials.trials_mode[sub .. 'step_vertical_bg_data'], {
+					animSetPalFX(stepbg.AnimData, {
 						time = 1,
-						add = trials.trials_mode[sub .. 'step'].vertical.bg.palfx.add,
-						mul = trials.trials_mode[sub .. 'step'].vertical.bg.palfx.mul,
-						sinadd = trials.trials_mode[sub .. 'step'].vertical.bg.palfx.sinadd,
-						invertall = trials.trials_mode[sub .. 'step'].vertical.bg.palfx.invertall,
-						color = trials.trials_mode[sub .. 'step'].vertical.bg.palfx.color
+						add = stepbg.palfx.add,
+						mul = stepbg.palfx.mul,
+						sinadd = stepbg.palfx.sinadd,
+						invertall = stepbg.palfx.invertall,
+						color = stepbg.palfx.color
 					})
-					animReset(trials.trials_mode[sub .. 'step_vertical_bg_data'])
-				animSetLocalcoord(trials.trials_mode[sub .. 'step_vertical_bg_data'], trials.mtlcx, trials.mtlcy)
-					animUpdate(trials.trials_mode[sub .. 'step_vertical_bg_data'])
-					animDraw(trials.trials_mode[sub .. 'step_vertical_bg_data'])
+					animReset(stepbg.AnimData)
+					animUpdate(stepbg.AnimData)
+					animDraw(stepbg.AnimData)
 					trials.draw.vertical[sub .. 'textline'][i]:draw()
 				elseif layout == "horizontal" then
 					--Horizontal layouts are much more complicated. Text is not drawn in horizontal mode, instead we only display the glyphs. A small sprite is dynamically tiled to the width of the
@@ -1445,7 +1241,6 @@ trialsanimwindow2 = animposy + trials.trials_mode.textbox_portrait_window[2] + t
 					if trials.data.bgelemdata.horizontal[sub .. 'step_bgsize'] ~= nil then bgsize = trials.data.bgelemdata.horizontal[sub .. 'step_bgsize'].Size end
 
 					totalglyphlength = trials.data.trial[ct].trialstep[i].glyphline.horizontal.lengthOffset[#trials.data.trial[ct].trialstep[i].glyphline.horizontal.lengthOffset]
-					local tailoffset = trials.trials_mode[sub .. 'step_horizontal_bg_tail_offset'][1]
 					padding = trials.trials_mode.trialsteps_horizontal_padding
 					spacing = trials.trials_mode.trialsteps_horizontal_spacing[1]
 
@@ -1464,9 +1259,6 @@ trialsanimwindow2 = animposy + trials.trials_mode.textbox_portrait_window[2] + t
 						bgcomponentposX = accwidth + spacing -- + bgheadwidth 
 					end
 					
-	tailposx = bgcomponentposX + trials.trials_mode[sub .. 'step_horizontal_bg_tail_offset'][1]
-	tailposy = trials.data.trial[ct].trialstep[i].glyphline.horizontal.pos[1][2] + trials.trials_mode[sub .. 'step_horizontal_bg_tail_offset'][2] + tempoffset[2]
-	
 	tailscalex = trials.data.trial[ct].trialstep[i].glyphline.horizontal.scale[1][1]
 	tailscaley = trials.data.trial[ct].trialstep[i].glyphline.horizontal.scale[1][2]
 
@@ -1492,99 +1284,83 @@ trialsanimwindow2 = animposy + trials.trials_mode.textbox_portrait_window[2] + t
 					end
 	
 					-- Draw tail
-					animSetPos(trials.trials_mode[sub .. 'step_horizontal_bg_tail_data'], 
-						bgcomponentposX + trials.trials_mode[sub .. 'step_horizontal_bg_tail_offset'][1], 
-						trials.data.trial[ct].trialstep[i].glyphline.horizontal.pos[1][2] + trials.trials_mode[sub .. 'step_horizontal_bg_tail_offset'][2] + tempoffset[2]
-					)
-				animSetScale(trials.trials_mode[sub .. 'step_horizontal_bg_tail_data'], 
-					 tailscalex,
-					  tailscaley
-				)
-					animSetPalFX(trials.trials_mode[sub .. 'step_horizontal_bg_tail_data'], {
+					local hbg = trials.trials_mode[sub .. 'step'].horizontal.bg
+					local hpalfx = {
 						time = 1,
-						add = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_add'],
-						mul = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_mul'],
-						sinadd = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_sinadd'],
-						invertall = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_invertall'],
-						color = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_color']
-					})
-					animReset(trials.trials_mode[sub .. 'step_horizontal_bg_tail_data'])
-				animSetLocalcoord(trials.trials_mode[sub .. 'step_horizontal_bg_tail_data'], trials.mtlcx, trials.mtlcy)
-					animUpdate(trials.trials_mode[sub .. 'step_horizontal_bg_tail_data'])
+						add = hbg.palfx.add,
+						mul = hbg.palfx.mul,
+						sinadd = hbg.palfx.sinadd,
+						invertall = hbg.palfx.invertall,
+						color = hbg.palfx.color
+					}
+					local glyphrow = trials.data.trial[ct].trialstep[i].glyphline.horizontal
+					animSetPos(hbg.tail.AnimData,
+						bgcomponentposX + hbg.tail.offset[1],
+						glyphrow.pos[1][2] + hbg.tail.offset[2] + tempoffset[2]
+					)
+					animSetScale(hbg.tail.AnimData, tailscalex, tailscaley)
+					animSetPalFX(hbg.tail.AnimData, hpalfx)
+					animReset(hbg.tail.AnimData)
+					animUpdate(hbg.tail.AnimData)
 					if menu.itemname ~= 'commandlist' then
-					animDraw(trials.trials_mode[sub .. 'step_horizontal_bg_tail_data'])
+						animDraw(hbg.tail.AnimData)
 					end
-					
+
 					-- Draw BG for Glyphs - scale to length, start from tail pos
 					bgtargetscale = {(padding + totalglyphlength + padding)/bgsize[1], 1}
 					bgcomponentposX = (bgcomponentposX + bgtailwidth)
 					local gpoffset = 0
-					for m in pairs(trials.data.trial[ct].trialstep[i].glyphline.horizontal.glyph) do
-						if m > 1 then gpoffset = trials.data.trial[ct].trialstep[i].glyphline.horizontal.lengthOffset[m-1] end
-						trials.data.trial[ct].trialstep[i].glyphline.horizontal.pos[m][1] = bgcomponentposX + padding + gpoffset -- trials.trials_mode.trialsteps_pos[1] + trials.data.trial[ct].trialstep[i].glyphline.alignOffset[m] +
+					for m in pairs(glyphrow.glyph) do
+						if m > 1 then gpoffset = glyphrow.lengthOffset[m-1] end
+						glyphrow.pos[m][1] = bgcomponentposX + padding + gpoffset
 					end
 
-					animSetScale(trials.trials_mode[sub .. 'step_horizontal_bg_data'],
-					 bgtargetscale[1],
-					  bgtargetscale[2])
-					animSetPos(trials.trials_mode[sub .. 'step_horizontal_bg_data'], 
-						bgcomponentposX + trials.trials_mode[sub .. 'step_horizontal_bg_offset'][1], 
-						trials.data.trial[ct].trialstep[i].glyphline.horizontal.pos[1][2] + trials.trials_mode[sub .. 'step_horizontal_bg_offset'][2] + tempoffset[2]
+					animSetScale(hbg.AnimData, bgtargetscale[1], bgtargetscale[2])
+					animSetPos(hbg.AnimData,
+						bgcomponentposX + hbg.offset[1],
+						glyphrow.pos[1][2] + hbg.offset[2] + tempoffset[2]
 					)
-					animSetPalFX(trials.trials_mode[sub .. 'step_horizontal_bg_data'], {
-						time = 1,
-						add = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_add'],
-						mul = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_mul'],
-						sinadd = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_sinadd'],
-						invertall = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_invertall'],
-						color = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_color']
-					})
-					animReset(trials.trials_mode[sub .. 'step_horizontal_bg_data'])
-				animSetLocalcoord(trials.trials_mode[sub .. 'step_horizontal_bg_data'], trials.mtlcx, trials.mtlcy)
-					animUpdate(trials.trials_mode[sub .. 'step_horizontal_bg_data'])
-					animDraw(trials.trials_mode[sub .. 'step_horizontal_bg_data'])
-					
+					animSetPalFX(hbg.AnimData, hpalfx)
+					animReset(hbg.AnimData)
+					animUpdate(hbg.AnimData)
+					animDraw(hbg.AnimData)
+
 					-- Draw head
 					bgcomponentposX = bgcomponentposX + (totalglyphlength + 2*padding)
-					animSetPos(trials.trials_mode[sub .. 'step_horizontal_bg_head_data'], 
-						bgcomponentposX + trials.trials_mode[sub .. 'step_horizontal_bg_head_offset'][1] + trials.data.trial[ct].trialstep[i].glyphline.horizontal.alignOffset[1], 
-						trials.data.trial[ct].trialstep[i].glyphline.horizontal.pos[1][2] + trials.trials_mode[sub .. 'step_horizontal_bg_head_offset'][2] + tempoffset[2]
+					animSetPos(hbg.head.AnimData,
+						bgcomponentposX + hbg.head.offset[1] + glyphrow.alignOffset[1],
+						glyphrow.pos[1][2] + hbg.head.offset[2] + tempoffset[2]
 					)
-					animSetPalFX(trials.trials_mode[sub .. 'step_horizontal_bg_head_data'], {
-						time = 1,
-						add = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_add'],
-						mul = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_mul'],
-						sinadd = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_sinadd'],
-						invertall = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_invertall'],
-						color = trials.trials_mode[sub .. 'step_horizontal_bg_palfx_color']
-					})
-					animReset(trials.trials_mode[sub .. 'step_horizontal_bg_head_data'])
-				animSetLocalcoord(trials.trials_mode[sub .. 'step_horizontal_bg_head_data'], trials.mtlcx, trials.mtlcy)
-					animUpdate(trials.trials_mode[sub .. 'step_horizontal_bg_head_data'])
-					animDraw(trials.trials_mode[sub .. 'step_horizontal_bg_head_data'])
+					animSetPalFX(hbg.head.AnimData, hpalfx)
+					animReset(hbg.head.AnimData)
+					animUpdate(hbg.head.AnimData)
+					animDraw(hbg.head.AnimData)
 				end
-				for m = 1, #trials.data.trial[ct].trialstep[i].glyphline[layout].glyph, 1 do
-					animSetScale(motif.glyphs[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].AnimData,
-					 trials.data.trial[ct].trialstep[i].glyphline[layout].scale[m][1],
-					  trials.data.trial[ct].trialstep[i].glyphline[layout].scale[m][2])
-					animSetPos(motif.glyphs[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].AnimData, 
-						trials.data.trial[ct].trialstep[i].glyphline[layout].pos[m][1], 
-						trials.data.trial[ct].trialstep[i].glyphline[layout].pos[m][2] + tempoffset[2] + trials.trials_mode.glyphs[layout].offset[2]
+				local glyphline = trials.data.trial[ct].trialstep[i].glyphline[layout]
+				local glyphpalfx = trials.trials_mode[sub .. 'step'][layout].glyphs.palfx
+				for m = 1, #glyphline.glyph, 1 do
+					-- Glyph anims belong to the engine's motif and were built in the motif's own
+					-- coordinate space, so pull them into trials space before placing them.
+					local g = motif.glyphs[glyphline.glyph[m]].AnimData
+					animSetLocalcoord(g, trials.mtlcx, trials.mtlcy)
+					animSetScale(g, glyphline.scale[m][1], glyphline.scale[m][2])
+					animSetPos(g,
+						glyphline.pos[m][1],
+						glyphline.pos[m][2] + tempoffset[2] + trials.trials_mode.glyphs[layout].offset[2]
 					)
-					animSetPalFX(motif.glyphs[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].AnimData, {
+					animSetPalFX(g, {
 						time = 1,
-						add = trials.trials_mode[sub .. 'step'][layout].glyphs.palfx.add,
-						mul = trials.trials_mode[sub .. 'step'][layout].glyphs.palfx.mul,
-						sinadd = trials.trials_mode[sub .. 'step'][layout].glyphs.palfx.sinadd,
-						invertall = trials.trials_mode[sub .. 'step'][layout].glyphs.palfx.invertall,
-						color = trials.trials_mode[sub .. 'step'][layout].glyphs.palfx.color
+						add = glyphpalfx.add,
+						mul = glyphpalfx.mul,
+						sinadd = glyphpalfx.sinadd,
+						invertall = glyphpalfx.invertall,
+						color = glyphpalfx.color
 					})
-					animReset(motif.glyphs[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].AnimData)
-				animSetLocalcoord(motif.glyphs[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].AnimData, trials.mtlcx, trials.mtlcy)
-					animUpdate(motif.glyphs[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].AnimData)
+					animReset(g)
+					animUpdate(g)
 					if menu.itemname ~= 'commandlist' then
-					animDraw(motif.glyphs[trials.data.trial[ct].trialstep[i].glyphline[layout].glyph[m]].AnimData)
-				end
+						animDraw(g)
+					end
 				end
 				accwidth = bgcomponentposX
 			end
@@ -1592,7 +1368,6 @@ trialsanimwindow2 = animposy + trials.trials_mode.textbox_portrait_window[2] + t
 			-- All trials have been completed, draw the all clear and freeze the timer
 			if trials.draw.allclear ~= 0 then
 				trials.f_trialsSuccess('allclear', ct-1)
-				f_createTextImg(trials.trials_mode, 'allclear_text')
 			end
 
 			trials.data.allclear = true
@@ -1787,7 +1562,7 @@ function trials.f_trialsChecker(CheckIt)
 						trials.data.comboCounter = 0
 						if ct < #trials.data.trial or (not trials.data.trialadvancement and ct == #trials.data.trial) then
 							if (trials.trials_mode.success_front_displaytime == -1) and (trials.trials_mode.success_bg_displaytime == -1) then
-								trials.draw.success = math.max(animGetLength(trials.trials_mode.success_front_data), animGetLength(trials.trials_mode.success_bg_data), trials.trials_mode.success_text_displaytime)
+								trials.draw.success = math.max(animGetLength(trials.trials_mode.success.front.AnimData), animGetLength(trials.trials_mode.success.bg.AnimData), trials.trials_mode.success_text_displaytime)
 							else
 								trials.draw.success = math.max(trials.trials_mode.success_front_displaytime, trials.trials_mode.success_bg_displaytime, trials.trials_mode.success_text_displaytime)
 							end
@@ -1845,33 +1620,20 @@ function trials.f_trialsSuccess(successstring, index)
 	player(1)
 	if not trials.data.trial[index].complete or (successstring == "allclear" and not trials.data.allclear) then
 		-- Play sound only once
-		sndPlay(motif.files.snd_data, trials.trials_mode[successstring .. '_snd'][1], trials.trials_mode[successstring .. '_snd'][2])
+		sndPlay(snd, trials.trials_mode[successstring .. '_snd'][1], trials.trials_mode[successstring .. '_snd'][2])
 	end
-		trials.draw.success_text.text = trials.trials_mode.success.text.text
-		trials.draw.success_text.x = trials.trials_mode.success.pos[1]
-		trials.draw.success_text.y = trials.trials_mode.success.pos[2]
-		trials.draw.allclear_text.text = trials.trials_mode.allclear.text.text
-		trials.draw.allclear_text.x = trials.trials_mode.allclear.pos[1]
-		trials.draw.allclear_text.y = trials.trials_mode.allclear.pos[2]
-		textImgSetFont(trials.draw[successstring .. '_text'].ti, main.font[trials.draw[successstring .. '_text'].font])
-		textImgSetBank(trials.draw[successstring .. '_text'].ti, trials.draw[successstring .. '_text'].bank)
-		textImgSetAlign(trials.draw[successstring .. '_text'].ti, trials.draw[successstring .. '_text'].align)
-		textImgSetText(trials.draw[successstring .. '_text'].ti, trials.draw[successstring .. '_text'].text)
-		textImgSetColor(trials.draw[successstring .. '_text'].ti, trials.draw[successstring .. '_text'].r, trials.draw[successstring .. '_text'].g, trials.draw[successstring .. '_text'].b, trials.draw[successstring .. '_text'].a)
-		--if trials.draw[successstring .. '_text'].defsc then disableLuaScale() end
-		textImgSetPos(trials.draw[successstring .. '_text'].ti, trials.draw[successstring .. '_text'].x + f_alignOffset(trials.draw[successstring .. '_text'].align), trials.draw[successstring .. '_text'].y)
-		textImgSetScale(trials.draw[successstring .. '_text'].ti, trials.draw[successstring .. '_text'].scaleX, trials.draw[successstring .. '_text'].scaleY)
-		textImgSetWindow(trials.draw[successstring .. '_text'].ti, trials.draw[successstring .. '_text'].window[1], trials.draw[successstring .. '_text'].window[2], trials.draw[successstring .. '_text'].window[3] - trials.draw[successstring .. '_text'].window[1], trials.draw[successstring .. '_text'].window[4] - trials.draw[successstring .. '_text'].window[2])
-		textImgSetXShear(trials.draw[successstring .. '_text'].ti, trials.draw[successstring .. '_text'].xshear)
-		textImgSetAngle(trials.draw[successstring .. '_text'].ti, trials.draw[successstring .. '_text'].angle)
-		  textImgUpdate(trials.draw[successstring .. '_text'].ti)
-				animSetLocalcoord(trials.trials_mode[successstring .. '_bg_data'], trials.mtlcx, trials.mtlcy)
-	animUpdate(trials.trials_mode[successstring .. '_bg_data'])
-	animDraw(trials.trials_mode[successstring .. '_bg_data'])
+	-- The banner text is centred on its element's pos rather than its own offset.
+	local banner = trials.trials_mode[successstring]
+	trials.draw[successstring .. '_text']:update({
+		text = banner.text.text,
+		x = banner.pos[1],
+		y = banner.pos[2],
+	})
+	animUpdate(banner.bg.AnimData)
+	animDraw(banner.bg.AnimData)
 	trials.draw[successstring .. '_text']:draw()
-				animSetLocalcoord(trials.trials_mode[successstring .. '_front_data'], trials.mtlcx, trials.mtlcy)
-	animUpdate(trials.trials_mode[successstring .. '_front_data'])
-	animDraw(trials.trials_mode[successstring .. '_front_data'])
+	animUpdate(banner.front.AnimData)
+	animDraw(banner.front.AnimData)
 	trials.draw[successstring] = trials.draw[successstring] - 1
 	trials.data.trial[index].complete = true
 	trials.data.trial[index].active = false
@@ -2060,16 +1822,6 @@ function trials.f_trialsSelectScreen()
 end
 
 function trials.f_trialsMode()
-
-if main.font == nil then
-main.font = motif.Fnt
-	end
-if motif.files.spr_data == nil then
-motif.files.spr_data = sffNew(motif.files.spr)
-	end
-if motif.files.snd_data == nil then
-motif.files.snd_data = sndNew(motif.files.snd)
-	end
 	-- Value used for localcoord
 	trials.lcdx00 = 1
 	trials.lcdy00 = 1
@@ -2102,7 +1854,7 @@ if trials.mtlcy ~= trials.stlcy then
 			trials.listNode.moveTxt = 0
 		end
 		trials.p1selref = nil
-		Temporarysan9000 = nil
+		trials.charPortraitSff = nil
 		trialsanim = nil
 		if trials.trials_mode.textbox.portrait.anim ~= nil then
 		animReset(trials.trials_mode.textbox.portrait.anim)
@@ -2145,9 +1897,11 @@ if trials.mtlcy ~= trials.stlcy then
 		player(1)
 		mapSet('_iksys_trialsDummyControl', 0)
 		mapSet('_iksys_trialsSetLife', lifeMax())
-		trialcounter = f_createTextImg(trials.trials_mode, 'trialcounter')
-		trialcounter:update({x = trials.trials_mode.trialcounter_pos[1], y = trials.trials_mode.trialcounter_pos[2], text = trials.trials_mode.trialcounter_notrialsdata_text})
-		trialcounter:draw()
+		if trials.notrialscounter == nil then
+			trials.notrialscounter = f_newText(trials.trials_mode.trialcounter)
+		end
+		trials.notrialscounter:update({x = trials.trials_mode.trialcounter_pos[1], y = trials.trials_mode.trialcounter_pos[2], text = trials.trials_mode.trialcounter_notrialsdata_text})
+		trials.notrialscounter:draw()
 	end
 end
 
