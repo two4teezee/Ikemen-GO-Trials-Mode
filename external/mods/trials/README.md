@@ -49,10 +49,12 @@ The [Trials Mode wiki](https://github.com/two4teezee/Ikemen-GO-Trials-Mode/wiki)
 ; trialsresetonsuccess: set to "true" to reset character positions after each trial success (except the final one). Can optionally specify fadein and fadeout parameters - will default to shown values.
 ; trialslayout: "vertical" or "horizontal" are the only valid values. Defaults to "vertical" if not specified. Affects scrolling logic, as stated above, also enables dynamic step width. Can be changed via the pause menu if screenpack author leaves the option in.
 ; trialslocalcoord: localcoord for the trials mode. Defaults to 320,240 if not specified.
+; trialslistdisplay: when the player is asked which trial to play. "select" shows the menu between stage select and the fight loading; "start" shows it once the match is up, over the frozen pair; "off" never asks and starts on the first trial. Defaults to "start". The pause menu's Trials List works the same either way.
 ; --------------------------------------------------------------------------
 trialsresetonsuccess = false
 trialslayout = vertical
 trialslocalcoord = 1280,720
+trialslistdisplay = start
 
 ; BACKGROUND ELEMENT LAYERS ------------------------------------------------
 ; Every bg and front element below (including the horizontal layout's bg.tail and bg.head)
@@ -539,6 +541,7 @@ A sample `trials.def` for kfmZ is provided below. The trials are presented to th
 
 [TrialDef, KFM's First Trial]
 
+trial.difficulty = Beginner
 trial.dummymode = stand
 trial.guardmode = none
 trial.dummybuttonjam = none
@@ -566,6 +569,7 @@ trialstep.1.stateno = 1010
 ; ===============================
 ; [TriafDef, TrialTitle] - [TrialDef] mandatory - trial title after the comma is optional.
 
+; trial.difficulty - optional - valid options are Beginner, Intermediate, Advanced, Expert (case-insensitive). Puts the trial behind that filter in the Trial Select view, which the player cycles with left and right, and counts towards that filter's cleared tally. Trials that don't declare one are collected under "Other". If no trial in the file declares a difficulty, there is nothing to filter by and the list stays flat and in def order, exactly as before. An unrecognised value is ignored, with a warning printed to the console.
 ; trial.dummymode - optional - valid options are stand (default), crouch, jump, wjump. Defaults to stand if unspecified.
 ; trial.guardmode - optional - valid options are none, auto. Defaults to none if unspecified.
 ; trial.dummybuttonjam - optional - valid options are none, a, b, c, x, y, z, start, d, w. Defaults to none if unspecified.
@@ -736,11 +740,187 @@ after the current game mode. A screenpack customizes it by declaring the same se
   positions are specified for the trial, they are moved accordingly.
 - **Layout**: Vertical or Horizontal, switchable mid-match.
 - **Textboxes**: shows or hides a trial's explanatory text, for trials that carry any.
+- **Speedrun**: On or Off. See below.
 
-The last four are **player preferences**: `system.def` provides the screenpack's authored
-default, the player's choice is saved to `external/mods/trials/config.ini` the moment it
+Speedrun apart, the last four are **player preferences**: `system.def` provides the screenpack's
+authored default, the player's choice is saved to `external/mods/trials/config.ini` the moment it
 changes, and that file wins on the next launch. Note that the module rewrites `config.ini`
 whenever a preference changes, so comments added to it will be lost.
 
 Next Trial and Previous Trial remain supported for screenpacks that would rather list them than
 use the Trials List, but neither is part of the default menu.
+
+## Trial Select
+
+Loading into a Trials match opens the Trial Select view: every one of the character's trials, one
+per line, with whether it has been cleared and the best time on the right. Picking one starts it.
+The cursor opens on the first trial the player has yet to clear, so re-entering a character you
+have been working through resumes where you left off; confirming without moving starts that one.
+
+Up and down move between trials; **left and right cycle a difficulty filter**. The filters are
+**All**, then each difficulty that character actually uses, then **Other** for trials whose def
+declares none. Filters with nothing in them are skipped, so a character with only Beginner and
+Expert trials cycles All → Beginner → Expert.
+
+A banner pinned above the list shows the filters. It does not scroll with the rows.
+`trialsmenu.headerdisplay` picks its shape:
+
+| Value | Banner |
+|---|---|
+| `default` | One entry, naming the filter on show, with `< >` arrows when there are others to reach: `< Beginner >   1/2` |
+| `sidebyside` | Every filter on one line, `trialsmenu.header.spacing` apart, the one on show wearing the `trialsmenu.header.active` elements. No arrows — the other filters are already visible |
+
+`trialsmenu.header.active.*` styles the filter on show and **inherits from the plain header
+elements**, so a `system.def` that only ever set `header.text` still describes both and `default`
+looks exactly as it did. `sidebyside` needs a highlight declared before it reads as one.
+
+`trialsmenu.header.value.text` formats the tally (`"%s"`); set it to `""` to leave counts off,
+which side by side often wants once six of them share a line.
+
+If no trial in the file declares a difficulty there is only one filter, so the banner shows `All`
+and its count, and the list is flat and in def order, unchanged from previous versions.
+
+This is the same view the pause menu's **Trials List** opens, so the two can never disagree.
+
+`trialslistdisplay` in `[Trials Mode]` decides when, if ever, the player is asked:
+
+| Value | When the menu appears |
+|---|---|
+| `select` | Between stage select and the fight loading, on the select screen's own background |
+| `start` (default) | Once the match is up, over the frozen pair |
+| `off` | Never — the match starts on the first trial |
+
+The pause menu's **Trials List** is unaffected by all three, so the menu is always reachable.
+
+`select` runs before any match exists, so it reads the character's parsed trials rather than match
+state, and carries the choice into the fight by trial *name* — `trialsBuilder` drops trials whose
+`showforvarvalpairs` don't match, so parsed positions need not survive into the match. Backing out
+of it settles for whichever trial the cursor opened on, so there is always an answer.
+
+### Configuring it
+
+The menu is drawn by the module, so its appearance is configured in `[Trials Mode]` alongside
+everything else, under `trialsmenu.*` — not in the screenpack's `[Trials Pause Menu]` section. See
+the shipped `system.def` for the annotated list; in outline:
+
+| Key | What it sets |
+|---|---|
+| `trialsmenu.pos`, `.spacing`, `.visibleitems` | Where rows start, how far apart, how many at once |
+| `trialsmenu.layerno` | The layer every element in the block sits on unless it names its own. Defaults to `2`, above the in-match HUD; keep `glyphs.<layout>.layerno` below it |
+| `trialsmenu.bg.*`, `.front.*` | Backdrop behind the rows and art over them |
+| `trialsmenu.overlay.*` | The rect dimming the match behind the menu. `alpha` is source,destination as everywhere else in the engine, so `0,128` halves what is behind it |
+| `trialsmenu.title.*` | The heading over the list |
+| `trialsmenu.headerdisplay` | `default` or `sidebyside` |
+| `trialsmenu.header.offset`, `.header.spacing` | Where the pinned filter banner sits, and the gap between entries when side by side |
+| `trialsmenu.header.text.*`, `.header.value.*`, `.header.bg.*` | A filter's label, its cleared tally, and its background |
+| `trialsmenu.header.active.*` | The same three, for the filter on show. Inherits from the above |
+| `trialsmenu.item.text.*`, `.item.active.text.*`, `.item.selected.text.*` | A trial's name: normal, under the cursor, and the trial in play |
+| `trialsmenu.item.bg.*`, `.item.active.bg.*`, `.cursor.*` | Per-row background and the cursor drawn on the active row |
+| `trialsmenu.status.*` | The cleared / not-cleared marker (see below) |
+| `trialsmenu.besttime.*` | The best clear time beside each row. Set its `text` to `""` to leave times off |
+| `trialsmenu.arrow.up.*`, `.arrow.down.*` | Shown when the list runs past `visibleitems`. Art or a label, the same way as the clear marker |
+
+#### Styling one difficulty differently
+
+Any of the row and banner elements can be respecified for a single difficulty, by putting the
+category name straight after `item` or `header`:
+
+```
+trialsmenu.item.<category>.text.*            a trial of that difficulty, at rest
+trialsmenu.item.<category>.active.text.*     ...under the cursor
+trialsmenu.item.<category>.selected.text.*   ...when it is the trial in play
+trialsmenu.item.<category>.bg.*              its row background
+trialsmenu.item.<category>.active.bg.*       ...under the cursor
+trialsmenu.header.<category>.text.*          that filter's banner entry
+trialsmenu.header.<category>.active.*        ...while it is the filter on show
+trialsmenu.header.<category>.value.*         its cleared tally
+trialsmenu.header.<category>.bg.*            its background
+```
+
+Row categories are `beginner`, `intermediate`, `advanced`, `expert` and `other` — `other` being the
+trials whose def declares no `trial.difficulty`. The banner adds `all`, the unfiltered view.
+
+**Declare only what differs.** Anything a category leaves out is inherited from the shared element
+it overrides, so a colour change is one line and a category with no block at all is drawn exactly as
+before. Offsets are relative to the row, so a category can sit somewhere else along the line, and a
+category only gets its own anim if it names one — otherwise it shares the common node's.
+
+```
+; Expert trials in red, shifted right, with their own banner sprite. Nothing else changes.
+trialsmenu.item.expert.text.font = 1,0,1, 255, 90, 90
+trialsmenu.item.expert.text.offset = 12,0
+trialsmenu.item.expert.active.text.font = 1,0,1, 255, 160, 160
+trialsmenu.header.expert.bg.spr = 6570,0
+```
+
+Only the key bindings and the menu sounds still come from `[Trials Pause Menu]` — `menu.next.key`,
+`menu.previous.key`, `menu.add.key`, `menu.subtract.key`, `menu.done.key`, `menu.cancel.key` and
+the `cursor.*` sounds — so the menu answers to whatever the screenpack already uses everywhere else.
+
+### The clear marker
+
+`trialsmenu.status.cleared` and `trialsmenu.status.uncleared` each take either art or a label.
+Name a sprite (or an anim) and it is drawn; leave both unset and the element's `text` is drawn
+instead. That is how you replace the default `CLEAR` label with a sprite of your own:
+
+```
+trialsmenu.status.offset = 300,0        ; where the marker sits, from the row's origin
+trialsmenu.status.cleared.spr = 6800,0  ; your sprite, in trials.sff or the screenpack's system.sff
+trialsmenu.status.cleared.scale = 1.0, 1.0  ; scale applies to whichever of art/text is drawn
+; trialsmenu.status.cleared.text is ignored once a sprite is named
+trialsmenu.status.uncleared.spr =       ; no art, so its text shows
+trialsmenu.status.uncleared.text = "----"
+```
+
+Set a state's `text` to `""` and leave its art unset to show nothing at all for that state.
+
+`trialsmenu.arrow.up` and `trialsmenu.arrow.down` work the same way — they default to `^` and `v`
+labels, and naming a sprite replaces them.
+
+## Speedrun
+
+Speedrun is a run at the whole character, in order, against the clock. Turning it on from the pause
+menu:
+
+- takes **Trials List** off the pause menu, so no trial can be skipped;
+- holds **Advancement** at Auto-Advance, since Repeat would stall a run;
+- restarts from the first trial with the total timer running.
+
+With Speedrun on, loading into a match skips the Trial Select view and starts on the first trial.
+Clearing every trial in one uninterrupted run records the total as that character's best run time;
+jumping to a trial invalidates the run, so a run only counts if it was played straight through.
+Individual clears and best times are recorded during a speedrun exactly as they are outside one.
+
+The character's best run time is shown beside the Speedrun item in the pause menu once they have
+one.
+
+Speedrun is **not** saved: it belongs to the sitting it was started in, and turns itself off
+whenever the player returns to the character select screen — via Character Change, the end of a
+match, or leaving the mode. Recorded clears and best run times are of course kept.
+
+## Progress
+
+Progress is saved per character to `save/trials.json`, next to the engine's own save data. For each
+trial it records whether it has been cleared and the best time; for each character it also records
+the best full-run time from Speedrun. It is written the moment a trial is cleared.
+
+```json
+{
+  "version": 1,
+  "chars": {
+    "chars/kfmz/kfmz.def": {
+      "trials": {
+        "KFM's First Trial": { "cleared": true, "besttime": 214 }
+      },
+      "speedrun": { "cleared": true, "besttime": 4820 }
+    }
+  }
+}
+```
+
+Characters are keyed by their def path, so renaming a character's display name keeps its progress.
+Trials are keyed by the name in `[TrialDef, <name>]`, so trials can be reordered, added or removed
+without losing anything; renaming a trial starts it a fresh record and leaves the old one orphaned,
+which is harmless. Times are in ticks (60 to the second).
+
+Deleting `save/trials.json` resets all progress.

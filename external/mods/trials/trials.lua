@@ -44,6 +44,160 @@ function trials.f_savePref(key, value)
 	end
 end
 
+--;===========================================================
+--; Progress
+--;===========================================================
+-- Per-character Trial progress, in a module-owned file alongside the engine's own save data.
+-- Keyed by the character's def path (the same key space the engine uses for its hiscore records)
+-- and, within that, by the Trial's name - so a def can be reordered without losing what the player
+-- cleared. Times are ticks, the unit every timer in this module already works in.
+trials.progressPath = 'save/trials.json'
+trials.t_difficulty = {'beginner', 'intermediate', 'advanced', 'expert'}
+-- The categories a menu row or the filter banner can be styled for. "all" only ever applies to the
+-- banner, since it is a filter rather than something a Trial can be.
+trials.t_menuCats = {'all', 'beginner', 'intermediate', 'advanced', 'expert', 'other'}
+
+local function f_emptyProgress()
+	return {version = 1, chars = {}}
+end
+
+function trials.f_loadProgress()
+	-- A missing file is the normal first run, not an error; only a malformed one is worth saying.
+	if not main.f_fileExists(trials.progressPath) then
+		return f_emptyProgress()
+	end
+	local ok, t = pcall(jsonDecode, trials.progressPath)
+	if not ok or type(t) ~= 'table' or type(t.chars) ~= 'table' then
+		print('Trials: could not read ' .. trials.progressPath .. '; starting with no progress.')
+		return f_emptyProgress()
+	end
+	t.version = 1
+	return t
+end
+
+trials.progress = trials.f_loadProgress()
+
+local function f_saveProgress()
+	-- jsonEncode(table, path) writes the file and creates the directory. Should a build instead
+	-- return the encoded string, write it ourselves rather than losing the player's progress.
+	local ok, err = pcall(jsonEncode, trials.progress, trials.progressPath)
+	if ok then
+		return
+	end
+	local ok2, str = pcall(jsonEncode, trials.progress)
+	if ok2 and type(str) == 'string' then
+		main.f_fileWrite(trials.progressPath, str)
+		return
+	end
+	print('Trials: could not write ' .. trials.progressPath .. ' (' .. tostring(err) .. ').')
+end
+
+-- The character loaded into P1, as the lowercased def path. nil before a character is selected.
+-- A ref can be passed explicitly, for the menu shown between stage select and the fight, where
+-- the match has not started and trials.p1selref is still whatever the last one left behind.
+function trials.f_charKey(ref)
+	-- Nothing is selected yet while the menus are still being built, so every hop is checked.
+	if ref == nil then ref = trials.p1selref end
+	if ref == nil and type(start.p) == 'table' and type(start.p[1]) == 'table'
+		and type(start.p[1].t_selected) == 'table' and start.p[1].t_selected[1] ~= nil then
+		ref = start.p[1].t_selected[1].ref
+	end
+	if ref == nil then
+		return nil
+	end
+	local ok, path = pcall(getCharFileName, ref)
+	if not ok or type(path) ~= 'string' or path == '' then
+		return nil
+	end
+	return path:gsub('\\', '/'):lower()
+end
+
+local function f_charProgress(create, ref)
+	local key = trials.f_charKey(ref)
+	if key == nil then
+		return nil
+	end
+	local t = trials.progress.chars[key]
+	if t == nil then
+		if not create then
+			return nil
+		end
+		t = {}
+		trials.progress.chars[key] = t
+	end
+	if type(t.trials) ~= 'table' then t.trials = {} end
+	if type(t.speedrun) ~= 'table' then t.speedrun = {} end
+	return t
+end
+
+-- Record key for a Trial. The name is what the player sees, so it is what the save is keyed by;
+-- duplicate names within one file are numbered so reordering a def never merges two records.
+-- arr defaults to the Trials of the match in progress; the pre-fight menu passes the parsed ones.
+function trials.f_trialKey(index, arr)
+	arr = arr or (trials.data ~= nil and trials.data.trial or nil)
+	if arr == nil or arr[index] == nil then
+		return nil
+	end
+	local name = arr[index].name
+	local dupe = 0
+	for i = 1, index, 1 do
+		if arr[i].name == name then
+			dupe = dupe + 1
+		end
+	end
+	if dupe > 1 then
+		return name .. ' #' .. dupe
+	end
+	return name
+end
+
+function trials.f_trialRecord(index, arr, ref)
+	local t = f_charProgress(false, ref)
+	local key = trials.f_trialKey(index, arr)
+	if t == nil or key == nil then
+		return nil
+	end
+	return t.trials[key]
+end
+
+function trials.f_speedrunRecord()
+	local t = f_charProgress(false)
+	if t == nil then
+		return nil
+	end
+	return t.speedrun
+end
+
+function trials.f_recordClear(index, ticks)
+	local t = f_charProgress(true)
+	local key = trials.f_trialKey(index)
+	if t == nil or key == nil then
+		return
+	end
+	local rec = t.trials[key]
+	if rec == nil then
+		rec = {}
+		t.trials[key] = rec
+	end
+	rec.cleared = true
+	if ticks ~= nil and ticks >= 0 and (rec.besttime == nil or ticks < rec.besttime) then
+		rec.besttime = ticks
+	end
+	f_saveProgress()
+end
+
+function trials.f_recordSpeedrun(ticks)
+	local t = f_charProgress(true)
+	if t == nil then
+		return
+	end
+	t.speedrun.cleared = true
+	if ticks ~= nil and ticks >= 0 and (t.speedrun.besttime == nil or ticks < t.speedrun.besttime) then
+		t.speedrun.besttime = ticks
+	end
+	f_saveProgress()
+end
+
 motif = loadMotif()
 
 -- The engine already loaded and owns the screenpack's sprites, sounds and fonts; reach for
@@ -226,6 +380,13 @@ end
 trials.mtlcx = tonumber(trials.trials_mode.trialslocalcoord[1]) or 320
 trials.mtlcy = tonumber(trials.trials_mode.trialslocalcoord[2]) or 240
 trials.trials_mode.trialslocalcoord = {trials.mtlcx, trials.mtlcy}
+-- The stage's localcoord and the ratio against it are only known once a match is up, but
+-- text:create and text:update consult them unconditionally. Start them neutral so anything built
+-- before the first match - the select menu's text objects - gets no adjustment rather than a nil.
+trials.stlcx = trials.mtlcx
+trials.stlcy = trials.mtlcy
+trials.lcdx00 = 1
+trials.lcdy00 = 1
 
 -- Font metrics, memoized per font index. motif.Fnt is the engine's loaded font map.
 local t_fontDef = {}
@@ -246,6 +407,53 @@ local function f_alignOffset(align)
 end
 
 text = {}
+
+-- Builds a text object straight from a system.def node, e.g. f_newText(trials.trials_mode.success.text)
+-- for the "success.text.*" keys. Position comes from "pos" when the node has one, otherwise
+-- "offset"; callers that need a different origin reposition through :update afterwards.
+-- The node's "window" is deliberately not read: trials treats textbox.text.window as an offset
+-- pair (see f_trialsDrawer), not as a clipping window.
+function f_newText(node)
+	local node = type(node) == 'table' and node or {}
+	local font = type(node.font) == 'table' and node.font or {-1}
+	local offset = type(node.pos) == 'table' and node.pos or (type(node.offset) == 'table' and node.offset or {0, 0})
+	local scale = type(node.scale) == 'table' and node.scale or {1, 1}
+	return text:create({
+		font =   font[1],
+		bank =   font[2],
+		align =  font[3],
+		text =   node.text,
+		x =      offset[1] or 0,
+		y =      offset[2] or 0,
+		scaleX = scale[1] or 1,
+		scaleY = scale[2] or 1,
+		r =      font[4],
+		g =      font[5],
+		b =      font[6],
+		a =      font[7],
+		xshear = node.xshear or 0,
+		angle  = node.angle or 0,
+		layerno = node.layerno,
+	})
+end
+
+-- Render layer for a motif element. The engine buckets Lua draw calls into a pre-pass plus
+-- three layers (see System.luaQueueLayerDraw), all of which are flushed after the stage and
+-- the characters, so this only orders trials elements against each other. Within one layer
+-- the draw order is the order the elements are drawn by f_trialsDrawer.
+-- Defaults to 0, which is what every element used before layerno was configurable.
+local function f_clampLayerno(...)
+	for i = 1, select('#', ...) do
+		local n = tonumber(select(i, ...))
+		if n ~= nil then
+			n = math.floor(n)
+			if n < -1 then n = -1 elseif n > 2 then n = 2 end
+			return n
+		end
+	end
+	return 0
+end
+
 --create text
 function text:create(t)
 	local t = t or {}
@@ -306,6 +514,7 @@ function text:create(t)
 	textImgSetPos(t.ti, t.x + f_alignOffset(t.align), t.y)
 	textImgSetScale(t.ti, t.scaleX, t.scaleY)
 	textImgSetWindow(t.ti, t.window[1], t.window[2], t.window[3] - t.window[1], t.window[4] - t.window[2])
+	textImgSetLayerno(t.ti, f_clampLayerno(t.layerno))
 	textImgSetXShear(t.ti, t.xshear)
 	textImgSetAngle(t.ti, t.angle)
 	return t
@@ -370,51 +579,6 @@ function text:draw()
 	return self
 end
 
--- Builds a text object straight from a system.def node, e.g. f_newText(trials.trials_mode.success.text)
--- for the "success.text.*" keys. Position comes from "pos" when the node has one, otherwise
--- "offset"; callers that need a different origin reposition through :update afterwards.
--- The node's "window" is deliberately not read: trials treats textbox.text.window as an offset
--- pair (see f_trialsDrawer), not as a clipping window.
-function f_newText(node)
-	local node = type(node) == 'table' and node or {}
-	local font = type(node.font) == 'table' and node.font or {-1}
-	local offset = type(node.pos) == 'table' and node.pos or (type(node.offset) == 'table' and node.offset or {0, 0})
-	local scale = type(node.scale) == 'table' and node.scale or {1, 1}
-	return text:create({
-		font =   font[1],
-		bank =   font[2],
-		align =  font[3],
-		text =   node.text,
-		x =      offset[1] or 0,
-		y =      offset[2] or 0,
-		scaleX = scale[1] or 1,
-		scaleY = scale[2] or 1,
-		r =      font[4],
-		g =      font[5],
-		b =      font[6],
-		a =      font[7],
-		xshear = node.xshear or 0,
-		angle  = node.angle or 0,
-	})
-end
-
--- Render layer for a motif element. The engine buckets Lua draw calls into a pre-pass plus
--- three layers (see System.luaQueueLayerDraw), all of which are flushed after the stage and
--- the characters, so this only orders trials elements against each other. Within one layer
--- the draw order is the order the elements are drawn by f_trialsDrawer.
--- Defaults to 0, which is what every element used before layerno was configurable.
-local function f_clampLayerno(...)
-	for i = 1, select('#', ...) do
-		local n = tonumber(select(i, ...))
-		if n ~= nil then
-			n = math.floor(n)
-			if n < -1 then n = -1 elseif n > 2 then n = 2 end
-			return n
-		end
-	end
-	return 0
-end
-
 -- Builds an Anim from a system.def element node (the table holding offset/scale/spr/anim/
 -- facing/layerno) and returns it. Mirrors the engine's own SetAnim (src/iniutils.go):
 -- an "anim = N" resolves through the action table, otherwise "spr = group, index" becomes a
@@ -469,6 +633,7 @@ main.t_itemname.trials = function()
 	end
 	--main.lifebar.p1score = true
 	--main.lifebar.p2ailevel = true
+	main.motif.dialogue = false
 	main.roundTime = -1
 	main.selectMenu[2] = true
 	if gameOption('Config.TrainingStage') == '' then
@@ -508,6 +673,88 @@ local function f_node(t, ...)
 	return node
 end
 
+-- The Trial select menu block is newer than the rest of [Trials Mode], so fill in anything a
+-- system.def predating it would not have declared. Everything else here is authored in system.def.
+do
+	local m = f_node(tr_pos, 'trialsmenu')
+	if type(m.pos) ~= 'table' then m.pos = {0, 0} end
+	if type(m.spacing) ~= 'table' then m.spacing = {0, 20} end
+	m.visibleitems = math.max(1, tonumber(m.visibleitems) or 10)
+	-- The menu is drawn over a live match, so it defaults to the top layer rather than sharing
+	-- layer 0 with the in-match HUD. Any element can still name its own.
+	m.layerno = tonumber(m.layerno) or 2
+	-- default draws one banner, for the filter on show. sidebyside lays every filter out at
+	-- header.spacing apart and marks the one on show with the header.active elements.
+	m.headerdisplay = tostring(m.headerdisplay or 'default'):lower()
+	if m.headerdisplay ~= 'sidebyside' then m.headerdisplay = 'default' end
+	if type(f_node(m, 'header').spacing) ~= 'table' then m.header.spacing = {120, 0} end
+	-- The tally beside a filter name. "" leaves it off, which side by side often wants.
+	if f_node(m, 'header', 'value').text == nil then m.header.value.text = '%s' end
+	-- header.active describes the filter on show. It inherits from the shared banner, so a
+	-- system.def that only ever styled header.* keeps describing both.
+	for _, key in ipairs({'text', 'value', 'bg'}) do
+		local base, act = f_node(m, 'header', key), f_node(m, 'header', 'active', key)
+		for k, v in pairs(base) do
+			if act[k] == nil then act[k] = v end
+		end
+	end
+	for _, path in ipairs({
+		{'bg'}, {'front'}, {'cursor'}, {'header'}, {'header', 'bg'}, {'header', 'active', 'bg'},
+		{'item', 'bg'}, {'item', 'active', 'bg'},
+		{'status', 'cleared'}, {'status', 'uncleared'}, {'arrow', 'up'}, {'arrow', 'down'},
+	}) do
+		local n = f_node(m, unpack(path))
+		if type(n.offset) ~= 'table' then n.offset = {0, 0} end
+		if n.layerno == nil then n.layerno = m.layerno end
+	end
+	for _, path in ipairs({
+		{'title'}, {'besttime'}, {'header', 'text'}, {'header', 'value'},
+		{'header', 'active', 'text'}, {'header', 'active', 'value'},
+		{'item', 'text'}, {'item', 'active', 'text'}, {'item', 'selected', 'text'},
+		{'status', 'cleared'}, {'status', 'uncleared'}, {'arrow', 'up'}, {'arrow', 'down'},
+	}) do
+		local n = f_node(m, unpack(path))
+		if type(n.offset) ~= 'table' then n.offset = {0, 0} end
+		if type(n.font) ~= 'table' then n.font = {-1} end
+		if type(n.scale) ~= 'table' then n.scale = {1, 1} end
+		if n.text == nil then n.text = '' end
+		if n.layerno == nil then n.layerno = m.layerno end
+	end
+	if type(f_node(m, 'status').offset) ~= 'table' then m.status.offset = {0, 0} end
+	-- Per-category overrides. A row's category is its Trial's difficulty; the banner's is the
+	-- filter on show. Authors declare only what differs, so anything a category leaves out is
+	-- inherited from the shared node it overrides. Done before t_elems so the anims are built
+	-- from the inherited values, and only for categories that were actually declared.
+	for _, cat in ipairs(trials.t_menuCats) do
+		for _, path in ipairs({
+			{'item', 'text'}, {'item', 'bg'},
+			{'item', 'active', 'text'}, {'item', 'active', 'bg'},
+			{'item', 'selected', 'text'},
+			{'header', 'text'}, {'header', 'value'}, {'header', 'bg'},
+			{'header', 'active', 'text'}, {'header', 'active', 'value'}, {'header', 'active', 'bg'},
+		}) do
+			local group = path[1]
+			local rest = {}
+			for i = 2, #path, 1 do rest[#rest + 1] = path[i] end
+			local declared = m[group] ~= nil and m[group][cat] or nil
+			for _, k in ipairs(rest) do
+				declared = type(declared) == 'table' and declared[k] or nil
+			end
+			if type(declared) == 'table' then
+				local base = f_node(m, unpack(path))
+				for k, v in pairs(base) do
+					if declared[k] == nil then declared[k] = v end
+				end
+			end
+		end
+	end
+	local o = f_node(m, 'overlay')
+	if type(o.window) ~= 'table' then o.window = {0, 0, trials.mtlcx, trials.mtlcy} end
+	if type(o.col) ~= 'table' then o.col = {0, 0, 0} end
+	if type(o.alpha) ~= 'table' then o.alpha = {0, 128} end
+	o.layerno = tonumber(o.layerno) or 0
+end
+
 -- Each element caches its Anim on its own config node as .AnimData, the same convention the
 -- engine uses for motif elements (and that textbox.overlay.RectData already follows here).
 -- x/y is the element's origin; f_loadAnimData adds the node's own offset on top of it.
@@ -521,6 +768,29 @@ local t_elems = {
 	{n = f_node(tr_pos, 'textbox', 'bg'),                  x = tr_pos.textbox.pos[1],               y = tr_pos.textbox.pos[2]},
 	{n = f_node(tr_pos, 'textbox', 'front'),               x = tr_pos.textbox.pos[1],               y = tr_pos.textbox.pos[2]},
 }
+-- Menu bg and front sit at the menu's own origin; everything else in it is placed per row by
+-- the draw loop, so those are built at the origin.
+t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'trialsmenu', 'bg'),    x = tr_pos.trialsmenu.pos[1], y = tr_pos.trialsmenu.pos[2]}
+t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'trialsmenu', 'front'), x = tr_pos.trialsmenu.pos[1], y = tr_pos.trialsmenu.pos[2]}
+for _, path in ipairs({
+	{'cursor'}, {'header', 'bg'}, {'item', 'bg'}, {'item', 'active', 'bg'},
+	{'status', 'cleared'}, {'status', 'uncleared'}, {'arrow', 'up'}, {'arrow', 'down'},
+}) do
+	t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'trialsmenu', unpack(path))}
+end
+-- A category only gets its own anim if it declared one; otherwise the draw falls back to the
+-- shared node, which already has one.
+for _, cat in ipairs(trials.t_menuCats) do
+	for _, path in ipairs({{'item', 'bg'}, {'item', 'active', 'bg'}, {'header', 'bg'}, {'header', 'active', 'bg'}}) do
+		local n = tr_pos.trialsmenu[path[1]][cat]
+		for i = 2, #path, 1 do
+			n = type(n) == 'table' and n[path[i]] or nil
+		end
+		if type(n) == 'table' then
+			t_elems[#t_elems + 1] = {n = n}
+		end
+	end
+end
 for _, layout in ipairs({'vertical', 'horizontal'}) do
 	t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'trialtitle', layout, 'bg'),    x = tr_pos.trialtitle[layout].pos[1], y = tr_pos.trialtitle[layout].pos[2]}
 	t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'trialtitle', layout, 'front'), x = tr_pos.trialtitle[layout].pos[1], y = tr_pos.trialtitle[layout].pos[2]}
@@ -536,6 +806,27 @@ end
 for _, v in ipairs(t_elems) do
 	v.n.AnimData = f_loadAnimData(v.n, v.x, v.y)
 	main.f_loadingRefresh()
+end
+
+-- One text object per visible row per style, the same shape as the step text lines. Built once at
+-- load: none of it depends on match state, and the menu shown before the fight needs it early.
+do
+	local m = tr_pos.trialsmenu
+	local d = {
+		title = f_newText(m.title),
+		arrowup = f_newText(m.arrow.up),
+		arrowdown = f_newText(m.arrow.down),
+		rows = {},
+		besttime = {},
+		cleared = {},
+		uncleared = {},
+	}
+	for i = 1, m.visibleitems, 1 do
+		d.besttime[i] = f_newText(m.besttime)
+		d.cleared[i] = f_newText(m.status.cleared)
+		d.uncleared[i] = f_newText(m.status.uncleared)
+	end
+	trials.menuDraw = d
 end
 
 --;===========================================================
@@ -560,6 +851,7 @@ function trials.f_inittrialsData()
 		maxsteps = 0,
 		starttick = roundTime(),
 		elapsedtime = 0,
+		runValid = false,
 		trial = main.f_tableCopy(start.f_getCharData(start.p[1].t_selected[1].ref).trialsdata),
 		bgelemdata = {
 			vertical = {},
@@ -771,9 +1063,12 @@ function trials.f_trialsBuilder()
 		end
 	end
 
-	-- Build list out all of the available trials for Pause menu.
+	-- Wire up the Trial select view. The same item list backs both the screen shown when the match
+	-- loads and the Pause menu's Trials List, so the two can never drift apart.
+	trials.selectFilter = 'all'
+	trials.rootNode = type(menu) == 'table' and menu.trials or nil
 	local sub = nil
-	local stack = {type(menu) == 'table' and menu.trials or nil}
+	local stack = {trials.rootNode}
 	while #stack > 0 do
 		local node = table.remove(stack)
 		if type(node) == 'table' and type(node.submenu) == 'table' then
@@ -788,31 +1083,31 @@ function trials.f_trialsBuilder()
 	end
 	trials.listNode = sub
 	if sub ~= nil then
+		-- Remember what the section itself declared, so round start can put it all back.
 		if trials.listTail == nil then
 			trials.listTail = sub.items
 		end
-		local items = {}
-		for i = 1, #trials.data.trial, 1 do
-			items[i] = {
-				itemname = 'trialsentry',
-				paramname = 'trialsentry',
-				displayname = trials.data.trial[i].name,
-				vardisplay = '',
-				selected = i == trials.data.currenttrial,
-				trial = i,
-			}
+		if trials.listLoop == nil then
+			trials.listLoop = sub.loop
 		end
-		for _, item in ipairs(trials.listTail) do
-			items[#items + 1] = item
+		sub.items = trials.f_buildSelectItems()
+		sub.item = trials.f_firstUncleared(sub.items)
+		sub.first = 1
+		-- The Trials List *is* the select view: hand the menu system our loop in place of its own.
+		sub.loop = function()
+			trials.f_selectLoop(sub, false)
 		end
-		if #items == 0 then
-			items[1] = {itemname = 'back', paramname = 'back', displayname = 'Back', vardisplay = '', selected = false}
-		end
-		sub.items = items
-		sub.item = 1
-		sub.cursorPosY = 1
-		sub.moveTxt = 0
 	end
+	if trials.rootNode ~= nil and trials.rootItems == nil then
+		trials.rootItems = trials.rootNode.items
+	end
+	trials.select = {
+		items = sub ~= nil and sub.items or trials.f_buildSelectItems(),
+		item = 1,
+		first = 1,
+		open = false,
+	}
+	trials.select.item = trials.f_firstUncleared(trials.select.items)
 
 	trials.data.trialsInitialized = true
 end
@@ -1343,6 +1638,7 @@ textboxwindow4 = trials.mtlcx
 					-- coordinate space, so pull them into trials space before placing them.
 					local g = motif.glyphs[glyphline.glyph[m]].AnimData
 					animSetLocalcoord(g, trials.mtlcx, trials.mtlcy)
+					animSetLayerno(g, f_clampLayerno(trials.trials_mode.glyphs[layout].layerno))
 					animSetScale(g, glyphline.scale[m][1], glyphline.scale[m][2])
 					animSetPos(g,
 						glyphline.pos[m][1],
@@ -1366,6 +1662,10 @@ textboxwindow4 = trials.mtlcx
 			end
 		elseif ct > #trials.data.trial then
 			-- All trials have been completed, draw the all clear and freeze the timer
+			if not trials.data.allclear and trials.f_speedrunEnabled() and trials.data.runValid then
+				trials.f_recordSpeedrun(roundTime() - trials.data.starttick)
+				trials.data.runValid = false
+			end
 			if trials.draw.allclear ~= 0 then
 				trials.f_trialsSuccess('allclear', ct-1)
 			end
@@ -1554,6 +1854,11 @@ function trials.f_trialsChecker(CheckIt)
 						trials.data.validfortickcount = 0
 					end
 					if trials.data.currenttrialstep > #trials.data.trial[ct].trialstep then
+						-- Record the clear here, not from f_trialsSuccess: that runs every frame the
+						-- banner is up, by which point the drawer has already moved ct on to the next
+						-- Trial, so it would credit the clear to the wrong one. This block runs once.
+						trials.f_recordClear(ct, roundTime() - trials.data.trial[ct].starttick)
+						trials.selectDirty = true
 						-- If trial step was last, go to next trial and display success banner
 						if trials.data.trialadvancement then
 							trials.data.currenttrial = ct + 1
@@ -1821,6 +2126,860 @@ function trials.f_trialsSelectScreen()
 	end
 end
 
+--;===========================================================
+--; Trial select view
+--;===========================================================
+-- One list of Trials, shown two ways: as the screen that greets the player when the match loads,
+-- and as the Pause menu's Trials List. It is drawn with the engine's own menu renderer, so it
+-- inherits the screenpack's pause-menu fonts, cursor, sounds and scrolling for free.
+
+local function f_pauseMenuValues()
+	if motif.pause_menu ~= nil and motif.pause_menu.trials_pause_menu ~= nil then
+		return motif.pause_menu.trials_pause_menu.menu.valuename or {}
+	end
+	return {}
+end
+
+local t_difficultyDefault = {
+	all = 'All',
+	beginner = 'Beginner',
+	intermediate = 'Intermediate',
+	advanced = 'Advanced',
+	expert = 'Expert',
+	none = 'Other',
+}
+
+-- Screenpacks rename or translate the tier labels through menu.valuename.trialsdifficulty_*.
+function trials.f_difficultyName(d)
+	local key = d
+	if key == nil or key == '' then
+		key = 'none'
+	end
+	local pmv = f_pauseMenuValues()
+	return pmv['trialsdifficulty_' .. key] or t_difficultyDefault[key] or key
+end
+
+function trials.f_speedrunEnabled()
+	return menu.trialsspeedrun == 1
+end
+
+-- Which filters this character offers: All, then each difficulty that actually has Trials, then
+-- Other for the ones whose def declares none. A def with no difficulties anywhere offers only All,
+-- which is the flat, def-ordered list it has always had.
+function trials.f_filterOrder(arr)
+	local t = {'all'}
+	arr = arr or (trials.data ~= nil and trials.data.trial or nil)
+	if arr == nil then
+		return t
+	end
+	local has = {}
+	local declared = false
+	for i = 1, #arr, 1 do
+		local d = arr[i].difficulty
+		if d == '' then
+			d = 'other'
+		else
+			declared = true
+		end
+		has[d] = true
+	end
+	if not declared then
+		return t
+	end
+	for _, d in ipairs(trials.t_difficulty) do
+		if has[d] then
+			t[#t + 1] = d
+		end
+	end
+	if has.other then
+		t[#t + 1] = 'other'
+	end
+	return t
+end
+
+local function f_inFilter(arr, i, filter)
+	if filter == 'all' then
+		return true
+	end
+	local d = arr[i].difficulty
+	if d == '' then
+		d = 'other'
+	end
+	return d == filter
+end
+
+-- The Trials the current filter admits, in def order, under a header naming the filter and how
+-- many of it are cleared. The header only appears when there is more than one filter to cycle.
+-- arr/ref default to the match in progress. The menu shown between stage select and the fight
+-- passes the character's parsed Trials instead, since no match state exists yet. withTail appends
+-- the pause-menu section's own items (Back), which only that context has.
+function trials.f_buildSelectItems(arr, ref, withTail)
+	local items = {}
+	arr = arr or (trials.data ~= nil and trials.data.trial or nil)
+	if arr == nil then
+		return items
+	end
+	if withTail == nil then
+		withTail = true
+	end
+	local order = trials.f_filterOrder(arr)
+	local filter = trials.selectFilter or 'all'
+	local known = false
+	for _, v in ipairs(order) do
+		if v == filter then
+			known = true
+			break
+		end
+	end
+	if not known then
+		filter = 'all'
+		trials.selectFilter = filter
+	end
+	local tier = {}
+	local entries = {}
+	for _, f in ipairs(order) do
+		local n, done = 0, 0
+		for i = 1, #arr, 1 do
+			if f_inFilter(arr, i, f) then
+				n = n + 1
+				local rec = trials.f_trialRecord(i, arr, ref)
+				if rec ~= nil and rec.cleared then
+					done = done + 1
+				end
+				if f == filter then
+					tier[#tier + 1] = i
+				end
+			end
+		end
+		entries[#entries + 1] = {cat = f, label = trials.f_difficultyName(f), value = done .. '/' .. n}
+	end
+	-- The banner is pinned above the list rather than being row one, so it stays put while the
+	-- rows scroll under it. The arrows are the only affordance telling the player that left and
+	-- right do anything, so they only appear when there is more than one filter to reach.
+	local label = trials.f_difficultyName(filter)
+	if #order > 1 and trials.trials_mode.trialsmenu.headerdisplay ~= 'sidebyside' then
+		-- Laid out side by side the other filters are visible, so the arrows earn nothing.
+		label = '< ' .. label .. ' >'
+	end
+	trials.selectHeader = {label = label, cat = filter, entries = entries}
+	for _, e in ipairs(entries) do
+		if e.cat == filter then
+			trials.selectHeader.value = e.value
+		end
+	end
+	for _, i in ipairs(tier) do
+		items[#items + 1] = {
+			itemname = 'trialsentry',
+			paramname = 'trialsentry',
+			displayname = arr[i].name,
+			selected = trials.data ~= nil and i == trials.data.currenttrial,
+			trial = i,
+		}
+	end
+	if withTail and trials.listTail ~= nil then
+		for _, item in ipairs(trials.listTail) do
+			items[#items + 1] = item
+		end
+	end
+	if #items == 0 then
+		items[1] = {itemname = 'back', paramname = 'back', displayname = 'Back', vardisplay = '', selected = false}
+	end
+	return items
+end
+
+-- Where the cursor starts: the first Trial the player has yet to clear, so re-entering a character
+-- picks up where they left off.
+function trials.f_firstUncleared(items, arr, ref)
+	local first = nil
+	for i, v in ipairs(items) do
+		if v.trial ~= nil then
+			if first == nil then
+				first = i
+			end
+			local rec = trials.f_trialRecord(v.trial, arr, ref)
+			if rec == nil or not rec.cleared then
+				return i
+			end
+		end
+	end
+	return first or 1
+end
+
+-- Rebuilt whenever progress changes, so a clear shows up on the row immediately.
+function trials.f_refreshSelect()
+	if trials.data == nil or not trials.data.trialsInitialized then
+		return
+	end
+	local items = trials.f_buildSelectItems()
+	for _, node in ipairs(trials.f_selectNodes()) do
+		node.items = items
+		if node.item > #items then
+			node.item = #items
+		end
+	end
+	trials.selectDirty = false
+end
+
+-- The two views onto the same list: the Pause menu's Trials List and the match-load screen.
+function trials.f_selectNodes()
+	local t = {}
+	if type(trials.listNode) == 'table' then t[#t + 1] = trials.listNode end
+	if type(trials.select) == 'table' then t[#t + 1] = trials.select end
+	return t
+end
+
+-- After a filter change both views are showing a different list, so both cursors go back to the
+-- first Trial that filter still leaves uncleared.
+function trials.f_resetSelectCursors()
+	for _, node in ipairs(trials.f_selectNodes()) do
+		if type(node.items) == 'table' then
+			node.item = trials.f_firstUncleared(node.items)
+			node.first = 1
+		end
+	end
+end
+
+-- Left and right step through the filters. Returns whether anything moved, so the caller knows
+-- whether to make a sound.
+-- Cycles the filter for one specific node, used by the pre-fight menu where the in-match views
+-- do not exist yet.
+function trials.f_cycleFilterFor(node, dir)
+	local order = trials.f_filterOrder(node.trials)
+	if #order < 2 then
+		return false
+	end
+	local idx = 1
+	for i, v in ipairs(order) do
+		if v == (trials.selectFilter or 'all') then
+			idx = i
+			break
+		end
+	end
+	trials.selectFilter = order[(idx - 1 + dir) % #order + 1]
+	node.items = trials.f_buildSelectItems(node.trials, node.ref, false)
+	node.item = trials.f_firstUncleared(node.items, node.trials, node.ref)
+	node.first = 1
+	return true
+end
+
+function trials.f_cycleFilter(dir)
+	local order = trials.f_filterOrder()
+	if #order < 2 then
+		return false
+	end
+	local idx = 1
+	for i, v in ipairs(order) do
+		if v == (trials.selectFilter or 'all') then
+			idx = i
+			break
+		end
+	end
+	trials.selectFilter = order[(idx - 1 + dir) % #order + 1]
+	trials.f_refreshSelect()
+	trials.f_resetSelectCursors()
+	return true
+end
+
+-- Holds both players still while the view is up. The value is a countdown trials.zss ticks down,
+-- so the hold releases itself if this stops being called every frame.
+function trials.f_menuHold(on)
+	local v = 0
+	if on then
+		v = 10
+	end
+	player(2)
+	mapSet('_iksys_trialsMenuOpen', v)
+	player(1)
+	mapSet('_iksys_trialsMenuOpen', v)
+end
+
+-- trialslistdisplay decides when, if ever, the player is asked which Trial to play:
+--   select - between stage select and the fight loading
+--   start  - once the match is up, over the frozen pair
+--   off    - never; the match starts on the first Trial
+-- The pause menu's Trials List is unaffected by any of them.
+function trials.f_listDisplay()
+	local v = tostring(trials.trials_mode.trialslistdisplay or 'start'):lower()
+	if v == 'select' or v == 'off' then
+		return v
+	end
+	return 'start'
+end
+
+function trials.f_openSelect()
+	if trials.select == nil or trials.data == nil or #trials.data.trial == 0 then
+		return
+	end
+	trials.f_refreshSelect()
+	trials.select.item = trials.f_firstUncleared(trials.select.items)
+	trials.select.first = 1
+	trials.select.openDelay = 10
+	local it = trials.select.items[trials.select.item]
+	if it ~= nil and it.trial ~= nil then
+		trials.data.currenttrial = it.trial
+	end
+	trials.select.open = true
+	trials.f_menuHold(true)
+	local sec = trials.f_selectSection()
+	if sec ~= nil then
+		sndPlay(motif.Snd, sec.enter.snd[1], sec.enter.snd[2])
+	end
+end
+
+-- Both clocks have to be armed from one reading, or the run and its first Trial drift apart by
+-- however many ticks separate two calls to roundTime(). Everything that begins a Trial comes here.
+function trials.f_armTimers(index, wholeRun)
+	if trials.data == nil then
+		return
+	end
+	local now = roundTime()
+	if wholeRun then
+		trials.data.starttick = now
+		trials.data.elapsedtime = 0
+	end
+	if trials.data.trial[index] ~= nil then
+		trials.data.trial[index].starttick = now
+	end
+end
+
+function trials.f_closeSelect()
+	if trials.select ~= nil then
+		trials.select.open = false
+	end
+	trials.f_menuHold(false)
+	-- Time spent choosing belongs to nobody's run.
+	if trials.data ~= nil then
+		trials.f_armTimers(trials.data.currenttrial, true)
+	end
+end
+
+-- Only the key bindings and the menu sounds still come from the screenpack's pause-menu section;
+-- everything the view looks like is [Trials Mode] trialsmenu.*.
+function trials.f_selectSection()
+	if motif.pause_menu == nil then
+		return nil
+	end
+	return motif.pause_menu.trials_pause_menu or motif.pause_menu.pause_menu
+end
+
+--;===========================================================
+--; Trial select menu - drawing
+--;===========================================================
+-- A category's own node when it declared one, otherwise the shared node it would have overridden.
+-- The second return is the key the text cache is filed under, so a category's text object is never
+-- confused with the shared one.
+-- As f_cat, but for elements that also have an "active" variant: the category's active node, then
+-- the shared active node, then the category's plain node, then the shared one.
+local function f_catState(base, cat, active, key)
+	if active then
+		local c = base[cat]
+		if type(c) == 'table' and type(c.active) == 'table' and type(c.active[key]) == 'table' then
+			return c.active[key], cat .. '.active'
+		end
+		if type(base.active) == 'table' and type(base.active[key]) == 'table' then
+			return base.active[key], 'active'
+		end
+	end
+	local c = base[cat]
+	if type(c) == 'table' and type(c[key]) == 'table' then
+		return c[key], cat
+	end
+	return f_node(base, key), ''
+end
+
+local function f_cat(base, cat, ...)
+	local node = base[cat]
+	for i = 1, select('#', ...) do
+		if type(node) ~= 'table' then
+			node = nil
+			break
+		end
+		node = node[select(i, ...)]
+	end
+	if type(node) == 'table' then
+		return node, cat
+	end
+	return f_node(base, ...), ''
+end
+
+-- Anims are built at the origin by t_elems and placed here, the same way the step backgrounds are.
+local function f_menuAnim(node, x, y)
+	if type(node) ~= 'table' or node.AnimData == nil then
+		return
+	end
+	animSetPos(node.AnimData, x + node.offset[1], y + node.offset[2])
+	animUpdate(node.AnimData)
+	animDraw(node.AnimData)
+end
+
+-- Whether the author actually named art for this element. A sprite or anim wins; otherwise the
+-- element's .text label is drawn in its place, which is how the CLEAR label is replaced by art.
+local function f_hasArt(node)
+	if type(node) ~= 'table' then
+		return false
+	end
+	if type(node.anim) == 'number' and node.anim >= 0 then
+		return true
+	end
+	if type(node.spr) == 'string' then
+		return node.spr ~= ''
+	end
+	if type(node.spr) == 'table' then
+		return #node.spr > 0
+	end
+	return false
+end
+
+-- Text objects for the styles a category actually uses, made on first sight. Pre-allocating every
+-- category against every state against every visible row would be 15 pools for a menu that draws
+-- one style per row.
+local function f_rowText(style, cat, row, node)
+	local d = trials.menuDraw
+	local key = style .. '.' .. cat
+	if d.rows[key] == nil then
+		d.rows[key] = {}
+	end
+	if d.rows[key][row] == nil then
+		d.rows[key][row] = f_newText(node)
+	end
+	return d.rows[key][row]
+end
+
+local function f_menuText(obj, node, x, y, str)
+	obj:update({x = x + node.offset[1], y = y + node.offset[2], text = str})
+	obj:draw()
+end
+
+-- An element drawn as art if the author named any, and as its .text label otherwise. The
+-- clear marker and the scroll arrows both work this way.
+local function f_menuMark(node, obj, x, y)
+	if f_hasArt(node) then
+		f_menuAnim(node, x, y)
+	elseif node.text ~= '' then
+		f_menuText(obj, node, x, y, node.text)
+	end
+end
+
+-- Keeps the cursor inside the window, and the window inside the list.
+local function f_scrollTo(node, visible, total)
+	if node.first == nil then
+		node.first = 1
+	end
+	if node.item < node.first then
+		node.first = node.item
+	elseif node.item > node.first + visible - 1 then
+		node.first = node.item - visible + 1
+	end
+	local maxFirst = math.max(1, total - visible + 1)
+	if node.first > maxFirst then
+		node.first = maxFirst
+	end
+	if node.first < 1 then
+		node.first = 1
+	end
+end
+
+function trials.f_selectDraw(node)
+	local m = trials.trials_mode.trialsmenu
+	local d = trials.menuDraw
+	local t = node.items
+	local visible = math.min(m.visibleitems, #t)
+	f_scrollTo(node, visible, #t)
+	-- Dim whatever is behind the menu.
+	if m.overlay.visible == true or tostring(m.overlay.visible):lower() == 'true' then
+		if m.overlay.RectData == nil then
+			m.overlay.RectData = rectNew()
+		end
+		rectSetColor(m.overlay.RectData, m.overlay.col[1], m.overlay.col[2], m.overlay.col[3])
+		rectSetAlpha(m.overlay.RectData, m.overlay.alpha[1], m.overlay.alpha[2])
+		rectSetLayerno(m.overlay.RectData, f_clampLayerno(m.overlay.layerno))
+		rectSetWindow(m.overlay.RectData, m.overlay.window[1], m.overlay.window[2], m.overlay.window[3], m.overlay.window[4])
+		rectSetLocalcoord(m.overlay.RectData, trials.mtlcx, trials.mtlcy)
+		rectDraw(m.overlay.RectData)
+	end
+	f_menuAnim(m.bg, m.pos[1], m.pos[2])
+	if m.title.text ~= '' then
+		f_menuText(d.title, m.title, m.pos[1], m.pos[2], m.title.text)
+	end
+	-- The filter banner is pinned above the list: it does not scroll with the rows.
+	local h = trials.selectHeader
+	if h ~= nil then
+		local hx, hy = m.pos[1] + m.header.offset[1], m.pos[2] + m.header.offset[2]
+		if m.headerdisplay == 'sidebyside' then
+			-- Every filter on one line, the one on show wearing the active elements.
+			for k, e in ipairs(h.entries) do
+				local ex = hx + m.header.spacing[1] * (k - 1)
+				local ey = hy + m.header.spacing[2] * (k - 1)
+				local on = e.cat == h.cat
+				f_menuAnim((f_catState(m.header, e.cat, on, 'bg')), ex, ey)
+				local txt, tk = f_catState(m.header, e.cat, on, 'text')
+				f_menuText(f_rowText('header', tk .. e.cat, k, txt), txt, ex, ey, e.label)
+				local val, vk = f_catState(m.header, e.cat, on, 'value')
+				if val.text ~= '' then
+					f_menuText(f_rowText('headervalue', vk .. e.cat, k, val), val, ex, ey,
+						val.text:gsub('%%s', e.value))
+				end
+			end
+		else
+			local cat = h.cat or 'all'
+			f_menuAnim((f_catState(m.header, cat, true, 'bg')), hx, hy)
+			local txt, tk = f_catState(m.header, cat, true, 'text')
+			f_menuText(f_rowText('header', tk, 1, txt), txt, hx, hy, h.label)
+			local val, vk = f_catState(m.header, cat, true, 'value')
+			if val.text ~= '' then
+				f_menuText(f_rowText('headervalue', vk, 1, val), val, hx, hy, val.text:gsub('%%s', h.value))
+			end
+		end
+	end
+	for row = 0, visible - 1, 1 do
+		local i = node.first + row
+		local item = t[i]
+		if item == nil then
+			break
+		end
+		local x = m.pos[1] + m.spacing[1] * row
+		local y = m.pos[2] + m.spacing[2] * row
+		local active = i == node.item
+		local cat = 'other'
+		if item.trial ~= nil then
+			local arr = node.trials or (trials.data ~= nil and trials.data.trial or nil)
+			local d2 = arr ~= nil and arr[item.trial] ~= nil and arr[item.trial].difficulty or ''
+			if d2 ~= '' then cat = d2 end
+		end
+		if active then
+			f_menuAnim(f_cat(m.item, cat, 'active', 'bg'), x, y)
+			f_menuAnim(m.cursor, x, y)
+		else
+			f_menuAnim(f_cat(m.item, cat, 'bg'), x, y)
+		end
+		local style, cfg, ck = 'name', nil, nil
+		if item.selected then
+			style = 'nameselected'
+			cfg, ck = f_cat(m.item, cat, 'selected', 'text')
+		elseif active then
+			style = 'nameactive'
+			cfg, ck = f_cat(m.item, cat, 'active', 'text')
+		else
+			cfg, ck = f_cat(m.item, cat, 'text')
+		end
+		f_menuText(f_rowText(style, ck, row + 1, cfg), cfg, x, y, item.displayname)
+		if item.trial ~= nil then
+			local rec = trials.f_trialRecord(item.trial, node.trials, node.ref)
+			local cleared = rec ~= nil and rec.cleared
+			local st = cleared and m.status.cleared or m.status.uncleared
+			local obj2 = cleared and d.cleared[row + 1] or d.uncleared[row + 1]
+			f_menuMark(st, obj2, x + m.status.offset[1], y + m.status.offset[2])
+			if cleared and rec.besttime ~= nil and m.besttime.text ~= '' then
+				local mm, ss, xx = f_timeConvert(rec.besttime)
+				f_menuText(d.besttime[row + 1], m.besttime, x, y,
+					m.besttime.text:gsub('%%s', mm .. ':' .. ss .. ':' .. xx))
+			end
+		end
+	end
+	if node.first > 1 then
+		f_menuMark(m.arrow.up, d.arrowup, m.pos[1], m.pos[2])
+	end
+	if node.first + visible - 1 < #t then
+		f_menuMark(m.arrow.down, d.arrowdown, m.pos[1], m.pos[2])
+	end
+	f_menuAnim(m.front, m.pos[1], m.pos[2])
+end
+
+--;===========================================================
+--; Trial select menu - input
+--;===========================================================
+-- getInput reads the engine's menu input buffer, which only its own Lua-driven screens pump. In a
+-- live match there is no such loop, so the match-load view reads the player's input directly, the
+-- way f_checkKeyCombo does for the reset combo. A motif key is a list of key names.
+local function f_matchHeld(keys)
+	local best = 0
+	if type(keys) ~= 'table' then
+		keys = {keys}
+	end
+	for _, k in ipairs(keys) do
+		local ok, held = pcall(inputTime, k)
+		if ok and type(held) == 'number' and held > best then
+			best = held
+		end
+	end
+	return best
+end
+
+-- Rising edge, tracked rather than inferred from a held count of exactly 1, so a dropped frame
+-- can't swallow a press. Directions additionally auto-repeat while held.
+local function f_matchPressed(node, name, keys, autorepeat)
+	if node.inputHeld == nil then
+		node.inputHeld = {}
+	end
+	local held = f_matchHeld(keys)
+	local was = node.inputHeld[name] or 0
+	node.inputHeld[name] = held
+	if held > 0 and was <= 0 then
+		return true
+	end
+	if autorepeat and held > 20 and (held - 20) % 6 == 0 then
+		return true
+	end
+	return false
+end
+
+local function f_selectInput(node, standalone, sec)
+	local dir, filter, done, cancel = 0, 0, false, false
+	if standalone then
+		player(1)
+		if f_matchPressed(node, 'next', sec.menu.next.key, true) then
+			dir = 1
+		elseif f_matchPressed(node, 'previous', sec.menu.previous.key, true) then
+			dir = -1
+		end
+		if f_matchPressed(node, 'add', sec.menu.add.key, true) then
+			filter = 1
+		elseif f_matchPressed(node, 'subtract', sec.menu.subtract.key, true) then
+			filter = -1
+		end
+		done = f_matchPressed(node, 'done', sec.menu.done.key, false)
+	else
+		if getInput(-1, sec.menu.next.key) then
+			dir = 1
+		elseif getInput(-1, sec.menu.previous.key) then
+			dir = -1
+		end
+		if getInput(-1, sec.menu.add.key) then
+			filter = 1
+		elseif getInput(-1, sec.menu.subtract.key) then
+			filter = -1
+		end
+		done = getInput(-1, sec.menu.done.key)
+		cancel = esc() or getInput(-1, sec.menu.cancel.key)
+	end
+	return dir, filter, done, cancel
+end
+
+local function f_moveCursor(node, dir)
+	local n = #node.items
+	if n < 2 then
+		return false
+	end
+	local i = node.item + dir
+	if i > n then
+		i = 1
+	elseif i < 1 then
+		i = n
+	end
+	node.item = i
+	return true
+end
+
+-- standalone: driven from the mode's own loop at match load, with no pause menu around it.
+function trials.f_selectLoop(node, standalone)
+	local sec = trials.f_selectSection()
+	if sec == nil or trials.data == nil or trials.menuDraw == nil or node.items == nil then
+		return
+	end
+	if not standalone then
+		hook.run("menu.menu.loop")
+	end
+	if standalone then
+		trials.f_menuHold(true)
+	end
+	if trials.selectDirty then
+		trials.f_refreshSelect()
+	end
+	local t = node.items
+	if #t == 0 then
+		return
+	end
+	node.item = math.max(1, math.min(node.item, #t))
+	for _, item in ipairs(t) do
+		if item.trial ~= nil then
+			item.selected = item.trial == trials.data.currenttrial
+		end
+	end
+	trials.f_selectDraw(node)
+	-- Sample input every frame, including the ones we go on to ignore, so a button still held from
+	-- whatever opened the view reads as held rather than as a fresh press once we start listening.
+	local dir, filter, done, cancel = f_selectInput(node, standalone, sec)
+	-- Draw during fades, but don't act on input until they finish.
+	if fadeActive() then
+		return
+	end
+	if not standalone and (not main.pauseMenuActive or menu.pauseExitDelay >= 0) then
+		return
+	end
+	if standalone and node.openDelay ~= nil and node.openDelay > 0 then
+		node.openDelay = node.openDelay - 1
+		return
+	end
+	-- Left and right change which difficulty the list is showing, wherever the cursor happens to be.
+	if filter ~= 0 and trials.f_cycleFilter(filter) then
+		sndPlay(motif.Snd, sec.cursor.move.snd[1], sec.cursor.move.snd[2])
+		return
+	end
+	if dir ~= 0 and f_moveCursor(node, dir) then
+		sndPlay(motif.Snd, sec.cursor.move.snd[1], sec.cursor.move.snd[2])
+	end
+	-- Cancel only has somewhere to go inside the pause menu. On the match-load screen the way out
+	-- is to pick a Trial, or the list's own Back item.
+	if cancel then
+		sndPlay(motif.Snd, sec.cancel.snd[1], sec.cancel.snd[2])
+		menu.currentMenu[1] = menu.currentMenu[2]
+		return
+	end
+	local it = t[node.item]
+	if it == nil or not done then
+		return
+	end
+	if it.trial ~= nil then
+		sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
+		trials.f_gotoTrial(it.trial, false, standalone)
+	elseif standalone then
+		-- the section's own tail items, Back among them: nothing to go back to out here, so close.
+		sndPlay(motif.Snd, sec.cancel.snd[1], sec.cancel.snd[2])
+		trials.f_closeSelect()
+	else
+		sndPlay(motif.Snd, sec.cancel.snd[1], sec.cancel.snd[2])
+		menu.currentMenu[1] = menu.currentMenu[2]
+	end
+end
+
+--;===========================================================
+--; Trial select menu - before the fight
+--;===========================================================
+-- trialslistdisplay = select shows the menu between stage select and the fight loading. There is
+-- no match yet, so this reads the character's parsed Trials rather than any match state, and runs
+-- as a modal loop the way the engine's own between-screens prompts do (main.f_warning and friends).
+-- The choice is carried into the match as trials.pendingTrial, by name.
+function trials.f_preFightMenu()
+	if not gameMode('trials') or trials.f_listDisplay() ~= 'select' then
+		return
+	end
+	if type(start.p) ~= 'table' or type(start.p[1]) ~= 'table'
+		or type(start.p[1].t_selected) ~= 'table' or start.p[1].t_selected[1] == nil then
+		return
+	end
+	local ref = start.p[1].t_selected[1].ref
+	local ok, charData = pcall(start.f_getCharData, ref)
+	if not ok or type(charData) ~= 'table' or type(charData.trialsdata) ~= 'table' or #charData.trialsdata == 0 then
+		return
+	end
+	local sec = trials.f_selectSection()
+	if sec == nil then
+		return
+	end
+	trials.selectFilter = 'all'
+	local node = {trials = charData.trialsdata, ref = ref, item = 1, first = 1}
+	node.items = trials.f_buildSelectItems(node.trials, node.ref, false)
+	if #node.items == 0 then
+		return
+	end
+	node.item = trials.f_firstUncleared(node.items, node.trials, node.ref)
+	-- Whatever the cursor opens on is what a cancel settles for, so there is always an answer.
+	trials.pendingTrial = node.items[node.item].displayname
+	sndPlay(motif.Snd, sec.enter.snd[1], sec.enter.snd[2])
+	resetKey()
+	esc(false)
+	while true do
+		local done = getInput(-1, sec.menu.done.key)
+		local cancel = esc() or getInput(-1, sec.menu.cancel.key)
+		local dir, filter = 0, 0
+		if getInput(-1, sec.menu.next.key) then
+			dir = 1
+		elseif getInput(-1, sec.menu.previous.key) then
+			dir = -1
+		end
+		if getInput(-1, sec.menu.add.key) then
+			filter = 1
+		elseif getInput(-1, sec.menu.subtract.key) then
+			filter = -1
+		end
+		if filter ~= 0 and trials.f_cycleFilterFor(node, filter) then
+			sndPlay(motif.Snd, sec.cursor.move.snd[1], sec.cursor.move.snd[2])
+		elseif dir ~= 0 and f_moveCursor(node, dir) then
+			sndPlay(motif.Snd, sec.cursor.move.snd[1], sec.cursor.move.snd[2])
+		end
+		local it = node.items[node.item]
+		if cancel then
+			esc(false)
+			sndPlay(motif.Snd, sec.cancel.snd[1], sec.cancel.snd[2])
+			break
+		elseif done then
+			sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
+			if it ~= nil and it.trial ~= nil then
+				trials.pendingTrial = it.displayname
+			end
+			break
+		end
+		if it ~= nil and it.trial ~= nil then
+			trials.pendingTrial = it.displayname
+		end
+		clearColor(motif.selectbgdef.bgclearcolor[1], motif.selectbgdef.bgclearcolor[2], motif.selectbgdef.bgclearcolor[3])
+		bgDraw(motif.selectbgdef.BGDef, 0)
+		trials.f_selectDraw(node)
+		bgDraw(motif.selectbgdef.BGDef, 1)
+		main.f_preloadTick(2)
+		refresh()
+	end
+	resetKey()
+end
+
+--;===========================================================
+--; Speedrun
+--;===========================================================
+-- Speedrun is a run of the whole character, in order, against the clock. The Trials List is taken
+-- off the Pause menu so no Trial can be skipped, and Advancement is held at Auto-Advance because
+-- Repeat would stall a run.
+function trials.f_applySpeedrun()
+	if trials.rootNode == nil or trials.rootItems == nil then
+		return
+	end
+	local on = trials.f_speedrunEnabled()
+	local items = {}
+	for _, item in ipairs(trials.rootItems) do
+		if not (on and item.itemname == 'trialslist') then
+			items[#items + 1] = item
+		end
+	end
+	trials.rootNode.items = items
+	if trials.rootNode.item > #items then
+		trials.rootNode.item = #items
+		trials.rootNode.cursorPosY = 1
+		trials.rootNode.moveTxt = 0
+	end
+	if on then
+		menu.trialadvancement = 1
+		if trials.data ~= nil then
+			trials.data.trialadvancement = true
+		end
+		for _, v in ipairs(menu.t_vardisplayPointers) do
+			if v.itemname == 'trialadvancement' then
+				v.vardisplay = menu.f_vardisplay('trialadvancement')
+			end
+		end
+	end
+end
+
+-- A run belongs to the sitting it was started in. Leaving for the character select screen ends it,
+-- whether that was Character Change, the end of a match, or exiting the mode altogether - they all
+-- come through start.f_selectReset.
+function trials.f_resetSpeedrun()
+	menu.trialsspeedrun = 2
+	trials.f_applySpeedrun()
+	for _, v in ipairs(menu.t_vardisplayPointers) do
+		if v.itemname == 'trialsspeedrun' then
+			v.vardisplay = menu.f_vardisplay('trialsspeedrun')
+		end
+	end
+end
+
+-- Starts a fresh run: back to the first Trial with the total timer armed and the run counted.
+function trials.f_startSpeedrun()
+	if trials.data == nil or #trials.data.trial == 0 then
+		return
+	end
+	trials.f_gotoTrial(1, true, true)
+	trials.data.runValid = true
+end
+
 function trials.f_trialsMode()
 	-- Value used for localcoord
 	trials.lcdx00 = 1
@@ -1846,13 +3005,22 @@ if trials.mtlcy ~= trials.stlcy then
 					
 	if roundStart() then
 		trials.data = nil
-		-- Empty the trials list back to the items the section declared.
+		-- Empty the trials list back to the items and loop the section declared.
 		if trials.listNode ~= nil and trials.listTail ~= nil then
 			trials.listNode.items = trials.listTail
 			trials.listNode.item = 1
 			trials.listNode.cursorPosY = 1
 			trials.listNode.moveTxt = 0
+			trials.listNode.loop = trials.listLoop
 		end
+		if trials.rootNode ~= nil and trials.rootItems ~= nil then
+			trials.rootNode.items = trials.rootItems
+			trials.rootNode.item = 1
+			trials.rootNode.cursorPosY = 1
+			trials.rootNode.moveTxt = 0
+		end
+		trials.select = nil
+		trials.selectDirty = false
 		trials.p1selref = nil
 		trials.charPortraitSff = nil
 		trialsanim = nil
@@ -1878,6 +3046,35 @@ if trials.mtlcy ~= trials.stlcy then
 		-- Initialize the trials based on parsed file and char state at roundState() == 2
 		trials.f_trialsBuilder()
 		menu.f_trialsReset()
+		-- Honour a Trial picked before the fight. Names, not indices: f_trialsBuilder drops Trials
+		-- whose showforvarvalpairs do not match, so the parsed indices need not survive into here.
+		if trials.pendingTrial ~= nil then
+			for i = 1, #trials.data.trial, 1 do
+				if trials.data.trial[i].name == trials.pendingTrial then
+					trials.data.currenttrial = i
+					break
+				end
+			end
+			trials.pendingTrial = nil
+		end
+		-- Arm both clocks together before anything else looks at them. The paths that follow may
+		-- re-arm (a run restarting, the select view closing); a match that starts straight on a
+		-- Trial has nothing else that would.
+		trials.f_armTimers(trials.data.currenttrial, true)
+		-- A speedrun goes straight to the first Trial, and so does a screenpack that turned the
+		-- menu off. Otherwise the player picks one before anything starts.
+		if trials.f_speedrunEnabled() then
+			trials.f_startSpeedrun()
+		elseif trials.f_listDisplay() == 'start' then
+			trials.f_openSelect()
+		end
+	elseif trialsExist and roundState() == 2 and trials.data.trialsInitialized
+		and trials.select ~= nil and trials.select.open then
+		-- The select view owns the frame until the player picks a Trial - except while the pause
+		-- menu is up, which owns it instead.
+		if not paused() then
+			trials.f_selectLoop(trials.select, true)
+		end
 	elseif trialsExist and roundState() == 2 and trials.data.trialsInitialized then
 		-- If trials initialized, draw elements and check for success!
 		trials.f_trialsDrawer()
@@ -1921,6 +3118,9 @@ end
 if menu.trialstextboxes == nil then
 	menu.trialstextboxes = 1
 end
+if menu.trialsspeedrun == nil then
+	menu.trialsspeedrun = 2
+end
 
 local pmv = motif.pause_menu ~= nil and motif.pause_menu.trials_pause_menu ~= nil and motif.pause_menu.trials_pause_menu.menu.valuename or {}
 
@@ -1940,12 +3140,24 @@ menu.t_valuename.trialstextboxes = {
 	{itemname = "show", displayname = pmv.trialstextboxes_show or "Show"},
 	{itemname = "hide", displayname = pmv.trialstextboxes_hide or "Hide"}
 }
+menu.t_valuename.trialsspeedrun = {
+	{itemname = "enabled", displayname = pmv.trialsspeedrun_enabled or "On"},
+	{itemname = "disabled", displayname = pmv.trialsspeedrun_disabled or "Off"}
+}
 -- Moves the match to one Trial and leaves the pause menu, the way its own Continue does.
 -- Latching the fade is what actually repositions the pair: f_trialsFade sets
 -- _iksys_trialsReposition, f_trialsDummySetup only sets life and dummy mode.
-function trials.f_gotoTrial(index)
+--   keepTimer - starting a run rather than jumping within one, so the total timer stays armed and
+--               restarts here. A plain jump retires the timer, because the run is no longer a run.
+--   noMenu    - called from the select screen at match load, with no pause menu to leave.
+function trials.f_gotoTrial(index, keepTimer, noMenu)
 	if trials.data == nil or not trials.data.trialsInitialized or trials.data.trial[index] == nil then
 		return true
+	end
+	-- Picking a Trial is what dismisses the select view, wherever it was picked from.
+	if trials.select ~= nil and trials.select.open then
+		trials.select.open = false
+		trials.f_menuHold(false)
 	end
 	trials.data.currenttrialstep = 1
 	trials.data.currenttrialmicrostep = 1
@@ -1954,26 +3166,30 @@ function trials.f_gotoTrial(index)
 	trials.data.trial[index].complete = false
 	trials.data.trial[index].active = false
 	trials.data.active = false
-	trials.data.displaytimers.totaltimer = false
-	trials.data.trial[index].starttick = roundTime()
+	trials.data.allclear = false
+	if keepTimer then
+		trials.data.displaytimers.totaltimer = opts.TotalTimer ~= false
+	else
+		trials.data.displaytimers.totaltimer = false
+		trials.data.runValid = false
+	end
+	trials.f_armTimers(index, keepTimer)
 	trials.draw.fadein = trials.trials_mode.fadein_time
 	trials.draw.fadeout = trials.trials_mode.fadeout_time
 	trials.draw.fade = trials.draw.fadein + trials.draw.fadeout
 	trials.draw.fadetriggered = true
-	menu.currentMenu[1] = menu.currentMenu[2]
-	menu.pauseExitDelay = gameOption('Input.PauseExitDelay')
+	if not noMenu then
+		menu.currentMenu[1] = menu.currentMenu[2]
+		menu.pauseExitDelay = gameOption('Input.PauseExitDelay')
+	end
 	return false
 end
 
-menu.t_itemname['trialsentry'] = function(t, item, cursorPosY, moveTxt, sec)
-	if getInput(-1, sec.menu.done.key) then
-		sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
-		return trials.f_gotoTrial(t.items[item].trial)
-	end
-	return true
-end
-
 menu.t_itemname['trialadvancement'] = function(t, item, cursorPosY, moveTxt, sec)
+	if trials.f_speedrunEnabled() then
+		-- Repeat would stall a run, so a speedrun holds Advancement at Auto-Advance.
+		return true
+	end
 	local changed, value = menu.f_valueChanged(t.items[item], sec)
 	if changed then
 		if trials.data ~= nil then
@@ -2057,6 +3273,40 @@ options.t_vardisplay['trialstextboxes'] = function()
 end
 
 
+menu.t_itemname['trialsspeedrun'] = function(t, item, cursorPosY, moveTxt, sec)
+	local changed, value = menu.f_valueChanged(t.items[item], sec)
+	if changed then
+		menu.trialsspeedrun = value == "enabled" and 1 or 2
+		trials.f_applySpeedrun()
+		for _, v in ipairs(menu.t_vardisplayPointers) do
+			if v.itemname == 'trialsspeedrun' then
+				v.vardisplay = menu.f_vardisplay('trialsspeedrun')
+			end
+		end
+		if value == "enabled" then
+			trials.f_startSpeedrun()
+			-- Leave the menu the way picking a Trial does: the run starts now.
+			menu.currentMenu[1] = menu.currentMenu[2]
+			menu.pauseExitDelay = gameOption('Input.PauseExitDelay')
+			return false
+		end
+	end
+	return true
+end
+-- On/Off, followed by this character's best full run if they have one - the only place a run
+-- record would otherwise have to show itself.
+local function f_speedrunVardisplay()
+	local label = menu.t_valuename.trialsspeedrun[menu.trialsspeedrun or 2].displayname
+	local rec = trials.f_speedrunRecord()
+	if rec ~= nil and rec.besttime ~= nil then
+		local m, s, x = f_timeConvert(rec.besttime)
+		label = label .. '  ' .. m .. ':' .. s .. ':' .. x
+	end
+	return label
+end
+menu.t_vardisplay['trialsspeedrun'] = f_speedrunVardisplay
+options.t_vardisplay['trialsspeedrun'] = f_speedrunVardisplay
+
 menu.t_itemname['nexttrial'] = function(t, item, cursorPosY, moveTxt, sec)
 	if getInput(-1, sec.menu.done.key) and trials.data ~= nil and #trials.data.trial > 0 then
 		sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
@@ -2078,6 +3328,7 @@ local t_trialsPrefs = {
 	trialresetonsuccess = true,
 	trialslayout = true,
 	trialstextboxes = true,
+	trialsspeedrun = true,
 }
 
 function menu.f_trialsReset()
@@ -2108,6 +3359,7 @@ function menu.f_trialsReset()
 			v.vardisplay = menu.f_vardisplay(v.itemname)
 		end
 	end
+	trials.f_applySpeedrun()
 	player(2)
 	setAILevel(0)
 	mapSet('_iksys_trialsDummyControl', 0)
@@ -2235,6 +3487,7 @@ for row = 1, #main.t_selChars, 1 do
 					lang = gameOption('Config.Language'):lower()
 					trial[i] = {
 						name = "",
+						difficulty = "",
 						dummymode = "stand",
 						guardmode = "none",
 						buttonjam = "none",
@@ -2260,6 +3513,19 @@ for row = 1, #main.t_selChars, 1 do
 						line = "Trial " .. tostring(i)
 					end
 					trial[i].name = line
+				end
+			elseif lcline:find("difficulty") then
+				local d = f_trimforchar(lcline, "=", "after")
+				trial[i].difficulty = ""
+				for _, v in ipairs(trials.t_difficulty) do
+					if d == v then
+						trial[i].difficulty = v
+						break
+					end
+				end
+				if trial[i].difficulty == "" and d ~= "" then
+					print('Trials: ' .. tostring(main.t_selChars[row].name) .. ' - "' .. trial[i].name
+						.. '" has an unrecognised trial.difficulty (' .. d .. '). Expected Beginner, Intermediate, Advanced or Expert.')
 				end
 			elseif lcline:find("dummymode") then
 				trial[i].dummymode = f_trimforchar(lcline, "=", "after")
@@ -2392,13 +3658,12 @@ end
 --;===========================================================
 hook.add("loop#trials", "f_trialsMode", trials.f_trialsMode)
 hook.add("start.f_selectScreen", "f_trialsSelectScreen", trials.f_trialsSelectScreen)
-
-hook.add("menu.menu.loop", "f_trialsListMark", function()
-	local sub = trials.listNode
-	if not gameMode('trials') or trials.data == nil or type(sub) ~= 'table' then
-		return
-	end
-	for _, item in ipairs(sub.items) do
-		item.selected = item.trial == trials.data.currenttrial
-	end
+-- Fires once selection is settled and before the fight loads, which is where
+-- trialslistdisplay = select puts the menu.
+hook.add("start.f_selectReset", "f_trialsSpeedrunReset", function()
+	trials.f_resetSpeedrun()
 end)
+hook.add("launchFight", "f_trialsPreFightMenu", function()
+	trials.f_preFightMenu()
+end)
+

@@ -17,10 +17,23 @@ menu.valuename.trialslayout_vertical = Vertical
 menu.valuename.trialslayout_horizontal = Horizontal
 menu.valuename.trialstextboxes_show = Show
 menu.valuename.trialstextboxes_hide = Hide
+menu.valuename.trialsspeedrun_enabled = On
+menu.valuename.trialsspeedrun_disabled = Off
+
+; Trial select view: the difficulty filters left and right cycle through. "All" is every Trial;
+; "Other" collects the ones whose def declares no trial.difficulty. Filters with no Trials in
+; them are skipped. Everything else about the view's appearance is [Trials Mode] trialsmenu.*.
+menu.valuename.trialsdifficulty_all = All
+menu.valuename.trialsdifficulty_beginner = Beginner
+menu.valuename.trialsdifficulty_intermediate = Intermediate
+menu.valuename.trialsdifficulty_advanced = Advanced
+menu.valuename.trialsdifficulty_expert = Expert
+menu.valuename.trialsdifficulty_none = Other
 
 menu.itemname.back = Continue
 menu.itemname.trialslist = Trials List
 menu.itemname.trialslist.back = Back
+menu.itemname.trialsspeedrun = Speedrun Mode
 ; menu.itemname.nexttrial = Next Trial ; Feature is supported.
 ; menu.itemname.previoustrial = Previous Trial ; Feature is supported.
 menu.itemname.trialadvancement = Advancement
