@@ -95,6 +95,15 @@ end
 -- The character loaded into P1, as the lowercased def path. nil before a character is selected.
 -- A ref can be passed explicitly, for the menu shown between stage select and the fight, where
 -- the match has not started and trials.p1selref is still whatever the last one left behind.
+-- Progress failing is silent by nature: without a key there is simply nothing to write, and the
+-- mode carries on looking healthy. Say it once rather than dropping every clear without a word.
+function trials.f_warnKey(why)
+	if not trials.keyWarned then
+		trials.keyWarned = true
+		print('Trials: ' .. why .. '; progress will not be recorded.')
+	end
+end
+
 function trials.f_charKey(ref)
 	-- Nothing is selected yet while the menus are still being built, so every hop is checked.
 	if ref == nil then ref = trials.p1selref end
@@ -103,10 +112,34 @@ function trials.f_charKey(ref)
 		ref = start.p[1].t_selected[1].ref
 	end
 	if ref == nil then
+		if not trials.charKeyWarned then
+			trials.charKeyWarned = true
+			print('Trials: no character is selected (p1selref is nil); progress will not be recorded.')
+		end
 		return nil
 	end
-	local ok, path = pcall(getCharFileName, ref)
-	if not ok or type(path) ~= 'string' or path == '' then
+	-- The def path, from whichever of the two sources answers. getCharFileName reads the engine's
+	-- own charlist, which is what a ref indexes; main.t_selChars carries the same path at ref + 1
+	-- and is built in lockstep with that list, so it stands in when the binding is missing or the
+	-- slot cannot be read. Without a key nothing can be recorded, so it is worth asking twice.
+	local path = nil
+	local ok, res = pcall(getCharFileName, ref)
+	if ok and type(res) == 'string' and res ~= '' then
+		path = res
+	else
+		local ok2, data = pcall(start.f_getCharData, ref)
+		if ok2 and type(data) == 'table' and type(data.def) == 'string' and data.def ~= '' then
+			path = data.def
+		end
+	end
+	if path == nil then
+		-- Silence here is what makes a broken key look like a mode that simply never saves, so
+		-- say it once rather than dropping every clear from here on without a word.
+		if not trials.charKeyWarned then
+			trials.charKeyWarned = true
+			print('Trials: could not resolve the def path for character ref ' .. tostring(ref)
+				.. '; progress will not be recorded.')
+		end
 		return nil
 	end
 	return path:gsub('\\', '/'):lower()
@@ -134,14 +167,23 @@ end
 -- duplicate names within one file are numbered so reordering a def never merges two records.
 -- arr defaults to the Trials of the match in progress; the pre-fight menu passes the parsed ones.
 function trials.f_trialKey(index, arr)
-	arr = arr or (trials.data ~= nil and trials.data.trial or nil)
-	if arr == nil or arr[index] == nil then
+	-- Resolved in explicit steps rather than an and/or chain: this runs on every clear, and a nil
+	-- from here drops the record without a word, so it is worth being able to see which step failed.
+	if arr == nil and trials.data ~= nil then
+		arr = trials.data.trial
+	end
+	if type(arr) ~= 'table' or type(arr[index]) ~= 'table' then
+		trials.f_warnKey('no Trial at index ' .. tostring(index))
 		return nil
 	end
 	local name = arr[index].name
+	if type(name) ~= 'string' or name == '' then
+		trials.f_warnKey('Trial ' .. tostring(index) .. ' has no name')
+		return nil
+	end
 	local dupe = 0
 	for i = 1, index, 1 do
-		if arr[i].name == name then
+		if type(arr[i]) == 'table' and arr[i].name == name then
 			dupe = dupe + 1
 		end
 	end
@@ -624,6 +666,48 @@ function f_loadAnimData(node, x, y, sffOverride, animsOverride)
 	return a
 end
 
+-- Glyph anims live on the engine's motif (motif.glyphs[key].AnimData) and are shared - the
+-- movelist draws the same objects, and so does every step this drawer touches. animDraw does not
+-- draw: it queues a shallow copy of the Anim whose palfx field is still a pointer to the original
+-- anim's PalFX, and the queue is not flushed until the end of the frame. So the next animSetPalFX
+-- or animReset on that glyph rewrites the colour of the draws already queued. Completed steps grey
+-- their glyphs while current and upcoming ones leave them alone, so one shared anim per glyph means
+-- whichever step happens to be drawn last colours every copy of that glyph on screen.
+--
+-- Give each step category its own anim per glyph, built from the same sff and sprite the motif
+-- built its own from, so a category's palfx is the only thing that can reach its own draws.
+local t_glyphAnims = {}
+local glyphSffOk = nil
+local function f_glyphAnim(sub, key)
+	local g = motif.glyphs[key]
+	if g == nil then
+		return nil
+	end
+	if type(g.Spr) ~= 'table' or tonumber(g.Spr[1]) == nil or tonumber(g.Spr[1]) < 0 then
+		return g.AnimData
+	end
+	if glyphSffOk == nil then
+		-- Only commit to private anims once the motif's glyph sff has been confirmed to reach us
+		-- as usable sprite data. An empty one would draw nothing at all, which is a far worse
+		-- outcome than a glyph that cannot hold a palfx of its own.
+		local ok, info = pcall(function()
+			return animGetSpriteInfo(animNew(motif.GlyphsSff, g.Spr[1] .. ', ' .. g.Spr[2] .. ', 0, 0, -1'), g.Spr[1], g.Spr[2])
+		end)
+		glyphSffOk = ok and info ~= nil
+		if not glyphSffOk then
+			print('Trials: motif glyph sprites are unreadable; step palfx will not apply to glyphs.')
+		end
+	end
+	if not glyphSffOk then
+		return g.AnimData
+	end
+	local id = sub .. '|' .. key
+	if t_glyphAnims[id] == nil then
+		t_glyphAnims[id] = animNew(motif.GlyphsSff, g.Spr[1] .. ', ' .. g.Spr[2] .. ', 0, 0, -1')
+	end
+	return t_glyphAnims[id]
+end
+
 --;===========================================================
 --; main.lua
 --;===========================================================
@@ -755,6 +839,64 @@ do
 	o.layerno = tonumber(o.layerno) or 0
 end
 
+-- palfx is optional on every step element - the README documents each key as commentable - but
+-- the drawer reads add/mul/sinadd/invertall/color straight off the node every frame, and loadIni
+-- only creates a node when at least one of its keys is declared. Fill in the neutral palfx (the
+-- values f_trialsSelectScreen restores a portrait to) so a system.def that leaves a whole block
+-- out, or names only some of its keys, draws unmodified instead of erroring.
+local function f_palfxDefaults(fx)
+	if type(fx.add) ~= 'table' then fx.add = {0, 0, 0} end
+	if type(fx.mul) ~= 'table' then fx.mul = {256, 256, 256} end
+	if type(fx.sinadd) ~= 'table' then fx.sinadd = {0, 0, 0, 0} end
+	fx.invertall = tonumber(fx.invertall) or 0
+	fx.color = tonumber(fx.color) or 256
+	return fx
+end
+for _, sub in ipairs({'upcomingstep', 'currentstep', 'completedstep'}) do
+	for _, layout in ipairs({'vertical', 'horizontal'}) do
+		f_palfxDefaults(f_node(tr_pos, sub, layout, 'bg', 'palfx'))
+		f_palfxDefaults(f_node(tr_pos, sub, layout, 'glyphs', 'palfx'))
+		-- offset and scale are read straight off these nodes by the drawer on every frame, and
+		-- the horizontal layout also sizes its rows from the scale its head and tail are drawn
+		-- at, so neither can be left nil by a system.def that did not declare them.
+		local paths = {{'bg'}}
+		if layout == 'horizontal' then paths = {{'bg'}, {'bg', 'tail'}, {'bg', 'head'}} end
+		for _, path in ipairs(paths) do
+			local n = f_node(tr_pos, sub, layout, unpack(path))
+			if type(n.offset) ~= 'table' then n.offset = {0, 0} end
+			if type(n.scale) ~= 'table' then n.scale = {1, 1} end
+			n.offset[1] = tonumber(n.offset[1]) or 0
+			n.offset[2] = tonumber(n.offset[2]) or 0
+			n.scale[1] = tonumber(n.scale[1]) or 1
+			n.scale[2] = tonumber(n.scale[2]) or 1
+		end
+	end
+end
+-- Glyph placement is driven entirely off these, on every step of every Trial.
+for _, layout in ipairs({'vertical', 'horizontal'}) do
+	local g = f_node(tr_pos, 'glyphs', layout)
+	if type(g.offset) ~= 'table' then g.offset = {0, 0} end
+	if type(g.scale) ~= 'table' then g.scale = {1, 1} end
+	if type(g.spacing) ~= 'table' then g.spacing = {0, 0} end
+	-- align is a vertical-layout concept, as the README and system.def both say. The horizontal
+	-- layout lays its glyphs out left to right inside a body stretched to fit them, and measures
+	-- the body, the head and the row's contribution to the line break off that same run, so it
+	-- only has one meaningful direction. Left unresolved, align falls through to the half-width
+	-- advance meant for centred text and every glyph lands on top of the one before it.
+	g.align = tonumber(g.align) or 1
+	if layout == 'horizontal' then g.align = 1 end
+end
+
+-- The select screen reads the flat compat aliases, which were copied off the nested node before
+-- any of this ran, so hand them the normalized values rather than whatever the def left behind.
+do
+	local fx = f_palfxDefaults(f_node(tr_pos, 'selscreenpalfx'))
+	for _, k in ipairs({'add', 'mul', 'sinadd', 'invertall', 'color'}) do
+		tr_pos['selscreenpalfx.' .. k] = fx[k]
+		tr_pos['selscreenpalfx_' .. k] = fx[k]
+	end
+end
+
 -- Each element caches its Anim on its own config node as .AnimData, the same convention the
 -- engine uses for motif elements (and that textbox.overlay.RectData already follows here).
 -- x/y is the element's origin; f_loadAnimData adds the node's own offset on top of it.
@@ -844,6 +986,8 @@ function trials.f_inittrialsData()
 		active = false,
 		allclear = false,
 		currenttrial = 1,
+		-- The Trial a success banner on screen belongs to; nil when none is up.
+		successtrial = nil,
 		currenttrialstep = 1,
 		currenttrialmicrostep = 1,
 		validfortickcount = 0,
@@ -950,12 +1094,15 @@ function trials.f_trialsBuilder()
 				for _, layout in ipairs({'vertical','horizontal'}) do
 					if trials.trials_mode.glyphs[layout].align == -1 then
 						for m = #tempglyphs, 1, -1 do
-							trials.data.trial[i].trialstep[j].glyphline[layout].glyph[#trials.data.trial[i].trialstep[j].glyphline[layout].glyph+1] = tempglyphs[m]
-							trials.data.trial[i].trialstep[j].glyphline[layout].pos[#trials.data.trial[i].trialstep[j].glyphline[layout].glyph+1] = {0,0}
-							trials.data.trial[i].trialstep[j].glyphline[layout].width[#trials.data.trial[i].trialstep[j].glyphline[layout].glyph+1] = 0
-							trials.data.trial[i].trialstep[j].glyphline[layout].alignOffset[#trials.data.trial[i].trialstep[j].glyphline[layout].glyph+1] = 0
-							trials.data.trial[i].trialstep[j].glyphline[layout].lengthOffset[#trials.data.trial[i].trialstep[j].glyphline[layout].glyph+1] = 0
-							trials.data.trial[i].trialstep[j].glyphline[layout].scale[m] = {1,1}
+							-- The glyph is appended first, so index off the slot it landed in: reading the
+							-- length again afterwards put every other field one slot past its own glyph.
+							local n = #trials.data.trial[i].trialstep[j].glyphline[layout].glyph + 1
+							trials.data.trial[i].trialstep[j].glyphline[layout].glyph[n] = tempglyphs[m]
+							trials.data.trial[i].trialstep[j].glyphline[layout].pos[n] = {0,0}
+							trials.data.trial[i].trialstep[j].glyphline[layout].width[n] = 0
+							trials.data.trial[i].trialstep[j].glyphline[layout].alignOffset[n] = 0
+							trials.data.trial[i].trialstep[j].glyphline[layout].lengthOffset[n] = 0
+							trials.data.trial[i].trialstep[j].glyphline[layout].scale[n] = {1,1}
 						end
 					else
 						for m = 1, #tempglyphs do
@@ -979,20 +1126,21 @@ function trials.f_trialsBuilder()
 				if layout == "vertical" and trials.trials_mode.glyphs.vertical.scalewithtext == "true" then
 					font_def = f_fontDef(trials.trials_mode.currentstep.vertical.text.font[1])
 				end
-				for m in pairs(trials.data.trial[i].trialstep[j].glyphline[layout].glyph) do
+				local glyphalign = trials.trials_mode.glyphs[layout].align
+				for m = 1, #trials.data.trial[i].trialstep[j].glyphline[layout].glyph, 1 do
 					if motif.glyphs[trials.data.trial[i].trialstep[j].glyphline[layout].glyph[m]] ~= nil then
-						if trials.trials_mode.glyphs[layout].align == 0 then --center align
+						if glyphalign == 0 then --center align
 							alignOffset = trials.trials_mode.glyphs[layout].offset[1] * 0.5
-						elseif trials.trials_mode.glyphs[layout].align == -1 then --right align
+						elseif glyphalign == -1 then --right align
 							alignOffset = trials.trials_mode.glyphs[layout].offset[1]
 						end
-						if trials.trials_mode.glyphs[layout].align ~= align then
+						if glyphalign ~= align then
 							lengthOffset = 0
-							align = trials.trials_mode.glyphs[layout].align
+							align = glyphalign
 						end
 						local scaleX = trials.trials_mode.glyphs[layout].scale[1]
 						local scaleY = trials.trials_mode.glyphs[layout].scale[2]
-						if trials.trials_mode.glyphs[layout].align == -1 then
+						if glyphalign == -1 then
 							alignOffset = alignOffset - motif.glyphs[trials.data.trial[i].trialstep[j].glyphline[layout].glyph[m]].Size[1] * scaleX
 						end
 						trials.data.trial[i].trialstep[j].glyphline[layout].alignOffset[m] = alignOffset
@@ -1003,9 +1151,9 @@ function trials.f_trialsBuilder()
 						end
 						trials.data.trial[i].trialstep[j].glyphline[layout].scale[m] = {scaleX, scaleY}
 						trials.data.trial[i].trialstep[j].glyphline[layout].width[m] = math.floor(motif.glyphs[trials.data.trial[i].trialstep[j].glyphline[layout].glyph[m]].Size[1] * scaleX + trials.trials_mode.glyphs[layout].spacing[1])
-						if trials.trials_mode.glyphs[layout].align == 1 then
+						if glyphalign == 1 then
 							lengthOffset = lengthOffset + trials.data.trial[i].trialstep[j].glyphline[layout].width[m]
-						elseif trials.trials_mode.glyphs[layout].align == -1 then
+						elseif glyphalign == -1 then
 							lengthOffset = lengthOffset - trials.data.trial[i].trialstep[j].glyphline[layout].width[m]
 						else
 							lengthOffset = lengthOffset + trials.data.trial[i].trialstep[j].glyphline[layout].width[m] / 2
@@ -1501,6 +1649,10 @@ textboxwindow4 = trials.mtlcx
 					--Vertical layouts are the simplest - they have a constant width sprite or anim that the text is drawn on top of, and the glyphs are displayed wherever specified.
 					--The vertical layouts do NOT support incrementors (see notes below for horizontal layout).
 					local stepbg = trials.trials_mode[sub .. 'step'].vertical.bg
+					-- animReset restores pos, scale and window from the values the element was built
+					-- with and clears PalFX, so it has to come before this frame's setters rather than
+					-- after them - reset last is what stopped palfx from ever reaching the draw.
+					animReset(stepbg.AnimData)
 					animSetPos(
 						stepbg.AnimData,
 						trials.trials_mode.trialsteps.vertical.pos[1] + stepbg.offset[1] + tempoffset[1],
@@ -1519,7 +1671,7 @@ textboxwindow4 = trials.mtlcx
 						invertall = stepbg.palfx.invertall,
 						color = stepbg.palfx.color
 					})
-					animReset(stepbg.AnimData)
+					animSetScale(stepbg.AnimData, stepbg.scale[1], stepbg.scale[2])
 					animUpdate(stepbg.AnimData)
 					animDraw(stepbg.AnimData)
 					trials.draw.vertical[sub .. 'textline'][i]:draw()
@@ -1531,8 +1683,12 @@ textboxwindow4 = trials.mtlcx
 					--that trials can be displayed dynamically. Back to the arrow analogy, you always want an arrow body to have an arrow head, so the incrementor width is added to the glyphs length
 					--and the padding factor specified in the motif data, it's all added together until the window width is met or exceeded, then a line return occurs and the next line is drawn.
 					local bgsize = {0,0}
-					if trials.data.bgelemdata.horizontal[sub .. 'step_bgtailwidth'] ~= nil then bgtailwidth = math.floor(trials.data.bgelemdata.horizontal[sub .. 'step_bgtailwidth'].Size[1]) end
-					if trials.data.bgelemdata.horizontal[sub .. 'step_bgheadwidth'] ~= nil then bgheadwidth = math.floor(trials.data.bgelemdata.horizontal[sub .. 'step_bgheadwidth'].Size[1]) end
+					local hbg = trials.trials_mode[sub .. 'step'].horizontal.bg
+					-- animGetSpriteInfo reports the raw sprite, but head and tail are drawn at the scale
+					-- their own node asks for. Row widths, line breaks and the body's start all measure
+					-- in trials localcoord units, so budget the drawn width, not the sprite's.
+					if trials.data.bgelemdata.horizontal[sub .. 'step_bgtailwidth'] ~= nil then bgtailwidth = math.floor(trials.data.bgelemdata.horizontal[sub .. 'step_bgtailwidth'].Size[1] * hbg.tail.scale[1]) end
+					if trials.data.bgelemdata.horizontal[sub .. 'step_bgheadwidth'] ~= nil then bgheadwidth = math.floor(trials.data.bgelemdata.horizontal[sub .. 'step_bgheadwidth'].Size[1] * hbg.head.scale[1]) end
 					if trials.data.bgelemdata.horizontal[sub .. 'step_bgsize'] ~= nil then bgsize = trials.data.bgelemdata.horizontal[sub .. 'step_bgsize'].Size end
 
 					totalglyphlength = trials.data.trial[ct].trialstep[i].glyphline.horizontal.lengthOffset[#trials.data.trial[ct].trialstep[i].glyphline.horizontal.lengthOffset]
@@ -1553,33 +1709,11 @@ textboxwindow4 = trials.mtlcx
 					else
 						bgcomponentposX = accwidth + spacing -- + bgheadwidth 
 					end
-					
-	tailscalex = trials.data.trial[ct].trialstep[i].glyphline.horizontal.scale[1][1]
-	tailscaley = trials.data.trial[ct].trialstep[i].glyphline.horizontal.scale[1][2]
 
-	if trials.mtlcx == 1280 then
-	if trials.lcdx00 == 1 then
-	tailscalex = tailscalex * 2 * trials.lcdx00
-	tailscaley = tailscaley * 2 * trials.lcdy00
-					end
-	if trials.lcdx00 ~= 1 then
-	tailscalex = tailscalex * 0.5 * trials.lcdx00
-	tailscaley = tailscaley * 0.5 * trials.lcdy00
-					end
-					end
-	if trials.mtlcx == 320 then
-	if trials.lcdx00 == 1 then
-	tailscalex = tailscalex * 2 * trials.lcdx00
-	tailscaley = tailscaley * 2 * trials.lcdy00
-					end
-	if trials.lcdx00 ~= 1 then
-	tailscalex = tailscalex * 0.5 / trials.lcdx00
-	tailscaley = tailscaley * 0.5 / trials.lcdy00
-					end
-					end
-	
-					-- Draw tail
-					local hbg = trials.trials_mode[sub .. 'step'].horizontal.bg
+					-- Draw tail. Head and tail are fixed-width caps: they are drawn at exactly the scale
+					-- their system.def node declares, on both axes. Only the body between them stretches,
+					-- and only on x. The anims already carry those scales from f_loadAnimData, but the
+					-- draw sets them again so the loop never depends on what the previous step left behind.
 					local hpalfx = {
 						time = 1,
 						add = hbg.palfx.add,
@@ -1589,73 +1723,84 @@ textboxwindow4 = trials.mtlcx
 						color = hbg.palfx.color
 					}
 					local glyphrow = trials.data.trial[ct].trialstep[i].glyphline.horizontal
+					animReset(hbg.tail.AnimData)
 					animSetPos(hbg.tail.AnimData,
 						bgcomponentposX + hbg.tail.offset[1],
 						glyphrow.pos[1][2] + hbg.tail.offset[2] + tempoffset[2]
 					)
-					animSetScale(hbg.tail.AnimData, tailscalex, tailscaley)
+					animSetScale(hbg.tail.AnimData, hbg.tail.scale[1], hbg.tail.scale[2])
 					animSetPalFX(hbg.tail.AnimData, hpalfx)
-					animReset(hbg.tail.AnimData)
 					animUpdate(hbg.tail.AnimData)
 					if menu.itemname ~= 'commandlist' then
 						animDraw(hbg.tail.AnimData)
 					end
 
-					-- Draw BG for Glyphs - scale to length, start from tail pos
-					bgtargetscale = {(padding + totalglyphlength + padding)/bgsize[1], 1}
+					-- Draw BG for Glyphs - stretch to the glyph run on x, start from tail pos. Only x is
+					-- derived: y stays at the scale the system.def node declares, so the body matches the
+					-- height of the head and tail it sits between.
+					local bgstretch = hbg.scale[1]
+					if bgsize[1] > 0 then bgstretch = (padding + totalglyphlength + padding)/bgsize[1] end
+					bgtargetscale = {bgstretch, hbg.scale[2]}
 					bgcomponentposX = (bgcomponentposX + bgtailwidth)
-					local gpoffset = 0
-					for m in pairs(glyphrow.glyph) do
+					-- Walk the run in order: each glyph starts where the ones before it ended, and the
+					-- first starts at the body's left padding.
+					for m = 1, #glyphrow.glyph, 1 do
+						local gpoffset = 0
 						if m > 1 then gpoffset = glyphrow.lengthOffset[m-1] end
 						glyphrow.pos[m][1] = bgcomponentposX + padding + gpoffset
 					end
 
+					animReset(hbg.AnimData)
 					animSetScale(hbg.AnimData, bgtargetscale[1], bgtargetscale[2])
 					animSetPos(hbg.AnimData,
 						bgcomponentposX + hbg.offset[1],
 						glyphrow.pos[1][2] + hbg.offset[2] + tempoffset[2]
 					)
 					animSetPalFX(hbg.AnimData, hpalfx)
-					animReset(hbg.AnimData)
 					animUpdate(hbg.AnimData)
 					animDraw(hbg.AnimData)
 
 					-- Draw head
 					bgcomponentposX = bgcomponentposX + (totalglyphlength + 2*padding)
+					animReset(hbg.head.AnimData)
 					animSetPos(hbg.head.AnimData,
 						bgcomponentposX + hbg.head.offset[1] + glyphrow.alignOffset[1],
 						glyphrow.pos[1][2] + hbg.head.offset[2] + tempoffset[2]
 					)
+					animSetScale(hbg.head.AnimData, hbg.head.scale[1], hbg.head.scale[2])
 					animSetPalFX(hbg.head.AnimData, hpalfx)
-					animReset(hbg.head.AnimData)
 					animUpdate(hbg.head.AnimData)
 					animDraw(hbg.head.AnimData)
 				end
 				local glyphline = trials.data.trial[ct].trialstep[i].glyphline[layout]
 				local glyphpalfx = trials.trials_mode[sub .. 'step'][layout].glyphs.palfx
 				for m = 1, #glyphline.glyph, 1 do
-					-- Glyph anims belong to the engine's motif and were built in the motif's own
-					-- coordinate space, so pull them into trials space before placing them.
-					local g = motif.glyphs[glyphline.glyph[m]].AnimData
-					animSetLocalcoord(g, trials.mtlcx, trials.mtlcy)
-					animSetLayerno(g, f_clampLayerno(trials.trials_mode.glyphs[layout].layerno))
-					animSetScale(g, glyphline.scale[m][1], glyphline.scale[m][2])
-					animSetPos(g,
-						glyphline.pos[m][1],
-						glyphline.pos[m][2] + tempoffset[2] + trials.trials_mode.glyphs[layout].offset[2]
-					)
-					animSetPalFX(g, {
-						time = 1,
-						add = glyphpalfx.add,
-						mul = glyphpalfx.mul,
-						sinadd = glyphpalfx.sinadd,
-						invertall = glyphpalfx.invertall,
-						color = glyphpalfx.color
-					})
-					animReset(g)
-					animUpdate(g)
-					if menu.itemname ~= 'commandlist' then
-						animDraw(g)
+					-- One anim per glyph per step category, so this step's palfx cannot bleed into the
+					-- draws another category has already queued. Built in the motif's own coordinate
+					-- space, so pull it into trials space before placing it.
+					local g = f_glyphAnim(sub, glyphline.glyph[m])
+					-- The movelist can carry tags that are not glyphs; those never got a position.
+					if g ~= nil and glyphline.pos[m] ~= nil then
+						animReset(g)
+						animSetLocalcoord(g, trials.mtlcx, trials.mtlcy)
+						animSetLayerno(g, f_clampLayerno(trials.trials_mode.glyphs[layout].layerno))
+						animSetScale(g, glyphline.scale[m][1], glyphline.scale[m][2])
+						animSetPos(g,
+							glyphline.pos[m][1],
+							glyphline.pos[m][2] + tempoffset[2] + trials.trials_mode.glyphs[layout].offset[2]
+						)
+						animSetPalFX(g, {
+							time = 1,
+							add = glyphpalfx.add,
+							mul = glyphpalfx.mul,
+							sinadd = glyphpalfx.sinadd,
+							invertall = glyphpalfx.invertall,
+							color = glyphpalfx.color
+						})
+						animUpdate(g)
+						if menu.itemname ~= 'commandlist' then
+							animDraw(g)
+						end
 					end
 				end
 				accwidth = bgcomponentposX
@@ -1859,6 +2004,10 @@ function trials.f_trialsChecker(CheckIt)
 						-- Trial, so it would credit the clear to the wrong one. This block runs once.
 						trials.f_recordClear(ct, roundTime() - trials.data.trial[ct].starttick)
 						trials.selectDirty = true
+						-- The banner belongs to the Trial that was just cleared, for as long as it is up.
+						-- ct is not that Trial after this frame, and the banner is what arms the next
+						-- Trial's clock, so remember which one earned it rather than reading ct again.
+						trials.data.successtrial = ct
 						-- If trial step was last, go to next trial and display success banner
 						if trials.data.trialadvancement then
 							trials.data.currenttrial = ct + 1
@@ -1891,7 +2040,8 @@ function trials.f_trialsChecker(CheckIt)
 	end
 	--If the trial was completed successfully, draw the trials success
 	if trials.draw.success > 0 then
-		trials.f_trialsSuccess('success', ct)
+		-- The Trial the banner is for, not whichever one ct has moved on to.
+		trials.f_trialsSuccess('success', trials.data.successtrial or ct)
 	elseif trials.data.trialsPaused then
 		-- Hold the fade and reposition where they are while the pause menu is open.
 	elseif trials.draw.fade > 0 and (trials.trials_mode.trialsresetonsuccess == true or trials.draw.fadetriggered) and CheckIt == 'root' then
@@ -1906,6 +2056,9 @@ function trials.f_trialsChecker(CheckIt)
 			player(1)
 		end
 	elseif f_checkKeyCombo(trials.trials_mode.trialreset_buttonpress) and trials.draw.fade == 0 and trials.trials_mode.trialreset.enabled and trials.data.currenttrial <= #trials.data.trial then
+		-- A reset starts the Trial over, so the attempt's clock starts over with it. The run
+		-- timer is left alone: a speedrun keeps counting across a reset, it is one run.
+		trials.f_armTimers(trials.data.currenttrial)
 		trials.draw.fadein = trials.trials_mode.fadein_time
 		trials.draw.fadeout = trials.trials_mode.fadeout_time
 		trials.draw.fade = trials.draw.fadein + trials.draw.fadeout
@@ -3163,6 +3316,7 @@ function trials.f_gotoTrial(index, keepTimer, noMenu)
 	trials.data.currenttrialmicrostep = 1
 	trials.data.comboCounter = 0
 	trials.data.currenttrial = index
+	trials.data.successtrial = nil
 	trials.data.trial[index].complete = false
 	trials.data.trial[index].active = false
 	trials.data.active = false
