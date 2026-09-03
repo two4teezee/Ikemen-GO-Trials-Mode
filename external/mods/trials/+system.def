@@ -20,6 +20,12 @@ menu.valuename.trialstextboxes_hide = Hide
 menu.valuename.trialsspeedrun_enabled = On
 menu.valuename.trialsspeedrun_disabled = Off
 
+; What the progress-clearing rows read back, both of them. They show nothing until the progress has
+; been erased, and then say so - the pause menu sits over a frozen match, so nothing else on screen
+; would change.
+menu.valuename.trialsclearprogress_ready =
+menu.valuename.trialsclearprogress_cleared = Cleared
+
 ; Trial select view: the difficulty filters left and right cycle through. "All" is every Trial;
 ; "Other" collects the ones whose def declares no trial.difficulty. Filters with no Trials in
 ; them are skipped. Everything else about the view's appearance is [Trials Mode] trialsmenu.*.
@@ -40,6 +46,27 @@ menu.itemname.trialadvancement = Advancement
 menu.itemname.trialresetonsuccess = Reset on Success
 menu.itemname.trialslayout = Layout
 menu.itemname.trialstextboxes = Textboxes
+; Erases recorded Trial clears, best times and speedrun records, and cannot be undone. The current
+; Trial is not disturbed; only what has been recorded about it goes. Two of them:
+;   trialsclearcharprogress - just the character being played
+;   trialsclearprogress     - every character
+;
+; Each outer itemname is a submenu, not an action: the rows inside it are the confirmation, and
+; "...confirm" is the one that does the erasing. Declare both halves. An outer row with nothing
+; under it is filled in with an English Yes/No pair rather than left as the empty submenu the engine
+; would otherwise hand it, which would take the game down when stepped into.
+;
+; The extra "trialsprogress" level below is optional - nest these wherever suits the screenpack.
+menu.itemname.trialsprogress = Progress
+menu.itemname.trialsprogress.trialsclearcharprogress = Clear This Character's Progress
+menu.itemname.trialsprogress.trialsclearcharprogress.trialsclearcharconfirm = Yes, Erase This Character
+menu.itemname.trialsprogress.trialsclearcharprogress.back = No
+menu.itemname.trialsprogress.trialsclearprogress = Clear All Progress
+menu.itemname.trialsprogress.trialsclearprogress.trialsclearconfirm = Yes, Erase Everything
+menu.itemname.trialsprogress.trialsclearprogress.back = No
+menu.itemname.trialsprogress.spacer = -
+menu.itemname.trialsprogress.back = Back
+
 menu.itemname.menuinput = Button Config
 menu.itemname.menuinput.keyboard = Key Config
 menu.itemname.menuinput.gamepad = Joystick Config

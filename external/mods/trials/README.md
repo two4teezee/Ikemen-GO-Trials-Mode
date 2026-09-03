@@ -741,6 +741,7 @@ after the current game mode. A screenpack customizes it by declaring the same se
 - **Layout**: Vertical or Horizontal, switchable mid-match.
 - **Textboxes**: shows or hides a trial's explanatory text, for trials that carry any.
 - **Speedrun**: On or Off. See below.
+- **Progress**: erases recorded progress, for this character or for everyone. See below.
 
 Speedrun apart, the last four are **player preferences**: `system.def` provides the screenpack's
 authored default, the player's choice is saved to `external/mods/trials/config.ini` the moment it
@@ -924,3 +925,41 @@ without losing anything; renaming a trial starts it a fresh record and leaves th
 which is harmless. Times are in ticks (60 to the second).
 
 Deleting `save/trials.json` resets all progress.
+
+### Clearing progress from the pause menu
+
+Two rows, both writing `save/trials.json`. **Neither can be undone.** The match itself is untouched:
+the current trial carries on, and only what has been recorded about it goes.
+
+- **`trialsclearcharprogress`** — drops the record of whoever is loaded into P1, leaving every other
+  character's alone.
+- **`trialsclearprogress`** — empties the file: every clear, best time and speedrun record, for
+  every character.
+
+The pause menu is drawn over a frozen match, so there is nowhere to put a warning dialog. The
+confirmation is the menu structure instead: **each of those is a submenu, not an action**, and the
+rows inside it are the question. `trialsclearcharconfirm` and `trialsclearconfirm` are what erase.
+
+```
+menu.itemname.trialsprogress = Progress
+menu.itemname.trialsprogress.trialsclearcharprogress = Clear This Character's Progress
+menu.itemname.trialsprogress.trialsclearcharprogress.trialsclearcharconfirm = Yes, Erase This Character
+menu.itemname.trialsprogress.trialsclearcharprogress.back = No
+menu.itemname.trialsprogress.trialsclearprogress = Clear All Progress
+menu.itemname.trialsprogress.trialsclearprogress.trialsclearconfirm = Yes, Erase Everything
+menu.itemname.trialsprogress.trialsclearprogress.back = No
+menu.itemname.trialsprogress.spacer = -
+menu.itemname.trialsprogress.back = Back
+```
+
+The outer `trialsprogress` level is optional and its name is arbitrary — nest these wherever suits
+the screenpack. Only the four `trialsclear*` itemnames are the module's, and they work at any depth.
+
+Declare both halves of a pair. An outer row with nothing under it gets an English Yes/No pair filled
+in rather than being left as the empty submenu the engine would otherwise hand it, which would take
+the game down when stepped into.
+
+Once used, a pair's rows read back **Cleared** until the pause menu is reset — the only feedback
+there is that it worked. The two pairs track that separately, so clearing one character does not
+leave the other row claiming to have cleared everything. Rename the label with
+`menu.valuename.trialsclearprogress_cleared`; both pairs share it.

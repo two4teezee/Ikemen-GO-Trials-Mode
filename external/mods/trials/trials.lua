@@ -92,6 +92,32 @@ local function f_saveProgress()
 	print('Trials: could not write ' .. trials.progressPath .. ' (' .. tostring(err) .. ').')
 end
 
+-- Throws away every clear, best time and speedrun record, for every character, and writes the
+-- emptied file back out. Records are read straight off trials.progress wherever they are needed,
+-- so replacing the table is all the clearing there is; the select view is the one thing holding a
+-- built copy of them, and it is marked for a rebuild.
+function trials.f_clearProgress()
+	trials.progress = f_emptyProgress()
+	f_saveProgress()
+	trials.selectDirty = true
+end
+
+-- The same, for one character - by default whoever is loaded into P1. Answers whether there was a
+-- character to clear: without a resolvable def path there is no key to delete under, and a row
+-- calling this should not report having done anything. A character with no records yet is still a
+-- success, since there is nothing left to clear either way. trials.f_charKey is defined below; it
+-- is reached through the table at call time, so the order here is only how they read.
+function trials.f_clearCharProgress(ref)
+	local key = trials.f_charKey(ref)
+	if key == nil then
+		return false
+	end
+	trials.progress.chars[key] = nil
+	f_saveProgress()
+	trials.selectDirty = true
+	return true
+end
+
 -- The character loaded into P1, as the lowercased def path. nil before a character is selected.
 -- A ref can be passed explicitly, for the menu shown between stage select and the fight, where
 -- the match has not started and trials.p1selref is still whatever the last one left behind.
@@ -422,9 +448,9 @@ end
 trials.mtlcx = tonumber(trials.trials_mode.trialslocalcoord[1]) or 320
 trials.mtlcy = tonumber(trials.trials_mode.trialslocalcoord[2]) or 240
 trials.trials_mode.trialslocalcoord = {trials.mtlcx, trials.mtlcy}
--- The stage's localcoord and the ratio against it are only known once a match is up, but
--- text:create and text:update consult them unconditionally. Start them neutral so anything built
--- before the first match - the select menu's text objects - gets no adjustment rather than a nil.
+-- The stage's localcoord and the ratio against it are only known once a match is up, and the
+-- textbox - the one element drawn in stage space - reads them every frame. Start them neutral so
+-- anything consulting them before the first match gets the motif's own values rather than a nil.
 trials.stlcx = trials.mtlcx
 trials.stlcy = trials.mtlcy
 trials.lcdx00 = 1
@@ -509,16 +535,6 @@ function text:create(t)
 	t.x = t.pos[1]
 	t.y = t.pos[2]
 	end
-	if trials.lcdx00 ~= 1 then
-	if trials.mtlcx > trials.stlcx then
-	if t.x >= trials.mtlcx * 0.5 then
-	t.x = t.x - trials.stlcx * 0.5
-	end
-	if t.x < trials.mtlcx * 0.5 then
-	t.x = t.x + trials.stlcx * 0.5
-	end
-	end
-	end
 	t.scaleX = t.scaleX or 1
 	t.scaleY = t.scaleY or 1
 	if t.scale ~= nil then
@@ -565,7 +581,7 @@ end
 text.new = text.create
 
 --update text
-function text:update(t,lcd)
+function text:update(t)
 	if type(t) == "table" then
 		local ok = false
 		local fontChange = false
@@ -581,19 +597,6 @@ function text:update(t,lcd)
 		if not ok then return end
 		if fontChange and self.font ~= -1 and motif.Fnt[self.font] ~= nil then
 			textImgSetFont(self.ti, motif.Fnt[self.font])
-		end
-
-		if lcd ==  1 then
-			if trials.lcdx00 ~= 1 then
-				if trials.mtlcx > trials.stlcx then
-					if self.x >= trials.mtlcx * 0.5 then
-						self.x = self.x - trials.stlcx * 0.5
-					end
-					if self.x < trials.mtlcx * 0.5 then
-						self.x = self.x + trials.stlcx * 0.5
-					end
-				end
-			end
 		end
 		textImgSetLocalcoord(self.ti, trials.mtlcx, trials.mtlcy)
 		textImgSetBank(self.ti, self.bank)
@@ -1662,7 +1665,7 @@ textboxwindow4 = trials.mtlcx
 						x = trials.trials_mode.trialsteps.vertical.pos[1]+trials.trials_mode[sub .. 'step'].vertical.text.offset[1]+trials.trials_mode.trialsteps.vertical.spacing[1]*(i-startonstep),
 						y = trials.trials_mode.trialsteps.vertical.pos[2]+trials.trials_mode[sub .. 'step'].vertical.text.offset[2]+trials.trials_mode.trialsteps.vertical.spacing[2]*(i-startonstep),
 						text = trials.data.trial[ct].trialstep[i].text
-					},1)
+					})
 					animSetPalFX(stepbg.AnimData, {
 						time = 1,
 						add = stepbg.palfx.add,
@@ -3274,6 +3277,13 @@ end
 if menu.trialsspeedrun == nil then
 	menu.trialsspeedrun = 2
 end
+-- One state per clear, so wiping this character does not leave the everything row claiming it too.
+if menu.trialsclearprogress == nil then
+	menu.trialsclearprogress = 1
+end
+if menu.trialsclearcharprogress == nil then
+	menu.trialsclearcharprogress = 1
+end
 
 local pmv = motif.pause_menu ~= nil and motif.pause_menu.trials_pause_menu ~= nil and motif.pause_menu.trials_pause_menu.menu.valuename or {}
 
@@ -3296,6 +3306,13 @@ menu.t_valuename.trialstextboxes = {
 menu.t_valuename.trialsspeedrun = {
 	{itemname = "enabled", displayname = pmv.trialsspeedrun_enabled or "On"},
 	{itemname = "disabled", displayname = pmv.trialsspeedrun_disabled or "Off"}
+}
+-- Clearing progress has nothing to display until it has happened, and then it has to say so: the
+-- pause menu is drawn over a frozen match, so there is nowhere to put a dialog and nothing else on
+-- screen would change. The row reads back "Cleared" until the menu is reset.
+menu.t_valuename.trialsclearprogress = {
+	{itemname = "ready", displayname = pmv.trialsclearprogress_ready or ""},
+	{itemname = "cleared", displayname = pmv.trialsclearprogress_cleared or "Cleared"}
 }
 -- Moves the match to one Trial and leaves the pause menu, the way its own Continue does.
 -- Latching the fade is what actually repositions the pair: f_trialsFade sets
@@ -3461,6 +3478,100 @@ end
 menu.t_vardisplay['trialsspeedrun'] = f_speedrunVardisplay
 options.t_vardisplay['trialsspeedrun'] = f_speedrunVardisplay
 
+-- Erasing recorded progress cannot be undone, so it is asked twice. The engine's own menu structure
+-- is the prompt: the outer itemname deliberately claims no handler, which leaves it an ordinary
+-- submenu row, and the rows inside it - a confirm and a Back - are the question. Clearing does not
+-- disturb the match: the current Trial carries on, and only what has been recorded about it goes.
+--
+-- Two of them, everything and just the character being played, built from one description so the
+-- pair cannot drift apart. Each keeps its own "Cleared" state, so wiping one character does not
+-- leave the other row claiming to have wiped everything.
+local t_clears = {
+	{
+		row = 'trialsclearprogress',
+		confirm = 'trialsclearconfirm',
+		yes = 'Yes, Erase Everything',
+		no = 'No',
+		run = function()
+			trials.f_clearProgress()
+			return true
+		end,
+	},
+	{
+		row = 'trialsclearcharprogress',
+		confirm = 'trialsclearcharconfirm',
+		yes = 'Yes, Erase This Character',
+		no = 'No',
+		-- Whoever is loaded into P1. Nothing is acknowledged when there is no character to resolve;
+		-- the module has already said why on the console.
+		run = function()
+			return trials.f_clearCharProgress()
+		end,
+	},
+}
+
+local t_clearRows = {}
+for _, c in ipairs(t_clears) do
+	t_clearRows[c.row] = c
+	local function f_clearVardisplay()
+		return menu.t_valuename.trialsclearprogress[menu[c.row] or 1].displayname
+	end
+	menu.t_vardisplay[c.row] = f_clearVardisplay
+	menu.t_vardisplay[c.confirm] = f_clearVardisplay
+	menu.t_itemname[c.confirm] = function(t, item, cursorPosY, moveTxt, sec)
+		if getInput(-1, sec.menu.done.key) then
+			sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
+			if c.run() then
+				menu[c.row] = 2
+				for _, v in ipairs(menu.t_vardisplayPointers) do
+					if v.itemname == c.row or v.itemname == c.confirm then
+						v.vardisplay = menu.f_vardisplay(v.itemname)
+					end
+				end
+			end
+		end
+		-- Staying put is what makes the acknowledgement visible: leaving would drop the player at
+		-- the top of the pause menu (the engine's Back goes to the root, not up a level), where
+		-- neither row is on screen to read "Cleared" back to them.
+		return true
+	end
+end
+
+-- The confirmation is the point of these rows, so a def that declares one without it has not
+-- finished being written - and the engine would hand that row an empty submenu, which takes the
+-- game down the moment it is stepped into. Fill the pair in rather than let that happen. Anything
+-- the def does declare is left alone, labels included.
+local function f_fillClearConfirm(tbl)
+	if type(tbl) ~= 'table' or type(tbl.submenu) ~= 'table' then
+		return
+	end
+	for name, sub in pairs(tbl.submenu) do
+		if type(sub) == 'table' then
+			local c = t_clearRows[name]
+			if c ~= nil and type(sub.items) == 'table' and #sub.items == 0 then
+				sub.items[1] = {itemname = c.confirm, displayname = c.yes, paramname = c.confirm,
+					vardisplay = menu.f_vardisplay(c.confirm), selected = false}
+				sub.items[2] = {itemname = 'back', displayname = c.no, paramname = 'back', vardisplay = '', selected = false}
+				table.insert(menu.t_vardisplayPointers, sub.items[1])
+			end
+			f_fillClearConfirm(sub)
+		end
+	end
+end
+
+-- menu.f_start() builds every pause menu from the motif's itemnames, and main.lua calls it after
+-- the last module has loaded, so there is nothing to walk until it has run. Another module wrapping
+-- it too, before or after this one, simply chains.
+local f_menuStart = menu.f_start
+function menu.f_start(...)
+	if f_menuStart ~= nil then
+		f_menuStart(...)
+	end
+	for _, v in ipairs(menu.t_menus or {}) do
+		f_fillClearConfirm(menu[v.id])
+	end
+end
+
 menu.t_itemname['nexttrial'] = function(t, item, cursorPosY, moveTxt, sec)
 	if getInput(-1, sec.menu.done.key) and trials.data ~= nil and #trials.data.trial > 0 then
 		sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
@@ -3483,6 +3594,10 @@ local t_trialsPrefs = {
 	trialslayout = true,
 	trialstextboxes = true,
 	trialsspeedrun = true,
+	trialsclearprogress = true,
+	trialsclearconfirm = true,
+	trialsclearcharprogress = true,
+	trialsclearcharconfirm = true,
 }
 
 function menu.f_trialsReset()
@@ -3508,6 +3623,10 @@ function menu.f_trialsReset()
 	else
 		menu.trialstextboxes = 2
 	end
+	-- "Cleared" is an acknowledgement of something that just happened, not a state to carry into
+	-- the next match.
+	menu.trialsclearprogress = 1
+	menu.trialsclearcharprogress = 1
 	for _, v in ipairs(menu.t_vardisplayPointers) do
 		if t_trialsPrefs[v.itemname] then
 			v.vardisplay = menu.f_vardisplay(v.itemname)
