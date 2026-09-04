@@ -1,4 +1,13 @@
-# Trials Mode global code
+# -- IKEMEN GO TRIALS MODE EXTERNAL MODULE --------------------------------
+# ---- trial.zss - trials mode global state and functions.
+# ---- This file is loaded by the Trials module to configure the Trials 
+# ---- Mode global state and functions. It is not loaded by the screenpack's
+# ---- system.def, so it is not part of the main menu or pause menu. The 
+# ---- Trials module loads this file itself.
+# --
+# -- Module developed by two4teezee
+# -------------------------------------------------------------------------
+
 # maps set via Pause Menu (menu.lua)
 # _iksys_trialsDummyControl: 0 - cooperative, 1 - ai, 2 - manual
 # _iksys_trialsGuardMode: 0 - none, 1 - auto, 2 - all, 3 - random

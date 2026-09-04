@@ -47,14 +47,8 @@ end
 --;===========================================================
 --; Progress
 --;===========================================================
--- Per-character Trial progress, in a module-owned file alongside the engine's own save data.
--- Keyed by the character's def path (the same key space the engine uses for its hiscore records)
--- and, within that, by the Trial's name - so a def can be reordered without losing what the player
--- cleared. Times are ticks, the unit every timer in this module already works in.
 trials.progressPath = 'save/trials.json'
 trials.t_difficulty = {'beginner', 'intermediate', 'advanced', 'expert'}
--- The categories a menu row or the filter banner can be styled for. "all" only ever applies to the
--- banner, since it is a filter rather than something a Trial can be.
 trials.t_menuCats = {'all', 'beginner', 'intermediate', 'advanced', 'expert', 'other'}
 
 local function f_emptyProgress()
@@ -92,21 +86,12 @@ local function f_saveProgress()
 	print('Trials: could not write ' .. trials.progressPath .. ' (' .. tostring(err) .. ').')
 end
 
--- Throws away every clear, best time and speedrun record, for every character, and writes the
--- emptied file back out. Records are read straight off trials.progress wherever they are needed,
--- so replacing the table is all the clearing there is; the select view is the one thing holding a
--- built copy of them, and it is marked for a rebuild.
 function trials.f_clearProgress()
 	trials.progress = f_emptyProgress()
 	f_saveProgress()
 	trials.selectDirty = true
 end
 
--- The same, for one character - by default whoever is loaded into P1. Answers whether there was a
--- character to clear: without a resolvable def path there is no key to delete under, and a row
--- calling this should not report having done anything. A character with no records yet is still a
--- success, since there is nothing left to clear either way. trials.f_charKey is defined below; it
--- is reached through the table at call time, so the order here is only how they read.
 function trials.f_clearCharProgress(ref)
 	local key = trials.f_charKey(ref)
 	if key == nil then
@@ -118,11 +103,6 @@ function trials.f_clearCharProgress(ref)
 	return true
 end
 
--- The character loaded into P1, as the lowercased def path. nil before a character is selected.
--- A ref can be passed explicitly, for the menu shown between stage select and the fight, where
--- the match has not started and trials.p1selref is still whatever the last one left behind.
--- Progress failing is silent by nature: without a key there is simply nothing to write, and the
--- mode carries on looking healthy. Say it once rather than dropping every clear without a word.
 function trials.f_warnKey(why)
 	if not trials.keyWarned then
 		trials.keyWarned = true
@@ -144,10 +124,6 @@ function trials.f_charKey(ref)
 		end
 		return nil
 	end
-	-- The def path, from whichever of the two sources answers. getCharFileName reads the engine's
-	-- own charlist, which is what a ref indexes; main.t_selChars carries the same path at ref + 1
-	-- and is built in lockstep with that list, so it stands in when the binding is missing or the
-	-- slot cannot be read. Without a key nothing can be recorded, so it is worth asking twice.
 	local path = nil
 	local ok, res = pcall(getCharFileName, ref)
 	if ok and type(res) == 'string' and res ~= '' then
@@ -189,9 +165,6 @@ local function f_charProgress(create, ref)
 	return t
 end
 
--- Record key for a Trial. The name is what the player sees, so it is what the save is keyed by;
--- duplicate names within one file are numbered so reordering a def never merges two records.
--- arr defaults to the Trials of the match in progress; the pre-fight menu passes the parsed ones.
 function trials.f_trialKey(index, arr)
 	-- Resolved in explicit steps rather than an and/or chain: this runs on every clear, and a nil
 	-- from here drops the record without a word, so it is worth being able to see which step failed.
@@ -273,9 +246,6 @@ motif = loadMotif()
 local sff = motif.Sff
 local snd = motif.Snd
 
--- Optional module-owned assets. trials.sff holds the sprites this mode ships with; trials.air
--- holds the actions an "anim = N" in system.def refers to. Both fall back to the screenpack's,
--- so a screenpack that defines everything itself keeps working untouched.
 local trialsSff = sff
 if main.f_fileExists(modulePath .. 'trials.sff') then
 	trialsSff = sffNew(searchFile(modulePath .. 'trials.sff', {motif.def, '', 'data/'}))
@@ -439,18 +409,12 @@ if opts.Textboxes ~= nil then
 	trials.trials_mode.textbox.visible = visible
 end
 
--- Resolve trialslocalcoord up front. Every anim built below lives in this coordinate
--- space, and animSetLocalcoord only affects setters called *after* it, so the value has
--- to exist before the sprite data is loaded (not just once f_trialsMode starts running).
 if type(trials.trials_mode.trialslocalcoord) ~= 'table' then
 	trials.trials_mode.trialslocalcoord = {320, 240}
 end
 trials.mtlcx = tonumber(trials.trials_mode.trialslocalcoord[1]) or 320
 trials.mtlcy = tonumber(trials.trials_mode.trialslocalcoord[2]) or 240
 trials.trials_mode.trialslocalcoord = {trials.mtlcx, trials.mtlcy}
--- The stage's localcoord and the ratio against it are only known once a match is up, and the
--- textbox - the one element drawn in stage space - reads them every frame. Start them neutral so
--- anything consulting them before the first match gets the motif's own values rather than a nil.
 trials.stlcx = trials.mtlcx
 trials.stlcy = trials.mtlcy
 trials.lcdx00 = 1
@@ -476,11 +440,6 @@ end
 
 text = {}
 
--- Builds a text object straight from a system.def node, e.g. f_newText(trials.trials_mode.success.text)
--- for the "success.text.*" keys. Position comes from "pos" when the node has one, otherwise
--- "offset"; callers that need a different origin reposition through :update afterwards.
--- The node's "window" is deliberately not read: trials treats textbox.text.window as an offset
--- pair (see f_trialsDrawer), not as a clipping window.
 function f_newText(node)
 	local node = type(node) == 'table' and node or {}
 	local font = type(node.font) == 'table' and node.font or {-1}
@@ -505,11 +464,6 @@ function f_newText(node)
 	})
 end
 
--- Render layer for a motif element. The engine buckets Lua draw calls into a pre-pass plus
--- three layers (see System.luaQueueLayerDraw), all of which are flushed after the stage and
--- the characters, so this only orders trials elements against each other. Within one layer
--- the draw order is the order the elements are drawn by f_trialsDrawer.
--- Defaults to 0, which is what every element used before layerno was configurable.
 local function f_clampLayerno(...)
 	for i = 1, select('#', ...) do
 		local n = tonumber(select(i, ...))
@@ -624,10 +578,6 @@ function text:draw()
 	return self
 end
 
--- Builds an Anim from a system.def element node (the table holding offset/scale/spr/anim/
--- facing/layerno) and returns it. Mirrors the engine's own SetAnim (src/iniutils.go):
--- an "anim = N" resolves through the action table, otherwise "spr = group, index" becomes a
--- single-frame anim, and an element with neither gets a blank one so the drawer can stay simple.
 function f_loadAnimData(node, x, y, sffOverride, animsOverride)
 	local node = type(node) == 'table' and node or {}
 	local sprData = sffOverride or trialsSff
@@ -656,9 +606,6 @@ function f_loadAnimData(node, x, y, sffOverride, animsOverride)
 	else
 		a = animNew(sprData, '-1,0, 0,0, -1')
 	end
-	-- Order matters: animSetLocalcoord only stores the scale factor, it does not re-derive
-	-- values that were already committed. Position, scale and window all have to be applied
-	-- *after* it or they stay in 320x240 space and the element renders unscaled.
 	animSetLocalcoord(a, trials.mtlcx, trials.mtlcy)
 	animSetPos(a, offset[1] + (x or 0), offset[2] + (y or 0))
 	animSetScale(a, scale[1], scale[2])
@@ -669,16 +616,6 @@ function f_loadAnimData(node, x, y, sffOverride, animsOverride)
 	return a
 end
 
--- Glyph anims live on the engine's motif (motif.glyphs[key].AnimData) and are shared - the
--- movelist draws the same objects, and so does every step this drawer touches. animDraw does not
--- draw: it queues a shallow copy of the Anim whose palfx field is still a pointer to the original
--- anim's PalFX, and the queue is not flushed until the end of the frame. So the next animSetPalFX
--- or animReset on that glyph rewrites the colour of the draws already queued. Completed steps grey
--- their glyphs while current and upcoming ones leave them alone, so one shared anim per glyph means
--- whichever step happens to be drawn last colours every copy of that glyph on screen.
---
--- Give each step category its own anim per glyph, built from the same sff and sprite the motif
--- built its own from, so a category's palfx is the only thing that can reach its own draws.
 local t_glyphAnims = {}
 local glyphSffOk = nil
 local function f_glyphAnim(sub, key)
@@ -767,18 +704,10 @@ do
 	if type(m.pos) ~= 'table' then m.pos = {0, 0} end
 	if type(m.spacing) ~= 'table' then m.spacing = {0, 20} end
 	m.visibleitems = math.max(1, tonumber(m.visibleitems) or 10)
-	-- The menu is drawn over a live match, so it defaults to the top layer rather than sharing
-	-- layer 0 with the in-match HUD. Any element can still name its own.
 	m.layerno = tonumber(m.layerno) or 2
-	-- default draws one banner, for the filter on show. sidebyside lays every filter out at
-	-- header.spacing apart and marks the one on show with the header.active elements.
 	m.headerdisplay = tostring(m.headerdisplay or 'default'):lower()
 	if m.headerdisplay ~= 'sidebyside' then m.headerdisplay = 'default' end
-	if type(f_node(m, 'header').spacing) ~= 'table' then m.header.spacing = {120, 0} end
-	-- The tally beside a filter name. "" leaves it off, which side by side often wants.
-	if f_node(m, 'header', 'value').text == nil then m.header.value.text = '%s' end
-	-- header.active describes the filter on show. It inherits from the shared banner, so a
-	-- system.def that only ever styled header.* keeps describing both.
+	if type(f_node(m, 'header').spacing) ~= 'table' then m.header.spacing = {120, 0} end	if f_node(m, 'header', 'value').text == nil then m.header.value.text = '%s' end
 	for _, key in ipairs({'text', 'value', 'bg'}) do
 		local base, act = f_node(m, 'header', key), f_node(m, 'header', 'active', key)
 		for k, v in pairs(base) do
@@ -808,10 +737,6 @@ do
 		if n.layerno == nil then n.layerno = m.layerno end
 	end
 	if type(f_node(m, 'status').offset) ~= 'table' then m.status.offset = {0, 0} end
-	-- Per-category overrides. A row's category is its Trial's difficulty; the banner's is the
-	-- filter on show. Authors declare only what differs, so anything a category leaves out is
-	-- inherited from the shared node it overrides. Done before t_elems so the anims are built
-	-- from the inherited values, and only for categories that were actually declared.
 	for _, cat in ipairs(trials.t_menuCats) do
 		for _, path in ipairs({
 			{'item', 'text'}, {'item', 'bg'},
@@ -842,11 +767,6 @@ do
 	o.layerno = tonumber(o.layerno) or 0
 end
 
--- palfx is optional on every step element - the README documents each key as commentable - but
--- the drawer reads add/mul/sinadd/invertall/color straight off the node every frame, and loadIni
--- only creates a node when at least one of its keys is declared. Fill in the neutral palfx (the
--- values f_trialsSelectScreen restores a portrait to) so a system.def that leaves a whole block
--- out, or names only some of its keys, draws unmodified instead of erroring.
 local function f_palfxDefaults(fx)
 	if type(fx.add) ~= 'table' then fx.add = {0, 0, 0} end
 	if type(fx.mul) ~= 'table' then fx.mul = {256, 256, 256} end
@@ -859,9 +779,6 @@ for _, sub in ipairs({'upcomingstep', 'currentstep', 'completedstep'}) do
 	for _, layout in ipairs({'vertical', 'horizontal'}) do
 		f_palfxDefaults(f_node(tr_pos, sub, layout, 'bg', 'palfx'))
 		f_palfxDefaults(f_node(tr_pos, sub, layout, 'glyphs', 'palfx'))
-		-- offset and scale are read straight off these nodes by the drawer on every frame, and
-		-- the horizontal layout also sizes its rows from the scale its head and tail are drawn
-		-- at, so neither can be left nil by a system.def that did not declare them.
 		local paths = {{'bg'}}
 		if layout == 'horizontal' then paths = {{'bg'}, {'bg', 'tail'}, {'bg', 'head'}} end
 		for _, path in ipairs(paths) do
@@ -881,11 +798,6 @@ for _, layout in ipairs({'vertical', 'horizontal'}) do
 	if type(g.offset) ~= 'table' then g.offset = {0, 0} end
 	if type(g.scale) ~= 'table' then g.scale = {1, 1} end
 	if type(g.spacing) ~= 'table' then g.spacing = {0, 0} end
-	-- align is a vertical-layout concept, as the README and system.def both say. The horizontal
-	-- layout lays its glyphs out left to right inside a body stretched to fit them, and measures
-	-- the body, the head and the row's contribution to the line break off that same run, so it
-	-- only has one meaningful direction. Left unresolved, align falls through to the half-width
-	-- advance meant for centred text and every glyph lands on top of the one before it.
 	g.align = tonumber(g.align) or 1
 	if layout == 'horizontal' then g.align = 1 end
 end
@@ -913,8 +825,6 @@ local t_elems = {
 	{n = f_node(tr_pos, 'textbox', 'bg'),                  x = tr_pos.textbox.pos[1],               y = tr_pos.textbox.pos[2]},
 	{n = f_node(tr_pos, 'textbox', 'front'),               x = tr_pos.textbox.pos[1],               y = tr_pos.textbox.pos[2]},
 }
--- Menu bg and front sit at the menu's own origin; everything else in it is placed per row by
--- the draw loop, so those are built at the origin.
 t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'trialsmenu', 'bg'),    x = tr_pos.trialsmenu.pos[1], y = tr_pos.trialsmenu.pos[2]}
 t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'trialsmenu', 'front'), x = tr_pos.trialsmenu.pos[1], y = tr_pos.trialsmenu.pos[2]}
 for _, path in ipairs({
@@ -923,8 +833,6 @@ for _, path in ipairs({
 }) do
 	t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'trialsmenu', unpack(path))}
 end
--- A category only gets its own anim if it declared one; otherwise the draw falls back to the
--- shared node, which already has one.
 for _, cat in ipairs(trials.t_menuCats) do
 	for _, path in ipairs({{'item', 'bg'}, {'item', 'active', 'bg'}, {'header', 'bg'}, {'header', 'active', 'bg'}}) do
 		local n = tr_pos.trialsmenu[path[1]][cat]
@@ -940,8 +848,6 @@ for _, layout in ipairs({'vertical', 'horizontal'}) do
 	t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'trialtitle', layout, 'bg'),    x = tr_pos.trialtitle[layout].pos[1], y = tr_pos.trialtitle[layout].pos[2]}
 	t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'trialtitle', layout, 'front'), x = tr_pos.trialtitle[layout].pos[1], y = tr_pos.trialtitle[layout].pos[2]}
 end
--- Per-step backgrounds are placed by the draw loop, so they are built at the origin. Horizontal
--- layouts additionally use a fixed-width head and tail either side of the stretched body.
 for _, sub in ipairs({'upcomingstep', 'currentstep', 'completedstep'}) do
 	t_elems[#t_elems + 1] = {n = f_node(tr_pos, sub, 'vertical', 'bg')}
 	t_elems[#t_elems + 1] = {n = f_node(tr_pos, sub, 'horizontal', 'bg')}
@@ -989,12 +895,12 @@ function trials.f_inittrialsData()
 		active = false,
 		allclear = false,
 		currenttrial = 1,
-		-- The Trial a success banner on screen belongs to; nil when none is up.
 		successtrial = nil,
 		currenttrialstep = 1,
 		currenttrialmicrostep = 1,
 		validfortickcount = 0,
 		comboCounter = 0,
+		projsource = {},
 		maxsteps = 0,
 		starttick = roundTime(),
 		elapsedtime = 0,
@@ -1335,9 +1241,6 @@ function trials.f_trialsDummySetup()
 	player(1)
 end
 
--- The portrait beside the textbox is a per-step anim: the trials definition's "iconanim" is
--- already a raw anim string once split, so it goes straight to animNew. Source "char" pulls it
--- from the selected character's own sff, source "system" from the screenpack's.
 local function f_iconAnimString(step)
 	local t = {}
 	for _, k in ipairs(step.iconanim) do
@@ -1365,10 +1268,6 @@ function trials.f_trialsDrawer()
 		trials.data.active = true
 	end
 
-	-- Track whether the pause menu is open. The fade and reposition machinery is held while it
-	-- is, because Common.Lua runs every tick regardless - without this a Trial picked from the
-	-- list starts its fade behind the menu it was picked from, then waits on the menu's own
-	-- closing fade, which is the same fade object.
 	if paused() and not trials.data.trialsPaused then
 		trials.data.trialsPaused = true
 	elseif not paused() then
@@ -1420,30 +1319,6 @@ function trials.f_trialsDrawer()
 				trials.draw.trialreset_text:update({text = trials.trials_mode.trialreset.text.text})
 				trials.draw.trialreset_text:draw()
 			end
-
-			-- Draw trialsteps bg overlay if enabled
-			-- TODO: use the dynamic scaling in the draw loop to adjust the overlay size (new x2, y2 values)
-			-- if trials.trials_mode.trialsteps[layout].bg.overlay.visible == 'true' then
-			-- 	local windowKey = 'withouttextbox'
-			-- 	if trials.trials_mode.textbox.visible == true and trials.data.trial[ct].textbox ~= '' then
-			-- 		windowKey = 'withtextbox'
-			-- 	end
-				
-			-- 	local bgoverlay = rect:create({})
-			-- 	bgoverlay:update({
-			-- 		x1 = trials.trials_mode.trialsteps[layout].bg.overlay.window[windowKey][1],
-			-- 		y1 = trials.trials_mode.trialsteps[layout].bg.overlay.window[windowKey][2],
-			-- 		x2 = trials.trials_mode.trialsteps[layout].bg.overlay.window[windowKey][3],
-			-- 		y2 = trials.trials_mode.trialsteps[layout].bg.overlay.window[windowKey][4],
-			-- 		r = trials.trials_mode.trialsteps[layout].bg.overlay.col[1],
-			-- 		g = trials.trials_mode.trialsteps[layout].bg.overlay.col[2],
-			-- 		b = trials.trials_mode.trialsteps[layout].bg.overlay.col[3],
-			-- 		src = trials.trials_mode.trialsteps[layout].bg.overlay.alpha[1],
-			-- 		dst = trials.trials_mode.trialsteps[layout].bg.overlay.alpha[2],
-			-- 		defsc = false,
-			-- 	})
-			-- 	bgoverlay:draw()
-			-- end
 
 			-- Draw trialstep background
 			animUpdate(trials.trials_mode.trialsteps[layout].bg.AnimData)
@@ -1631,22 +1506,6 @@ textboxwindow4 = trials.mtlcx
 				local bgtailwidth = 0 --only used for horizontal layouts
 				local bgheadwidth = 0 --only used for horizontal layouts
 
-				-- if trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_visible'] == 'true' then
-				-- 	bgoverlay = rect:create({})
-				-- 	bgoverlay:update({
-				-- 		x1 =    trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_visible'][1],
-				-- 		y1 =    trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_visible'][2],
-				-- 		x2 =    trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_visible'][3],
-				-- 		y2 =    trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_visible'][4],
-				-- 		r =     trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_visible'][1],
-				-- 		g =     trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_visible'][2],
-				-- 		b =     trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_visible'][3],
-				-- 		src =   trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_visible'][1],
-				-- 		dst =   trials.trials_mode['trialsteps_' .. layout .. '_bg_overlay_visible'][2],
-				-- 		defsc = false,
-				-- 	})
-				-- 	bgoverlay:draw()
-				-- end
 
 				if layout == "vertical" then
 					--Vertical layouts are the simplest - they have a constant width sprite or anim that the text is drawn on top of, and the glyphs are displayed wherever specified.
@@ -1876,7 +1735,9 @@ function trials.f_trialsChecker(CheckIt)
 		player(1)
 			if projid >= 0 then
 				source = 'proj'
-				if numProjId(projid) > 0 and playerId(attackerid) then
+				-- Redirect to the owner before asking it about the projectile: numProjId would
+				-- otherwise be answered by whoever the working char happened to be.
+				if playerId(attackerid) and numProjId(projid) > 0 then
 					attackeranim = projVar(projid, 0, 'anim')
 				end
 			else
@@ -1886,23 +1747,35 @@ function trials.f_trialsChecker(CheckIt)
 				end
 			end
 			-- Can uncomment this sec to debug helper/proj data
-			print("ID: " .. attackerid)
-			print("Source: " .. source)
-			print("State: " .. attackerstate)
-			print("Anim: " .. attackeranim)
+			--print("ID: " .. attackerid)
+			--print("Source: " .. source)
+			--print("ProjID: " .. projid)
+			--print("State: " .. attackerstate)
+			--print("Anim: " .. attackeranim)
 		end
 		player(1)
+		local step = trials.data.trial[ct].trialstep[cts]
+		local newhit = comboCount() > trials.data.comboCounter
+		local isprojstep = step.isproj[ctms] or step.projid[ctms] ~= nil
 		if CheckIt ~= nil and CheckIt ~= 'root' then
 			helperIndex(CheckIt)
 		end
 
+		for i = 0, numProj() - 1 do
+			local ptime, pid = projVar(-1, i, 'time'), projVar(-1, i, 'projid')
+			if ptime ~= nil and pid ~= nil and ptime <= 1 then
+				trials.data.projsource[pid] = stateNo()
+			end
+		end
+
 		-- Check states and anims; iterate over 'or' operand if multiple states and/or anims are provided
+		local launchstate = projid >= 0 and trials.data.projsource[projid] or nil
 		local desiredstates = trials.data.trial[ct].trialstep[cts].stateno[ctms]
 		if desiredstates == nil or #desiredstates == 0 then
 			statecheck = true
 		else
 			for k = 1, #desiredstates, 1 do
-				if stateNo() == desiredstates[k] or attackerstate == desiredstates[k] then
+				if stateNo() == desiredstates[k] or attackerstate == desiredstates[k] or launchstate == desiredstates[k] then
 					statecheck = true
 					break
 				end
@@ -1919,8 +1792,11 @@ function trials.f_trialsChecker(CheckIt)
 			end
 		end
 
-		if (trials.data.trial[ct].trialstep[cts].ishelper[ctms] and statecheck) and animcheck then
-			helpercheck = true
+		if (step.ishelper[ctms] and statecheck) and animcheck then
+			-- A helper that fires a projectile scores the hit on the root, not on itself, so
+			-- neither one's moveHit ever reports it. projid covers that case.
+			helpercheck = ((moveHit() > 0 or projid >= 0) and newhit)
+				or step.isthrow[ctms] or step.hitcount[ctms] == 0
 			if trials.data.trial[ct].trialstep[cts].validforvar ~= nil and helpercheck then
 				for i = 1, #trials.data.trial[ct].trialstep[cts].validforvar, 1 do
 					if helpercheck then
@@ -1930,8 +1806,27 @@ function trials.f_trialsChecker(CheckIt)
 			end
 		end
 
-		if (trials.data.trial[ct].trialstep[cts].isproj[ctms] and statecheck) and animcheck then
-			projcheck = true
+		if isprojstep then
+			local wantids = step.projid[ctms]
+			if step.hitcount[ctms] == 0 then
+				-- A step that is not required to connect has no hit to key off, so state is all
+				-- there is to match on - projid never comes into it.
+				projcheck = statecheck and animcheck
+			elseif wantids == nil then
+				-- Legacy step with no projid: match stateno as before, but require a real hit.
+				projcheck = statecheck and animcheck and projid >= 0 and newhit
+			elseif CheckIt == 'root' and projid >= 0 and newhit then
+				-- The ID is owner-independent, so match it once per frame in the root pass.
+				-- Matching in the helper passes too would advance the same step again this tick.
+				for k = 1, #wantids, 1 do
+					if projid == wantids[k] then
+						-- statecheck is free when the step declares no stateno, and is what
+						-- separates two moves that share one ProjID when it does.
+						projcheck = statecheck and animcheck
+						break
+					end
+				end
+			end
 			if trials.data.trial[ct].trialstep[cts].validforvar ~= nil and projcheck then
 				for i = 1, #trials.data.trial[ct].trialstep[cts].validforvar, 1 do
 					if projcheck then
@@ -1941,7 +1836,7 @@ function trials.f_trialsChecker(CheckIt)
 			end
 		end
 
-		maincharcheck = (statecheck and not(trials.data.trial[ct].trialstep[cts].isproj[ctms]) and not(trials.data.trial[ct].trialstep[cts].ishelper[ctms]) and animcheck and ((moveHit() > 0 and comboCount() > trials.data.comboCounter) or trials.data.trial[ct].trialstep[cts].isthrow[ctms] or trials.data.trial[ct].trialstep[cts].hitcount[ctms] == 0))
+		maincharcheck = (statecheck and not(isprojstep) and not(step.ishelper[ctms]) and animcheck and ((moveHit() > 0 and newhit) or step.isthrow[ctms] or step.hitcount[ctms] == 0))
 		if trials.data.trial[ct].trialstep[cts].validforvar ~= nil and maincharcheck then
 			for i = 1, #trials.data.trial[ct].trialstep[cts].validforvar, 1 do
 				if maincharcheck then
@@ -2285,10 +2180,6 @@ end
 --;===========================================================
 --; Trial select view
 --;===========================================================
--- One list of Trials, shown two ways: as the screen that greets the player when the match loads,
--- and as the Pause menu's Trials List. It is drawn with the engine's own menu renderer, so it
--- inherits the screenpack's pause-menu fonts, cursor, sounds and scrolling for free.
-
 local function f_pauseMenuValues()
 	if motif.pause_menu ~= nil and motif.pause_menu.trials_pause_menu ~= nil then
 		return motif.pause_menu.trials_pause_menu.menu.valuename or {}
@@ -2319,9 +2210,6 @@ function trials.f_speedrunEnabled()
 	return menu.trialsspeedrun == 1
 end
 
--- Which filters this character offers: All, then each difficulty that actually has Trials, then
--- Other for the ones whose def declares none. A def with no difficulties anywhere offers only All,
--- which is the flat, def-ordered list it has always had.
 function trials.f_filterOrder(arr)
 	local t = {'all'}
 	arr = arr or (trials.data ~= nil and trials.data.trial or nil)
@@ -2364,11 +2252,6 @@ local function f_inFilter(arr, i, filter)
 	return d == filter
 end
 
--- The Trials the current filter admits, in def order, under a header naming the filter and how
--- many of it are cleared. The header only appears when there is more than one filter to cycle.
--- arr/ref default to the match in progress. The menu shown between stage select and the fight
--- passes the character's parsed Trials instead, since no match state exists yet. withTail appends
--- the pause-menu section's own items (Back), which only that context has.
 function trials.f_buildSelectItems(arr, ref, withTail)
 	local items = {}
 	arr = arr or (trials.data ~= nil and trials.data.trial or nil)
@@ -2409,9 +2292,7 @@ function trials.f_buildSelectItems(arr, ref, withTail)
 		end
 		entries[#entries + 1] = {cat = f, label = trials.f_difficultyName(f), value = done .. '/' .. n}
 	end
-	-- The banner is pinned above the list rather than being row one, so it stays put while the
-	-- rows scroll under it. The arrows are the only affordance telling the player that left and
-	-- right do anything, so they only appear when there is more than one filter to reach.
+
 	local label = trials.f_difficultyName(filter)
 	if #order > 1 and trials.trials_mode.trialsmenu.headerdisplay ~= 'sidebyside' then
 		-- Laid out side by side the other filters are visible, so the arrows earn nothing.
@@ -2497,8 +2378,6 @@ end
 
 -- Left and right step through the filters. Returns whether anything moved, so the caller knows
 -- whether to make a sound.
--- Cycles the filter for one specific node, used by the pre-fight menu where the in-match views
--- do not exist yet.
 function trials.f_cycleFilterFor(node, dir)
 	local order = trials.f_filterOrder(node.trials)
 	if #order < 2 then
@@ -2553,7 +2432,6 @@ end
 --   select - between stage select and the fight loading
 --   start  - once the match is up, over the frozen pair
 --   off    - never; the match starts on the first Trial
--- The pause menu's Trials List is unaffected by any of them.
 function trials.f_listDisplay()
 	local v = tostring(trials.trials_mode.trialslistdisplay or 'start'):lower()
 	if v == 'select' or v == 'off' then
@@ -2582,8 +2460,6 @@ function trials.f_openSelect()
 	end
 end
 
--- Both clocks have to be armed from one reading, or the run and its first Trial drift apart by
--- however many ticks separate two calls to roundTime(). Everything that begins a Trial comes here.
 function trials.f_armTimers(index, wholeRun)
 	if trials.data == nil then
 		return
@@ -2609,8 +2485,6 @@ function trials.f_closeSelect()
 	end
 end
 
--- Only the key bindings and the menu sounds still come from the screenpack's pause-menu section;
--- everything the view looks like is [Trials Mode] trialsmenu.*.
 function trials.f_selectSection()
 	if motif.pause_menu == nil then
 		return nil
@@ -2621,11 +2495,6 @@ end
 --;===========================================================
 --; Trial select menu - drawing
 --;===========================================================
--- A category's own node when it declared one, otherwise the shared node it would have overridden.
--- The second return is the key the text cache is filed under, so a category's text object is never
--- confused with the shared one.
--- As f_cat, but for elements that also have an "active" variant: the category's active node, then
--- the shared active node, then the category's plain node, then the shared one.
 local function f_catState(base, cat, active, key)
 	if active then
 		local c = base[cat]
@@ -2844,9 +2713,6 @@ end
 --;===========================================================
 --; Trial select menu - input
 --;===========================================================
--- getInput reads the engine's menu input buffer, which only its own Lua-driven screens pump. In a
--- live match there is no such loop, so the match-load view reads the player's input directly, the
--- way f_checkKeyCombo does for the reset combo. A motif key is a list of key names.
 local function f_matchHeld(keys)
 	local best = 0
 	if type(keys) ~= 'table' then
@@ -2861,8 +2727,6 @@ local function f_matchHeld(keys)
 	return best
 end
 
--- Rising edge, tracked rather than inferred from a held count of exactly 1, so a dropped frame
--- can't swallow a press. Directions additionally auto-repeat while held.
 local function f_matchPressed(node, name, keys, autorepeat)
 	if node.inputHeld == nil then
 		node.inputHeld = {}
@@ -3001,10 +2865,6 @@ end
 --;===========================================================
 --; Trial select menu - before the fight
 --;===========================================================
--- trialslistdisplay = select shows the menu between stage select and the fight loading. There is
--- no match yet, so this reads the character's parsed Trials rather than any match state, and runs
--- as a modal loop the way the engine's own between-screens prompts do (main.f_warning and friends).
--- The choice is carried into the match as trials.pendingTrial, by name.
 function trials.f_preFightMenu()
 	if not gameMode('trials') or trials.f_listDisplay() ~= 'select' then
 		return
@@ -3478,14 +3338,6 @@ end
 menu.t_vardisplay['trialsspeedrun'] = f_speedrunVardisplay
 options.t_vardisplay['trialsspeedrun'] = f_speedrunVardisplay
 
--- Erasing recorded progress cannot be undone, so it is asked twice. The engine's own menu structure
--- is the prompt: the outer itemname deliberately claims no handler, which leaves it an ordinary
--- submenu row, and the rows inside it - a confirm and a Back - are the question. Clearing does not
--- disturb the match: the current Trial carries on, and only what has been recorded about it goes.
---
--- Two of them, everything and just the character being played, built from one description so the
--- pair cannot drift apart. Each keeps its own "Cleared" state, so wiping one character does not
--- leave the other row claiming to have wiped everything.
 local t_clears = {
 	{
 		row = 'trialsclearprogress',
@@ -3537,10 +3389,6 @@ for _, c in ipairs(t_clears) do
 	end
 end
 
--- The confirmation is the point of these rows, so a def that declares one without it has not
--- finished being written - and the engine would hand that row an empty submenu, which takes the
--- game down the moment it is stepped into. Fill the pair in rather than let that happen. Anything
--- the def does declare is left alone, labels included.
 local function f_fillClearConfirm(tbl)
 	if type(tbl) ~= 'table' or type(tbl.submenu) ~= 'table' then
 		return
@@ -3682,6 +3530,20 @@ local function f_initTrialStepMicrosteps(step, count)
 	end
 end
 
+-- stateno, animno and projid all share one shape: commas separate microsteps, and within a
+-- microstep '|' separates alternatives that are all accepted.
+local function f_parseStepList(step, field, lcline)
+	local raw = string.gsub(f_trimforchar(lcline, "=", "after"), "%s+", "")
+	if raw == "" then
+		return
+	end
+	step[field] = main.f_strsplit(',', raw)
+	for k = 1, #step[field], 1 do
+		step[field][k] = f_str2number(main.f_strsplit('|', step[field][k]))
+	end
+	f_initTrialStepMicrosteps(step, #step[field])
+end
+
 -- Find trials files and parse them; append t_selChars table
 for row = 1, #main.t_selChars, 1 do
 	if main.t_selChars[row].def ~= nil then
@@ -3714,6 +3576,7 @@ for row = 1, #main.t_selChars, 1 do
 					glyphs = "",
 					stateno = {},
 					animno = {},
+					projid = {},
 					hitcount = {},
 					stephitscount = {},
 					comboCountonstep = {},
@@ -3855,23 +3718,11 @@ for row = 1, #main.t_selChars, 1 do
 			elseif lcline:find("trialstep." .. j .. ".glyphs") then
 				trial[i].trialstep[j].glyphs = f_trimforchar(line, "=", "after")
 			elseif lcline:find("trialstep." .. j .. ".stateno") then
-				if string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "") ~= "" then
-					trial[i].trialstep[j].stateno = main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", ""))
-					for k = 1, #trial[i].trialstep[j].stateno, 1 do
-						local temp = trial[i].trialstep[j].stateno[k]
-						trial[i].trialstep[j].stateno[k] = f_str2number(main.f_strsplit('|', temp))
-					end
-					f_initTrialStepMicrosteps(trial[i].trialstep[j], #trial[i].trialstep[j].stateno)
-				end
+				f_parseStepList(trial[i].trialstep[j], 'stateno', lcline)
 			elseif lcline:find("trialstep." .. j .. ".animno") then
-				if string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "") ~= "" then
-					trial[i].trialstep[j].animno = main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", ""))
-					for k = 1, #trial[i].trialstep[j].animno, 1 do
-						local temp = trial[i].trialstep[j].animno[k]
-						trial[i].trialstep[j].animno[k] = f_str2number(main.f_strsplit('|', temp))
-					end
-					f_initTrialStepMicrosteps(trial[i].trialstep[j], #trial[i].trialstep[j].animno)
-				end
+				f_parseStepList(trial[i].trialstep[j], 'animno', lcline)
+			elseif lcline:find("trialstep." .. j .. ".projid") then
+				f_parseStepList(trial[i].trialstep[j], 'projid', lcline)
 			elseif lcline:find("trialstep." .. j .. ".hitcount") then
 				if string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "") ~= "" then
 					trial[i].trialstep[j].hitcount = f_str2number(main.f_strsplit(',', string.gsub(f_trimforchar(lcline, "=", "after"),"%s+", "")))

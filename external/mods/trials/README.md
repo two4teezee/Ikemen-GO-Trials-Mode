@@ -557,6 +557,7 @@ trialstep.1.glyphs = _QDF^Y
 trialstep.1.stateno = 1010
 
 ; trialstep.1.animno =
+; trialstep.1.projid =
 ; trialstep.1.hitcount =
 ; trialstep.1.isthrow =
 ; trialstep.1.iscounterhit =
@@ -584,14 +585,19 @@ trialstep.1.stateno = 1010
 
 ; trialstep.X.text - optional - multilingual - (string). Text for trial step (only displayed in vertical trials layout). Supports specification as trialstep.X.text, or trialstep.X.text.en, trialstep.X.text.es, etc. for multilingual support. Will default to trialstep.X.text.en (or trialstep.X.text) if selected language cannot be matched.
 ; trialstep.X.glyphs - optional - (string, see Glyph documentation [https://github.com/ikemen-engine/Ikemen-GO/wiki/Miscellaneous-info#movelists] for syntax). Same syntax as movelist glyphs. Glyphs are displayed in vertical and horizontal trials layouts.
-; trialstep.X.stateno - mandatory - (integer or comma-separated integers). State to be checked to pass trial. This is the state whether it's the main character, a helper, or even a projectile.
+; trialstep.X.stateno - mandatory - (integer or comma-separated integers). State to be checked to pass trial. This is the state whether it's the main character or a helper. On a projectile step it means the state the projectile was FIRED FROM, which the module records when the projectile spawns - note that for a projectile fired by way of a helper this is the root's move state (e.g. 1000 for a Hadoken thrown by a helper out of state 1000), not the helper's own state number. Optional, and safely omitted, on a step whose "projid" already identifies the projectile on its own.
 
 ; trialstep.X.animno - optional - (integer or comma-separated integers). Identifies animno to be checked to pass trial. Useful in certain cases.
 ; trialstep.X.hitcount - optional - (integer or comma-separated integers), will default to 1 if not defined. In some instances, you might want to specify a trial step to meet a hit count criteria before proceeding to the next trial step. Useful for multi-hit moves, or for moves that don't hit (e.g. taunts).
 ; trialstep.X.isthrow - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step is a throw. Should be 'true' is trial step is a throw.
 ; trialstep.X.iscounterhit - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step should be a counter hit. Typically does not work with helpers or projectiles.
 ; trialstep.X.ishelper - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step is a helper. Should be 'true' is trial step is a hit from a helper.
-; trialstep.X.isproj - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step is a projectile. Should be 'true' is trial step is a hit from a projectile.
+; trialstep.X.isproj - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step is a projectile. Should be 'true' is trial step is a hit from a projectile. The step passes only when the projectile actually connects with the dummy, not when it is fired. Not needed on a step that declares a "projid", since a projid already identifies the step as a projectile - it is only required when the projectile is identified by "stateno" instead. Setting both is harmless and reads more clearly in a def.
+; trialstep.X.projid - optional - (integer or comma-separated integers). The ID given to the projectile by the character's Projectile sctrl - authors spell that parameter "ProjID", "projid" or plain "id" interchangeably. The step passes on the frame a projectile with that ID hits the dummy. Use the "|" operand where a character fires more than one projectile for the same move, or where the ID is an expression (e.g. `trialstep.1.projid = 3005|3006` for a projectile whose sctrl reads `ID = 3005+(var(5)=2)`).
+;     A projid alone is enough to mark a step as a projectile step; isproj is not needed alongside one, though setting both is harmless and reads more clearly.
+;     Add "stateno" as well when a character reuses one ID across several moves, which is common - both must then match. CVS Sagat, for instance, fires ProjID 1000 from states 1000, 1050 and 1070 (light, medium and heavy Tiger Shot) and they all share projanim 1005, so the ID and the anim cannot tell them apart; `projid = 1000` with `stateno = 1070` selects the heavy version alone.
+;     If the character's Projectile sctrl declares no ID at all, the engine leaves it at 0, so `projid = 0` matches it - but that matches every ID-less projectile the character has, so pair it with a stateno to narrow it down.
+;     On a step with isproj = true and no projid, the step matches on "stateno" alone and still requires the projectile to connect. A projid has no effect on a step with hitcount = 0, since a step that never registers a hit has no projectile ID to read.
 ; trialstep.X.validforvarvalpairs - optional - (comma-separated integers, specified in pairs, can specify 0..n pairs). Sister functionality to "showforvarvalpairs". These variable-value pairs are used to optionally check a trial step. Useful if you are forcing the trial step to be completed when certain var-val pairs are met (for instance, while in a custom combo state). Variable-value pairs are considered valid for entire trial step (regardless if the trial step is specified using condensed terminology).
 ; trialstep.X.validfortickcount - optional (integer, or comma-separate integers), will default to nil if not defined. Makes the trials checking logic pause until the next hit is registered for the tickcount specified.
 
@@ -640,7 +646,7 @@ trialstep.1.stateno = 200, 210
 trialstep.1.hitcount = 1, 1
 
 ; When desired, you can collapse multiple steps into a single one but using comma separated values in the following parameters:
-; stateno, animno, hitcount, isthrow, iscounterhit, ishelper, isproj
+; stateno, animno, projid, hitcount, isthrow, iscounterhit, ishelper, isproj
 ; If one parameter on the trial step is defined using comma separated values, all parameters on that trial step must be defined similarly.
 
 ;---------------------------------------------

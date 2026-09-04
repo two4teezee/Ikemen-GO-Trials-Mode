@@ -1,3 +1,16 @@
+; -- IKEMEN GO TRIALS MODE EXTERNAL MODULE --------------------------------
+; ---- +system.def - default menu and pause menu extensions.
+; ---- This fileloads this module and its menu text into the main menu. 
+; ---- It also provides the menu text for the Trials Pause Menu, which is 
+; ---- a separate menu that appears when the player pauses during a Trial. 
+; ---- The Trials Pause Menu is not part of the main menu, so it is not 
+; ---- loaded by the screenpack's system.def. The Trials Pause Menu is 
+; ---- loaded by the Trials module itself, which is why this file is in 
+; ---- the Trials module folder.
+; --
+; -- Module developed by two4teezee
+; -------------------------------------------------------------------------
+
 [Title Info]
 ; I recommend you edit your screenpack's system.def to make sure Trials show where you want in your main menu.
 ; Otherwise, you can uncomment this line to show Trials Mode at the end of the main menu list.
@@ -7,7 +20,7 @@ menu.itemname.trials = "Trials Mode"
 title.trials.text = "Trials Mode"
 
 [Trials Pause Menu]
-
+; Trials Pause option names and labels.
 menu.valuename.trialadvancement_autoadvance = Auto-Advance
 menu.valuename.trialadvancement_repeat = Repeat
 menu.valuename.trialresetonsuccess_enabled = Yes
@@ -21,9 +34,9 @@ menu.valuename.trialsspeedrun_disabled = Off
 menu.valuename.trialsclearprogress_ready =
 menu.valuename.trialsclearprogress_cleared = Cleared
 
-; Trial select view: the difficulty filters left and right cycle through. "All" is every Trial;
-; "Other" collects the ones whose def declares no trial.difficulty. Filters with no Trials in
-; them are skipped. Everything else about the view's appearance is [Trials Mode] trialsmenu.*.
+; Trial difficult labels.
+; "All" is every Trial;
+; "Other" collects the ones whose def declares no trial.difficulty. 
 menu.valuename.trialsdifficulty_all = All
 menu.valuename.trialsdifficulty_beginner = Beginner
 menu.valuename.trialsdifficulty_intermediate = Intermediate

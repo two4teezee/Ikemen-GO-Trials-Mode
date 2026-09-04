@@ -1,3 +1,13 @@
+; -- IKEMEN GO TRIALS MODE EXTERNAL MODULE --------------------------------
+; ---- system.def - trials mode graphic elements / UI configuration.
+; ---- This file is loaded by the Trials module to configure the Trials
+; ---- Mode UI. It is not loaded by the screenpack's system.def, so it is 
+; ---- not part of the main menu or pause menu. The Trials module loads 
+; ---- this file itself.
+; --
+; -- Module developed by two4teezee
+; -------------------------------------------------------------------------
+
 [Trials Mode]
 ; NOTE: Values provided in this sample meant for `mugen1` screenpack, 1280x720 resolution.
 ; Please modify the values in this file to properly configure the trials mode for your screenpack.
