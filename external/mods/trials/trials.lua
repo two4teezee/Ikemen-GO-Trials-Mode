@@ -250,19 +250,54 @@ local trialsSff = sff
 if main.f_fileExists(modulePath .. 'trials.sff') then
 	trialsSff = sffNew(searchFile(modulePath .. 'trials.sff', {motif.def, '', 'data/'}))
 end
+
+-- The sounds this module owns - the ones named by a "snd" parameter in its own system.def - come
+-- out of an optional trials.snd beside this file, exactly as its sprites come out of trials.sff.
+-- Ship one and every such group,number refers to it; ship none and they refer to the screenpack's
+-- system.snd, which is where they resolved before the file was an option. Sounds the module reads
+-- out of the screenpack's own sections (the pause menu's cursor.*, enter and cancel) always stay
+-- on motif.Snd, so the menu keeps answering with whatever the screenpack uses everywhere else.
+local trialsSnd = snd
+if main.f_fileExists(modulePath .. 'trials.snd') then
+	local ok, s = pcall(sndNew, searchFile(modulePath .. 'trials.snd', {motif.def, '', 'data/'}))
+	if ok and s ~= nil then
+		trialsSnd = s
+	else
+		print('Trials: could not read trials.snd; sounds will come from the screenpack instead.')
+	end
+end
 local trialsAnims = {}
 do
-	local path, animSff = modulePath .. 'trials.air', trialsSff
-	if main.f_fileExists(path) then
-		path = searchFile(path, {motif.def, '', 'data/'})
-	else
-		path, animSff = motif.def, sff
+	-- Actions reach "anim" parameters from three files, each overriding the numbers the one before
+	-- it declared: the screenpack's own def, an optional trials.air beside this module, and the
+	-- module's system.def, which is where the sample drops anims meant for trials mode. Whichever
+	-- file an action was authored in, f_loadAnimData draws it out of trialsSff, so its sprite
+	-- numbers refer to trials.sff wherever this module ships one.
+	local loaded = false
+	for _, v in ipairs({
+		{motif.def, sff},
+		{modulePath .. 'trials.air', trialsSff},
+		{modulePath .. 'system.def', trialsSff},
+	}) do
+		local path, animSff = v[1], v[2]
+		local found = path == motif.def
+		if not found and main.f_fileExists(path) then
+			path, found = searchFile(path, {motif.def, '', 'data/'}), true
+		end
+		if found then
+			local ok, t = pcall(loadAnimTable, path, animSff)
+			if ok and type(t) == 'table' then
+				loaded = true
+				for no, act in pairs(t) do
+					trialsAnims[no] = act
+				end
+			else
+				print('Trials: could not read actions from ' .. tostring(path) .. '.')
+			end
+		end
 	end
-	local ok, t = pcall(loadAnimTable, path, animSff)
-	if ok and type(t) == 'table' then
-		trialsAnims = t
-	else
-		print('Trials: could not read actions from ' .. tostring(path) .. '; "anim" parameters will be ignored.')
+	if not loaded then
+		print('Trials: no actions could be read; "anim" parameters will be ignored.')
 	end
 end
 
@@ -415,10 +450,57 @@ end
 trials.mtlcx = tonumber(trials.trials_mode.trialslocalcoord[1]) or 320
 trials.mtlcy = tonumber(trials.trials_mode.trialslocalcoord[2]) or 240
 trials.trials_mode.trialslocalcoord = {trials.mtlcx, trials.mtlcy}
-trials.stlcx = trials.mtlcx
-trials.stlcy = trials.mtlcy
-trials.lcdx00 = 1
-trials.lcdy00 = 1
+
+--;===========================================================
+--; Aspect ratio
+--;===========================================================
+-- The UI is authored on a trialslocalcoord canvas, but the screen it lands on is whatever aspect
+-- the match is running at. With Video.FightAspectWidth/Height set to -1 ("stage"), that is the
+-- stage's own aspect, and it changes from stage to stage.
+--
+-- The engine's animSetLocalcoord/textImgSetLocalcoord/rectSetLocalcoord derive both their scale and
+-- their x offset from the localcoord handed to them and never look at the live game width (see
+-- anim.go SetLocalcoord, font.go SetLocalcoord, rect.go SetLocalcoord). Passing the authored
+-- 1280,720 therefore always maps the canvas to a 16:9 band and lets the renderer centre it, so on a
+-- 4:3 stage the band is wider than the screen and hangs off both edges.
+--
+-- screenWidth()/screenHeight() are the engine's live sys.gameWidth/gameHeight, which already carry
+-- the applied fight aspect. Expressed in authored units the screen is
+--     vislcx = mtlcy * screenWidth() / screenHeight()
+-- wide. Handing (vislcx, mtlcy) to the setters leaves the authored scale untouched - they take it
+-- from the 4:3 core height, which vislcx does not move - while pinning authored x=0 to the real
+-- left screen edge and x=vislcx to the real right one. Elements are then moved to their own side of
+-- that canvas by their anchor, so a UI authored at 16:9 still reads as designed at 4:3: same text
+-- size, edges where the edges actually are.
+--
+-- When aspects match, vislcx == mtlcx and every number below is the authored one.
+trials.vislcx = trials.mtlcx
+trials.anchordelta = 0
+
+-- The live game aspect, or the authored one while the engine cannot answer yet.
+local function f_screenAspect()
+	if type(screenWidth) ~= 'function' or type(screenHeight) ~= 'function' then
+		return trials.mtlcx / trials.mtlcy
+	end
+	local ok, w, h = pcall(function() return screenWidth(), screenHeight() end)
+	if not ok or type(w) ~= 'number' or type(h) ~= 'number' or w <= 0 or h <= 0 then
+		return trials.mtlcx / trials.mtlcy
+	end
+	return w / h
+end
+
+-- The visible canvas width for an aspect, in authored units. Clamped at 4:3 because the setters cap
+-- their scale there (v = min(lx, ly*4/3)): below it the engine cannot place a localcoord without
+-- changing its scale, and no stage in practice is narrower than 4:3 anyway.
+local function f_vislcx(aspect)
+	return math.max(trials.mtlcy * 4 / 3, trials.mtlcy * aspect)
+end
+
+-- The localcoord every trials element is drawn in. Always use this in place of mtlcx,mtlcy when
+-- calling into the engine's *SetLocalcoord.
+function trials.f_localcoord()
+	return trials.vislcx, trials.mtlcy
+end
 
 -- Font metrics, memoized per font index. motif.Fnt is the engine's loaded font map.
 local t_fontDef = {}
@@ -502,10 +584,6 @@ function text:create(t)
 	t.height = t.height or -1
 	if t.window == nil then t.window = {
 	0,0,0,0} end
-	t.window[1] = (t.window[1] * trials.lcdx00)
-	t.window[2] = (t.window[2] * trials.lcdy00)
-	t.window[3] = (t.window[3] * trials.lcdx00)
-	t.window[4] = (t.window[4] * trials.lcdy00)
 	t.xshear = t.xshear or 0
 	t.angle = t.angle or 0
 		if t.ti == nil then
@@ -518,7 +596,7 @@ function text:create(t)
 	end
 	-- Setter order follows the engine's own SetTextSprite (src/iniutils.go): localcoord first,
 	-- because it only stores a scale factor and does not re-derive values already committed.
-		textImgSetLocalcoord(t.ti, trials.mtlcx, trials.mtlcy)
+		textImgSetLocalcoord(t.ti, trials.f_localcoord())
 	textImgSetBank(t.ti, t.bank)
 	textImgSetAlign(t.ti, t.align)
 	textImgSetText(t.ti, t.text)
@@ -552,7 +630,7 @@ function text:update(t)
 		if fontChange and self.font ~= -1 and motif.Fnt[self.font] ~= nil then
 			textImgSetFont(self.ti, motif.Fnt[self.font])
 		end
-		textImgSetLocalcoord(self.ti, trials.mtlcx, trials.mtlcy)
+		textImgSetLocalcoord(self.ti, trials.f_localcoord())
 		textImgSetBank(self.ti, self.bank)
 		textImgSetAlign(self.ti, self.align)
 		textImgSetText(self.ti, self.text)
@@ -564,10 +642,23 @@ function text:update(t)
 		textImgSetAngle(self.ti, self.angle)
 	else
 		self.text = t
-		textImgSetLocalcoord(self.ti, trials.mtlcx, trials.mtlcy)
+		textImgSetLocalcoord(self.ti, trials.f_localcoord())
 		textImgSetText(self.ti, self.text)
 	end
 
+	return self
+end
+
+-- Re-commit everything the text was built with, in create's order. :update short-circuits when no
+-- field changed, so it cannot carry a new localcoord or a moved origin on its own - this is what
+-- a relayout calls after the aspect, and with it the canvas the text sits in, has changed.
+function text:relayout(x, y)
+	if x ~= nil then self.x = x end
+	if y ~= nil then self.y = y end
+	textImgSetLocalcoord(self.ti, trials.f_localcoord())
+	textImgSetPos(self.ti, self.x + f_alignOffset(self.align), self.y)
+	textImgSetScale(self.ti, self.scaleX, self.scaleY)
+	textImgSetWindow(self.ti, self.window[1], self.window[2], self.window[3] - self.window[1], self.window[4] - self.window[2])
 	return self
 end
 
@@ -576,6 +667,24 @@ function text:draw()
 	if self.font == -1 then return end
 		textImgDraw(self.ti)
 	return self
+end
+
+-- Commits an anim's placement from its config node and an origin. Split out of f_loadAnimData so a
+-- relayout can put an already-built anim back down in the new canvas without rebuilding its
+-- sprites. Localcoord goes on first: animSetPos and animSetScale both divide by the scale it
+-- stores, so they have to see the current one. animSetPos also rewrites the anim's reset baseline,
+-- which is what keeps the animReset calls in the draw loop honest afterwards.
+function f_placeAnim(a, node, x, y)
+	local offset = type(node.offset) == 'table' and node.offset or {0, 0}
+	local scale = type(node.scale) == 'table' and node.scale or {1.0, 1.0}
+	animSetLocalcoord(a, trials.f_localcoord())
+	animSetPos(a, offset[1] + (x or 0), offset[2] + (y or 0))
+	animSetScale(a, scale[1], scale[2])
+	animSetFacing(a, node.facing or 1)
+	animSetWindow(a, 0, 0, trials.vislcx, trials.mtlcy)
+	animSetLayerno(a, f_clampLayerno(node.layerno))
+	animUpdate(a)
+	return a
 end
 
 function f_loadAnimData(node, x, y, sffOverride, animsOverride)
@@ -606,13 +715,7 @@ function f_loadAnimData(node, x, y, sffOverride, animsOverride)
 	else
 		a = animNew(sprData, '-1,0, 0,0, -1')
 	end
-	animSetLocalcoord(a, trials.mtlcx, trials.mtlcy)
-	animSetPos(a, offset[1] + (x or 0), offset[2] + (y or 0))
-	animSetScale(a, scale[1], scale[2])
-	animSetFacing(a, node.facing or 1)
-	animSetWindow(a, 0, 0, trials.mtlcx, trials.mtlcy)
-	animSetLayerno(a, f_clampLayerno(node.layerno))
-	animUpdate(a)
+	f_placeAnim(a, node, x, y)
 	return a
 end
 
@@ -737,10 +840,22 @@ do
 		if n.layerno == nil then n.layerno = m.layerno end
 	end
 	if type(f_node(m, 'status').offset) ~= 'table' then m.status.offset = {0, 0} end
+	-- The active row's own overlay: the same kind of rect as trialsmenu.overlay, but drawn under one
+	-- row rather than the whole menu, so it travels with the cursor. Its window is x1,y1,x2,y2 taken
+	-- from the row's origin. A zero-size window draws nothing, which is what a def predating this
+	-- element leaves behind.
+	do
+		local ro = f_node(m, 'item', 'active', 'overlay')
+		if type(ro.window) ~= 'table' then ro.window = {0, 0, 0, 0} end
+		if type(ro.col) ~= 'table' then ro.col = {255, 255, 255} end
+		if type(ro.alpha) ~= 'table' then ro.alpha = {32, 255} end
+		if ro.visible == nil then ro.visible = true end
+		ro.layerno = tonumber(ro.layerno) or m.layerno
+	end
 	for _, cat in ipairs(trials.t_menuCats) do
 		for _, path in ipairs({
 			{'item', 'text'}, {'item', 'bg'},
-			{'item', 'active', 'text'}, {'item', 'active', 'bg'},
+			{'item', 'active', 'text'}, {'item', 'active', 'bg'}, {'item', 'active', 'overlay'},
 			{'item', 'selected', 'text'},
 			{'header', 'text'}, {'header', 'value'}, {'header', 'bg'},
 			{'header', 'active', 'text'}, {'header', 'active', 'value'}, {'header', 'active', 'bg'},
@@ -812,21 +927,124 @@ do
 	end
 end
 
+--;===========================================================
+--; Anchors
+--;===========================================================
+-- Which screen edge an element was authored against. On a screen whose aspect matches the canvas
+-- this changes nothing; on a narrower or wider one it decides where the element goes:
+--   left   - keeps its authored x, so it stays the same distance from the left edge
+--   right  - moves by the whole width difference, so it keeps its distance from the right edge
+--   center - moves by half of it, so it stays the same fraction across
+-- Screenpacks name it per element as <element>.anchor. Anything that predates the key is inferred
+-- from where the element was authored, which is right for the usual corner-pinned HUD but is only a
+-- guess: a def that cares should say so. Windows spanning the canvas (the step window, the menu
+-- overlay) are not anchored at all - each edge follows its own side, so the window stretches.
+local t_anchorFactor = {left = 0, center = 0.5, right = 1}
+
+local function f_inferAnchor(x)
+	if x <= trials.mtlcx / 3 then
+		return 'left'
+	elseif x >= trials.mtlcx * 2 / 3 then
+		return 'right'
+	end
+	return 'center'
+end
+
+-- Reads <node>.anchor, falling back to inference from the authored origin.
+local function f_anchorOf(node, x)
+	local a = node ~= nil and node.anchor or nil
+	if a ~= nil then
+		a = tostring(a):lower()
+		if t_anchorFactor[a] ~= nil then
+			return a
+		end
+	end
+	return f_inferAnchor(x)
+end
+
+-- Every authored x the layout owns, paired with how it moves. Each entry holds the pristine value
+-- read off the def, so a relayout is always computed from the authored number rather than from the
+-- last aspect's result. `t` is the table the value lives in and `i` its index, which is enough to
+-- write it back in place - and because f_buildCompatConfig aliased the flat keys onto these very
+-- tables, the trialcounter_pos style lookups elsewhere see the same update.
+local t_anchored = {}
+
+-- An element origin: one x that moves as a unit with the node's anchor.
+local function f_anchorPos(node, key)
+	if type(node) ~= 'table' or type(node[key]) ~= 'table' or type(node[key][1]) ~= 'number' then
+		return
+	end
+	local pos = node[key]
+	t_anchored[#t_anchored + 1] = {t = pos, i = 1, orig = pos[1], anchor = f_anchorOf(node, pos[1])}
+end
+
+-- A window authored in canvas space, as x1,y1,x2,y2: its left edge holds to the left of the screen
+-- and its right edge to the right, so it covers the same margins whatever the aspect.
+local function f_anchorSpan(node, key)
+	if type(node) ~= 'table' or type(node[key]) ~= 'table' or type(node[key][3]) ~= 'number' then
+		return
+	end
+	local w = node[key]
+	t_anchored[#t_anchored + 1] = {t = w, i = 1, orig = w[1], anchor = 'left'}
+	t_anchored[#t_anchored + 1] = {t = w, i = 3, orig = w[3], anchor = 'right'}
+end
+
+do
+	f_anchorPos(f_node(tr_pos, 'trialcounter'), 'pos')
+	f_anchorPos(f_node(tr_pos, 'totaltrialtimer'), 'pos')
+	f_anchorPos(f_node(tr_pos, 'currenttrialtimer'), 'pos')
+	f_anchorPos(f_node(tr_pos, 'trialreset', 'text'), 'pos')
+	f_anchorPos(f_node(tr_pos, 'success'), 'pos')
+	f_anchorPos(f_node(tr_pos, 'allclear'), 'pos')
+	f_anchorPos(f_node(tr_pos, 'textbox'), 'pos')
+	f_anchorPos(f_node(tr_pos, 'trialsmenu'), 'pos')
+	for _, layout in ipairs({'vertical', 'horizontal'}) do
+		f_anchorPos(f_node(tr_pos, 'trialtitle', layout), 'pos')
+		f_anchorPos(f_node(tr_pos, 'trialsteps', layout), 'pos')
+		f_anchorSpan(f_node(tr_pos, 'trialsteps', layout, 'window'), 'withouttextbox')
+		f_anchorSpan(f_node(tr_pos, 'trialsteps', layout, 'window'), 'withtextbox')
+	end
+	f_anchorSpan(f_node(tr_pos, 'trialsmenu', 'overlay'), 'window')
+end
+
+-- Writes every anchored x for the current canvas width. Returns whether anything actually moved.
+local function f_applyAnchors()
+	local delta = trials.anchordelta
+	local moved = false
+	for _, v in ipairs(t_anchored) do
+		local x = v.orig + delta * t_anchorFactor[v.anchor]
+		if v.t[v.i] ~= x then
+			v.t[v.i] = x
+			moved = true
+		end
+	end
+	return moved
+end
+
+-- Lay the canvas out for the aspect the game is in right now, so everything built below is placed
+-- correctly from the start. Loading happens on the motif's aspect; the match relayouts on its own
+-- when the stage brings a different one (trials.f_syncAspect).
+trials.vislcx = f_vislcx(f_screenAspect())
+trials.anchordelta = trials.vislcx - trials.mtlcx
+f_applyAnchors()
+
 -- Each element caches its Anim on its own config node as .AnimData, the same convention the
 -- engine uses for motif elements (and that textbox.overlay.RectData already follows here).
--- x/y is the element's origin; f_loadAnimData adds the node's own offset on top of it.
+-- p is the pos table the element hangs off, held by reference rather than read now: a relayout
+-- rewrites those numbers in place, and every anim has to be put back down at the new ones.
+-- f_loadAnimData adds the node's own offset on top of the origin.
 local t_elems = {
-	{n = f_node(tr_pos, 'trialsteps', 'vertical', 'bg'),   x = tr_pos.trialsteps.vertical.pos[1],   y = tr_pos.trialsteps.vertical.pos[2]},
-	{n = f_node(tr_pos, 'trialsteps', 'horizontal', 'bg'), x = tr_pos.trialsteps.horizontal.pos[1], y = tr_pos.trialsteps.horizontal.pos[2]},
-	{n = f_node(tr_pos, 'success', 'bg'),                  x = tr_pos.success.pos[1],               y = tr_pos.success.pos[2]},
-	{n = f_node(tr_pos, 'success', 'front'),               x = tr_pos.success.pos[1],               y = tr_pos.success.pos[2]},
-	{n = f_node(tr_pos, 'allclear', 'bg'),                 x = tr_pos.allclear.pos[1],              y = tr_pos.allclear.pos[2]},
-	{n = f_node(tr_pos, 'allclear', 'front'),              x = tr_pos.allclear.pos[1],              y = tr_pos.allclear.pos[2]},
-	{n = f_node(tr_pos, 'textbox', 'bg'),                  x = tr_pos.textbox.pos[1],               y = tr_pos.textbox.pos[2]},
-	{n = f_node(tr_pos, 'textbox', 'front'),               x = tr_pos.textbox.pos[1],               y = tr_pos.textbox.pos[2]},
+	{n = f_node(tr_pos, 'trialsteps', 'vertical', 'bg'),   p = tr_pos.trialsteps.vertical.pos},
+	{n = f_node(tr_pos, 'trialsteps', 'horizontal', 'bg'), p = tr_pos.trialsteps.horizontal.pos},
+	{n = f_node(tr_pos, 'success', 'bg'),                  p = tr_pos.success.pos},
+	{n = f_node(tr_pos, 'success', 'front'),               p = tr_pos.success.pos},
+	{n = f_node(tr_pos, 'allclear', 'bg'),                 p = tr_pos.allclear.pos},
+	{n = f_node(tr_pos, 'allclear', 'front'),              p = tr_pos.allclear.pos},
+	{n = f_node(tr_pos, 'textbox', 'bg'),                  p = tr_pos.textbox.pos},
+	{n = f_node(tr_pos, 'textbox', 'front'),               p = tr_pos.textbox.pos},
 }
-t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'trialsmenu', 'bg'),    x = tr_pos.trialsmenu.pos[1], y = tr_pos.trialsmenu.pos[2]}
-t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'trialsmenu', 'front'), x = tr_pos.trialsmenu.pos[1], y = tr_pos.trialsmenu.pos[2]}
+t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'trialsmenu', 'bg'),    p = tr_pos.trialsmenu.pos}
+t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'trialsmenu', 'front'), p = tr_pos.trialsmenu.pos}
 for _, path in ipairs({
 	{'cursor'}, {'header', 'bg'}, {'item', 'bg'}, {'item', 'active', 'bg'},
 	{'status', 'cleared'}, {'status', 'uncleared'}, {'arrow', 'up'}, {'arrow', 'down'},
@@ -845,8 +1063,8 @@ for _, cat in ipairs(trials.t_menuCats) do
 	end
 end
 for _, layout in ipairs({'vertical', 'horizontal'}) do
-	t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'trialtitle', layout, 'bg'),    x = tr_pos.trialtitle[layout].pos[1], y = tr_pos.trialtitle[layout].pos[2]}
-	t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'trialtitle', layout, 'front'), x = tr_pos.trialtitle[layout].pos[1], y = tr_pos.trialtitle[layout].pos[2]}
+	t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'trialtitle', layout, 'bg'),    p = tr_pos.trialtitle[layout].pos}
+	t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'trialtitle', layout, 'front'), p = tr_pos.trialtitle[layout].pos}
 end
 for _, sub in ipairs({'upcomingstep', 'currentstep', 'completedstep'}) do
 	t_elems[#t_elems + 1] = {n = f_node(tr_pos, sub, 'vertical', 'bg')}
@@ -855,7 +1073,7 @@ for _, sub in ipairs({'upcomingstep', 'currentstep', 'completedstep'}) do
 	t_elems[#t_elems + 1] = {n = f_node(tr_pos, sub, 'horizontal', 'bg', 'head')}
 end
 for _, v in ipairs(t_elems) do
-	v.n.AnimData = f_loadAnimData(v.n, v.x, v.y)
+	v.n.AnimData = f_loadAnimData(v.n, v.p ~= nil and v.p[1] or nil, v.p ~= nil and v.p[2] or nil)
 	main.f_loadingRefresh()
 end
 
@@ -878,6 +1096,105 @@ do
 		d.uncleared[i] = f_newText(m.status.uncleared)
 	end
 	trials.menuDraw = d
+end
+
+-- Glyph runs are laid out once per match from trialsteps.pos, so an anchor move has to be walked
+-- back through them. Every term of the original placement is kept per glyph, so this re-derives the
+-- same number rather than nudging the old one, and repeats without drifting.
+function trials.f_relayoutGlyphs()
+	if trials.data == nil or type(trials.data.trial) ~= 'table' then
+		return
+	end
+	for _, layout in ipairs({'vertical', 'horizontal'}) do
+		local ox = tr_pos.trialsteps[layout].pos[1] + tr_pos.glyphs[layout].offset[1]
+		local oy = tr_pos.trialsteps[layout].pos[2] + tr_pos.glyphs[layout].offset[2]
+		for _, trial in ipairs(trials.data.trial) do
+			for _, step in ipairs(trial.trialstep or {}) do
+				local gl = type(step.glyphline) == 'table' and step.glyphline[layout] or nil
+				if type(gl) == 'table' then
+					for m = 1, #gl.glyph, 1 do
+						if motif.glyphs[gl.glyph[m]] ~= nil and gl.pos[m] ~= nil then
+							gl.pos[m][1] = math.floor(ox + gl.alignOffset[m] + gl.lengthOffset[m])
+							gl.pos[m][2] = oy
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
+-- Puts the whole layout back down for the aspect the game is in now. Cheap and idempotent when
+-- nothing changed, which is every frame but the first of a match on a stage whose aspect differs
+-- from the one the module was loaded on. Called from the draw entry points rather than from a hook,
+-- because the aspect only ever matters at the point something is about to be drawn.
+function trials.f_syncAspect()
+	local vislcx = f_vislcx(f_screenAspect())
+	if vislcx == trials.vislcx then
+		return false
+	end
+	trials.vislcx = vislcx
+	trials.anchordelta = vislcx - trials.mtlcx
+	f_applyAnchors()
+	-- Anims hold the localcoord and the origin they were placed with, and animReset in the draw loop
+	-- restores them, so each one has to be placed again rather than merely redrawn.
+	for _, v in ipairs(t_elems) do
+		if v.n.AnimData ~= nil then
+			f_placeAnim(v.n.AnimData, v.n, v.p ~= nil and v.p[1] or nil, v.p ~= nil and v.p[2] or nil)
+		end
+	end
+	-- Text sprites hold a localcoord too. The ones drawn from a per-frame :update pick the new one up
+	-- on their own, but those built once with their position baked in do not.
+	local d = trials.menuDraw
+	if d ~= nil then
+		d.title:relayout()
+		d.arrowup:relayout()
+		d.arrowdown:relayout()
+		for _, pool in ipairs({d.besttime, d.cleared, d.uncleared}) do
+			for _, obj in ipairs(pool) do
+				obj:relayout()
+			end
+		end
+		for _, rows in pairs(d.rows) do
+			for _, obj in pairs(rows) do
+				obj:relayout()
+			end
+		end
+	end
+	if trials.notrialscounter ~= nil then
+		trials.notrialscounter:relayout(tr_pos.trialcounter.pos[1], tr_pos.trialcounter.pos[2])
+	end
+	local dr = trials.draw
+	if dr ~= nil then
+		dr.trialcounter:relayout(tr_pos.trialcounter.pos[1], tr_pos.trialcounter.pos[2])
+		dr.totaltrialtimer:relayout(tr_pos.totaltrialtimer.pos[1], tr_pos.totaltrialtimer.pos[2])
+		dr.currenttrialtimer:relayout(tr_pos.currenttrialtimer.pos[1], tr_pos.currenttrialtimer.pos[2])
+		dr.trialreset_text:relayout(tr_pos.trialreset.text.pos[1], tr_pos.trialreset.text.pos[2])
+		dr.textbox_text:relayout()
+		dr.textbox_title:relayout()
+		dr.success_text:relayout()
+		dr.allclear_text:relayout()
+		for _, layout in ipairs({'vertical', 'horizontal'}) do
+			local dl = dr[layout]
+			if type(dl) == 'table' then
+				local w = tr_pos.trialsteps[layout].window
+				dl.windowXrange = w.withouttextbox[3] - w.withouttextbox[1]
+				dl.windowXrangeWtext = w.withtextbox[3] - w.withtextbox[1]
+				dl.trialtitle_text:relayout(
+					tr_pos.trialtitle[layout].pos[1] + tr_pos.trialtitle[layout].text.offset[1],
+					tr_pos.trialtitle[layout].pos[2] + tr_pos.trialtitle[layout].text.offset[2]
+				)
+				for _, key in ipairs({'upcomingtextline', 'currenttextline', 'completedtextline'}) do
+					for _, obj in ipairs(dl[key] or {}) do
+						obj:relayout()
+					end
+				end
+			end
+		end
+	end
+	-- Glyph runs are laid out from trialsteps.pos, which has just moved under them.
+	trials.f_relayoutGlyphs()
+	return true
 end
 
 --;===========================================================
@@ -1054,8 +1371,7 @@ function trials.f_trialsBuilder()
 						end
 						trials.data.trial[i].trialstep[j].glyphline[layout].alignOffset[m] = alignOffset
 						if font_def ~= nil then
-							scaleY = (font_def.Size[2] * trials.trials_mode.currentstep.vertical.text.scale[2] / motif.glyphs[trials.data.trial[i].trialstep[j].glyphline[layout].glyph[m]].Size[2])
-							 * trials.lcdy00
+							scaleY = font_def.Size[2] * trials.trials_mode.currentstep.vertical.text.scale[2] / motif.glyphs[trials.data.trial[i].trialstep[j].glyphline[layout].glyph[m]].Size[2]
 							scaleX = scaleY
 						end
 						trials.data.trial[i].trialstep[j].glyphline[layout].scale[m] = {scaleX, scaleY}
@@ -1346,28 +1662,12 @@ function trials.f_trialsDrawer()
 						textboxwindow3 =    trials.trials_mode.textbox.pos[1]+trials.trials_mode.textbox.overlay.window[3]
 						textboxwindow4 =    trials.trials_mode.textbox.pos[2]+trials.trials_mode.textbox.overlay.window[4]
 		
+	-- An unset overlay window means "the whole canvas", which is as wide as the screen is.
 	if textboxwindow3 == 0 then
-textboxwindow3 = trials.mtlcx
+textboxwindow3 = trials.vislcx
 	end
 	if textboxwindow4 == 0 then
-textboxwindow4 = trials.mtlcx
-	end
-	if trials.lcdx00 ~= 1 then
-	if trials.mtlcx > trials.stlcx then
-	twpx = textboxwindow3 - textboxwindow1
-	twpy = textboxwindow4 - textboxwindow2
-	textboxwindow1 = const720p(textboxwindow1 - twpx * 0.5 / trials.lcdy00)
-	textboxwindow2 = const720p(textboxwindow2 - twpy * 0.5 / trials.lcdy00)
-	textboxwindow3 = const720p(textboxwindow3 + twpx * 0.5 / trials.lcdy00)
-	textboxwindow4 = const720p(textboxwindow4 + twpy * 0.5 / trials.lcdy00)
-	end
-	if trials.mtlcx < trials.stlcx then
-	textboxwindow1 = textboxwindow1 / trials.lcdx00
-	textboxwindow2 = textboxwindow2 / trials.lcdy00
-	textboxwindow3 = textboxwindow3 / trials.lcdx00
-	textboxwindow4 = textboxwindow4 / trials.lcdy00
-
-	end
+textboxwindow4 = trials.mtlcy
 	end
 
 		if trials.trials_mode.textbox.overlay.RectData == nil then
@@ -1386,11 +1686,10 @@ textboxwindow4 = trials.mtlcx
 						textboxwindow2,
 						textboxwindow3,
 						textboxwindow4)
-		rectSetLocalcoord(trials.trials_mode.textbox.overlay.RectData, trials.stlcx, trials.stlcy)
+		rectSetLocalcoord(trials.trials_mode.textbox.overlay.RectData, trials.f_localcoord())
 		rectDraw(trials.trials_mode.textbox.overlay.RectData)
-				
-				-- The textbox sits in stage space, unlike the rest of the trials elements.
-				animSetLocalcoord(trials.trials_mode.textbox.bg.AnimData, trials.stlcx, trials.stlcy)
+
+				animSetLocalcoord(trials.trials_mode.textbox.bg.AnimData, trials.f_localcoord())
 				animUpdate(trials.trials_mode.textbox.bg.AnimData)
 				animDraw(trials.trials_mode.textbox.bg.AnimData)
 
@@ -1408,15 +1707,13 @@ textboxwindow4 = trials.mtlcx
 			textImgSetFont(trials.draw.textbox_text.ti, motif.Fnt[trials.draw.textbox_text.font])
 		end
 
-	textboxtext_offset1 = textboxwindow1 * trials.lcdx00 + trials.trials_mode.textbox_text_window[1]+trials.trials_mode.textbox_text_offset[1]
-	textboxtext_offset2 = textboxwindow2 * trials.lcdy00 + trials.trials_mode.textbox_text_window[2]+trials.trials_mode.textbox_text_offset[2]
-		textboxtext_offset1 = textboxtext_offset1 / trials.lcdx00
-		textboxtext_offset2 = textboxtext_offset2 / trials.lcdy00
-	
+	textboxtext_offset1 = textboxwindow1 + trials.trials_mode.textbox_text_window[1] + trials.trials_mode.textbox_text_offset[1]
+	textboxtext_offset2 = textboxwindow2 + trials.trials_mode.textbox_text_window[2] + trials.trials_mode.textbox_text_offset[2]
+
 		textImgSetText(trials.draw.textbox_text.ti,string.format(trials.data.trial[ct].textbox, main.f_countSubstring(trials.data.trial[ct].textbox, '_')))
 		textImgSetPos(trials.draw.textbox_text.ti, math.floor(textboxtext_offset1), math.floor(textboxtext_offset2))
-		textImgSetScale(trials.draw.textbox_text.ti, trials.draw.textbox_text.scaleX / trials.lcdy00, trials.draw.textbox_text.scaleY / trials.lcdy00)
-		textImgSetLocalcoord(trials.draw.textbox_text.ti, trials.stlcx, trials.stlcy)
+		textImgSetScale(trials.draw.textbox_text.ti, trials.draw.textbox_text.scaleX, trials.draw.textbox_text.scaleY)
+		textImgSetLocalcoord(trials.draw.textbox_text.ti, trials.f_localcoord())
 		textImgDraw(trials.draw.textbox_text.ti)
 
 
@@ -1431,36 +1728,18 @@ textboxwindow4 = trials.mtlcx
 
 				if trials.trials_mode.textbox.portrait.anim ~= nil then
 					trialsanimoffset = trials.data.trial[ct].trialstep[cts].iconanimoffset
-					animposx = (textboxwindow1 * trials.lcdx00 + trials.trials_mode.textbox_portrait_offset[1] + trialsanimoffset[1])
-					animposy = (textboxwindow2 * trials.lcdx00 + trials.trials_mode.textbox_portrait_offset[2] + trialsanimoffset[2])
+					animposx = (textboxwindow1 + trials.trials_mode.textbox_portrait_offset[1] + trialsanimoffset[1])
+					animposy = (textboxwindow2 + trials.trials_mode.textbox_portrait_offset[2] + trialsanimoffset[2])
 					trialsanimscalex = trials.trials_mode.textbox_portrait_scale[1] * trials.data.trial[ct].trialstep[cts].iconanimscale[1]
 					trialsanimscaley = trials.trials_mode.textbox_portrait_scale[2] * trials.data.trial[ct].trialstep[cts].iconanimscale[2]
-					trialsanimwindow3 = trials.trials_mode.textbox_portrait_window[3] + trials.data.trial[ct].trialstep[cts].iconanimwindow[3] + trials.mtlcx
+					trialsanimwindow3 = trials.trials_mode.textbox_portrait_window[3] + trials.data.trial[ct].trialstep[cts].iconanimwindow[3] + trials.vislcx
 					trialsanimwindow4 = trials.trials_mode.textbox_portrait_window[4] + trials.data.trial[ct].trialstep[cts].iconanimwindow[4] + trials.mtlcy
-
-					if trials.lcdx00 ~= 1 then
-						if trials.mtlcx > trials.stlcx then
-							trialsanimscalex = trialsanimscalex / trials.lcdy00
-							trialsanimscaley = trialsanimscaley / trials.lcdy00
-							animposx = const720p(animposx)
-							animposy = const720p(animposy)
-						end
-						if trials.mtlcx < trials.stlcx then
-							trialsanimscalex = trialsanimscalex / trials.lcdy00
-							trialsanimscaley = trialsanimscaley / trials.lcdy00
-							animposx = animposx / trials.lcdx00
-							animposy = animposy / trials.lcdx00
-							trialsanimwindow3 = trialsanimwindow3 * 2 / trials.lcdx00
-							trialsanimwindow4 = trialsanimwindow4 * 2 / trials.lcdy00
-						end
-					end
 
 					trialsanimwindow1 = animposx + trials.trials_mode.textbox_portrait_window[1] + trials.data.trial[ct].trialstep[cts].iconanimwindow[1]
 					trialsanimwindow2 = animposy + trials.trials_mode.textbox_portrait_window[2] + trials.data.trial[ct].trialstep[cts].iconanimwindow[2]
 
 					local a = trials.trials_mode.textbox.portrait.anim
-					-- Portraits are placed in stage space, like the textbox they sit in.
-					animSetLocalcoord(a, trials.stlcx, trials.stlcy)
+					animSetLocalcoord(a, trials.f_localcoord())
 					animSetLayerno(a, 0)
 					animSetPos(a, math.floor(animposx), math.floor(animposy))
 					animSetScale(a, trialsanimscalex, trialsanimscaley)
@@ -1558,12 +1837,19 @@ textboxwindow4 = trials.mtlcx
 					spacing = trials.trials_mode.trialsteps_horizontal_spacing[1]
 
 					local tempwidth = spacing + bgtailwidth + padding + totalglyphlength + padding + bgheadwidth + accwidth
-					if tempwidth - trials.trials_mode.trialsteps_horizontal_spacing[1] > windowXrange then
+					-- Only wrap when something is already on this row. A step wider than the window on its own
+					-- has nothing to wrap away from, and breaking there would push the row it starts - the
+					-- first row included - down by a spacing it never earned.
+					if accwidth > 0 and tempwidth - trials.trials_mode.trialsteps_horizontal_spacing[1] > windowXrange then
 						accwidth = 0
 						addrow = addrow + 1
 					end
 
 					tempoffset[2] = trials.trials_mode.trialsteps_horizontal_spacing[2]*(addrow)
+					-- Rows are placed from the trialsteps origin, the same origin the vertical layout draws its
+					-- steps from. The bg pieces carry only their own bg.offset; glyphs.offset belongs to the
+					-- glyphs and is applied once, where they are drawn.
+					local rowy = trials.trials_mode.trialsteps_horizontal_pos[2] + tempoffset[2]
 
 					-- Calculate initial positions
 					if accwidth == 0 then
@@ -1588,7 +1874,7 @@ textboxwindow4 = trials.mtlcx
 					animReset(hbg.tail.AnimData)
 					animSetPos(hbg.tail.AnimData,
 						bgcomponentposX + hbg.tail.offset[1],
-						glyphrow.pos[1][2] + hbg.tail.offset[2] + tempoffset[2]
+						rowy + hbg.tail.offset[2]
 					)
 					animSetScale(hbg.tail.AnimData, hbg.tail.scale[1], hbg.tail.scale[2])
 					animSetPalFX(hbg.tail.AnimData, hpalfx)
@@ -1616,7 +1902,7 @@ textboxwindow4 = trials.mtlcx
 					animSetScale(hbg.AnimData, bgtargetscale[1], bgtargetscale[2])
 					animSetPos(hbg.AnimData,
 						bgcomponentposX + hbg.offset[1],
-						glyphrow.pos[1][2] + hbg.offset[2] + tempoffset[2]
+						rowy + hbg.offset[2]
 					)
 					animSetPalFX(hbg.AnimData, hpalfx)
 					animUpdate(hbg.AnimData)
@@ -1627,7 +1913,7 @@ textboxwindow4 = trials.mtlcx
 					animReset(hbg.head.AnimData)
 					animSetPos(hbg.head.AnimData,
 						bgcomponentposX + hbg.head.offset[1] + glyphrow.alignOffset[1],
-						glyphrow.pos[1][2] + hbg.head.offset[2] + tempoffset[2]
+						rowy + hbg.head.offset[2]
 					)
 					animSetScale(hbg.head.AnimData, hbg.head.scale[1], hbg.head.scale[2])
 					animSetPalFX(hbg.head.AnimData, hpalfx)
@@ -1644,12 +1930,14 @@ textboxwindow4 = trials.mtlcx
 					-- The movelist can carry tags that are not glyphs; those never got a position.
 					if g ~= nil and glyphline.pos[m] ~= nil then
 						animReset(g)
-						animSetLocalcoord(g, trials.mtlcx, trials.mtlcy)
+						animSetLocalcoord(g, trials.f_localcoord())
 						animSetLayerno(g, f_clampLayerno(trials.trials_mode.glyphs[layout].layerno))
 						animSetScale(g, glyphline.scale[m][1], glyphline.scale[m][2])
+						-- pos already carries trialsteps.pos plus glyphs.offset from the layout pass, so the row
+						-- offset is all that is left to add here - adding glyphs.offset again would count it twice.
 						animSetPos(g,
 							glyphline.pos[m][1],
-							glyphline.pos[m][2] + tempoffset[2] + trials.trials_mode.glyphs[layout].offset[2]
+							glyphline.pos[m][2] + tempoffset[2]
 						)
 						animSetPalFX(g, {
 							time = 1,
@@ -1976,7 +2264,7 @@ function trials.f_trialsSuccess(successstring, index)
 	player(1)
 	if not trials.data.trial[index].complete or (successstring == "allclear" and not trials.data.allclear) then
 		-- Play sound only once
-		sndPlay(snd, trials.trials_mode[successstring .. '_snd'][1], trials.trials_mode[successstring .. '_snd'][2])
+		sndPlay(trialsSnd, trials.trials_mode[successstring .. '_snd'][1], trials.trials_mode[successstring .. '_snd'][2])
 	end
 	-- The banner text is centred on its element's pos rather than its own offset.
 	local banner = trials.trials_mode[successstring]
@@ -2440,6 +2728,34 @@ function trials.f_listDisplay()
 	return 'start'
 end
 
+-- Whether any of the character's Trials are gated on P1's vars. Those values do not exist until the
+-- match is up, so a character with even one of them cannot be asked which Trial to play beforehand -
+-- the pre-fight list would offer every groove's Trials and most of them would be gone by roundState 2.
+-- Reads the parsed data, never trials.data.trial, which f_trialsBuilder has already thinned.
+function trials.f_hasVarGatedTrials(arr)
+	if arr == nil then
+		if type(start.p) ~= 'table' or type(start.p[1]) ~= 'table'
+			or type(start.p[1].t_selected) ~= 'table' or start.p[1].t_selected[1] == nil then
+			return false
+		end
+		local ok, charData = pcall(start.f_getCharData, start.p[1].t_selected[1].ref)
+		if not ok or type(charData) ~= 'table' then
+			return false
+		end
+		arr = charData.trialsdata
+	end
+	if type(arr) ~= 'table' then
+		return false
+	end
+	for i = 1, #arr, 1 do
+		-- The same test f_trialsBuilder thins by, so the two cannot disagree about what counts as gated.
+		if type(arr[i].showforvar) == 'table' and arr[i].showforvar[1] ~= nil then
+			return true
+		end
+	end
+	return false
+end
+
 function trials.f_openSelect()
 	if trials.select == nil or trials.data == nil or #trials.data.trial == 0 then
 		return
@@ -2537,6 +2853,34 @@ local function f_menuAnim(node, x, y)
 	animDraw(node.AnimData)
 end
 
+-- Screenpacks write booleans either way round; the def parser hands some of them back as strings.
+local function f_menuOn(v)
+	return v == true or tostring(v):lower() == 'true'
+end
+
+-- A filled rect from an overlay node, its window read as x1,y1,x2,y2 relative to x,y. Used both for
+-- the sheet dimming the match behind the menu (drawn at the origin) and for the bar under the active
+-- row (drawn at that row). Localcoord goes on before the window, since the rect scales the window as
+-- it takes it. A window with no area is nothing to draw.
+local function f_menuRect(node, x, y)
+	if type(node) ~= 'table' or not f_menuOn(node.visible) then
+		return
+	end
+	local w = node.window
+	if type(w) ~= 'table' or w[1] == w[3] or w[2] == w[4] then
+		return
+	end
+	if node.RectData == nil then
+		node.RectData = rectNew()
+	end
+	rectSetLocalcoord(node.RectData, trials.f_localcoord())
+	rectSetColor(node.RectData, node.col[1], node.col[2], node.col[3])
+	rectSetAlpha(node.RectData, node.alpha[1], node.alpha[2])
+	rectSetLayerno(node.RectData, f_clampLayerno(node.layerno))
+	rectSetWindow(node.RectData, x + w[1], y + w[2], x + w[3], y + w[4])
+	rectDraw(node.RectData)
+end
+
 -- Whether the author actually named art for this element. A sprite or anim wins; otherwise the
 -- element's .text label is drawn in its place, which is how the CLEAR label is replaced by art.
 local function f_hasArt(node)
@@ -2605,23 +2949,15 @@ local function f_scrollTo(node, visible, total)
 end
 
 function trials.f_selectDraw(node)
+	-- Shown both before the fight, on the motif's aspect, and over a live match, on the stage's.
+	trials.f_syncAspect()
 	local m = trials.trials_mode.trialsmenu
 	local d = trials.menuDraw
 	local t = node.items
 	local visible = math.min(m.visibleitems, #t)
 	f_scrollTo(node, visible, #t)
-	-- Dim whatever is behind the menu.
-	if m.overlay.visible == true or tostring(m.overlay.visible):lower() == 'true' then
-		if m.overlay.RectData == nil then
-			m.overlay.RectData = rectNew()
-		end
-		rectSetColor(m.overlay.RectData, m.overlay.col[1], m.overlay.col[2], m.overlay.col[3])
-		rectSetAlpha(m.overlay.RectData, m.overlay.alpha[1], m.overlay.alpha[2])
-		rectSetLayerno(m.overlay.RectData, f_clampLayerno(m.overlay.layerno))
-		rectSetWindow(m.overlay.RectData, m.overlay.window[1], m.overlay.window[2], m.overlay.window[3], m.overlay.window[4])
-		rectSetLocalcoord(m.overlay.RectData, trials.mtlcx, trials.mtlcy)
-		rectDraw(m.overlay.RectData)
-	end
+	-- Dim whatever is behind the menu. Its window is already in screen space, so it draws at 0,0.
+	f_menuRect(m.overlay, 0, 0)
 	f_menuAnim(m.bg, m.pos[1], m.pos[2])
 	if m.title.text ~= '' then
 		f_menuText(d.title, m.title, m.pos[1], m.pos[2], m.title.text)
@@ -2672,6 +3008,8 @@ function trials.f_selectDraw(node)
 			if d2 ~= '' then cat = d2 end
 		end
 		if active then
+			-- Under the row background, so a screenpack that draws art there still covers it.
+			f_menuRect(f_cat(m.item, cat, 'active', 'overlay'), x, y)
 			f_menuAnim(f_cat(m.item, cat, 'active', 'bg'), x, y)
 			f_menuAnim(m.cursor, x, y)
 		else
@@ -2878,6 +3216,11 @@ function trials.f_preFightMenu()
 	if not ok or type(charData) ~= 'table' or type(charData.trialsdata) ~= 'table' or #charData.trialsdata == 0 then
 		return
 	end
+	-- Nothing out here can read the vars this character's Trials are gated on, so asking now would list
+	-- every groove's Trials and most of the answers would be wrong. The match-load list asks instead.
+	if trials.f_hasVarGatedTrials(charData.trialsdata) then
+		return
+	end
 	local sec = trials.f_selectSection()
 	if sec == nil then
 		return
@@ -2997,28 +3340,12 @@ function trials.f_startSpeedrun()
 end
 
 function trials.f_trialsMode()
-	-- Value used for localcoord
-	trials.lcdx00 = 1
-	trials.lcdy00 = 1
-	if trials.mtlcx == nil then
-	trials.mtlcx = trials.trials_mode.trialslocalcoord[1]
-					end
-	if trials.mtlcy == nil then
-	trials.mtlcy = trials.trials_mode.trialslocalcoord[2]
-					end
-	if stageVar('stageinfo.localcoord.x') ~= nil then
-	trials.stlcx = stageVar('stageinfo.localcoord.x')
-if trials.mtlcx ~= trials.stlcx then
-	trials.lcdx00 = trials.mtlcx / trials.stlcx
-					end
-					end
-	if stageVar('stageinfo.localcoord.y') ~= nil then
-	trials.stlcy = stageVar('stageinfo.localcoord.y')
-if trials.mtlcy ~= trials.stlcy then
-	trials.lcdy00 = trials.mtlcy / trials.stlcy
-					end
-					end
-					
+	-- The match may be running at an aspect the module was not loaded on - with the aspect ratio
+	-- option set to "stage", every stage can bring its own. Lay the canvas out for the one in force
+	-- before anything is drawn in it. No-op once it has settled, which is every frame after the
+	-- first of a match.
+	trials.f_syncAspect()
+
 	if roundStart() then
 		trials.data = nil
 		-- Empty the trials list back to the items and loop the section declared.
@@ -3064,10 +3391,13 @@ if trials.mtlcy ~= trials.stlcy then
 		menu.f_trialsReset()
 		-- Honour a Trial picked before the fight. Names, not indices: f_trialsBuilder drops Trials
 		-- whose showforvarvalpairs do not match, so the parsed indices need not survive into here.
+		local pickLost = false
 		if trials.pendingTrial ~= nil then
+			pickLost = true
 			for i = 1, #trials.data.trial, 1 do
 				if trials.data.trial[i].name == trials.pendingTrial then
 					trials.data.currenttrial = i
+					pickLost = false
 					break
 				end
 			end
@@ -3079,9 +3409,13 @@ if trials.mtlcy ~= trials.stlcy then
 		trials.f_armTimers(trials.data.currenttrial, true)
 		-- A speedrun goes straight to the first Trial, and so does a screenpack that turned the
 		-- menu off. Otherwise the player picks one before anything starts.
+		-- Under 'select' the asking normally happened before the fight, so there is nothing to do
+		-- here - except for a character whose Trials are gated on vars, which could not be asked out
+		-- there, and for a pick that turned out to be gated away, which needs asking again.
+		local mode = trials.f_listDisplay()
 		if trials.f_speedrunEnabled() then
 			trials.f_startSpeedrun()
-		elseif trials.f_listDisplay() == 'start' then
+		elseif mode == 'start' or (mode == 'select' and (trials.f_hasVarGatedTrials() or pickLost)) then
 			trials.f_openSelect()
 		end
 	elseif trialsExist and roundState() == 2 and trials.data.trialsInitialized

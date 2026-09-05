@@ -1,4 +1,4 @@
-# Ikemen GO Trials Mode v0.99.6
+# Ikemen GO Trials Mode v1.0
 > Compatible with Ikemen GO Nightly Builds newer than 10/10/2025.
 
 > Note: for older Ikemen GO Builds, check releases tab for a compatible release of Trials Mode .
@@ -11,561 +11,44 @@ For greater detail on how to create trials definitions, or the customization opt
 You can find sample trials files for some of my favorite characters in [this repo](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files).
 
 ## Installation
-1. Extract archive content into "./external/mods/trials" directory
-2. Add DEF code to your screenpack's `system.def`. 
-Use the sample DEF code additions from this file to your `system.def`. 
-The sample settings from this readme works with the `mugen1` screenpack included with the [base asset pack for Ikemen GO](https://github.com/ikemen-engine/Ikemen_GO-Elecbyte-Screenpack).
-Note that `mugen1` was made for a 1280x720 resolution.
-3. Add `external/mods/trials/trials.zss` to `States` under `[Common]` in "./save/config.ini".
-4. Add sprites to system.sff, or alternatively, create a `trials.sff`, as required.
-5. Add sounds to system.snd, as required.
+1. Extract archive content into your Ikemen directory - you should see new content in "./external/mods/trials/"
+2. (Optional but probably highly desired) Modify your screenpack's `system.def` to show Trials Mode in the main menu where you would like it to. 
+Check the module's `+system.def` file for instructions. 
+4. (Optional) Add sprites to your screenpack's `system.sff`, or alternatively, to the module's `trials.sff`, as required.
+5. (Optional) Add sounds to your screenpack's `system.snd`, or alternatively, to a module-specific `trials.snd` placed beside `trials.lua`, as required.
 6. Create new trials for your character(s). 
-As a starting point, you can use the templates found in the trials mode readme to create a `trials.def` file and edit `kfmZ.def`, both in `"./chars/kfmZ"`. 
+As a starting point, you can use the templates found in the trials mode readme to create a `trials.def` file and edit `kfm_zss.def`, both in `"./chars/kfm_zss"`. 
 You can follow the instructions in the readme to create trials for any character you would like. 
-I also often create new trials files for my favorite characters and am sharing them [here](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files).
+I also often create new trials files for my favorite characters and share them [here](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files).
 7. Share your trials definition files with others!
 
 ## General info
 The Trials Mode provides new screenpack features and engine features so that creators can create trials for their character creations, and fully customize the way the trials are presented. 
 The Trials Mode ships with several options for display of trials data inside the game mode, a variety of pause menu options to navigate the trials for each character, and the ability to apply palfx to character portraits in the Select Screen to easily convey which characters have valid Trials definition files.
 
-## system.def Template and Customization
-Using this external module allows full customization of the trials mode in `system.def`, with sprites in `system.sff` or in `trials.sff`, if so desired. 
-If you are using `trials.sff`, make sure you point to it in the system.def's [Files] section as `trialsbgdef = trials.sff`.
+## system.def and UI Customization
+The Trials Mode external module supports full customization UI through the included `system.def`, with background sprites and animations pulled directly from your screenpack's `system.sff`, or from a separately bundled module-specific `trials.sff`, if so desired. 
+The module ships with a `trials.sff` and it is automatically detected on load when included in the module folder.
+
+Sounds work the same way. Every `snd` parameter in the module's `system.def` — `success.snd` and `allclear.snd` — is read from a `trials.snd` placed beside `trials.lua`, and from your screenpack's `system.snd` when there is none.
+The module ships no `trials.snd`, so out of the box those sounds come from the screenpack; drop one in and it is detected on load, exactly as `trials.sff` is.
+It is the whole file that switches, not one sound at a time: once a `trials.snd` is present, a `group,number` missing from it plays nothing rather than falling back to `system.snd`.
+
+The pause menu's own sounds are not affected either way. `cursor.move`, `cursor.done`, `enter` and `cancel` are read from the screenpack's `[Trials Pause Menu]` (or `[Pause Menu]`) section and always play out of `system.snd`, so the trials list answers like every other menu in the screenpack.
 
 The universal trials mode supports **vertical** trials readouts, and **horizontal** readouts as seen in KOF XIV, among other games. 
-The sample `system.def` included in this file can be configured to support either or both layouts, but shared in this readme, it should work "out of the box" with the `mugen1` screenpack found [here](https://github.com/ikemen-engine/Ikemen_GO-Elecbyte-Screenpack). 
+The `system.def` included with this module is configured to support both layout types "out of the box" with the `ikemen1` screenpack found [here](https://github.com/ikemen-engine/Ikemen_GO-Elecbyte-Screenpack). 
 Below you'll find a brief summary of screenpack features supported by trials mode. 
-For more detail, please consult the example `system.def` templates provided in this file for both vertical and horizontal layouts.
-The [Trials Mode wiki](https://github.com/two4teezee/Ikemen-GO-Trials-Mode/wiki) goes into great depth on all supported features.
-
-## system.def Example
-
-```
-[Trials Mode]
-; NOTE: Values provided in this sample meant for `mugen1` screenpack, 1280x720 resolution.
-;
-; GENERAL TRIALS OPTIONS ---------------------------------------------------
-; trialsresetonsuccess: set to "true" to reset character positions after each trial success (except the final one). Can optionally specify fadein and fadeout parameters - will default to shown values.
-; trialslayout: "vertical" or "horizontal" are the only valid values. Defaults to "vertical" if not specified. Affects scrolling logic, as stated above, also enables dynamic step width. Can be changed via the pause menu if screenpack author leaves the option in.
-; trialslocalcoord: localcoord for the trials mode. Defaults to 320,240 if not specified.
-; trialslistdisplay: when the player is asked which trial to play. "select" shows the menu between stage select and the fight loading; "start" shows it once the match is up, over the frozen pair; "off" never asks and starts on the first trial. Defaults to "start". The pause menu's Trials List works the same either way.
-; --------------------------------------------------------------------------
-trialsresetonsuccess = false
-trialslayout = vertical
-trialslocalcoord = 1280,720
-trialslistdisplay = start
-
-; BACKGROUND ELEMENT LAYERS ------------------------------------------------
-; Every bg and front element below (including the horizontal layout's bg.tail and bg.head)
-; accepts a "layerno" parameter. Valid values are -1, 0, 1 and 2; anything higher is clamped
-; to 2. Defaults to 0, which is where every trials element used to be drawn.
-; All of these layers are drawn on top of the stage and the characters - layerno only orders
-; trials elements against each other. Elements sharing a layer keep their usual draw order
-; (trialsteps bg, trial title, textbox, then the individual steps and their glyphs), so
-; raising an element's layerno is how you pull it in front of something that would normally
-; be drawn after it.
-; --------------------------------------------------------------------------
-
-; SELSCREENPALFX -----------------------------------------------------------
-; Sets specified palfx color to character portraits WITHOUT trials files in the trials select screen. See definition for palfx for different fields and options.
-; --------------------------------------------------------------------------
-selscreenpalfx.color = 0
-; selscreenpalfx.invertall = 0
-; selscreenpalfx.sinadd = 0, 0, 0, 0
-selscreenpalfx.mul = 100, 100, 100
-; selscreenpalfx.add = 0, 0, 0
-
-; RESETONSUCCESS FADES -----------------------------------------------------
-; Used when "trialsresetonsuccess" is set to "true"
-; --------------------------------------------------------------------------
-; fadein.time = 40
-; fadein.col = {0, 0, 0}
-; fadein.anim = -1
-; fadeout.time = 40
-; fadeout.col = {0, 0, 0}
-; fadeout.anim = -1
-
-; TRIALTITLE OPTIONS -------------------------------------------------------
-; TRAILTITLE options can be specified for both vertical and horizontal layouts simultaneously.
-; TRIALTITLE VERTICAL ------------------------------------------------------
-trialtitle.vertical.pos = 140,140
-trialtitle.vertical.text.offset = 0,-17
-trialtitle.vertical.text.font = 2,0,1, 255, 200, 100
-; trialtitle.vertical.text.text = "Trial: %s"
-; trialtitle.vertical.text.scale = 
-; trialtitle.vertical.text.font.height =
-; trialtitle.vertical.bg.offset = 
-; trialtitle.vertical.bg.spr = 
-; trialtitle.vertical.bg.anim = 
-; trialtitle.vertical.bg.scale = 
-; trialtitle.vertical.bg.facing = 
-; trialtitle.vertical.bg.displaytime = 
-; trialtitle.vertical.bg.layerno = 0
-; trialtitle.vertical.front.offset = 
-; trialtitle.vertical.front.spr = 
-; trialtitle.vertical.front.anim = 
-; trialtitle.vertical.front.scale = 
-; trialtitle.vertical.front.facing = 
-; trialtitle.vertical.front.displaytime = 
-; trialtitle.vertical.front.layerno = 0
-; TRIALTITLE HORIZONTAL ----------------------------------------------------
-trialtitle.horizontal.pos = 140,140
-trialtitle.horizontal.text.offset = 0,-17
-trialtitle.horizontal.text.font = 2,0,1, 255, 200, 100
-; trialtitle.horizontal.text.text = "Trial: %s"
-; trialtitle.horizontal.text.scale = 
-; trialtitle.horizontal.text.font.height =
-; trialtitle.horizontal.bg.offset =
-; trialtitle.horizontal.bg.spr = 
-; trialtitle.horizontal.bg.anim =
-; trialtitle.horizontal.bg.scale = 
-; trialtitle.horizontal.bg.facing = 
-; trialtitle.horizontal.bg.displaytime = 
-; trialtitle.horizontal.bg.layerno = 0
-; trialtitle.horizontal.front.offset = 
-; trialtitle.horizontal.front.spr = 
-; trialtitle.horizontal.front.anim = 
-; trialtitle.horizontal.front.scale = 
-; trialtitle.horizontal.front.facing = 
-; trialtitle.horizontal.front.displaytime = 
-; trialtitle.horizontal.front.layerno = 0
-
-; TRIALSTEPS OPTIONS -------------------------------------------------------
-; TRIALSTEPS options can be specified for both vertical and horizontal layouts simultaneously.
-; trialsteps.<layout>.pos: local origin from which trial steps are drawn. Other elements have their own origin specifications.
-; trialsteps.<layout>.spacing: spacing between trial steps. For horizontal layout, the second argument determines the spacing between rows.
-; trialsteps.<layout>.window: X1,Y1,X2,Y2: display window for trials--will create automated scrolling or line returns, depending on the trial layout of choice
-; trialsteps.horizontal.padding: horizontal layouts only - padding between glyphs and edges of the background element along the x (horizontal) axis.
-; trialsteps.<layout>.bg. ...: optional background displayed behind all other trial step text, background elements, etc.
-; TRIALSTEPS VERTICAL ------------------------------------------------------
-trialsteps.vertical.pos = 140,150
-trialsteps.vertical.spacing = 0,25
-trialsteps.vertical.window.withouttextbox = 100,175, 1180,550
-trialsteps.vertical.window.withtextbox = 100,175, 1180,550
-; trialsteps.vertical.bg.offset = 
-; trialsteps.vertical.bg.spr = 
-; trialsteps.vertical.bg.anim = 
-; trialsteps.vertical.bg.scale = 
-; trialsteps.vertical.bg.facing = 
-; trialsteps.vertical.bg.displaytime =   
-; trialsteps.vertical.bg.layerno = 0
-; TRIALSTEPS HORIZONTAL ----------------------------------------------------
-trialsteps.horizontal.pos = 140,175
-trialsteps.horizontal.spacing = 1,40
-trialsteps.horizontal.window.withoutextbox = 100,175, 1180,550
-trialsteps.horizontal.window.withtextbox = 100,175, 780,550
-trialsteps.horizontal.padding = 10
-; trialsteps.horizontal.bg.offset = 
-; trialsteps.horizontal.bg.spr = 
-; trialsteps.horizontal.bg.anim = 
-; trialsteps.horizontal.bg.scale = 
-; trialsteps.horizontal.bg.facing = 
-; trialsteps.horizontal.bg.displaytime =  
-; trialsteps.horizontal.bg.layerno = 0
-
-; UPCOMINGSTEP -------------------------------------------------------------
-; UPCOMINGSTEP options can be specified for both vertical and horizontal layouts simultaneously.
-; UPCOMINGSTEP VERTICAL ----------------------------------------------------
-upcomingstep.vertical.text.offset = 0,0
-upcomingstep.vertical.text.font = 2,0,1, 200, 200, 200
-; upcomingstep.vertical.text.scale = 
-; upcomingstep.vertical.bg.offset = 
-; upcomingstep.vertical.bg.anim = 
-; upcomingstep.vertical.bg.spr = 
-; upcomingstep.vertical.bg.scale = 
-; upcomingstep.vertical.bg.facing =
-; upcomingstep.vertical.bg.displaytime = 
-; upcomingstep.vertical.bg.layerno = 0
-upcomingstep.vertical.bg.palfx.color = 200
-; upcomingstep.vertical.bg.palfx.invertall = 0
-; upcomingstep.vertical.bg.palfx.sinadd = 0, 0, 0, 0
-upcomingstep.vertical.bg.palfx.mul = 200, 200, 200
-; upcomingstep.vertical.bg.palfx.add = 0, 0, 0
-; upcomingstep.vertical.glyphs.palfx.color = 256
-; upcomingstep.vertical.glyphs.palfx.invertall = 0
-; upcomingstep.vertical.glyphs.palfx.sinadd = 0, 0, 0, 0
-; upcomingstep.vertical.glyphs.palfx.mul = 0, 0, 0
-; upcomingstep.vertical.glyphs.palfx.add = 0, 0, 0
-; UPCOMINGSTEP HORIZONTAL --------------------------------------------------
-; upcomingstep.horizontal.bg.offset =
-; upcomingstep.horizontal.bg.anim = 
-; upcomingstep.horizontal.bg.spr =
-; upcomingstep.horizontal.bg.scale = 
-; upcomingstep.horizontal.bg.facing = 
-; upcomingstep.horizontal.bg.displaytime = 
-; upcomingstep.horizontal.bg.layerno = 0
-upcomingstep.horizontal.bg.tail.offset = 0,-14
-; upcomingstep.horizontal.bg.tail.anim = 
-upcomingstep.horizontal.bg.tail.spr = 402,0
-; upcomingstep.horizontal.bg.tail.scale = 
-; upcomingstep.horizontal.bg.tail.facing = 
-; upcomingstep.horizontal.bg.tail.displaytime = 
-; upcomingstep.horizontal.bg.tail.layerno = 0
-; upcomingstep.horizontal.bg.head.offset = 
-; upcomingstep.horizontal.bg.head.anim = 
-; upcomingstep.horizontal.bg.head.spr = 
-; upcomingstep.horizontal.bg.head.scale = 
-; upcomingstep.horizontal.bg.head.facing = 
-; upcomingstep.horizontal.bg.head.displaytime = 
-; upcomingstep.horizontal.bg.head.layerno = 0
-upcomingstep.horizontal.bg.palfx.color = 200
-; upcomingstep.horizontal.bg.palfx.invertall = 
-; upcomingstep.horizontal.bg.palfx.sinadd = 
-upcomingstep.horizontal.bg.palfx.mul = 200, 200, 200
-; upcomingstep.horizontal.bg.palfx.add =
-upcomingstep.horizontal.glyphs.palfx.color = 200
-; upcomingstep.horizontal.glyphs.palfx.invertall = 
-; upcomingstep.horizontal.glyphs.palfx.sinadd =
-upcomingstep.horizontal.glyphs.palfx.mul = 200, 200, 200
-; upcomingstep.horizontal.glyphs.palfx.add = 
-
-
-; CURRENTSTEP --------------------------------------------------------------
-; CURRENTSTEP options can be specified for both vertical and horizontal layouts simultaneously.
-; CURRENTSTEP VERTICAL -----------------------------------------------------
-currentstep.vertical.text.offset = 0,0
-currentstep.vertical.text.font = 2,0,1
-; currentstep.vertical.text.scale = 
-; currentstep.vertical.text.font.height = 
-; currentstep.vertical.bg.offset = 
-; currentstep.vertical.bg.anim = 
-; currentstep.vertical.bg.spr = 
-; currentstep.vertical.bg.scale = 
-; currentstep.vertical.bg.facing = 
-; currentstep.vertical.bg.displaytime = 
-; currentstep.vertical.bg.layerno = 0
-; currentstep.vertical.bg.displaytime = 
-; currentstep.vertical.bg.palfx.color = 
-; currentstep.vertical.bg.palfx.invertall = 
-; currentstep.vertical.bg.palfx.sinadd = 
-; currentstep.vertical.bg.palfx.mul = 
-; currentstep.vertical.bg.palfx.add = 
-; currentstep.vertical.glyphs.palfx.color = 
-; currentstep.vertical.glyphs.palfx.invertall = 
-; currentstep.vertical.glyphs.palfx.sinadd = 
-; currentstep.vertical.glyphs.palfx.mul = 
-; currentstep.vertical.glyphs.palfx.add = 
-; CURRENTSTEP HORIZONTAL ---------------------------------------------------
-; currentstep.horizontal.bg.offset = 
-; currentstep.horizontal.bg.anim = 
-; currentstep.horizontal.bg.spr = 
-; currentstep.horizontal.bg.scale = 
-; currentstep.horizontal.bg.facing = 
-; currentstep.horizontal.bg.displaytime = 
-; currentstep.horizontal.bg.layerno = 0
-currentstep.horizontal.bg.tail.offset = 0,-14
-; currentstep.horizontal.bg.tail.anim = 
-currentstep.horizontal.bg.tail.spr = 402,0
-; currentstep.horizontal.bg.tail.scale = 
-; currentstep.horizontal.bg.tail.facing = 
-; currentstep.horizontal.bg.tail.displaytime = 
-; currentstep.horizontal.bg.tail.layerno = 0
-; currentstep.horizontal.bg.head.offset = 
-; currentstep.horizontal.bg.head.anim = 
-; currentstep.horizontal.bg.head.spr = 
-; currentstep.horizontal.bg.head.scale = 
-; currentstep.horizontal.bg.head.facing = 
-; currentstep.horizontal.bg.head.displaytime = 
-; currentstep.horizontal.bg.head.layerno = 0
-currentstep.horizontal.bg.palfx.color = 200
-; currentstep.horizontal.bg.palfx.invertall = 
-; currentstep.horizontal.bg.palfx.sinadd = 
-currentstep.horizontal.bg.palfx.mul = 255, 255, 50
-; currentstep.horizontal.bg.palfx.add = 
-; currentstep.horizontal.glyphs.palfx.color = 
-; currentstep.horizontal.glyphs.palfx.invertall = 
-; currentstep.horizontal.glyphs.palfx.sinadd = 
-; currentstep.horizontal.glyphs.palfx.mul = 
-; currentstep.horizontal.glyphs.palfx.add = 
-
-; COMPLETEDSTEP -------------------------------------------------------------
-; COMPLETEDSTEP options can be specified for both vertical and horizontal layouts simultaneously.
-; COMPLETEDSTEP VERTICAL ----------------------------------------------------
-completedstep.vertical.text.offset = 0,0
-completedstep.vertical.text.font = 2,0,1, 100, 100, 100
-; completedstep.vertical.text.scale = 
-; completedstep.vertical.text.font.height = 
-; completedstep.vertical.bg.offset = 
-; completedstep.vertical.bg.anim = 
-; completedstep.vertical.bg.spr = 
-; completedstep.vertical.bg.scale = 
-; completedstep.vertical.bg.facing =
-; completedstep.vertical.bg.displaytime = 
-; completedstep.vertical.bg.layerno = 0
-; completedstep.vertical.bg.palfx.color = 
-; completedstep.vertical.bg.palfx.invertall = 
-; completedstep.vertical.bg.palfx.sinadd = 
-; completedstep.vertical.bg.palfx.mul = 
-; completedstep.vertical.bg.palfx.add = 
-completedstep.vertical.glyphs.palfx.color = 0
-; completedstep.vertical.glyphs.palfx.invertall = 
-; completedstep.vertical.glyphs.palfx.sinadd = 
-; completedstep.vertical.glyphs.palfx.mul = 
-; completedstep.vertical.glyphs.palfx.add = 
-; COMPLETEDSTEP HORIZONTAL  --------------------------------------------------
-; completedstep.horizontal.bg.offset =
-; completedstep.horizontal.bg.anim = 
-; completedstep.horizontal.bg.spr = 
-; completedstep.horizontal.bg.scale = 
-; completedstep.horizontal.bg.facing = 
-; completedstep.horizontal.bg.displaytime = 
-; completedstep.horizontal.bg.layerno = 0
-completedstep.horizontal.bg.tail.offset = 0,-14
-; completedstep.horizontal.bg.tail.anim = 
-completedstep.horizontal.bg.tail.spr = 402,0
-; completedstep.horizontal.bg.tail.scale =
-; completedstep.horizontal.bg.tail.facing = 
-; completedstep.horizontal.bg.tail.displaytime = 
-; completedstep.horizontal.bg.tail.layerno = 0
-; completedstep.horizontal.bg.head.offset = 
-; completedstep.horizontal.bg.head.anim = 
-; completedstep.horizontal.bg.head.spr = 
-; completedstep.horizontal.bg.head.scale = 
-; completedstep.horizontal.bg.head.facing = 
-; completedstep.horizontal.bg.head.displaytime = 
-; completedstep.horizontal.bg.head.layerno = 0
-completedstep.horizontal.bg.palfx.color = 0
-; completedstep.horizontal.bg.palfx.invertall = 
-; completedstep.horizontal.bg.palfx.sinadd = 
-completedstep.horizontal.bg.palfx.mul = 100, 100, 100
-; completedstep.horizontal.bg.palfx.add = 
-completedstep.horizontal.glyphs.palfx.color = 0
-; completedstep.horizontal.glyphs.palfx.invertall = 
-; completedstep.horizontal.glyphs.palfx.sinadd =
-completedstep.horizontal.glyphs.palfx.mul = 100, 100, 100
-; completedstep.horizontal.glyphs.palfx.add = 
-
-; GLYPHS -------------------------------------------------------------------
-; GLYPHS options can be specified for both vertical and horizontal layouts simultaneously.
-; glyphs.<layout>.offset: x,y offset from current trialstep position
-; glyphs.<layout>.scale: x,y scale for glyphs
-; glyphs.<layout>.spacing: x,y spacing from one glyph element to another on the same trialstep
-; glyphs.vertical.align: alignment for glyphs (vertical layout only)
-; glyphs.vertical.scalewithtext: true or false; scales glyphs according to font height - ignores scale parameter when set to true.
-; GLYPHS VERTICAL ----------------------------------------------------------
-glyphs.vertical.offset = 244,3
-glyphs.vertical.scale = 0.3125,0.3125
-glyphs.vertical.spacing = 0,0
-glyphs.vertical.align = -1
-glyphs.vertical.scalewithtext = false
-; GLYPHS HORIZONTAL --------------------------------------------------------
-glyphs.horizontal.offset = 0,-3
-glyphs.horizontal.scale = 0.4, 0.4
-glyphs.horizontal.spacing = 0,0
-
-; TRIALS COUNTER AND TIMERS ------------------------------------------------
-; trialcounter shows the current trial number
-; totaltrialtimer shows the total time for the trial. It is erased if the pause menu is used to skip or rewind.
-; currenttrialtimer shows the time spent on the current trial attempt.
-; --------------------------------------------------------------------------
-trialcounter.pos = 10,690
-trialcounter.font = 1,0,1
-trialcounter.scale = 2,2
-; trialcounter.font.height	=
-trialcounter.text = "Trial %s of %t"
-trialcounter.allclear.text = "All Trials Clear"
-trialcounter.notrialsdata.text = "No Trials Data Found"
-totaltrialtimer.pos	= 1270,690
-totaltrialtimer.font = 1,0,-1
-totaltrialtimer.scale = 2,2
-; totaltrialtimer.font.height =
-totaltrialtimer.text = "Trial Timer: %s"
-currenttrialtimer.pos = 1270,710
-currenttrialtimer.font = 1,0,-1
-currenttrialtimer.scale = 2,2
-; currenttrialtimer.font.height	=
-currenttrialtimer.text = "Current Trial: %s"
-
-; TRIAL RESET REMINDER AND SWITCH ------------------------------------------
-; trialreset.enabled allows the user to reset the player and dummy position to center stage (or specified trials position) when the desired keys are pressed simultaneously
-; trialreset.buttonpress: specify key combination for the user to reset the trial position
-; trialreset.text displays a string that reminds the player they can reset the trial position with the specified key input
-; --------------------------------------------------------------------------
-trialreset.enabled = true
-trialreset.buttonpress = d&w
-trialreset.text.pos = 10,710
-trialreset.text.font = 1,0,1
-trialreset.text.scale = 2,2
-; trialreset.text.font.height	=
-trialreset.text.text = "Hit d + w to reset position"
-
-; TRIALS TEXT BOX ----------------------------------------------------------
-; A textbox can accompany each trial if it is specified within the trials definition file.
-; The only element defined within the trials definition file is the text to be displayed for that trial.
-; textbox.pos: local origin from which other textbox elements are drawn. 
-; textbox.text.<options>: specify text window, offset, font type, and drawspeed
-; textbox.title.<options>: specify text, offset, font type, scale
-; textbox.overlay.<options>: draw an overlay behind any other bg, text or front element
-; textbox.bg.<options>: optional background displayed behind text but over overlay; standard options for background elements, etc.
-; textbox.front.<options>: optional background displayed in front of text; standard options for background elements, etc.
-; textbox.portrait.<options>: allows a portrait to be drawn with or in the textbox. Sprite can be sourced from the character or the screenpack.
-; --------------------------------------------------------------------------
-textbox.visible = true
-textbox.pos = 740,120
-textbox.text.window = 50,0, 300,50
-textbox.text.offset = 10,10
-textbox.text.font = 1,0,1
-textbox.text.drawspeed = 2
-; textbox.text.font.height = -1
-textbox.text.scale = 2,2
-textbox.title.offset = 0,0
-textbox.title.font = 2,0,1
-textbox.title.text = ;%s is  trial number, %n is trial name
-; textbox.title.font.height = -1
-textbox.title.scale = 1,1
-textbox.overlay.visible = true
-textbox.overlay.window = 0,0, 350,50
-textbox.overlay.col = 0, 0, 0
-textbox.overlay.alpha = 0, 128
-textbox.bg.anim = -1
-textbox.bg.spr = 
-textbox.bg.offset = 0, 0
-textbox.bg.facing = 1
-textbox.bg.scale = 1.0, 1.0
-textbox.bg.displaytime = -1
-textbox.bg.layerno = 0
-textbox.front.anim = -1
-textbox.front.spr = 
-textbox.front.offset = 0, 0
-textbox.front.facing = 1
-textbox.front.scale = 1.0, 1.0
-textbox.front.displaytime = -1
-textbox.front.layerno = 0
-textbox.portrait.source = "char" ; valid options are "system" or "char"
-textbox.portrait.spr = 9000, 0
-textbox.portrait.offset = 5,5
-textbox.portrait.window = 0,0, 40, 40
-textbox.portrait.facing = 1
-textbox.portrait.scale = 0.5, 0.5
-
-; TRIAL SUCCESS BANNER -----------------------------------------------------
-; --------------------------------------------------------------------------
-success.pos	= 640,360
-success.snd	= 600,0 
-success.text.text = "SUCCESS"
-success.text.offset = 0,0
-success.text.font = 4,0,0, 255, 100, 100
-success.text.displaytime = 70
-success.text.scale = 3,3
-; success.text.font.height =
-; success.bg.offset = 
-; success.bg.anim = 
-; success.bg.scale = 
-; success.bg.spr = 
-; success.bg.displaytime = 
-; success.bg.layerno = 0
-; success.front.offset = 
-; success.front.anim = 
-; success.front.scale = 
-; success.front.spr = 
-; success.front.displaytime	= 
-; success.front.layerno = 0
-
-; TRIALS ALL CLEAR BANNER --------------------------------------------------
-; --------------------------------------------------------------------------
-allclear.pos = 640,360
-allclear.snd = 900,0
-allclear.text.text = "ALL CLEAR"
-allclear.text.offset = 0,0
-allclear.text.font = 4,0,0, 255, 100, 100
-allclear.text.displaytime	= 70
-allclear.text.scale	= 3,3
-; allclear.text.font.height	=
-; allclear.bg.offset = 
-; allclear.bg.anim = 
-; allclear.bg.scale = 
-; allclear.bg.spr = 
-; allclear.bg.displaytime = 
-; allclear.bg.layerno = 0
-; allclear.front.offset = 
-; allclear.front.anim = 
-; allclear.front.scale = 
-; allclear.front.spr = 
-; allclear.front.displaytime = 
-; allclear.front.layerno = 0
-
-[Trials Pause Menu]
-; The engine turns any section whose name matches "*pause*menu" into a pause menu, and opens
-; the one named after the game mode - so this section is the whole of the registration. The
-; module ships it in +system.def; a screenpack overrides it by declaring the same section.
-; If not overridden, values used for [Menu Info] are shared with this group.
-;
-; The words each setting's values are shown as. The key is the itemname, an underscore, and
-; the value's own token:
-menu.valuename.trialadvancement_autoadvance = "Auto-Advance"
-menu.valuename.trialadvancement_repeat = "Repeat"
-menu.valuename.trialresetonsuccess_enabled = "Yes"
-menu.valuename.trialresetonsuccess_disabled = "No"
-menu.valuename.trialslayout_vertical = "Vertical"
-menu.valuename.trialslayout_horizontal = "Horizontal"
-menu.valuename.trialstextboxes_show = "Show"
-menu.valuename.trialstextboxes_hide = "Hide"
-
-; https://github.com/ikemen-engine/Ikemen-GO/wiki/Screenpack-features#submenus
-; If custom menu is not declared, following menu is loaded by default:
-; menu.itemname.back = "Continue"
-; menu.itemname.trialslist = "Trials List"
-; menu.itemname.trialslist.back = "Back"
-; menu.itemname.trialadvancement = "Advancement"
-; menu.itemname.trialresetonsuccess = "Reset on Success"
-; menu.itemname.trialslayout = "Layout"
-; menu.itemname.trialstextboxes = "Textboxes"
-; menu.itemname.menuinput = "Button Config"
-; menu.itemname.menuinput.keyboard = "Key Config"
-; menu.itemname.menuinput.gamepad = "Joystick Config"
-; menu.itemname.menuinput.spacer = "-"
-; menu.itemname.menuinput.inputdefault = "Default"
-; menu.itemname.menuinput.back = "Back"
-; menu.itemname.commandlist = "Command List"
-; menu.itemname.characterchange = "Character Change"
-; menu.itemname.exit = "Exit"
-;
-; Next / Previous Trial are still supported for screenpacks that prefer them to the list:
-; menu.itemname.nexttrial = "Next Trial"
-; menu.itemname.previoustrial = "Previous Trial"
-
-[TrialsBgDef]
-spr 			= ""
-bgclearcolor 	= 0, 0, 0
-```
+For more detail on how you can configure every aspect of the UI for trials mode, please consult the included `system.def` file.
+The [Trials Mode wiki](https://github.com/two4teezee/Ikemen-GO-Trials-Mode/wiki) also goes into great depth on all supported features.
 
 ## Creating a Character's Trials Definition File
 
 Trials data is created on a per-character basis. To specify new trials for a character, you'll want to create a new file in the character's folder to hold the trials data. For the purposes of this tutorial, I name this file `trials.def`, but you can call it whatever you want. As mentioned before, each character gets its own `trials.def`. You can specify as many trials as you want, in any order you want.
 
-A sample `trials.def` for kfmZ is provided below. The trials are presented to the player in the order in which they are listed in `trials.def`. Detailed information for each configurable parameter can be found in this template.
+A sample `trials.def` for kfm_zss is provided below. The trials are presented to the player in the order in which they are listed in `trials.def`. Detailed information for each configurable parameter can be found in this template.
 
-```
-; KFMZ TRIALS LIST ---------------------------
-
-[TrialDef, KFM's First Trial]
-
-trial.difficulty = Beginner
-trial.dummymode = stand
-trial.guardmode = none
-trial.dummybuttonjam = none
-; trial.dummylife =
-; trial.playerlife =
-; trial.dummypos =
-; trial.playerpos =
-; trial.showforvarvalpairs = 
-; trial.textbox = This is KFM's first trial. Good luck!
-
-trialstep.1.text = Strong Kung Fu Palm
-trialstep.1.glyphs = _QDF^Y
-trialstep.1.stateno = 1010
-
-; trialstep.1.animno =
-; trialstep.1.projid =
-; trialstep.1.hitcount =
-; trialstep.1.isthrow =
-; trialstep.1.iscounterhit =
-; trialstep.1.ishelper =
-; trialstep.1.isproj =
-; trialstep.1.validforvarvalpairs = 
-; trialstep.1.validfortickcount = 
-
+; ===============================
 ; TrialDef Parameter Descriptions
 ; ===============================
 ; [TriafDef, TrialTitle] - [TrialDef] mandatory - trial title after the comma is optional.
@@ -600,6 +83,34 @@ trialstep.1.stateno = 1010
 ;     On a step with isproj = true and no projid, the step matches on "stateno" alone and still requires the projectile to connect. A projid has no effect on a step with hitcount = 0, since a step that never registers a hit has no projectile ID to read.
 ; trialstep.X.validforvarvalpairs - optional - (comma-separated integers, specified in pairs, can specify 0..n pairs). Sister functionality to "showforvarvalpairs". These variable-value pairs are used to optionally check a trial step. Useful if you are forcing the trial step to be completed when certain var-val pairs are met (for instance, while in a custom combo state). Variable-value pairs are considered valid for entire trial step (regardless if the trial step is specified using condensed terminology).
 ; trialstep.X.validfortickcount - optional (integer, or comma-separate integers), will default to nil if not defined. Makes the trials checking logic pause until the next hit is registered for the tickcount specified.
+
+```
+[TrialDef, KFM's First Trial]
+
+trial.difficulty = Beginner
+trial.dummymode = stand
+trial.guardmode = none
+trial.dummybuttonjam = none
+; trial.dummylife =
+; trial.playerlife =
+; trial.dummypos =
+; trial.playerpos =
+; trial.showforvarvalpairs = 
+; trial.textbox = This is KFM's first trial. Good luck!
+
+trialstep.1.text = Strong Kung Fu Palm
+trialstep.1.glyphs = _QDF^Y
+trialstep.1.stateno = 1010
+
+; trialstep.1.animno =
+; trialstep.1.projid =
+; trialstep.1.hitcount =
+; trialstep.1.isthrow =
+; trialstep.1.iscounterhit =
+; trialstep.1.ishelper =
+; trialstep.1.isproj =
+; trialstep.1.validforvarvalpairs = 
+; trialstep.1.validfortickcount = 
 
 ;---------------------------------------------
 
@@ -804,6 +315,13 @@ state, and carries the choice into the fight by trial *name* — `trialsBuilder`
 `showforvarvalpairs` don't match, so parsed positions need not survive into the match. Backing out
 of it settles for whichever trial the cursor opened on, so there is always an answer.
 
+That name is how a pick crosses into the match, but it can't make a pick *correct*: out there P1
+doesn't exist yet, so no variable can be read and the list can't be filtered. A character with even
+one `showforvarvalpairs` trial is therefore never asked early — under `select` it gets the `start`
+menu instead, once the match is up and the groove or mode is settled. Everyone else keeps the
+pre-fight menu. Should a pick be gated away anyway, the match-load menu opens rather than starting
+some other trial.
+
 ### Configuring it
 
 The menu is drawn by the module, so its appearance is configured in `[Trials Mode]` alongside
@@ -823,6 +341,7 @@ the shipped `system.def` for the annotated list; in outline:
 | `trialsmenu.header.active.*` | The same three, for the filter on show. Inherits from the above |
 | `trialsmenu.item.text.*`, `.item.active.text.*`, `.item.selected.text.*` | A trial's name: normal, under the cursor, and the trial in play |
 | `trialsmenu.item.bg.*`, `.item.active.bg.*`, `.cursor.*` | Per-row background and the cursor drawn on the active row |
+| `trialsmenu.item.active.overlay.*` | The highlight bar under the row the cursor is on. Same `visible`/`window`/`col`/`alpha`/`layerno` as `trialsmenu.overlay`, except its `window` is `x1,y1,x2,y2` from that row's origin rather than the screen, so it follows the cursor. A window with no area, or `visible = false`, leaves it off |
 | `trialsmenu.status.*` | The cleared / not-cleared marker (see below) |
 | `trialsmenu.besttime.*` | The best clear time beside each row. Set its `text` to `""` to leave times off |
 | `trialsmenu.arrow.up.*`, `.arrow.down.*` | Shown when the list runs past `visibleitems`. Art or a label, the same way as the clear marker |
@@ -838,6 +357,7 @@ trialsmenu.item.<category>.active.text.*     ...under the cursor
 trialsmenu.item.<category>.selected.text.*   ...when it is the trial in play
 trialsmenu.item.<category>.bg.*              its row background
 trialsmenu.item.<category>.active.bg.*       ...under the cursor
+trialsmenu.item.<category>.active.overlay.*  its highlight bar, under the cursor
 trialsmenu.header.<category>.text.*          that filter's banner entry
 trialsmenu.header.<category>.active.*        ...while it is the filter on show
 trialsmenu.header.<category>.value.*         its cleared tally
@@ -883,6 +403,17 @@ Set a state's `text` to `""` and leave its art unset to show nothing at all for 
 
 `trialsmenu.arrow.up` and `trialsmenu.arrow.down` work the same way — they default to `^` and `v`
 labels, and naming a sprite replaces them.
+
+### Where `anim` numbers come from
+
+Any element taking a sprite takes an `anim` instead, and the action behind that number is read from
+three files, each overriding the numbers declared before it: the screenpack's own def, an optional
+`trials.air` beside `trials.lua`, and this module's `system.def` (its `ANIMATIONS` section near the
+bottom, which is where anims meant for trials mode belong). Sprites are always resolved out of
+`trials.sff` when the module ships one, so an action written in any of the three numbers its frames
+out of that file. `anim` wins over `spr`, and once either is named the element's `text` is never
+drawn — an `anim` pointing at a number no file declares therefore shows nothing at all rather than
+falling back to the label.
 
 ## Speedrun
 

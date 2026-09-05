@@ -3,7 +3,8 @@
 ; ---- This file is loaded by the Trials module to configure the Trials
 ; ---- Mode UI. It is not loaded by the screenpack's system.def, so it is 
 ; ---- not part of the main menu or pause menu. The Trials module loads 
-; ---- this file itself.
+; ---- this file itself. The settings provided in this file are defaults 
+; ---- that show an integration with the `ikemen1` screenpack.
 ; --
 ; -- Module developed by two4teezee
 ; -------------------------------------------------------------------------
@@ -22,12 +23,36 @@ menu.itemname.trials = "TRIALS MODE"
 ; trialsresetonsuccess: set to "true" to reset character positions after each trial success (except the final one). Can optionally specify fadein and fadeout parameters - will default to shown values.
 ; trialslayout: "vertical" or "horizontal" are the only valid values. Defaults to "vertical" if not specified. Affects scrolling logic, as stated above, also enables dynamic step width. Can be changed via the pause menu if screenpack author leaves the option in.
 ; trialslocalcoord: localcoord for the trials mode. Defaults to 320,240 if not specified.
-; trialslistdisplay: when the player is asked which trial to play. "select" shows the menu between stage select and the fight loading; "start" shows it once the match is up, over the frozen pair; "off" never asks and starts on the first trial. Defaults to "start". The pause menu's Trials List works the same either way.
+; trialslistdisplay: valid values are "select", "start", and "off". "select" shows the menu between stage select and the fight loading; "start" shows it once the match is up, over the frozen pair; "off" never asks and starts on the first trial. Defaults to "start". The pause menu's Trials List works the same either way.
+; --   Note: "select" falls back to the "start" menu for characters whose trials use showforvarvalpairs. Those trials are picked by the player's groove or mode, and the variables holding it do not exist until the match is up, so asking before the fight would list every groove's trials.
 ; --------------------------------------------------------------------------
 trialsresetonsuccess = false
 trialslayout = vertical
 trialslocalcoord = 1280,720
 trialslistdisplay = select
+
+; ELEMENT ANCHORS ----------------------------------------------------------
+; Everything below is authored on the trialslocalcoord canvas, but the screen it lands on is
+; whatever aspect the match is running at. With the aspect ratio option set to "stage", every
+; stage can bring its own, so a UI authored at 1280,720 has to survive a 4:3 stage.
+;
+; The module keeps the authored scale - text and sprites are the same size at every aspect - and
+; moves each element to the edge it was authored against. "anchor" is which edge that is:
+;   left   - keeps its distance from the left edge (the default for anything authored on the left)
+;   center - stays the same fraction across
+;   right  - keeps its distance from the right edge
+; The elements that take it are trialtitle.<layout>, trialsteps.<layout>, trialcounter,
+; totaltrialtimer, currenttrialtimer, trialreset.text, textbox, success, allclear and trialsmenu.
+; Leave it out and the module infers one from where the element sits on the canvas, which is right
+; for the usual corner-pinned HUD but is only a guess - say it outright if the element matters.
+;
+; The two windows authored in canvas space - trialsteps.<layout>.window.* and
+; trialsmenu.overlay.window - are not anchored: each edge follows its own side of the screen, so
+; they keep their authored margins and stretch or narrow with the aspect.
+;
+; None of this does anything when the stage's aspect matches the canvas: every number below is
+; then used exactly as authored.
+; --------------------------------------------------------------------------
 
 ; BACKGROUND ELEMENT LAYERS ------------------------------------------------
 ; Every bg and front element below (including the horizontal layout's bg.tail and bg.head)
@@ -38,6 +63,20 @@ trialslistdisplay = select
 ; (trialsteps bg, trial title, textbox, then the individual steps and their glyphs), so
 ; raising an element's layerno is how you pull it in front of something that would normally
 ; be drawn after it.
+; --------------------------------------------------------------------------
+
+; WHERE SPRITES AND SOUNDS COME FROM ---------------------------------------
+; Every "spr" and "anim" below is resolved out of the module's own trials.sff when one sits
+; beside trials.lua, and out of the screenpack's system.sff when it does not.
+; Sounds work the same way: every "snd" parameter in this file (success.snd, allclear.snd) is
+; resolved out of an optional trials.snd beside trials.lua, and out of the screenpack's
+; system.snd when there is none. The module ships a trials.sff but no trials.snd, so sounds
+; come from the screenpack out of the box - drop a trials.snd in and they come from it instead.
+; It is the whole file that switches, not one sound at a time: once a trials.snd is present,
+; a group,number missing from it plays nothing rather than falling back to system.snd.
+; The pause menu's own sounds are not affected either way. cursor.move, cursor.done, enter and
+; cancel are read from the screenpack's [Trials Pause Menu] / [Pause Menu] section and always
+; play out of system.snd, so the trials list answers like every other menu in the screenpack.
 ; --------------------------------------------------------------------------
 
 ; SELSCREENPALFX -----------------------------------------------------------
@@ -62,8 +101,9 @@ fadeout.anim = -1
 ; TRIALTITLE OPTIONS -------------------------------------------------------
 ; TRAILTITLE options can be specified for both vertical and horizontal layouts simultaneously.
 ; TRIALTITLE VERTICAL ------------------------------------------------------
-trialtitle.vertical.pos = 140,140
-trialtitle.vertical.text.offset = 0,-17
+trialtitle.vertical.anchor = left
+trialtitle.vertical.pos = 140,190
+trialtitle.vertical.text.offset = 0,-25
 trialtitle.vertical.text.font = 1,0,1, 255, 200, 100
 trialtitle.vertical.text.text = "Trial: %s"
 trialtitle.vertical.text.scale = 2,2
@@ -83,8 +123,9 @@ trialtitle.vertical.front.facing = 1
 trialtitle.vertical.front.displaytime = -1
 trialtitle.vertical.front.layerno = 0
 ; TRIALTITLE HORIZONTAL ----------------------------------------------------
-trialtitle.horizontal.pos = 140,140
-trialtitle.horizontal.text.offset = 0,-17
+trialtitle.horizontal.anchor = left
+trialtitle.horizontal.pos = 140,190
+trialtitle.horizontal.text.offset = 0,-25
 trialtitle.horizontal.text.font = 1,0,1, 255, 200, 100
 trialtitle.horizontal.text.text = "Trial: %s"
 trialtitle.horizontal.text.scale = 2,2
@@ -112,10 +153,12 @@ trialtitle.horizontal.front.layerno = 0
 ; trialsteps.horizontal.padding: horizontal layouts only - padding between glyphs and edges of the background element along the x (horizontal) axis.
 ; trialsteps.<layout>.bg. ...: optional background displayed behind all other trial step text, background elements, etc.
 ; TRIALSTEPS VERTICAL ------------------------------------------------------
-trialsteps.vertical.pos = 140,150
+trialsteps.vertical.anchor = left
+trialsteps.vertical.pos = 140,190
 trialsteps.vertical.spacing = 0,25
 trialsteps.vertical.window.withouttextbox = 100,175, 1180,550
 trialsteps.vertical.window.withtextbox = 100,175, 1180,550
+
 trialsteps.vertical.bg.offset = 0, 0
 trialsteps.vertical.bg.spr = 
 trialsteps.vertical.bg.anim = -1
@@ -124,11 +167,13 @@ trialsteps.vertical.bg.facing = 1
 trialsteps.vertical.bg.displaytime = -1
 trialsteps.vertical.bg.layerno = 0
 ; TRIALSTEPS HORIZONTAL ----------------------------------------------------
-trialsteps.horizontal.pos = 140,150
+trialsteps.horizontal.anchor = left
+trialsteps.horizontal.pos = 140,180
 trialsteps.horizontal.spacing = 0,40
 trialsteps.horizontal.window.withouttextbox = 100,175, 1180,550
 trialsteps.horizontal.window.withtextbox = 100,175, 780,550
 trialsteps.horizontal.padding = 10
+
 trialsteps.horizontal.bg.offset = 0, 0
 trialsteps.horizontal.bg.spr = 
 trialsteps.horizontal.bg.anim = -1
@@ -143,7 +188,7 @@ trialsteps.horizontal.bg.layerno = 0
 upcomingstep.vertical.text.offset = 0,0
 upcomingstep.vertical.text.font = 1,0,1, 200, 200, 200
 upcomingstep.vertical.text.scale = 2,2
-upcomingstep.vertical.bg.offset = 0, 0
+upcomingstep.vertical.bg.offset = -20, -9
 upcomingstep.vertical.bg.anim = -1
 upcomingstep.vertical.bg.spr = 6551,0
 upcomingstep.vertical.bg.scale = 1,1
@@ -193,7 +238,6 @@ upcomingstep.horizontal.bg.palfx.mul = 150, 150, 150
 ; upcomingstep.horizontal.glyphs.palfx.mul = 0, 0, 0
 ; upcomingstep.horizontal.glyphs.palfx.add = 0, 0, 0
 
-
 ; CURRENTSTEP --------------------------------------------------------------
 ; CURRENTSTEP options can be specified for both vertical and horizontal layouts simultaneously.
 ; CURRENTSTEP VERTICAL -----------------------------------------------------
@@ -201,7 +245,7 @@ currentstep.vertical.text.offset = 0,0
 currentstep.vertical.text.font = 1,0,1
 currentstep.vertical.text.scale = 2,2
 currentstep.vertical.text.font.height = -1
-currentstep.vertical.bg.offset = 0, -16
+currentstep.vertical.bg.offset = -20, -9
 currentstep.vertical.bg.anim = -1
 currentstep.vertical.bg.spr = 6551,0
 currentstep.vertical.bg.scale = 1,1
@@ -258,7 +302,7 @@ completedstep.vertical.text.offset = 0,0
 completedstep.vertical.text.font = 1,0,1, 100, 100, 100
 completedstep.vertical.text.scale = 2,2
 completedstep.vertical.text.font.height = -1
-completedstep.vertical.bg.offset = 0, 0
+completedstep.vertical.bg.offset = -20, -9
 completedstep.vertical.bg.anim = -1
 completedstep.vertical.bg.spr = 6551,0
 completedstep.vertical.bg.scale = 1,1
@@ -335,6 +379,7 @@ glyphs.horizontal.align = 0
 ; totaltrialtimer shows the total time for the trial. It is erased if the pause menu is used to skip or rewind.
 ; currenttrialtimer shows the time spent on the current trial attempt.
 ; --------------------------------------------------------------------------
+trialcounter.anchor = left
 trialcounter.pos = 10,690
 trialcounter.font = 1,0,1
 trialcounter.scale = 2,2
@@ -342,11 +387,13 @@ trialcounter.font.height = -1
 trialcounter.text = "Trial %s of %t"
 trialcounter.allclear.text = "All Trials Clear"
 trialcounter.notrialsdata.text = "No Trials Data Found"
+totaltrialtimer.anchor = right
 totaltrialtimer.pos	= 1270,690
 totaltrialtimer.font = 1,0,-1
 totaltrialtimer.scale = 2,2
 totaltrialtimer.font.height = -1
 totaltrialtimer.text = "Trial Timer: %s"
+currenttrialtimer.anchor = right
 currenttrialtimer.pos = 1270,710
 currenttrialtimer.font = 1,0,-1
 currenttrialtimer.scale = 2,2
@@ -360,6 +407,7 @@ currenttrialtimer.text = "Current Trial: %s"
 ; --------------------------------------------------------------------------
 trialreset.enabled = true
 trialreset.buttonpress = d&w
+trialreset.text.anchor = left
 trialreset.text.pos = 10,710
 trialreset.text.font = 1,0,1
 trialreset.text.scale = 2,2
@@ -378,6 +426,9 @@ trialreset.text.text = "Hit d + w to reset position"
 ; textbox.portrait.<options>: allows a portrait to be drawn with or in the textbox. Sprite can be sourced from the character or the screenpack.
 ; --------------------------------------------------------------------------
 textbox.visible = true
+; Pinned to the right edge, which is what keeps its authored relationship to the step window when
+; the stage is not 16:9 - trialsteps.horizontal.window.withtextbox stops against it on that side.
+textbox.anchor = right
 textbox.pos = 740,120
 textbox.text.window = 50,0, 300,50
 textbox.text.offset = 10,10
@@ -416,9 +467,12 @@ textbox.portrait.facing = 1
 textbox.portrait.scale = 1.5, 1.5
 
 ; TRIAL SUCCESS BANNER -----------------------------------------------------
+; success.snd is read from trials.snd when the module ships one, otherwise from the
+; screenpack's system.snd. See "WHERE SPRITES AND SOUNDS COME FROM" near the top.
 ; --------------------------------------------------------------------------
+success.anchor = center
 success.pos	= 640,360
-success.snd	= 600,0 
+success.snd	= 600,0
 success.text.text = "SUCCESS"
 success.text.offset = 0,0
 success.text.font = 4,0,0, 255, 100, 100
@@ -439,7 +493,10 @@ success.front.displaytime = -1
 success.front.layerno = 0
 
 ; TRIALS ALL CLEAR BANNER --------------------------------------------------
+; allclear.snd comes from the same place success.snd does - trials.snd if the module ships
+; one, the screenpack's system.snd if it does not.
 ; --------------------------------------------------------------------------
+allclear.anchor = center
 allclear.pos = 640,360
 allclear.snd = 900,0
 allclear.text.text = "ALL CLEAR"
@@ -478,11 +535,14 @@ allclear.front.layerno = 0
 ; trialsmenu.layerno is the layer every element in this block sits on unless it names its own.
 ; The menu covers a live match, so it defaults to 2 rather than sharing layer 0 with the HUD.
 trialsmenu.layerno = 2
-trialsmenu.pos = 340,180
+; The rows are a centred block, so the whole menu travels as one with the middle of the screen.
+trialsmenu.anchor = center
+trialsmenu.pos = 320,240
 trialsmenu.spacing = 0,26
 trialsmenu.visibleitems = 9
 ; trialsmenu.window clips every row's text to this rectangle. Leave unset for no clipping.
 trialsmenu.window = 
+
 trialsmenu.bg.offset = 0,-40
 trialsmenu.bg.spr = 
 trialsmenu.bg.anim = -1
@@ -490,6 +550,7 @@ trialsmenu.bg.scale = 1.0, 1.0
 trialsmenu.bg.facing = 1
 trialsmenu.bg.displaytime = -1
 trialsmenu.bg.layerno = 0
+
 trialsmenu.front.offset = 0,-40
 trialsmenu.front.spr = 
 trialsmenu.front.anim = -1
@@ -497,21 +558,22 @@ trialsmenu.front.scale = 1.0, 1.0
 trialsmenu.front.facing = 1
 trialsmenu.front.displaytime = -1
 trialsmenu.front.layerno = 0
+
 ; trialsmenu.overlay dims whatever is behind the menu. Set visible to false to leave the match visible.
 ; alpha is source,destination, the same as every other overlay in the engine: 0,128 halves what is
 ; behind it. Raising the first number adds col to the picture rather than dimming it.
 trialsmenu.overlay.visible = true
 trialsmenu.overlay.window = 0,0,1280,720
 trialsmenu.overlay.col = 0,0,0
-trialsmenu.overlay.alpha = 0,128
+trialsmenu.overlay.alpha = 0,64
 trialsmenu.overlay.layerno = 0
 
 ; TITLE --------------------------------------------------------------------
-trialsmenu.title.offset = 0,-60
+trialsmenu.title.offset = 320,-52
 trialsmenu.title.font = 1,0,0, 255, 255, 255
 trialsmenu.title.scale = 2,2
 trialsmenu.title.font.height = -1
-trialsmenu.title.text = "Trials Selection"
+trialsmenu.title.text = "Trial Selection"
 
 ; FILTER HEADER ------------------------------------------------------------
 ; The difficulty filter the player cycles with left and right, and how many of it are cleared.
@@ -530,17 +592,19 @@ trialsmenu.title.text = "Trials Selection"
 ; trialsmenu.header.value.text formats the tally; "" leaves it off, which side by side often
 ; wants once six of them are on one line.
 trialsmenu.headerdisplay = default
-trialsmenu.header.offset = 0,-30
+trialsmenu.header.offset = 0, -26
 trialsmenu.header.spacing = 150,0
 trialsmenu.header.text.offset = 0,0
 trialsmenu.header.text.font = 1,0,1, 255, 220, 120
 trialsmenu.header.text.scale = 2,2
 trialsmenu.header.text.font.height = -1
-trialsmenu.header.value.offset = 300,0
+
+trialsmenu.header.value.offset = 640,0
 trialsmenu.header.value.font = 1,0,-1, 255, 220, 120
 trialsmenu.header.value.scale = 2,2
 trialsmenu.header.value.font.height = -1
 trialsmenu.header.value.text = "%s"
+
 ; The filter on show. Declare only what should differ from the elements above.
 trialsmenu.header.active.text.font = 1,0,1, 255, 255, 255
 trialsmenu.header.active.value.font = 1,0,-1, 255, 255, 255
@@ -557,6 +621,23 @@ trialsmenu.item.text.offset = 0,0
 trialsmenu.item.text.font = 1,0,1, 190, 190, 190
 trialsmenu.item.text.scale = 2,2
 trialsmenu.item.text.font.height = -1
+
+; trialsmenu.item.active.overlay is a rect drawn under the row the cursor is on, the highlight bar
+; that follows it down the list. It works like trialsmenu.overlay, except its window is x1,y1,x2,y2
+; taken from that row's origin rather than from the screen, so it travels with the cursor: y1 is how
+; far above the row's baseline the bar starts, y2 how far below it ends. Give the window no area, or
+; set visible to false, to leave the bar off and highlight the row by text colour alone.
+trialsmenu.item.active.overlay.visible = true
+trialsmenu.item.active.overlay.window = -12,-15, 652,10
+trialsmenu.item.active.overlay.col = 255,255,255
+trialsmenu.item.active.overlay.alpha = 48,255
+trialsmenu.item.active.overlay.layerno = 2
+; .selected is the trial currently in play, whether or not the cursor is on it.
+trialsmenu.item.selected.text.offset = 0,0
+trialsmenu.item.selected.text.font = 1,0,1, 120, 255, 160
+trialsmenu.item.selected.text.scale = 2,2
+trialsmenu.item.selected.text.font.height = -1
+
 trialsmenu.item.bg.offset = 0,0
 trialsmenu.item.bg.spr = 
 trialsmenu.item.bg.anim = -1
@@ -564,6 +645,7 @@ trialsmenu.item.bg.scale = 1.0, 1.0
 trialsmenu.item.bg.facing = 1
 trialsmenu.item.bg.displaytime = -1
 trialsmenu.item.bg.layerno = 0
+
 ; .active is the row the cursor is on.
 trialsmenu.item.active.text.offset = 0,0
 trialsmenu.item.active.text.font = 1,0,1, 255, 255, 255
@@ -576,11 +658,6 @@ trialsmenu.item.active.bg.scale = 1.0, 1.0
 trialsmenu.item.active.bg.facing = 1
 trialsmenu.item.active.bg.displaytime = -1
 trialsmenu.item.active.bg.layerno = 0
-; .selected is the trial currently in play, whether or not the cursor is on it.
-trialsmenu.item.selected.text.offset = 0,0
-trialsmenu.item.selected.text.font = 1,0,1, 120, 255, 160
-trialsmenu.item.selected.text.scale = 2,2
-trialsmenu.item.selected.text.font.height = -1
 
 ; PER-CATEGORY OVERRIDES ---------------------------------------------------
 ; Any of the row and banner elements above can be respecified for one difficulty category, by
@@ -591,6 +668,7 @@ trialsmenu.item.selected.text.font.height = -1
 ;   trialsmenu.item.<category>.selected.text.*   ...when it is the trial in play
 ;   trialsmenu.item.<category>.bg.*              its row background
 ;   trialsmenu.item.<category>.active.bg.*       ...under the cursor
+;   trialsmenu.item.<category>.active.overlay.*  its highlight bar, under the cursor
 ;   trialsmenu.header.<category>.text.*          the banner, while that filter is showing
 ;   trialsmenu.header.<category>.value.*         its cleared tally
 ;   trialsmenu.header.<category>.bg.*            its background
@@ -608,7 +686,7 @@ trialsmenu.item.selected.text.font.height = -1
 ;   trialsmenu.item.expert.text.font = 1,0,1, 255, 90, 90
 ;   trialsmenu.item.expert.text.offset = 12,0
 ;   trialsmenu.item.expert.active.text.font = 1,0,1, 255, 160, 160
-trialsmenu.header.expert.bg.spr = 6550,0
+;   trialsmenu.header.expert.bg.spr = 6550,0
 ; --------------------------------------------------------------------------
 
 ; CURSOR -------------------------------------------------------------------
@@ -628,7 +706,7 @@ trialsmenu.cursor.layerno = 0
 ; "CLEAR" text. Set a state's text to "" and leave its art unset to show nothing for that state.
 ; Only one of the two is ever drawn, so .scale applies to whichever it is - size it for your
 ; sprite once you name one.
-trialsmenu.status.offset = 300,0
+trialsmenu.status.offset = 500,0
 trialsmenu.status.cleared.offset = 0,0
 trialsmenu.status.cleared.spr = 
 trialsmenu.status.cleared.anim = -1
@@ -652,7 +730,7 @@ trialsmenu.status.uncleared.font.height = -1
 
 ; BEST TIME ----------------------------------------------------------------
 ; %s is the best clear time. Set text to "" to leave times off the menu entirely.
-trialsmenu.besttime.offset = 420,0
+trialsmenu.besttime.offset = 640,0
 trialsmenu.besttime.font = 1,0,-1, 190, 190, 190
 trialsmenu.besttime.scale = 2,2
 trialsmenu.besttime.font.height = -1
@@ -663,23 +741,41 @@ trialsmenu.besttime.text = "%s"
 ; to trialsmenu.pos. Like the clear marker, each arrow takes either art or a label: name a sprite
 ; or an anim and it is drawn, leave both unset and .text is drawn instead. Only one of the two is
 ; ever drawn, so .scale applies to whichever it is. Set .text to "" with no art to hide an arrow.
-trialsmenu.arrow.up.offset = 300,-20
+trialsmenu.arrow.up.offset = 660, 0
 trialsmenu.arrow.up.spr = 
-trialsmenu.arrow.up.anim = -1
-trialsmenu.arrow.up.scale = 2,2
+trialsmenu.arrow.up.anim = 65510
+trialsmenu.arrow.up.scale = 1,1
 trialsmenu.arrow.up.facing = 1
 trialsmenu.arrow.up.displaytime = -1
 trialsmenu.arrow.up.layerno = 0
-trialsmenu.arrow.up.text = "^"
-trialsmenu.arrow.up.font = 1,0,0, 255, 255, 255
-trialsmenu.arrow.up.font.height = -1
-trialsmenu.arrow.down.offset = 300,240
+trialsmenu.arrow.up.text = 
+trialsmenu.arrow.up.font = 
+trialsmenu.arrow.up.font.height = 
+trialsmenu.arrow.down.offset = 660,210
 trialsmenu.arrow.down.spr = 
-trialsmenu.arrow.down.anim = -1
-trialsmenu.arrow.down.scale = 2,2
+trialsmenu.arrow.down.anim = 65511
+trialsmenu.arrow.down.scale = 1,1
 trialsmenu.arrow.down.facing = 1
-trialsmenu.arrow.down.displaytime = -1
+trialsmenu.arrow.down.displaytime = 
 trialsmenu.arrow.down.layerno = 0
-trialsmenu.arrow.down.text = "v"
-trialsmenu.arrow.down.font = 1,0,0, 255, 255, 255
-trialsmenu.arrow.down.font.height = -1
+trialsmenu.arrow.down.text = 
+trialsmenu.arrow.down.font = 
+trialsmenu.arrow.down.font.height = 
+
+; ANIMATIONS -------------------------------------------------------------
+; Here you can drop animations specific to trials mode.
+; ------------------------------------------------------------------------
+
+[Begin Action 65510] ; Up arrow for trials menu
+6551,0, 0,0, 20,,AS0D256, 1,1, 90
+Interpolate Blend
+6551,0, 0,0, 60,,AS128D128, 1,1, 90
+Interpolate Blend
+6551,0, 0,0, 20,,AS0D256, 1,1, 90
+
+[Begin Action 65511] ; Down arrow for trials menu
+6551,0, 16,0, 20,,AS0D256, 1,1, 270
+Interpolate Blend
+6551,0, 16,0, 60,,AS128D128, 1,1, 270
+Interpolate Blend
+6551,0, 16,0, 20,,AS0D256, 1,1, 270

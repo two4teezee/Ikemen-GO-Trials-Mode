@@ -2,7 +2,7 @@
 ; ---- +system.def - default menu and pause menu extensions.
 ; ---- This fileloads this module and its menu text into the main menu. 
 ; ---- It also provides the menu text for the Trials Pause Menu, which is 
-; ---- a separate menu that appears when the player pauses during a Trial. 
+; ----- a separate menu that appears when the player pauses during a Trial. 
 ; ---- The Trials Pause Menu is not part of the main menu, so it is not 
 ; ---- loaded by the screenpack's system.def. The Trials Pause Menu is 
 ; ---- loaded by the Trials module itself, which is why this file is in 
@@ -54,7 +54,8 @@ menu.itemname.trialsopts.trialsspeedrun = Speedrun Mode
 menu.itemname.trialsopts.trialadvancement = Advancement
 menu.itemname.trialsopts.trialresetonsuccess = Reset on Success
 menu.itemname.trialsopts.trialslayout = Layout
-menu.itemname.trialstextboxes = Textboxes
+menu.itemname.trialsopts.trialstextboxes = Textboxes
+menu.itemname.trialsopts.trialsprogress.spacer = -
 menu.itemname.trialsopts.trialsprogress = Clear Trials Progress
 menu.itemname.trialsopts.trialsprogress.trialsclearcharprogress = Clear This Character's Progress
 menu.itemname.trialsopts.trialsprogress.trialsclearcharprogress.trialsclearcharconfirm = Yes, Erase This Character
