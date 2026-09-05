@@ -1,0 +1,78 @@
+; -- IKEMEN GO TRIALS MODE EXTERNAL MODULE --------------------------------
+; ---- +system.def - default menu and pause menu extensions.
+; ---- This fileloads this module and its menu text into the main menu. 
+; ---- It also provides the menu text for the Trials Pause Menu, which is 
+; ----- a separate menu that appears when the player pauses during a Trial. 
+; ---- The Trials Pause Menu is not part of the main menu, so it is not 
+; ---- loaded by the screenpack's system.def. The Trials Pause Menu is 
+; ---- loaded by the Trials module itself, which is why this file is in 
+; ---- the Trials module folder.
+; --
+; -- Module developed by two4teezee
+; -------------------------------------------------------------------------
+
+[Title Info]
+; I recommend you edit your screenpack's system.def to make sure Trials show where you want in your main menu.
+; Otherwise, you can uncomment this line to show Trials Mode at the end of the main menu list.
+menu.itemname.trials = "Trials Mode"
+
+[Select Info]
+title.trials.text = "Trials Mode"
+
+[Trials Pause Menu]
+; Trials Pause option names and labels.
+menu.valuename.trialadvancement_autoadvance = Auto-Advance
+menu.valuename.trialadvancement_repeat = Repeat
+menu.valuename.trialresetonsuccess_enabled = Yes
+menu.valuename.trialresetonsuccess_disabled = No
+menu.valuename.trialslayout_vertical = Vertical
+menu.valuename.trialslayout_horizontal = Horizontal
+menu.valuename.trialstextboxes_show = Show
+menu.valuename.trialstextboxes_hide = Hide
+menu.valuename.trialsspeedrun_enabled = On
+menu.valuename.trialsspeedrun_disabled = Off
+menu.valuename.trialsclearprogress_ready =
+menu.valuename.trialsclearprogress_cleared = Cleared
+
+; Trial difficult labels.
+; "All" is every Trial;
+; "Other" collects the ones whose def declares no trial.difficulty. 
+menu.valuename.trialsdifficulty_all = All
+menu.valuename.trialsdifficulty_beginner = Beginner
+menu.valuename.trialsdifficulty_intermediate = Intermediate
+menu.valuename.trialsdifficulty_advanced = Advanced
+menu.valuename.trialsdifficulty_expert = Expert
+menu.valuename.trialsdifficulty_none = Other
+
+menu.itemname.back = Continue
+menu.itemname.trialslist = Trials List
+menu.itemname.trialslist.back = Back
+menu.itemname.trialsopts = Trials Mode Options
+menu.itemname.trialsopts.trialsspeedrun = Speedrun Mode
+; menu.itemname.trialsopts.nexttrial = Next Trial ; Feature is supported.
+; menu.itemname.trialsopts.previoustrial = Previous Trial ; Feature is supported.
+menu.itemname.trialsopts.trialadvancement = Advancement
+menu.itemname.trialsopts.trialresetonsuccess = Reset on Success
+menu.itemname.trialsopts.trialslayout = Layout
+menu.itemname.trialsopts.trialstextboxes = Textboxes
+menu.itemname.trialsopts.trialsprogress.spacer = -
+menu.itemname.trialsopts.trialsprogress = Clear Trials Progress
+menu.itemname.trialsopts.trialsprogress.trialsclearcharprogress = Clear This Character's Progress
+menu.itemname.trialsopts.trialsprogress.trialsclearcharprogress.trialsclearcharconfirm = Yes, Erase This Character
+menu.itemname.trialsopts.trialsprogress.trialsclearcharprogress.back = Cancel
+menu.itemname.trialsopts.trialsprogress.trialsclearprogress = Clear All Progress
+menu.itemname.trialsopts.trialsprogress.trialsclearprogress.trialsclearconfirm = Yes, Erase Everything
+menu.itemname.trialsopts.trialsprogress.trialsclearprogress.back = Cancel
+menu.itemname.trialsopts.trialsprogress.spacer = -
+menu.itemname.trialsopts.trialsprogress.back = Back
+menu.itemname.trialsopts.back = Back
+
+menu.itemname.menuinput = Button Config
+menu.itemname.menuinput.keyboard = Key Config
+menu.itemname.menuinput.gamepad = Joystick Config
+menu.itemname.menuinput.spacer = -
+menu.itemname.menuinput.inputdefault = Default
+menu.itemname.menuinput.back = Back
+menu.itemname.commandlist = Command List
+menu.itemname.characterchange = Character Change
+menu.itemname.exit = Exit
