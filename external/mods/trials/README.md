@@ -1,7 +1,7 @@
 # Ikemen GO Trials Mode v1.0
-> Compatible with Ikemen GO Nightly Builds newer than 10/10/2025.
+> Compatible with Ikemen GO 1.00 RC3 and newer.
 
-> Note: for older Ikemen GO Builds, check releases tab for a compatible release of Trials Mode .
+> Note: for older Ikemen GO Builds, check releases tab for a compatible release of Trials Mode.
 
 > Module developed by two4teezee
 ---
@@ -21,6 +21,22 @@ As a starting point, you can use the templates found in the trials mode readme t
 You can follow the instructions in the readme to create trials for any character you would like. 
 I also often create new trials files for my favorite characters and share them [here](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files).
 7. Share your trials definition files with others!
+
+## Package Contents and Optional Files
+Everything below ships inside `external/mods/trials/`.
+
+| File | Role | Contents |
+|---|---|---|
+| `trials.lua` | The module itself — the only file the engine loads directly. Implements the game mode: parses each character's `trials.def`, checks trial steps against match state, draws the Trial Select/pause menus, and reads/writes `config.ini` and `save/trials.json`. | Lua source - you likely won't change any of this code. |
+| `system.def` | The mode's own UI configuration, loaded by `trials.lua` (not by the screenpack). Everything under `[Trials Mode]`: title text, layout (vertical/horizontal), Trial Select banner and rows, glyph/anim wiring, textbox styling. | This file is how you configure Trials Mode's appearance. |
+| `+system.def` | The hand-off into the *screenpack's* menus. Provides the main-menu entry (`[Title Info]`, `[Select Info]`) and the `[Trials Pause Menu]` section the engine turns into the in-match pause menu. | This file contains Menu item names, value labels (Auto-Advance/Repeat, Vertical/Horizontal, difficulty labels, etc.), and instructions for merging into the screenpack's own `system.def`. |
+| `trials.zss` | Engine-side state and helper functions the mode depends on (camera framing, dummy/player repositioning, button-jam handling). Loaded automatically by `trials.lua`; not part of the screenpack. | Global states - you won't edit this file. |
+| `trials.sff` | The mode's bundled sprite sheet, auto-detected on load. Supplies default art (backgrounds, banners, clear markers) so the mode looks right even if the screenpack's own `system.sff` doesn't carry matching sprites. | Sprite data - you can drop your sprites for the Trials Mode UI in this file, or in your `system.sff`. |
+| `config.ini` | Per-install storage for player preferences (Advancement, Layout, Reset on Success, Textboxes, timers). Rewritten by the module the moment a player changes one in the pause menu, so hand edits/comments here don't persist. | Contains options key/value pairs - you likely will not edit this file. |
+| `README.md` | This file — a reference for you to follow. | Installation steps, the `trials.def` authoring reference (trial and trial-step parameters), UI/menu customization guide, Speedrun and Progress behavior. |
+| `LICENSE` | The module's license terms. | GNU LGPL v2.1 text. |
+
+Not shipped, but referenced by the README: a sample `trials.def` (and matching character `.def` edit) for `kfm_zss`, and additional community trials files at the [Sample Trials Definition Files repo](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files). `trials.snd` and `trials.air` are optional files a creator may drop in beside `trials.lua`; the module ships neither.
 
 ## General info
 The Trials Mode provides new screenpack features and engine features so that creators can create trials for their character creations, and fully customize the way the trials are presented. 
@@ -46,43 +62,56 @@ The [Trials Mode wiki](https://github.com/two4teezee/Ikemen-GO-Trials-Mode/wiki)
 
 Trials data is created on a per-character basis. To specify new trials for a character, you'll want to create a new file in the character's folder to hold the trials data. For the purposes of this tutorial, I name this file `trials.def`, but you can call it whatever you want. As mentioned before, each character gets its own `trials.def`. You can specify as many trials as you want, in any order you want.
 
+### Editing the Character's def File
+
+First you'll want to modify the character's definition file so that Ikemen knows to read the trials data for that character. 
+In the character's definition file (i.e. `kfmZ.def` for kfmZ), under `[Files]`, add the line `trials = trials.def`.
+
+```
+[Files]
+trials = trials.def        ;Ikemen feature: Trials mode data
+```
+
+### Creating the first trial in your `trials.def` file
+Declares the trial's section header, e.g. `[TrialDef, KFM's First Trial]`. `TrialDef` is mandatory; the trial title after the comma is optional.
+
+### Trial Definition Parameters 
+The options below are defined once per trial. 
+
+| Parameter | Required | Format | Default | Description |
+|---|---|---|---|---|
+| `trial.difficulty` | Optional | `Beginner`, `Intermediate`, `Advanced`, `Expert` (case-insensitive) | — (uncategorized) | Puts the trial behind that filter in the Trial Select view, which the player cycles with left and right, and counts towards that filter's cleared tally. Trials that don't declare one are collected under "Other". If no trial in the file declares a difficulty, there is nothing to filter by and the list stays flat and in def order, exactly as before. An unrecognised value is ignored, with a warning printed to the console. |
+| `trial.dummymode` | Optional | `stand`, `crouch`, `jump`, `wjump` | `stand` | Sets the dummy's stance/mode for the trial. |
+| `trial.guardmode` | Optional | `none`, `auto` | `none` | Sets whether the dummy blocks automatically (`auto`) or not (`none`). |
+| `trial.dummybuttonjam` | Optional | `none`, `a`, `b`, `c`, `x`, `y`, `z`, `start`, `d`, `w` | `none` | Sets a button for the dummy to hold during the trial. |
+| `trial.dummylife` | Optional | integer | — | Sets the dummy's life total. |
+| `trial.playerlife` | Optional | integer | — | Sets the player's life total. Useful for trials that involve desperation moves or require a specific life state. |
+| `trial.dummypos` | Optional | `left-corner`, `right-corner`, `far`, `medium`, `close` | center stage | Sets the dummy's position on the stage. If enabled, the player can reset positioning according to this information by hitting the d and w keys simultaneously. |
+| `trial.playerpos` | Optional | `left-corner`, `right-corner`, `far`, `medium`, `close` | center stage | Sets the player's position on the stage. If enabled, the player can reset positioning according to this information by hitting the d and w keys simultaneously. |
+| `trial.showvarvalpairs` | Optional | comma-separated integers, in pairs (0..n pairs) | — | Determines whether a trial should be displayed based on the specified variable and value pair(s). Useful if a trial should only be displayed when the character has a specific variable/value pair set, such as being in a specific groove or mode. If specified, the trial only displays if all variable-value pairs return true. These pairs are for the character only (not for helpers). Variables can test multiple values, separated by `\|` (e.g. `trial.showforvarvalpairs = 12, 0\|2\|4` tests var(12) for values 0, 2, and 4). |
+| `trial.textbox` | Optional | multilingual (string) | — | Displays specified text in a box specified in the textbox settings in `system.def` under `[Trials Mode]`. Supports specification as `trial.textbox`, or `trial.textbox.en`, `trial.textbox.es`, etc. for multilingual support. Defaults to `trial.textbox.en` (or `trial.textbox`) if the selected language cannot be matched. |
+
+### Trial Step Definition Parameters
+These parameters are used to defined each trial step, where 'X' is the trial step number starting at '1'.
+
+| Parameter | Required | Format | Default | Description |
+|---|---|---|---|---|
+| `trialstep.X.text` | Optional | multilingual (string) | — | Text for trial step (only displayed in vertical trials layout). Supports specification as `trialstep.X.text`, or `trialstep.X.text.en`, `trialstep.X.text.es`, etc. for multilingual support. Defaults to `trialstep.X.text.en` (or `trialstep.X.text`) if the selected language cannot be matched. |
+| `trialstep.X.glyphs` | Optional | string (see [Glyph documentation](https://github.com/ikemen-engine/Ikemen-GO/wiki/Miscellaneous-info#movelists)) | — | Same syntax as movelist glyphs. Glyphs are displayed in vertical and horizontal trials layouts. |
+| `trialstep.X.stateno` | Mandatory* | integer or comma-separated integers, or integers separated by vertical separator | — | State to be checked to pass trial, whether it's the main character or a helper. On a projectile step it means the state the projectile was FIRED FROM, which the module records when the projectile spawns — note that for a projectile fired by way of a helper this is the root's move state (e.g. 1000 for a Hadoken thrown by a helper out of state 1000), not the helper's own state number. *Optional, and safely omitted, on a step whose `projid` already identifies the projectile on its own. |
+| `trialstep.X.animno` | Optional | integer or comma-separated integers, or integers separated by vertical separator | — | Identifies animno to be checked to pass trial. Useful in certain cases. |
+| `trialstep.X.hitcount` | Optional | integer or comma-separated integers | `1` | Specifies a hit count criteria to meet before proceeding to the next trial step. Useful for multi-hit moves, or for moves that don't hit (e.g. taunts). |
+| `trialstep.X.isthrow` | Optional | `true`/`false`, or comma-separated true/false | `false` | Identifies whether the trial step is a throw. |
+| `trialstep.X.iscounterhit` | Optional | `true`/`false`, or comma-separated true/false | `false` | Identifies whether the trial step should be a counter hit. Typically does not work with helpers or projectiles. |
+| `trialstep.X.ishelper` | Optional | `true`/`false`, or comma-separated true/false | `false` | Identifies whether the trial step is a hit from a helper. |
+| `trialstep.X.isproj` | Optional | `true`/`false`, or comma-separated true/false | `false` | Identifies whether the trial step is a hit from a projectile. The step passes only when the projectile actually connects with the dummy, not when it is fired. Not needed alongside a `projid` (which already identifies the step as a projectile) — only required when the projectile is identified by `stateno` instead. Setting both is harmless. |
+| `trialstep.X.projid` | Optional | integer or comma-separated integers, or integers separated by vertical separator | — | The ID given to the projectile by the character's `Projectile` sctrl (authors spell it `ProjID`, `projid`, or plain `id`). The step passes on the frame a projectile with that ID hits the dummy.<br>• Use `\|` where a character fires more than one projectile for the same move, or the ID is an expression (e.g. `projid = 3005\|3006` for `ID = 3005+(var(5)=2)`).<br>• A `projid` alone is enough to mark a step as a projectile step; `isproj` isn't needed alongside one.<br>• Add `stateno` too when a character reuses one ID across several moves (e.g. CvS Sagat's ProjID 1000 across states 1000/1050/1070 — `projid = 1000` with `stateno = 1070` isolates the heavy Tiger Shot).<br>• If the sctrl declares no ID, it defaults to 0, so `projid = 0` matches every ID-less projectile — pair with `stateno` to narrow it down.<br>• A step with `isproj = true` and no `projid` matches on `stateno` alone and still requires a connect. `projid` has no effect when `hitcount = 0`. |
+| `trialstep.X.validforvarvalpairs` | Optional | comma-separated integers, in pairs (0..n pairs) | — | Sister to `showforvarvalpairs`. Optionally checks a trial step against var-value pairs — useful when forcing completion under specific conditions (e.g. a custom combo state). Pairs are valid for the entire trial step, regardless of condensed terminology. |
+| `trialstep.X.validfortickcount` | Optional | integer, or comma-separated integers | nil | Pauses the trials checking logic until the next hit is registered for the specified tickcount. |
+
+### Sample Trial Definition File
+
 A sample `trials.def` for kfm_zss is provided below. The trials are presented to the player in the order in which they are listed in `trials.def`. Detailed information for each configurable parameter can be found in this template.
-
-; ===============================
-; TrialDef Parameter Descriptions
-; ===============================
-; [TriafDef, TrialTitle] - [TrialDef] mandatory - trial title after the comma is optional.
-
-; trial.difficulty - optional - valid options are Beginner, Intermediate, Advanced, Expert (case-insensitive). Puts the trial behind that filter in the Trial Select view, which the player cycles with left and right, and counts towards that filter's cleared tally. Trials that don't declare one are collected under "Other". If no trial in the file declares a difficulty, there is nothing to filter by and the list stays flat and in def order, exactly as before. An unrecognised value is ignored, with a warning printed to the console.
-; trial.dummymode - optional - valid options are stand (default), crouch, jump, wjump. Defaults to stand if unspecified.
-; trial.guardmode - optional - valid options are none, auto. Defaults to none if unspecified.
-; trial.dummybuttonjam - optional - valid options are none, a, b, c, x, y, z, start, d, w. Defaults to none if unspecified.
-; trial.dummylife - optional - sets the dummy's life total.
-; trial.playerlife - optional - sets the player's life total. Useful for trials that involve desparation moves or require a specific life state.
-; trial.dummypos - optional - sets the dummy's position on the stage. Valid options are left-corner, right-corner, far, medium, close. If enabled, the player can reset positioning according to this information by hitting the d and w keys simultaneously. Defaults to center stage.
-; trial.playerpos - optional - sets the player's position on the stage. Valid options are left-corner, right-corner, far, medium, close. If enabled, the player can reset positioning according to this information by hitting the d and w keys simultaneously. Defaults to center stage.
-; trial.showvarvalpairs - optional - (comma-separated integers, specified in pairs, can specify 0..n pairs). Used to determine whether a trial should be displayed based on the specified variable and value pair(s) in this field. Useful if a trial should only be displayed when character has a specific variable/value pair set, such as being in a specific groove or mode. If specified, the trial will only be displayed if all variable-value pairs return true. These variable-value pairs should only be for the character (not for helpers). Finally, variables can have multiple specified values to test against, which should be separated by the "|" character (e.g. `trial.showforvarvalpairs = 12, 0|2|4` would test var(12) for values 0, 2, and 4).
-; trial.textbox - optional - multilingual - displays specified text in a box specified in the textbox settings in system.def under [Trials Mode]. Supports specification as trial.textbox, or trial.textbox.en, trial.textbox.es, etc. for multilingual support. Will default to trial.textbox.en (or trial.textbox) if selected language cannot be matched.
-
-; The options above are defined once per trial. The other parameters can be defined for each trial step - notice the syntax, where X is the trial number.
-
-; trialstep.X.text - optional - multilingual - (string). Text for trial step (only displayed in vertical trials layout). Supports specification as trialstep.X.text, or trialstep.X.text.en, trialstep.X.text.es, etc. for multilingual support. Will default to trialstep.X.text.en (or trialstep.X.text) if selected language cannot be matched.
-; trialstep.X.glyphs - optional - (string, see Glyph documentation [https://github.com/ikemen-engine/Ikemen-GO/wiki/Miscellaneous-info#movelists] for syntax). Same syntax as movelist glyphs. Glyphs are displayed in vertical and horizontal trials layouts.
-; trialstep.X.stateno - mandatory - (integer or comma-separated integers). State to be checked to pass trial. This is the state whether it's the main character or a helper. On a projectile step it means the state the projectile was FIRED FROM, which the module records when the projectile spawns - note that for a projectile fired by way of a helper this is the root's move state (e.g. 1000 for a Hadoken thrown by a helper out of state 1000), not the helper's own state number. Optional, and safely omitted, on a step whose "projid" already identifies the projectile on its own.
-
-; trialstep.X.animno - optional - (integer or comma-separated integers). Identifies animno to be checked to pass trial. Useful in certain cases.
-; trialstep.X.hitcount - optional - (integer or comma-separated integers), will default to 1 if not defined. In some instances, you might want to specify a trial step to meet a hit count criteria before proceeding to the next trial step. Useful for multi-hit moves, or for moves that don't hit (e.g. taunts).
-; trialstep.X.isthrow - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step is a throw. Should be 'true' is trial step is a throw.
-; trialstep.X.iscounterhit - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step should be a counter hit. Typically does not work with helpers or projectiles.
-; trialstep.X.ishelper - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step is a helper. Should be 'true' is trial step is a hit from a helper.
-; trialstep.X.isproj - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step is a projectile. Should be 'true' is trial step is a hit from a projectile. The step passes only when the projectile actually connects with the dummy, not when it is fired. Not needed on a step that declares a "projid", since a projid already identifies the step as a projectile - it is only required when the projectile is identified by "stateno" instead. Setting both is harmless and reads more clearly in a def.
-; trialstep.X.projid - optional - (integer or comma-separated integers). The ID given to the projectile by the character's Projectile sctrl - authors spell that parameter "ProjID", "projid" or plain "id" interchangeably. The step passes on the frame a projectile with that ID hits the dummy. Use the "|" operand where a character fires more than one projectile for the same move, or where the ID is an expression (e.g. `trialstep.1.projid = 3005|3006` for a projectile whose sctrl reads `ID = 3005+(var(5)=2)`).
-;     A projid alone is enough to mark a step as a projectile step; isproj is not needed alongside one, though setting both is harmless and reads more clearly.
-;     Add "stateno" as well when a character reuses one ID across several moves, which is common - both must then match. CVS Sagat, for instance, fires ProjID 1000 from states 1000, 1050 and 1070 (light, medium and heavy Tiger Shot) and they all share projanim 1005, so the ID and the anim cannot tell them apart; `projid = 1000` with `stateno = 1070` selects the heavy version alone.
-;     If the character's Projectile sctrl declares no ID at all, the engine leaves it at 0, so `projid = 0` matches it - but that matches every ID-less projectile the character has, so pair it with a stateno to narrow it down.
-;     On a step with isproj = true and no projid, the step matches on "stateno" alone and still requires the projectile to connect. A projid has no effect on a step with hitcount = 0, since a step that never registers a hit has no projectile ID to read.
-; trialstep.X.validforvarvalpairs - optional - (comma-separated integers, specified in pairs, can specify 0..n pairs). Sister functionality to "showforvarvalpairs". These variable-value pairs are used to optionally check a trial step. Useful if you are forcing the trial step to be completed when certain var-val pairs are met (for instance, while in a custom combo state). Variable-value pairs are considered valid for entire trial step (regardless if the trial step is specified using condensed terminology).
-; trialstep.X.validfortickcount - optional (integer, or comma-separate integers), will default to nil if not defined. Makes the trials checking logic pause until the next hit is registered for the tickcount specified.
 
 ```
 [TrialDef, KFM's First Trial]
@@ -229,16 +258,6 @@ trialstep.5.text = Triple Kung Fu Palm
 trialstep.5.glyphs = _QDF_QDF^P
 trialstep.5.stateno = 3000
 trialstep.5.hitcount = 3
-```
-
-## Editing the Character's Def File
-
-Finally, you'll want to modify the character's definition file so that Ikemen knows to read the trials data for that character. 
-In the character's definition file (i.e. `kfmZ.def` for kfmZ), under `[Files]`, add the line `trials = trials.def`.
-
-```
-[Files]
-trials = trials.def        ;Ikemen feature: Trials mode data
 ```
 
 ## Pause Menu Options
