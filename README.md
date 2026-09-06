@@ -1,46 +1,53 @@
-# Ikemen GO Trials Mode v1.0
-> Compatible with Ikemen GO 1.00 RC3 and newer.
+<div align="center">
 
-> Note: for older Ikemen GO Builds, check releases tab for a compatible release of Trials Mode.
+<img src="https://private-user-images.githubusercontent.com/76234389/646944453-bfb7bdda-f66d-40dc-98b1-77a4979bdbbe.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3ODg3MTI4OTYsIm5iZiI6MTc4ODcxMjU5NiwicGF0aCI6Ii83NjIzNDM4OS82NDY5NDQ0NTMtYmZiN2JkZGEtZjY2ZC00MGRjLTk4YjEtNzdhNDk3OWJkYmJlLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNjA5MDYlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjYwOTA2VDE2MzYzNlomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTViZmQ0MWI3ZDYyMGI2N2E4NmViZGY3NDc2Y2EyOGYwNDA5MWRlZGQyYTgzOWU5NmMxMzlhY2M3YWI3MTAwYjImWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JnJlc3BvbnNlLWNvbnRlbnQtdHlwZT1pbWFnZSUyRnBuZyJ9.Y6UkQucvoMrMW5IljdnZ8dfEfu2UOnrr2pjJrKpoupI" alt="RomMCart" width="240" />
 
-> Module developed by two4teezee
 ---
+
+A module for Ikemen GO delivering a complete Trials Mode experience.
+</div>
+
+## Overview
+The Trials Mode provides new screenpack features and engine features so that creators can create trials for their character creations, and fully customize the way the trials are presented. 
+The Trials Mode ships with several options for display of trials data inside the game mode, a variety of pause menu options to navigate the trials for each character, and the ability to apply palfx to character portraits in the Select Screen to easily convey which characters have valid Trials definition files.
+
 This external module offers a universal solution for Trials Mode. 
 This markdown file is best viewed in Github or your favorite markdown file viewer. 
 For greater detail on how to create trials definitions, or the customization options supported, please consult this readme, or [the wiki](https://github.com/two4teezee/Ikemen-GO-Trials-Mode/wiki). 
 You can find sample trials files for some of my favorite characters in [this repo](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files).
 
+## Preview
+
+## Features
+
+
 ## Installation
 1. Extract archive content into your Ikemen directory - you should see new content in "./external/mods/trials/"
 2. (Optional but probably highly desired) Modify your screenpack's `system.def` to show Trials Mode in the main menu where you would like it to. 
 Check the module's `+system.def` file for instructions. 
-4. (Optional) Add sprites to your screenpack's `system.sff`, or alternatively, to the module's `trials.sff`, as required.
-5. (Optional) Add sounds to your screenpack's `system.snd`, or alternatively, to a module-specific `trials.snd` placed beside `trials.lua`, as required.
-6. Create new trials for your character(s). 
+4. (Optional) Modify the look and feel of Trials Mode by editing the module's `system.def`, `trials.sff` and `trials.snd`, or add sprites and sounds to your screenpack's `system.sff` and `system.snd`.
+5. Create new trials for your character(s). 
 As a starting point, you can use the templates found in the trials mode readme to create a `trials.def` file and edit `kfm_zss.def`, both in `"./chars/kfm_zss"`. 
 You can follow the instructions in the readme to create trials for any character you would like. 
 I also often create new trials files for my favorite characters and share them [here](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files).
-7. Share your trials definition files with others!
+6. Share your trials definition files with others!
 
 ## Package Contents and Optional Files
 Everything below ships inside `external/mods/trials/`.
 
 | File | Role | Contents |
 |---|---|---|
-| `trials.lua` | The module itself — the only file the engine loads directly. Implements the game mode: parses each character's `trials.def`, checks trial steps against match state, draws the Trial Select/pause menus, and reads/writes `config.ini` and `save/trials.json`. | Lua source - you likely won't change any of this code. |
-| `system.def` | The mode's own UI configuration, loaded by `trials.lua` (not by the screenpack). Everything under `[Trials Mode]`: title text, layout (vertical/horizontal), Trial Select banner and rows, glyph/anim wiring, textbox styling. | This file is how you configure Trials Mode's appearance. |
 | `+system.def` | The hand-off into the *screenpack's* menus. Provides the main-menu entry (`[Title Info]`, `[Select Info]`) and the `[Trials Pause Menu]` section the engine turns into the in-match pause menu. | This file contains Menu item names, value labels (Auto-Advance/Repeat, Vertical/Horizontal, difficulty labels, etc.), and instructions for merging into the screenpack's own `system.def`. |
-| `trials.zss` | Engine-side state and helper functions the mode depends on (camera framing, dummy/player repositioning, button-jam handling). Loaded automatically by `trials.lua`; not part of the screenpack. | Global states - you won't edit this file. |
-| `trials.sff` | The mode's bundled sprite sheet, auto-detected on load. Supplies default art (backgrounds, banners, clear markers) so the mode looks right even if the screenpack's own `system.sff` doesn't carry matching sprites. | Sprite data - you can drop your sprites for the Trials Mode UI in this file, or in your `system.sff`. |
 | `config.ini` | Per-install storage for player preferences (Advancement, Layout, Reset on Success, Textboxes, timers). Rewritten by the module the moment a player changes one in the pause menu, so hand edits/comments here don't persist. | Contains options key/value pairs - you likely will not edit this file. |
+| `system.def` | The mode's own UI configuration, loaded by `trials.lua` (not by the screenpack). Everything under `[Trials Mode]`: title text, layout (vertical/horizontal), Trial Select banner and rows, glyph/anim wiring, textbox styling. | This file is how you configure Trials Mode's appearance. |
+| `trials.lua` | The module itself — the only file the engine loads directly. Implements the game mode: parses each character's `trials.def`, checks trial steps against match state, draws the Trial Select/pause menus, and reads/writes `config.ini` and `save/trials.json`. | Lua source - you likely won't change any of this code. |
+| `trials.sff` | The mode's bundled sprite sheet, auto-detected on load. Supplies default art (backgrounds, banners, clear markers) so the mode looks right even if the screenpack's own `system.sff` doesn't carry matching sprites. | Sprite data - you can drop your sprites for the Trials Mode UI in this file, or in your `system.sff`. |
+| `trials.zss` | Engine-side state and helper functions the mode depends on (camera framing, dummy/player repositioning, button-jam handling). Loaded automatically by `trials.lua`; not part of the screenpack. | Global states - you won't edit this file. |
 | `README.md` | This file — a reference for you to follow. | Installation steps, the `trials.def` authoring reference (trial and trial-step parameters), UI/menu customization guide, Speedrun and Progress behavior. |
 | `LICENSE` | The module's license terms. | GNU LGPL v2.1 text. |
+| (Not included) `trials.snd` | Trials mode can process sounds from its own `trials.snd` if desired. Detection is automatic. | Sound data - you can drop your own sounds for the Trials Mode UI in this file, or you can use sounds in your `system.snd` | 
 
 Not shipped, but referenced by the README: a sample `trials.def` (and matching character `.def` edit) for `kfm_zss`, and additional community trials files at the [Sample Trials Definition Files repo](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files). `trials.snd` and `trials.air` are optional files a creator may drop in beside `trials.lua`; the module ships neither.
-
-## General info
-The Trials Mode provides new screenpack features and engine features so that creators can create trials for their character creations, and fully customize the way the trials are presented. 
-The Trials Mode ships with several options for display of trials data inside the game mode, a variety of pause menu options to navigate the trials for each character, and the ability to apply palfx to character portraits in the Select Screen to easily convey which characters have valid Trials definition files.
 
 ## system.def and UI Customization
 The Trials Mode external module supports full customization UI through the included `system.def`, with background sprites and animations pulled directly from your screenpack's `system.sff`, or from a separately bundled module-specific `trials.sff`, if so desired. 
@@ -73,10 +80,28 @@ trials = trials.def        ;Ikemen feature: Trials mode data
 ```
 
 ### Creating the first trial in your `trials.def` file
-Declares the trial's section header, e.g. `[TrialDef, KFM's First Trial]`. `TrialDef` is mandatory; the trial title after the comma is optional.
+Your `trials.def` file will list out trials in the order they will be presented to the player.
+Each trial will look something like this:
+
+```
+[TrialDef, Standing Punch Chain]
+trial.difficulty = Beginner
+
+trialstep.1.text = Standing Light Punch
+trialstep.1.glyphs = ^X
+trialstep.1.stateno = 200
+
+trialstep.2.text = Standing Strong Punch
+trialstep.2.glyphs = ^Y
+trialstep.2.stateno = 210
+```
+In short, each trial has a section header followed by a set of parameters that we will explain in the next sections.
+The trial's section header, e.g. `[TrialDef, KFM's First Trial]`. `TrialDef` is mandatory; the trial title after the comma is optional.
+Trial parameters come in two flavors - Trial Definition Parameters that are defined once per trial, and Trial Step Definition Parameters that are defined for each step in the trial.
 
 ### Trial Definition Parameters 
-The options below are defined once per trial. 
+These options are defined once per trial.
+They allow the user to characterize the trial or set initialization parameters for the trial.
 
 | Parameter | Required | Format | Default | Description |
 |---|---|---|---|---|
@@ -88,30 +113,72 @@ The options below are defined once per trial.
 | `trial.playerlife` | Optional | integer | — | Sets the player's life total. Useful for trials that involve desperation moves or require a specific life state. |
 | `trial.dummypos` | Optional | `left-corner`, `right-corner`, `far`, `medium`, `close` | center stage | Sets the dummy's position on the stage. If enabled, the player can reset positioning according to this information by hitting the d and w keys simultaneously. |
 | `trial.playerpos` | Optional | `left-corner`, `right-corner`, `far`, `medium`, `close` | center stage | Sets the player's position on the stage. If enabled, the player can reset positioning according to this information by hitting the d and w keys simultaneously. |
-| `trial.showvarvalpairs` | Optional | comma-separated integers, in pairs (0..n pairs) | — | Determines whether a trial should be displayed based on the specified variable and value pair(s). Useful if a trial should only be displayed when the character has a specific variable/value pair set, such as being in a specific groove or mode. If specified, the trial only displays if all variable-value pairs return true. These pairs are for the character only (not for helpers). Variables can test multiple values, separated by `\|` (e.g. `trial.showforvarvalpairs = 12, 0\|2\|4` tests var(12) for values 0, 2, and 4). |
 | `trial.textbox` | Optional | multilingual (string) | — | Displays specified text in a box specified in the textbox settings in `system.def` under `[Trials Mode]`. Supports specification as `trial.textbox`, or `trial.textbox.en`, `trial.textbox.es`, etc. for multilingual support. Defaults to `trial.textbox.en` (or `trial.textbox`) if the selected language cannot be matched. |
+| `trial.showvarvalpairs` | Optional | comma-separated integers, in pairs (0..n pairs) | — | Determines whether a trial should be displayed based on the specified variable and value pair(s). Useful if a trial should only be displayed when the character has a specific variable/value pair set, such as being in a specific groove or mode. If specified, the trial only displays if all variable-value pairs return true. These pairs are for the character only (not for helpers). Variables can test multiple values, separated by `\|` (e.g. `trial.showforvarvalpairs = 12, 0\|2\|4` tests var(12) for values 0, 2, and 4). We have a section dedicated to this parameter as it is more advanced.|
 
 ### Trial Step Definition Parameters
-These parameters are used to defined each trial step, where 'X' is the trial step number starting at '1'.
+These parameters are used to defined each trial step.
+Trial steps are shown in sequence, but the order for the parameters within that sequence does not matter.
+Trial steps are written out as `trialstep.X.<parameter>` where 'X' is the trial step number starting at '1'.
 
 | Parameter | Required | Format | Default | Description |
 |---|---|---|---|---|
 | `trialstep.X.text` | Optional | multilingual (string) | — | Text for trial step (only displayed in vertical trials layout). Supports specification as `trialstep.X.text`, or `trialstep.X.text.en`, `trialstep.X.text.es`, etc. for multilingual support. Defaults to `trialstep.X.text.en` (or `trialstep.X.text`) if the selected language cannot be matched. |
 | `trialstep.X.glyphs` | Optional | string (see [Glyph documentation](https://github.com/ikemen-engine/Ikemen-GO/wiki/Miscellaneous-info#movelists)) | — | Same syntax as movelist glyphs. Glyphs are displayed in vertical and horizontal trials layouts. |
-| `trialstep.X.stateno` | Mandatory* | integer or comma-separated integers, or integers separated by vertical separator | — | State to be checked to pass trial, whether it's the main character or a helper. On a projectile step it means the state the projectile was FIRED FROM, which the module records when the projectile spawns — note that for a projectile fired by way of a helper this is the root's move state (e.g. 1000 for a Hadoken thrown by a helper out of state 1000), not the helper's own state number. *Optional, and safely omitted, on a step whose `projid` already identifies the projectile on its own. |
-| `trialstep.X.animno` | Optional | integer or comma-separated integers, or integers separated by vertical separator | — | Identifies animno to be checked to pass trial. Useful in certain cases. |
-| `trialstep.X.hitcount` | Optional | integer or comma-separated integers | `1` | Specifies a hit count criteria to meet before proceeding to the next trial step. Useful for multi-hit moves, or for moves that don't hit (e.g. taunts). |
+| `trialstep.X.stateno` | Mandatory* | integer or comma-separated integers, or integers separated by `\|` | — | State to be checked to pass trial, whether it's the main character or a helper. On a projectile step it means the state the projectile was FIRED FROM, which the module records when the projectile spawns — note that for a projectile fired by way of a helper this is the root's move state (e.g. 1000 for a Hadoken thrown by a helper out of state 1000), not the helper's own state number. *Optional, and safely omitted, on a step whose `projid` already identifies the projectile on its own. |
+| `trialstep.X.animno` | Optional | integer or comma-separated integers, or integers separated by `\|` | — | Identifies animno to be checked to pass trial. Useful in certain cases. |
+| `trialstep.X.hitcount` | Optional | integer or comma-separated integers, or integers separated by `\|` | `1` | Specifies a hit count criteria to meet before proceeding to the next trial step. Useful for multi-hit moves, or for moves that don't hit (e.g. taunts). |
 | `trialstep.X.isthrow` | Optional | `true`/`false`, or comma-separated true/false | `false` | Identifies whether the trial step is a throw. |
 | `trialstep.X.iscounterhit` | Optional | `true`/`false`, or comma-separated true/false | `false` | Identifies whether the trial step should be a counter hit. Typically does not work with helpers or projectiles. |
 | `trialstep.X.ishelper` | Optional | `true`/`false`, or comma-separated true/false | `false` | Identifies whether the trial step is a hit from a helper. |
 | `trialstep.X.isproj` | Optional | `true`/`false`, or comma-separated true/false | `false` | Identifies whether the trial step is a hit from a projectile. The step passes only when the projectile actually connects with the dummy, not when it is fired. Not needed alongside a `projid` (which already identifies the step as a projectile) — only required when the projectile is identified by `stateno` instead. Setting both is harmless. |
-| `trialstep.X.projid` | Optional | integer or comma-separated integers, or integers separated by vertical separator | — | The ID given to the projectile by the character's `Projectile` sctrl (authors spell it `ProjID`, `projid`, or plain `id`). The step passes on the frame a projectile with that ID hits the dummy.<br>• Use `\|` where a character fires more than one projectile for the same move, or the ID is an expression (e.g. `projid = 3005\|3006` for `ID = 3005+(var(5)=2)`).<br>• A `projid` alone is enough to mark a step as a projectile step; `isproj` isn't needed alongside one.<br>• Add `stateno` too when a character reuses one ID across several moves (e.g. CvS Sagat's ProjID 1000 across states 1000/1050/1070 — `projid = 1000` with `stateno = 1070` isolates the heavy Tiger Shot).<br>• If the sctrl declares no ID, it defaults to 0, so `projid = 0` matches every ID-less projectile — pair with `stateno` to narrow it down.<br>• A step with `isproj = true` and no `projid` matches on `stateno` alone and still requires a connect. `projid` has no effect when `hitcount = 0`. |
+| `trialstep.X.projid` | Optional | integer or comma-separated integers, or integers separated by `\|` | — | The ID given to the projectile by the character's `Projectile` sctrl (authors spell it `ProjID`, `projid`, or plain `id`). The step passes on the frame a projectile with that ID hits the dummy.|
 | `trialstep.X.validforvarvalpairs` | Optional | comma-separated integers, in pairs (0..n pairs) | — | Sister to `showforvarvalpairs`. Optionally checks a trial step against var-value pairs — useful when forcing completion under specific conditions (e.g. a custom combo state). Pairs are valid for the entire trial step, regardless of condensed terminology. |
 | `trialstep.X.validfortickcount` | Optional | integer, or comma-separated integers | nil | Pauses the trials checking logic until the next hit is registered for the specified tickcount. |
 
-### Sample Trial Definition File
+### Condensed Trial Steps
+For some trials, you might elect to show what normally might be several trial steps as a condensed trial step, which essentially boils down to specifying a series of values separated by commas.
+A good example of this would be a magic chain, as in the previously shown trials code block.
+All trial step definition parameters other than `text` and `glyphs` can be specified as condensed trial steps, but the rule is that if one parameter for a trial step is specified as a condensed step, then each other parameter (other than `text` and `glyps`) must have an equal number of entries.
+Below is an example of a simple condensed trial step:
 
-A sample `trials.def` for kfm_zss is provided below. The trials are presented to the player in the order in which they are listed in `trials.def`. Detailed information for each configurable parameter can be found in this template.
+```
+[TrialDef, Condensed Standing Punch Chain]
+; Condensed steps can be very practical for multi-state moves where the trial step should only clear if all of the states are met, without having to create multiple trial steps.
+
+trialstep.1.text = Standing Light to Strong Punch Chain		
+trialstep.1.glyphs = ^X_-^Y			
+trialstep.1.stateno = 200, 210		
+trialstep.1.hitcount = 1, 1
+```
+
+### Using the `|` (or) Operand
+For other trials, you might accept various versions of a similar move that have different `stateno` or `animno`, to name a few possibilities.
+A good example of this would be a trial for a Shoryuken where the punch strength is immaterial, but the states differ from one punch strength to the next.
+This is where the `|` operand comes in, here is an example of it being applied:
+
+```
+[TrialDef, KFM Kung Fu Palm]
+; In this trial, we use the "or" operand, specified by using the | character, to let the user specify multiple different stateno or animno for which the trialstep or microstep is valid.
+
+trialstep.1.text = Kung Fu Palm
+trialstep.1.glyphs = _QDF^P
+trialstep.1.stateno = 1000|1010
+```
+
+### How to Handle Projectiles
+
+Use `\|` where a character fires more than one projectile for the same move, or the ID is an expression (e.g. `projid = 3005\|3006` for `ID = 3005+(var(5)=2)`).<br>• A `projid` alone is enough to mark a step as a projectile step; `isproj` isn't needed alongside one.<br>• Add `stateno` too when a character reuses one ID across several moves (e.g. CvS Sagat's ProjID 1000 across states 1000/1050/1070 — `projid = 1000` with `stateno = 1070` isolates the heavy Tiger Shot).<br>• If the sctrl declares no ID, it defaults to 0, so `projid = 0` matches every ID-less projectile — pair with `stateno` to narrow it down.<br>• A step with `isproj = true` and no `projid` matches on `stateno` alone and still requires a connect. `projid` has no effect when `hitcount = 0`.
+
+### How to Handle Helpers
+
+
+### Tips and Tricks When Writing Your `trials.def` file
+
+
+### `kfm_zss` Sample Trial Definition File
+
+A sample `trials.def` for `kfm_zss` is provided below. The trials are presented to the player in the order in which they are listed in `trials.def`. Detailed information for each configurable parameter can be found in this template.
 
 ```
 [TrialDef, KFM's First Trial]
@@ -242,25 +309,21 @@ trialstep.1.text = Jumping Strong Kick
 trialstep.1.glyphs = _AIR^B
 trialstep.1.stateno = 640
 
-trialstep.2.text = Standing Light Kick
-trialstep.2.glyphs = ^A
-trialstep.2.stateno = 230
+trialstep.2.text = Standing Kick Chain
+trialstep.2.glyphs = ^A_-^B
+trialstep.2.stateno = 230, 240
 
-trialstep.3.text = Standing Strong Kick
-trialstep.3.glyphs = ^B
-trialstep.3.stateno = 240
+trialstep.3.text = Fast Kung Fu Zankou
+trialstep.3.glyphs = _QDF^A^B
+trialstep.3.stateno = 1420
 
-trialstep.4.text = Fast Kung Fu Zankou
-trialstep.4.glyphs = _QDF^A^B
-trialstep.4.stateno = 1420
-
-trialstep.5.text = Triple Kung Fu Palm
-trialstep.5.glyphs = _QDF_QDF^P
-trialstep.5.stateno = 3000
-trialstep.5.hitcount = 3
+trialstep.4.text = Triple Kung Fu Palm
+trialstep.4.glyphs = _QDF_QDF^P
+trialstep.4.stateno = 3000
+trialstep.4.hitcount = 3
 ```
 
-## Pause Menu Options
+### Pause Menu Options
 
 Pausing a Trials match opens the mode's own pause menu. It is engine-native: the
 `[Trials Pause Menu]` section shipped in `+system.def` is the whole of the registration, because
@@ -287,152 +350,11 @@ whenever a preference changes, so comments added to it will be lost.
 Next Trial and Previous Trial remain supported for screenpacks that would rather list them than
 use the Trials List, but neither is part of the default menu.
 
-## Trial Select
+### Trial Select
 
-Loading into a Trials match opens the Trial Select view: every one of the character's trials, one
-per line, with whether it has been cleared and the best time on the right. Picking one starts it.
-The cursor opens on the first trial the player has yet to clear, so re-entering a character you
-have been working through resumes where you left off; confirming without moving starts that one.
-
-Up and down move between trials; **left and right cycle a difficulty filter**. The filters are
-**All**, then each difficulty that character actually uses, then **Other** for trials whose def
-declares none. Filters with nothing in them are skipped, so a character with only Beginner and
-Expert trials cycles All → Beginner → Expert.
-
-A banner pinned above the list shows the filters. It does not scroll with the rows.
-`trialsmenu.headerdisplay` picks its shape:
-
-| Value | Banner |
-|---|---|
-| `default` | One entry, naming the filter on show, with `< >` arrows when there are others to reach: `< Beginner >   1/2` |
-| `sidebyside` | Every filter on one line, `trialsmenu.header.spacing` apart, the one on show wearing the `trialsmenu.header.active` elements. No arrows — the other filters are already visible |
-
-`trialsmenu.header.active.*` styles the filter on show and **inherits from the plain header
-elements**, so a `system.def` that only ever set `header.text` still describes both and `default`
-looks exactly as it did. `sidebyside` needs a highlight declared before it reads as one.
-
-`trialsmenu.header.value.text` formats the tally (`"%s"`); set it to `""` to leave counts off,
-which side by side often wants once six of them share a line.
-
-If no trial in the file declares a difficulty there is only one filter, so the banner shows `All`
-and its count, and the list is flat and in def order, unchanged from previous versions.
-
-This is the same view the pause menu's **Trials List** opens, so the two can never disagree.
-
-`trialslistdisplay` in `[Trials Mode]` decides when, if ever, the player is asked:
-
-| Value | When the menu appears |
-|---|---|
-| `select` | Between stage select and the fight loading, on the select screen's own background |
-| `start` (default) | Once the match is up, over the frozen pair |
-| `off` | Never — the match starts on the first trial |
-
-The pause menu's **Trials List** is unaffected by all three, so the menu is always reachable.
-
-`select` runs before any match exists, so it reads the character's parsed trials rather than match
-state, and carries the choice into the fight by trial *name* — `trialsBuilder` drops trials whose
-`showforvarvalpairs` don't match, so parsed positions need not survive into the match. Backing out
-of it settles for whichever trial the cursor opened on, so there is always an answer.
-
-That name is how a pick crosses into the match, but it can't make a pick *correct*: out there P1
-doesn't exist yet, so no variable can be read and the list can't be filtered. A character with even
-one `showforvarvalpairs` trial is therefore never asked early — under `select` it gets the `start`
-menu instead, once the match is up and the groove or mode is settled. Everyone else keeps the
-pre-fight menu. Should a pick be gated away anyway, the match-load menu opens rather than starting
-some other trial.
-
-### Configuring it
-
-The menu is drawn by the module, so its appearance is configured in `[Trials Mode]` alongside
-everything else, under `trialsmenu.*` — not in the screenpack's `[Trials Pause Menu]` section. See
-the shipped `system.def` for the annotated list; in outline:
-
-| Key | What it sets |
-|---|---|
-| `trialsmenu.pos`, `.spacing`, `.visibleitems` | Where rows start, how far apart, how many at once |
-| `trialsmenu.layerno` | The layer every element in the block sits on unless it names its own. Defaults to `2`, above the in-match HUD; keep `glyphs.<layout>.layerno` below it |
-| `trialsmenu.bg.*`, `.front.*` | Backdrop behind the rows and art over them |
-| `trialsmenu.overlay.*` | The rect dimming the match behind the menu. `alpha` is source,destination as everywhere else in the engine, so `0,128` halves what is behind it |
-| `trialsmenu.title.*` | The heading over the list |
-| `trialsmenu.headerdisplay` | `default` or `sidebyside` |
-| `trialsmenu.header.offset`, `.header.spacing` | Where the pinned filter banner sits, and the gap between entries when side by side |
-| `trialsmenu.header.text.*`, `.header.value.*`, `.header.bg.*` | A filter's label, its cleared tally, and its background |
-| `trialsmenu.header.active.*` | The same three, for the filter on show. Inherits from the above |
-| `trialsmenu.item.text.*`, `.item.active.text.*`, `.item.selected.text.*` | A trial's name: normal, under the cursor, and the trial in play |
-| `trialsmenu.item.bg.*`, `.item.active.bg.*`, `.cursor.*` | Per-row background and the cursor drawn on the active row |
-| `trialsmenu.item.active.overlay.*` | The highlight bar under the row the cursor is on. Same `visible`/`window`/`col`/`alpha`/`layerno` as `trialsmenu.overlay`, except its `window` is `x1,y1,x2,y2` from that row's origin rather than the screen, so it follows the cursor. A window with no area, or `visible = false`, leaves it off |
-| `trialsmenu.status.*` | The cleared / not-cleared marker (see below) |
-| `trialsmenu.besttime.*` | The best clear time beside each row. Set its `text` to `""` to leave times off |
-| `trialsmenu.arrow.up.*`, `.arrow.down.*` | Shown when the list runs past `visibleitems`. Art or a label, the same way as the clear marker |
-
-#### Styling one difficulty differently
-
-Any of the row and banner elements can be respecified for a single difficulty, by putting the
-category name straight after `item` or `header`:
-
-```
-trialsmenu.item.<category>.text.*            a trial of that difficulty, at rest
-trialsmenu.item.<category>.active.text.*     ...under the cursor
-trialsmenu.item.<category>.selected.text.*   ...when it is the trial in play
-trialsmenu.item.<category>.bg.*              its row background
-trialsmenu.item.<category>.active.bg.*       ...under the cursor
-trialsmenu.item.<category>.active.overlay.*  its highlight bar, under the cursor
-trialsmenu.header.<category>.text.*          that filter's banner entry
-trialsmenu.header.<category>.active.*        ...while it is the filter on show
-trialsmenu.header.<category>.value.*         its cleared tally
-trialsmenu.header.<category>.bg.*            its background
-```
-
-Row categories are `beginner`, `intermediate`, `advanced`, `expert` and `other` — `other` being the
-trials whose def declares no `trial.difficulty`. The banner adds `all`, the unfiltered view.
-
-**Declare only what differs.** Anything a category leaves out is inherited from the shared element
-it overrides, so a colour change is one line and a category with no block at all is drawn exactly as
-before. Offsets are relative to the row, so a category can sit somewhere else along the line, and a
-category only gets its own anim if it names one — otherwise it shares the common node's.
-
-```
-; Expert trials in red, shifted right, with their own banner sprite. Nothing else changes.
-trialsmenu.item.expert.text.font = 1,0,1, 255, 90, 90
-trialsmenu.item.expert.text.offset = 12,0
-trialsmenu.item.expert.active.text.font = 1,0,1, 255, 160, 160
-trialsmenu.header.expert.bg.spr = 6570,0
-```
-
-Only the key bindings and the menu sounds still come from `[Trials Pause Menu]` — `menu.next.key`,
-`menu.previous.key`, `menu.add.key`, `menu.subtract.key`, `menu.done.key`, `menu.cancel.key` and
-the `cursor.*` sounds — so the menu answers to whatever the screenpack already uses everywhere else.
-
-### The clear marker
-
-`trialsmenu.status.cleared` and `trialsmenu.status.uncleared` each take either art or a label.
-Name a sprite (or an anim) and it is drawn; leave both unset and the element's `text` is drawn
-instead. That is how you replace the default `CLEAR` label with a sprite of your own:
-
-```
-trialsmenu.status.offset = 300,0        ; where the marker sits, from the row's origin
-trialsmenu.status.cleared.spr = 6800,0  ; your sprite, in trials.sff or the screenpack's system.sff
-trialsmenu.status.cleared.scale = 1.0, 1.0  ; scale applies to whichever of art/text is drawn
-; trialsmenu.status.cleared.text is ignored once a sprite is named
-trialsmenu.status.uncleared.spr =       ; no art, so its text shows
-trialsmenu.status.uncleared.text = "----"
-```
-
-Set a state's `text` to `""` and leave its art unset to show nothing at all for that state.
-
-`trialsmenu.arrow.up` and `trialsmenu.arrow.down` work the same way — they default to `^` and `v`
-labels, and naming a sprite replaces them.
-
-### Where `anim` numbers come from
-
-Any element taking a sprite takes an `anim` instead, and the action behind that number is read from
-three files, each overriding the numbers declared before it: the screenpack's own def, an optional
-`trials.air` beside `trials.lua`, and this module's `system.def` (its `ANIMATIONS` section near the
-bottom, which is where anims meant for trials mode belong). Sprites are always resolved out of
-`trials.sff` when the module ships one, so an action written in any of the three numbers its frames
-out of that file. `anim` wins over `spr`, and once either is named the element's `text` is never
-drawn — an `anim` pointing at a number no file declares therefore shows nothing at all rather than
-falling back to the label.
+Trials Mode ships with a Trials Selection menu that can be shown either immediately after stage select, or right before the fight kicks off.
+Trials can optionally be categorized by difficulty, allowing you to organize them for players when you ship your character or game.
+The Trials Selection menu is fully configurable, just like all other aspects of the Trials Mode UI.
 
 ## Speedrun
 
@@ -481,41 +403,3 @@ without losing anything; renaming a trial starts it a fresh record and leaves th
 which is harmless. Times are in ticks (60 to the second).
 
 Deleting `save/trials.json` resets all progress.
-
-### Clearing progress from the pause menu
-
-Two rows, both writing `save/trials.json`. **Neither can be undone.** The match itself is untouched:
-the current trial carries on, and only what has been recorded about it goes.
-
-- **`trialsclearcharprogress`** — drops the record of whoever is loaded into P1, leaving every other
-  character's alone.
-- **`trialsclearprogress`** — empties the file: every clear, best time and speedrun record, for
-  every character.
-
-The pause menu is drawn over a frozen match, so there is nowhere to put a warning dialog. The
-confirmation is the menu structure instead: **each of those is a submenu, not an action**, and the
-rows inside it are the question. `trialsclearcharconfirm` and `trialsclearconfirm` are what erase.
-
-```
-menu.itemname.trialsprogress = Progress
-menu.itemname.trialsprogress.trialsclearcharprogress = Clear This Character's Progress
-menu.itemname.trialsprogress.trialsclearcharprogress.trialsclearcharconfirm = Yes, Erase This Character
-menu.itemname.trialsprogress.trialsclearcharprogress.back = No
-menu.itemname.trialsprogress.trialsclearprogress = Clear All Progress
-menu.itemname.trialsprogress.trialsclearprogress.trialsclearconfirm = Yes, Erase Everything
-menu.itemname.trialsprogress.trialsclearprogress.back = No
-menu.itemname.trialsprogress.spacer = -
-menu.itemname.trialsprogress.back = Back
-```
-
-The outer `trialsprogress` level is optional and its name is arbitrary — nest these wherever suits
-the screenpack. Only the four `trialsclear*` itemnames are the module's, and they work at any depth.
-
-Declare both halves of a pair. An outer row with nothing under it gets an English Yes/No pair filled
-in rather than being left as the empty submenu the engine would otherwise hand it, which would take
-the game down when stepped into.
-
-Once used, a pair's rows read back **Cleared** until the pause menu is reset — the only feedback
-there is that it worked. The two pairs track that separately, so clearing one character does not
-leave the other row claiming to have cleared everything. Rename the label with
-`menu.valuename.trialsclearprogress_cleared`; both pairs share it.
