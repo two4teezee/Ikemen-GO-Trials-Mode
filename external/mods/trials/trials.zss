@@ -1,4 +1,13 @@
-# Trials Mode global code
+# -- IKEMEN GO TRIALS MODE EXTERNAL MODULE --------------------------------
+# ---- trial.zss - trials mode global state and functions.
+# ---- This file is loaded by the Trials module to configure the Trials 
+# ---- Mode global state and functions. It is not loaded by the screenpack's
+# ---- system.def, so it is not part of the main menu or pause menu. The 
+# ---- Trials module loads this file itself.
+# --
+# -- Module developed by two4teezee
+# -------------------------------------------------------------------------
+
 # maps set via Pause Menu (menu.lua)
 # _iksys_trialsDummyControl: 0 - cooperative, 1 - ai, 2 - manual
 # _iksys_trialsGuardMode: 0 - none, 1 - auto, 2 - all, 3 - random
@@ -8,6 +17,8 @@
 # _iksys_trialsButtonJam: 0 - none, 1-9 - a/b/c/x/y/z/s/d/w
 # _iksys_trialsInitPosX: value: 
 # _iksys_trialsInitPosY: value: 
+# _iksys_trialsMenuOpen: countdown re-seeded by Lua while the Trial select view is up; > 0 holds both sides
+# _iksys_trialsMenuHeld: 1 while this side is being held, so control is handed back once on release
 
 #===============================================================================
 # Functions
@@ -45,6 +56,25 @@ ignoreHitPause if gameMode = "trials" {
 		map(_iksys_trialsLifeTimer) := 0;
 		map(_iksys_trialsPowerTimer) := 0;
 		map(_iksys_trialsReposition) := 0;
+		map(_iksys_trialsMenuOpen) := 0;
+		map(_iksys_trialsMenuHeld) := 0;
+	}
+	# Hold both sides still while the Trial select view is up, so the buttons that drive the
+	# menu don't also drive the character. Lua re-seeds the counter every frame the view is up
+	# (trials.f_menuHold), so the hold lets go on its own if the view ever stops driving it.
+	# ctrlSet is not self-clearing: nothing in a character's own standing state restores ctrl, so
+	# the release branch has to hand control back, exactly once, whichever way the hold ended.
+	if !isHelper {
+		if map(_iksys_trialsMenuOpen) > 0 {
+			map(_iksys_trialsMenuOpen) := map(_iksys_trialsMenuOpen) - 1;
+			if roundState = 2 {
+				map(_iksys_trialsMenuHeld) := 1;
+				ctrlSet{value: 0}
+			}
+		} else if map(_iksys_trialsMenuHeld) != 0 {
+			map(_iksys_trialsMenuHeld) := 0;
+			ctrlSet{value: 1}
+		}
 	}
 	# Life and Power recovery
 	if !isHelper {

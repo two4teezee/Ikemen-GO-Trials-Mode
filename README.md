@@ -1,501 +1,198 @@
-# Ikemen GO Trials Mode v0.99.6
-> Compatible with Ikemen GO Nightly Builds newer than 10/10/2025.
+<div align="center">
 
-> Note: for older Ikemen GO Builds, check releases tab for a compatible release of Trials Mode .
+<img src="https://github.com/user-attachments/assets/b2d52969-1f5e-40f9-b874-c5b130b117cf" alt="Ikemen GO Trials Mode Logo" width="240" />
 
-> Module developed by two4teezee
 ---
+
+A module for Ikemen GO delivering a complete Trials Mode experience.
+</div>
+
+## Overview
+The Trials Mode provides new screenpack features and engine features so that creators can create trials for their character creations, and fully customize the way the trials are presented. 
+The Trials Mode ships with several options for display of trials data inside the game mode, a variety of pause menu options to navigate the trials for each character, and the ability to apply palfx to character portraits in the Select Screen to easily convey which characters have valid Trials definition files.
+
 This external module offers a universal solution for Trials Mode. 
 This markdown file is best viewed in Github or your favorite markdown file viewer. 
 For greater detail on how to create trials definitions, or the customization options supported, please consult this readme, or [the wiki](https://github.com/two4teezee/Ikemen-GO-Trials-Mode/wiki). 
 You can find sample trials files for some of my favorite characters in [this repo](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files).
 
+## Preview
+
+https://github.com/user-attachments/assets/c0d08e4e-ea2b-4c0e-bd4c-ca88552f112c
+
+## Features
+- Per-character trial authoring. Creators add a `trials = trials.def` line to a character's def file, and define any number of trials in that `trials.def` file, each a sequence of steps checked against live match state. Steps can match on state numbers, anim numbers, hit counts, throws, counter-hits, helper and projectile hits. 
+- Multi-step trials can be condensed in a single step, and steps can accept multiple valid values using an `|` "or" operand for flexible move recognition. All text supports language-suffixed keys for multilingual releases.
+- Per-trial setup. Each trial can set the dummy's stance, automatic guarding, dummy button presses, and life totals for both dummy and player, as well as an assigned difficulty for the trial. It can also place both fighters at named stage positions, which the player can snap back to at any time by pressing the associated key combination.
+- Every aspect of the Trials Mode UI is customizable - fonts, backgrounds for all elements (like titles, upcoming/current/completed trial steps,etc.), animations, defaults, etc. Sprites and sounds for Trials Mode can be neatly packaged in the module's own `trials.sff` and `trials.snd`, or merged into the screenpack's `system.sff` and `system.snd`. Trials Mode also ships with an engine-native pause menu. 
+- Trials can be displayed as a vertical readout (step text plus input glyphs) and a horizontal readout in the style of KOF XIV.
+- Trials progress is persistent. Per-character progress (cleared status and best times) is saved and keyed so that it is resilient to changes in `trials.def`. The module also ships with a Speedrun Mode, where the player can attempt to log a best time running through the whole character's trials in order against a single timer.
+- Configurable Trial Select screen. Trials Mode ships a selection menu that appears either right after stage select or just before the fight begins. Trials can optionally be grouped by difficulty (Beginner, Intermediate, Advanced, Expert), which the player cycles through and which tracks a cleared tally per category.
+
 ## Installation
-1. Extract archive content into "./external/mods/trials" directory
-2. Add DEF code to your screenpack's `system.def`. 
-Use the sample DEF code additions from this file to your `system.def`. 
-The sample settings from this readme works with the `mugen1` screenpack included with the [base asset pack for Ikemen GO](https://github.com/ikemen-engine/Ikemen_GO-Elecbyte-Screenpack).
-Note that `mugen1` was made for a 1280x720 resolution.
-3. Add `external/mods/trials/trials.zss` to `States` under `[Common]` in "./save/config.ini".
-4. Add sprites to system.sff, or alternatively, create a `trials.sff`, as required.
-5. Add sounds to system.snd, as required.
-6. Create new trials for your character(s). 
-As a starting point, you can use the templates found in the trials mode readme to create a `trials.def` file and edit `kfmZ.def`, both in `"./chars/kfmZ"`. 
+1. Extract archive content into your Ikemen directory - you should see new content in "./external/mods/trials/"
+2. (Optional but probably highly desired) Modify your screenpack's `system.def` to show Trials Mode in the main menu where you would like it to. 
+Check the module's `+system.def` file for instructions. 
+4. (Optional) Modify the look and feel of Trials Mode by editing the module's `system.def`, `trials.sff` and `trials.snd`, or add sprites and sounds to your screenpack's `system.sff` and `system.snd`.
+5. Create new trials for your character(s). 
+As a starting point, you can use the templates found in the trials mode readme to create a `trials.def` file and edit `kfm_zss.def`, both in `"./chars/kfm_zss"`. 
 You can follow the instructions in the readme to create trials for any character you would like. 
-I also often create new trials files for my favorite characters and am sharing them [here](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files).
-7. Share your trials definition files with others!
+I also often create new trials files for my favorite characters and share them [here](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files).
+6. Share your trials definition files with others!
 
-## General info
-The Trials Mode provides new screenpack features and engine features so that creators can create trials for their character creations, and fully customize the way the trials are presented. 
-The Trials Mode ships with several options for display of trials data inside the game mode, a variety of pause menu options to navigate the trials for each character, and the ability to apply palfx to character portraits in the Select Screen to easily convey which characters have valid Trials definition files.
+## Package Contents and Optional Files
+Everything below ships inside `external/mods/trials/`.
 
-## system.def Template and Customization
-Using this external module allows full customization of the trials mode in `system.def`, with sprites in `system.sff` or in `trials.sff`, if so desired. 
-If you are using `trials.sff`, make sure you point to it in the system.def's [Files] section as `trialsbgdef = trials.sff`.
+| File | Role | Contents |
+|---|---|---|
+| `+system.def` | The hand-off into the *screenpack's* menus. Provides the main-menu entry (`[Title Info]`, `[Select Info]`) and the `[Trials Pause Menu]` section the engine turns into the in-match pause menu. | This file contains Menu item names, value labels (Auto-Advance/Repeat, Vertical/Horizontal, difficulty labels, etc.), and instructions for merging into the screenpack's own `system.def`. |
+| `config.ini` | The mode's behavioural defaults *and* per-install player preferences (Advancement, Layout, Reset on Success, Textboxes, timers). The shipped values are the defaults; the module rewrites the file the moment a player changes one in the pause menu, dropping the comments in the process. | Options key/value pairs. Edit the shipped values to set your pack's defaults. |
+| `system.def` | The mode's own UI configuration, loaded by `trials.lua` (not by the screenpack). Everything under `[Trials Mode]`: title text, per-layout element positions, Trial Select banner and rows, glyph/anim wiring, textbox styling. Behavioural defaults (layout, reset on success) live in `config.ini`, not here. | This file is how you configure Trials Mode's appearance. |
+| `trials.lua` | The module itself — the only file the engine loads directly. Implements the game mode: parses each character's `trials.def`, checks trial steps against match state, draws the Trial Select/pause menus, and reads/writes `config.ini` and `save/trials.json`. | Lua source - you likely won't change any of this code. |
+| `trials.sff` | The mode's bundled sprite sheet, auto-detected on load. Supplies default art (backgrounds, banners, clear markers) so the mode looks right even if the screenpack's own `system.sff` doesn't carry matching sprites. | Sprite data - you can drop your sprites for the Trials Mode UI in this file, or in your `system.sff`. |
+| `trials.zss` | Engine-side state and helper functions the mode depends on (camera framing, dummy/player repositioning, button-jam handling). Loaded automatically by `trials.lua`; not part of the screenpack. | Global states - you won't edit this file. |
+| `README.md` | This file — a reference for you to follow. | Installation steps, the `trials.def` authoring reference (trial and trial-step parameters), UI/menu customization guide, Speedrun and Progress behavior. |
+| `LICENSE` | The module's license terms. | GNU LGPL v2.1 text. |
+| (Not included) `trials.snd` | Trials mode can process sounds from its own `trials.snd` if desired. Detection is automatic. | Sound data - you can drop your own sounds for the Trials Mode UI in this file, or you can use sounds in your `system.snd` | 
+
+Not shipped, but referenced by the README: a sample `trials.def` (and matching character `.def` edit) for `kfm_zss`, and additional community trials files at the [Sample Trials Definition Files repo](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files). `trials.snd` and `trials.air` are optional files a creator may drop in beside `trials.lua`; the module ships neither.
+
+## system.def and UI Customization
+The Trials Mode external module supports full customization of the UI through the included `system.def`, with background sprites and animations pulled directly from your screenpack's `system.sff`, or from a separately bundled module-specific `trials.sff`, if so desired. 
+The module ships with a `trials.sff` and it is automatically detected on load when included in the module folder.
+
+Sounds work the same way. Every `snd` parameter in the module's `system.def` — `success.snd` and `allclear.snd` — is read from a `trials.snd` placed beside `trials.lua`, and from your screenpack's `system.snd` when there is none.
+The module ships no `trials.snd`, so out of the box those sounds come from the screenpack; drop one in and it is detected on load, exactly as `trials.sff` is.
+It is the whole file that switches, not one sound at a time: once a `trials.snd` is present, a `group,number` missing from it plays nothing rather than falling back to `system.snd`.
+
+The pause menu's own sounds are not affected either way. `cursor.move`, `cursor.done`, `enter` and `cancel` are read from the screenpack's `[Trials Pause Menu]` (or `[Pause Menu]`) section and always play out of `system.snd`, so the trials list answers like every other menu in the screenpack.
 
 The universal trials mode supports **vertical** trials readouts, and **horizontal** readouts as seen in KOF XIV, among other games. 
-The sample `system.def` included in this file can be configured to support either or both layouts, but shared in this readme, it should work "out of the box" with the `mugen1` screenpack found [here](https://github.com/ikemen-engine/Ikemen_GO-Elecbyte-Screenpack). 
+The `system.def` included with this module is configured to support both layout types "out of the box" with the `ikemen1` screenpack found [here](https://github.com/ikemen-engine/Ikemen_GO-Elecbyte-Screenpack). 
 Below you'll find a brief summary of screenpack features supported by trials mode. 
-For more detail, please consult the example `system.def` templates provided in this file for both vertical and horizontal layouts.
-The [Trials Mode wiki](https://github.com/two4teezee/Ikemen-GO-Trials-Mode/wiki) goes into great depth on all supported features.
-
-## system.def Example
-
-```
-[Trials Mode]
-; NOTE: Values provided in this sample meant for `mugen1` screenpack, 1280x720 resolution.
-;
-; GENERAL TRIALS OPTIONS ---------------------------------------------------
-; trialsresetonsuccess: set to "true" to reset character positions after each trial success (except the final one). Can optionally specify fadein and fadeout parameters - will default to shown values.
-; trialslayout: "vertical" or "horizontal" are the only valid values. Defaults to "vertical" if not specified. Affects scrolling logic, as stated above, also enables dynamic step width. Can be changed via the pause menu if screenpack author leaves the option in.
-; --------------------------------------------------------------------------
-trialsresetonsuccess = false
-trialslayout = vertical
-
-; SELSCREENPALFX -----------------------------------------------------------
-; Sets specified palfx color to character portraits WITHOUT trials files in the trials select screen. See definition for palfx for different fields and options.
-; --------------------------------------------------------------------------
-selscreenpalfx.color = 0
-; selscreenpalfx.invertall = 0
-; selscreenpalfx.sinadd = 0, 0, 0, 0
-selscreenpalfx.mul = 100, 100, 100
-; selscreenpalfx.add = 0, 0, 0
-
-; RESETONSUCCESS FADES -----------------------------------------------------
-; Used when "trialsresetonsuccess" is set to "true"
-; --------------------------------------------------------------------------
-; fadein.time = 40
-; fadein.col = {0, 0, 0}
-; fadein.anim = -1
-; fadeout.time = 40
-; fadeout.col = {0, 0, 0}
-; fadeout.anim = -1
-
-; TRIALTITLE OPTIONS -------------------------------------------------------
-; TRAILTITLE options can be specified for both vertical and horizontal layouts simultaneously.
-; TRIALTITLE VERTICAL ------------------------------------------------------
-trialtitle.vertical.pos = 140,140
-trialtitle.vertical.text.offset = 0,-17
-trialtitle.vertical.text.font = 2,0,1, 255, 200, 100
-; trialtitle.vertical.text.text = "Trial: %s"
-; trialtitle.vertical.text.scale = 
-; trialtitle.vertical.text.font.height =
-; trialtitle.vertical.bg.offset = 
-; trialtitle.vertical.bg.spr = 
-; trialtitle.vertical.bg.anim = 
-; trialtitle.vertical.bg.scale = 
-; trialtitle.vertical.bg.facing = 
-; trialtitle.vertical.bg.displaytime = 
-; trialtitle.vertical.front.offset = 
-; trialtitle.vertical.front.spr = 
-; trialtitle.vertical.front.anim = 
-; trialtitle.vertical.front.scale = 
-; trialtitle.vertical.front.facing = 
-; trialtitle.vertical.front.displaytime = 
-; TRIALTITLE HORIZONTAL ----------------------------------------------------
-trialtitle.horizontal.pos = 140,140
-trialtitle.horizontal.text.offset = 0,-17
-trialtitle.horizontal.text.font = 2,0,1, 255, 200, 100
-; trialtitle.horizontal.text.text = "Trial: %s"
-; trialtitle.horizontal.text.scale = 
-; trialtitle.horizontal.text.font.height =
-; trialtitle.horizontal.bg.offset =
-; trialtitle.horizontal.bg.spr = 
-; trialtitle.horizontal.bg.anim =
-; trialtitle.horizontal.bg.scale = 
-; trialtitle.horizontal.bg.facing = 
-; trialtitle.horizontal.bg.displaytime = 
-; trialtitle.horizontal.front.offset = 
-; trialtitle.horizontal.front.spr = 
-; trialtitle.horizontal.front.anim = 
-; trialtitle.horizontal.front.scale = 
-; trialtitle.horizontal.front.facing = 
-; trialtitle.horizontal.front.displaytime = 
-
-; TRIALSTEPS OPTIONS -------------------------------------------------------
-; TRIALSTEPS options can be specified for both vertical and horizontal layouts simultaneously.
-; trialsteps.<layout>.pos: local origin from which trial steps are drawn. Other elements have their own origin specifications.
-; trialsteps.<layout>.spacing: spacing between trial steps. For horizontal layout, the second argument determines the spacing between rows.
-; trialsteps.<layout>.window: X1,Y1,X2,Y2: display window for trials--will create automated scrolling or line returns, depending on the trial layout of choice
-; trialsteps.horizontal.padding: horizontal layouts only - padding between glyphs and edges of the background element along the x (horizontal) axis.
-; trialsteps.<layout>.bg. ...: optional background displayed behind all other trial step text, background elements, etc.
-; TRIALSTEPS VERTICAL ------------------------------------------------------
-trialsteps.vertical.pos = 140,150
-trialsteps.vertical.spacing = 0,25
-trialsteps.vertical.window.withouttextbox = 100,175, 1180,550
-trialsteps.vertical.window.withtextbox = 100,175, 1180,550
-; trialsteps.vertical.bg.offset = 
-; trialsteps.vertical.bg.spr = 
-; trialsteps.vertical.bg.anim = 
-; trialsteps.vertical.bg.scale = 
-; trialsteps.vertical.bg.facing = 
-; trialsteps.vertical.bg.displaytime =   
-; TRIALSTEPS HORIZONTAL ----------------------------------------------------
-trialsteps.horizontal.pos = 140,175
-trialsteps.horizontal.spacing = 1,40
-trialsteps.horizontal.window.withoutextbox = 100,175, 1180,550
-trialsteps.horizontal.window.withtextbox = 100,175, 780,550
-trialsteps.horizontal.padding = 10
-; trialsteps.horizontal.bg.offset = 
-; trialsteps.horizontal.bg.spr = 
-; trialsteps.horizontal.bg.anim = 
-; trialsteps.horizontal.bg.scale = 
-; trialsteps.horizontal.bg.facing = 
-; trialsteps.horizontal.bg.displaytime =  
-
-; UPCOMINGSTEP -------------------------------------------------------------
-; UPCOMINGSTEP options can be specified for both vertical and horizontal layouts simultaneously.
-; UPCOMINGSTEP VERTICAL ----------------------------------------------------
-upcomingstep.vertical.text.offset = 0,0
-upcomingstep.vertical.text.font = 2,0,1, 200, 200, 200
-; upcomingstep.vertical.text.scale = 
-; upcomingstep.vertical.bg.offset = 
-; upcomingstep.vertical.bg.anim = 
-; upcomingstep.vertical.bg.spr = 
-; upcomingstep.vertical.bg.scale = 
-; upcomingstep.vertical.bg.facing =
-; upcomingstep.vertical.bg.displaytime = 
-upcomingstep.vertical.bg.palfx.color = 200
-; upcomingstep.vertical.bg.palfx.invertall = 0
-; upcomingstep.vertical.bg.palfx.sinadd = 0, 0, 0, 0
-upcomingstep.vertical.bg.palfx.mul = 200, 200, 200
-; upcomingstep.vertical.bg.palfx.add = 0, 0, 0
-; upcomingstep.vertical.glyphs.palfx.color = 256
-; upcomingstep.vertical.glyphs.palfx.invertall = 0
-; upcomingstep.vertical.glyphs.palfx.sinadd = 0, 0, 0, 0
-; upcomingstep.vertical.glyphs.palfx.mul = 0, 0, 0
-; upcomingstep.vertical.glyphs.palfx.add = 0, 0, 0
-; UPCOMINGSTEP HORIZONTAL --------------------------------------------------
-; upcomingstep.horizontal.bg.offset =
-; upcomingstep.horizontal.bg.anim = 
-; upcomingstep.horizontal.bg.spr =
-; upcomingstep.horizontal.bg.scale = 
-; upcomingstep.horizontal.bg.facing = 
-; upcomingstep.horizontal.bg.displaytime = 
-upcomingstep.horizontal.bg.tail.offset = 0,-14
-; upcomingstep.horizontal.bg.tail.anim = 
-upcomingstep.horizontal.bg.tail.spr = 402,0
-; upcomingstep.horizontal.bg.tail.scale = 
-; upcomingstep.horizontal.bg.tail.facing = 
-; upcomingstep.horizontal.bg.tail.displaytime = 
-; upcomingstep.horizontal.bg.head.offset = 
-; upcomingstep.horizontal.bg.head.anim = 
-; upcomingstep.horizontal.bg.head.spr = 
-; upcomingstep.horizontal.bg.head.scale = 
-; upcomingstep.horizontal.bg.head.facing = 
-; upcomingstep.horizontal.bg.head.displaytime = 
-upcomingstep.horizontal.bg.palfx.color = 200
-; upcomingstep.horizontal.bg.palfx.invertall = 
-; upcomingstep.horizontal.bg.palfx.sinadd = 
-upcomingstep.horizontal.bg.palfx.mul = 200, 200, 200
-; upcomingstep.horizontal.bg.palfx.add =
-upcomingstep.horizontal.glyphs.palfx.color = 200
-; upcomingstep.horizontal.glyphs.palfx.invertall = 
-; upcomingstep.horizontal.glyphs.palfx.sinadd =
-upcomingstep.horizontal.glyphs.palfx.mul = 200, 200, 200
-; upcomingstep.horizontal.glyphs.palfx.add = 
-
-
-; CURRENTSTEP --------------------------------------------------------------
-; CURRENTSTEP options can be specified for both vertical and horizontal layouts simultaneously.
-; CURRENTSTEP VERTICAL -----------------------------------------------------
-currentstep.vertical.text.offset = 0,0
-currentstep.vertical.text.font = 2,0,1
-; currentstep.vertical.text.scale = 
-; currentstep.vertical.text.font.height = 
-; currentstep.vertical.bg.offset = 
-; currentstep.vertical.bg.anim = 
-; currentstep.vertical.bg.spr = 
-; currentstep.vertical.bg.scale = 
-; currentstep.vertical.bg.facing = 
-; currentstep.vertical.bg.displaytime = 
-; currentstep.vertical.bg.displaytime = 
-; currentstep.vertical.bg.palfx.color = 
-; currentstep.vertical.bg.palfx.invertall = 
-; currentstep.vertical.bg.palfx.sinadd = 
-; currentstep.vertical.bg.palfx.mul = 
-; currentstep.vertical.bg.palfx.add = 
-; currentstep.vertical.glyphs.palfx.color = 
-; currentstep.vertical.glyphs.palfx.invertall = 
-; currentstep.vertical.glyphs.palfx.sinadd = 
-; currentstep.vertical.glyphs.palfx.mul = 
-; currentstep.vertical.glyphs.palfx.add = 
-; CURRENTSTEP HORIZONTAL ---------------------------------------------------
-; currentstep.horizontal.bg.offset = 
-; currentstep.horizontal.bg.anim = 
-; currentstep.horizontal.bg.spr = 
-; currentstep.horizontal.bg.scale = 
-; currentstep.horizontal.bg.facing = 
-; currentstep.horizontal.bg.displaytime = 
-currentstep.horizontal.bg.tail.offset = 0,-14
-; currentstep.horizontal.bg.tail.anim = 
-currentstep.horizontal.bg.tail.spr = 402,0
-; currentstep.horizontal.bg.tail.scale = 
-; currentstep.horizontal.bg.tail.facing = 
-; currentstep.horizontal.bg.tail.displaytime = 
-; currentstep.horizontal.bg.head.offset = 
-; currentstep.horizontal.bg.head.anim = 
-; currentstep.horizontal.bg.head.spr = 
-; currentstep.horizontal.bg.head.scale = 
-; currentstep.horizontal.bg.head.facing = 
-; currentstep.horizontal.bg.head.displaytime = 
-currentstep.horizontal.bg.palfx.color = 200
-; currentstep.horizontal.bg.palfx.invertall = 
-; currentstep.horizontal.bg.palfx.sinadd = 
-currentstep.horizontal.bg.palfx.mul = 255, 255, 50
-; currentstep.horizontal.bg.palfx.add = 
-; currentstep.horizontal.glyphs.palfx.color = 
-; currentstep.horizontal.glyphs.palfx.invertall = 
-; currentstep.horizontal.glyphs.palfx.sinadd = 
-; currentstep.horizontal.glyphs.palfx.mul = 
-; currentstep.horizontal.glyphs.palfx.add = 
-
-; COMPLETEDSTEP -------------------------------------------------------------
-; COMPLETEDSTEP options can be specified for both vertical and horizontal layouts simultaneously.
-; COMPLETEDSTEP VERTICAL ----------------------------------------------------
-completedstep.vertical.text.offset = 0,0
-completedstep.vertical.text.font = 2,0,1, 100, 100, 100
-; completedstep.vertical.text.scale = 
-; completedstep.vertical.text.font.height = 
-; completedstep.vertical.bg.offset = 
-; completedstep.vertical.bg.anim = 
-; completedstep.vertical.bg.spr = 
-; completedstep.vertical.bg.scale = 
-; completedstep.vertical.bg.facing =
-; completedstep.vertical.bg.displaytime = 
-; completedstep.vertical.bg.palfx.color = 
-; completedstep.vertical.bg.palfx.invertall = 
-; completedstep.vertical.bg.palfx.sinadd = 
-; completedstep.vertical.bg.palfx.mul = 
-; completedstep.vertical.bg.palfx.add = 
-completedstep.vertical.glyphs.palfx.color = 0
-; completedstep.vertical.glyphs.palfx.invertall = 
-; completedstep.vertical.glyphs.palfx.sinadd = 
-; completedstep.vertical.glyphs.palfx.mul = 
-; completedstep.vertical.glyphs.palfx.add = 
-; COMPLETEDSTEP HORIZONTAL  --------------------------------------------------
-; completedstep.horizontal.bg.offset =
-; completedstep.horizontal.bg.anim = 
-; completedstep.horizontal.bg.spr = 
-; completedstep.horizontal.bg.scale = 
-; completedstep.horizontal.bg.facing = 
-; completedstep.horizontal.bg.displaytime = 
-completedstep.horizontal.bg.tail.offset = 0,-14
-; completedstep.horizontal.bg.tail.anim = 
-completedstep.horizontal.bg.tail.spr = 402,0
-; completedstep.horizontal.bg.tail.scale =
-; completedstep.horizontal.bg.tail.facing = 
-; completedstep.horizontal.bg.tail.displaytime = 
-; completedstep.horizontal.bg.head.offset = 
-; completedstep.horizontal.bg.head.anim = 
-; completedstep.horizontal.bg.head.spr = 
-; completedstep.horizontal.bg.head.scale = 
-; completedstep.horizontal.bg.head.facing = 
-; completedstep.horizontal.bg.head.displaytime = 
-completedstep.horizontal.bg.palfx.color = 0
-; completedstep.horizontal.bg.palfx.invertall = 
-; completedstep.horizontal.bg.palfx.sinadd = 
-completedstep.horizontal.bg.palfx.mul = 100, 100, 100
-; completedstep.horizontal.bg.palfx.add = 
-completedstep.horizontal.glyphs.palfx.color = 0
-; completedstep.horizontal.glyphs.palfx.invertall = 
-; completedstep.horizontal.glyphs.palfx.sinadd =
-completedstep.horizontal.glyphs.palfx.mul = 100, 100, 100
-; completedstep.horizontal.glyphs.palfx.add = 
-
-; GLYPHS -------------------------------------------------------------------
-; GLYPHS options can be specified for both vertical and horizontal layouts simultaneously.
-; glyphs.<layout>.offset: x,y offset from current trialstep position
-; glyphs.<layout>.scale: x,y scale for glyphs
-; glyphs.<layout>.spacing: x,y spacing from one glyph element to another on the same trialstep
-; glyphs.vertical.align: alignment for glyphs (vertical layout only)
-; glyphs.vertical.scalewithtext: true or false; scales glyphs according to font height - ignores scale parameter when set to true.
-; GLYPHS VERTICAL ----------------------------------------------------------
-glyphs.vertical.offset = 244,3
-glyphs.vertical.scale = 0.3125,0.3125
-glyphs.vertical.spacing = 0,0
-glyphs.vertical.align = -1
-glyphs.vertical.scalewithtext = false
-; GLYPHS HORIZONTAL --------------------------------------------------------
-glyphs.horizontal.offset = 0,-3
-glyphs.horizontal.scale = 0.4, 0.4
-glyphs.horizontal.spacing = 0,0
-
-; TRIALS COUNTER AND TIMERS ------------------------------------------------
-; trialcounter shows the current trial number
-; totaltrialtimer shows the total time for the trial. It is erased if the pause menu is used to skip or rewind.
-; currenttrialtimer shows the time spent on the current trial attempt.
-; --------------------------------------------------------------------------
-trialcounter.pos = 10,690
-trialcounter.font = 1,0,1
-trialcounter.scale = 2,2
-; trialcounter.font.height	=
-trialcounter.text = "Trial %s of %t"
-trialcounter.allclear.text = "All Trials Clear"
-trialcounter.notrialsdata.text = "No Trials Data Found"
-totaltrialtimer.pos	= 1270,690
-totaltrialtimer.font = 1,0,-1
-totaltrialtimer.scale = 2,2
-; totaltrialtimer.font.height =
-totaltrialtimer.text = "Trial Timer: %s"
-currenttrialtimer.pos = 1270,710
-currenttrialtimer.font = 1,0,-1
-currenttrialtimer.scale = 2,2
-; currenttrialtimer.font.height	=
-currenttrialtimer.text = "Current Trial: %s"
-
-; TRIAL RESET REMINDER AND SWITCH ------------------------------------------
-; trialreset.enabled allows the user to reset the player and dummy position to center stage (or specified trials position) when the desired keys are pressed simultaneously
-; trialreset.buttonpress: specify key combination for the user to reset the trial position
-; trialreset.text displays a string that reminds the player they can reset the trial position with the specified key input
-; --------------------------------------------------------------------------
-trialreset.enabled = true
-trialreset.buttonpress = d&w
-trialreset.text.pos = 10,710
-trialreset.text.font = 1,0,1
-trialreset.text.scale = 2,2
-; trialreset.text.font.height	=
-trialreset.text.text = "Hit d + w to reset position"
-
-; TRIALS TEXT BOX ----------------------------------------------------------
-; A textbox can accompany each trial if it is specified within the trials definition file.
-; The only element defined within the trials definition file is the text to be displayed for that trial.
-; textbox.pos: local origin from which other textbox elements are drawn. 
-; textbox.text.<options>: specify text window, offset, font type, and drawspeed
-; textbox.title.<options>: specify text, offset, font type, scale
-; textbox.overlay.<options>: draw an overlay behind any other bg, text or front element
-; textbox.bg.<options>: optional background displayed behind text but over overlay; standard options for background elements, etc.
-; textbox.front.<options>: optional background displayed in front of text; standard options for background elements, etc.
-; textbox.portrait.<options>: allows a portrait to be drawn with or in the textbox. Sprite can be sourced from the character or the screenpack.
-; --------------------------------------------------------------------------
-textbox.visible = true
-textbox.pos = 740,120
-textbox.text.window = 50,0, 300,50
-textbox.text.offset = 10,10
-textbox.text.font = 1,0,1
-textbox.text.drawspeed = 2
-; textbox.text.font.height = -1
-textbox.text.scale = 2,2
-textbox.title.offset = 0,0
-textbox.title.font = 2,0,1
-textbox.title.text = ;%s is  trial number, %n is trial name
-; textbox.title.font.height = -1
-textbox.title.scale = 1,1
-textbox.overlay.visible = true
-textbox.overlay.window = 0,0, 350,50
-textbox.overlay.col = 0, 0, 0
-textbox.overlay.alpha = 0, 128
-textbox.bg.anim = -1
-textbox.bg.spr = 
-textbox.bg.offset = 0, 0
-textbox.bg.facing = 1
-textbox.bg.scale = 1.0, 1.0
-textbox.bg.displaytime = -1
-textbox.front.anim = -1
-textbox.front.spr = 
-textbox.front.offset = 0, 0
-textbox.front.facing = 1
-textbox.front.scale = 1.0, 1.0
-textbox.front.displaytime = -1
-textbox.portrait.source = "char" ; valid options are "system" or "char"
-textbox.portrait.spr = 9000, 0
-textbox.portrait.offset = 5,5
-textbox.portrait.window = 0,0, 40, 40
-textbox.portrait.facing = 1
-textbox.portrait.scale = 0.5, 0.5
-
-; TRIAL SUCCESS BANNER -----------------------------------------------------
-; --------------------------------------------------------------------------
-success.pos	= 640,360
-success.snd	= 600,0 
-success.text.text = "SUCCESS"
-success.text.offset = 0,0
-success.text.font = 4,0,0, 255, 100, 100
-success.text.displaytime = 70
-success.text.scale = 3,3
-; success.text.font.height =
-; success.bg.offset = 
-; success.bg.anim = 
-; success.bg.scale = 
-; success.bg.spr = 
-; success.bg.displaytime = 
-; success.front.offset = 
-; success.front.anim = 
-; success.front.scale = 
-; success.front.spr = 
-; success.front.displaytime	= 
-
-; TRIALS ALL CLEAR BANNER --------------------------------------------------
-; --------------------------------------------------------------------------
-allclear.pos = 640,360
-allclear.snd = 900,0
-allclear.text.text = "ALL CLEAR"
-allclear.text.offset = 0,0
-allclear.text.font = 4,0,0, 255, 100, 100
-allclear.text.displaytime	= 70
-allclear.text.scale	= 3,3
-; allclear.text.font.height	=
-; allclear.bg.offset = 
-; allclear.bg.anim = 
-; allclear.bg.scale = 
-; allclear.bg.spr = 
-; allclear.bg.displaytime = 
-; allclear.front.offset = 
-; allclear.front.anim = 
-; allclear.front.scale = 
-; allclear.front.spr = 
-; allclear.front.displaytime = 
-
-[Trials Info]
-; If not overridden, values used for [Menu Info] are shared with this group.
-; Trials specific parameters:
-menu.valuename.trialslist = ""
-menu.valuename.trialdvancement.autoadvance = "Auto-Advance"
-menu.valuename.trialadvancement.repeat = "Repeat"
-menu.valuename.trialresetonsuccess.yes = "Yes"
-menu.valuename.trialresetonsuccess.no = "No"
-menu.valuename.trialslayout.vertical = "Vertical"
-menu.valuename.trialslayout.horizontal = "Horizontal"
-menu.valuename.trialstextboxes.show = "Show"
-menu.valuename.trialstextboxes.hide = "Hide"
-
-; https://github.com/ikemen-engine/Ikemen-GO/wiki/Screenpack-features#submenus
-; If custom menu is not declared, following menu is loaded by default:
-; menu.itemname.back = "Continue"
-; menu.itemname.nexttrial = "Next Trial"
-; menu.itemname.previoustrial = "Previous Trial"
-; menu.itemname.menutrials = "Trials Menu"
-; menu.itemname.menutrials.trialslist = "Trials List"
-; menu.itemname.menutrials.trialadvancement = "Trials Advancement"
-; menu.itemname.menutrials.trialresetonsuccess = "Reset to Center on Success"
-; menu.itemname.menutrials.trialslayout = "Trials Layout"
-; menu.itemname.menutrials.back = "Back"
-; menu.itemname.menuinput = "Button Config"
-; menu.itemname.menuinput.keyboard = "Key Config"
-; menu.itemname.menuinput.gamepad = "Joystick Config"
-; menu.itemname.menuinput.empty = ""
-; menu.itemname.menuinput.inputdefault = "Default"
-; menu.itemname.menuinput.back = "Back"
-; menu.itemname.commandlist = "Command List"
-; menu.itemname.characterchange = "Character Change"
-; menu.itemname.exit = "Exit"
-
-[TrialsBgDef]
-spr 			= ""
-bgclearcolor 	= 0, 0, 0
-```
+For more detail on how you can configure every aspect of the UI for trials mode, please consult the included `system.def` file.
+The [Trials Mode wiki](https://github.com/two4teezee/Ikemen-GO-Trials-Mode/wiki) also goes into great depth on all supported features.
 
 ## Creating a Character's Trials Definition File
 
 Trials data is created on a per-character basis. To specify new trials for a character, you'll want to create a new file in the character's folder to hold the trials data. For the purposes of this tutorial, I name this file `trials.def`, but you can call it whatever you want. As mentioned before, each character gets its own `trials.def`. You can specify as many trials as you want, in any order you want.
 
-A sample `trials.def` for kfmZ is provided below. The trials are presented to the player in the order in which they are listed in `trials.def`. Detailed information for each configurable parameter can be found in this template.
+### Editing the Character's def File
+
+First you'll want to modify the character's definition file so that Ikemen knows to read the trials data for that character. 
+In the character's definition file (i.e. `kfmZ.def` for kfmZ), under `[Files]`, add the line `trials = trials.def`.
 
 ```
-; KFMZ TRIALS LIST ---------------------------
+[Files]
+trials = trials.def        ;Ikemen feature: Trials mode data
+```
 
+### Creating the first trial in your `trials.def` file
+Your `trials.def` file will list out trials in the order they will be presented to the player.
+Each trial will look something like this:
+
+```
+[TrialDef, Standing Punch Chain]
+trial.difficulty = Beginner
+
+trialstep.1.text = Standing Light Punch
+trialstep.1.glyphs = ^X
+trialstep.1.stateno = 200
+
+trialstep.2.text = Standing Strong Punch
+trialstep.2.glyphs = ^Y
+trialstep.2.stateno = 210
+```
+
+In short, each trial has a section header followed by a set of parameters that we will explain in the next sections.
+The trial's section header, e.g. `[TrialDef, KFM's First Trial]`. `TrialDef` is mandatory; the trial title after the comma is optional.
+Trial parameters come in two flavors - Trial Definition Parameters that are defined once per trial, and Trial Step Definition Parameters that are defined for each step in the trial.
+
+### Trial Definition Parameters 
+These options are defined once per trial.
+They allow the user to characterize the trial or set initialization parameters for the trial.
+
+| Parameter | Required | Format | Default | Description |
+|---|---|---|---|---|
+| `trial.difficulty` | Optional | `Beginner`, `Intermediate`, `Advanced`, `Expert` (case-insensitive) | — (uncategorized) | Puts the trial behind that filter in the Trial Select view, which the player cycles with left and right, and counts towards that filter's cleared tally. Trials that don't declare one are collected under "Other". If no trial in the file declares a difficulty, there is nothing to filter by and the list stays flat and in def order, exactly as before. An unrecognised value is ignored, with a warning printed to the console. |
+| `trial.dummymode` | Optional | `stand`, `crouch`, `jump`, `wjump` | `stand` | Sets the dummy's stance/mode for the trial. |
+| `trial.guardmode` | Optional | `none`, `auto` | `none` | Sets whether the dummy blocks automatically (`auto`) or not (`none`). |
+| `trial.dummybuttonjam` | Optional | `none`, `a`, `b`, `c`, `x`, `y`, `z`, `start`, `d`, `w` | `none` | Sets a button for the dummy to hold during the trial. |
+| `trial.dummylife` | Optional | integer | — | Sets the dummy's life total. |
+| `trial.playerlife` | Optional | integer | — | Sets the player's life total. Useful for trials that involve desperation moves or require a specific life state. |
+| `trial.dummypos` | Optional | `left-corner`, `right-corner`, `far`, `medium`, `close` | center stage | Sets the dummy's position on the stage. If enabled, the player can reset positioning according to this information by hitting the d and w keys simultaneously. |
+| `trial.playerpos` | Optional | `left-corner`, `right-corner`, `far`, `medium`, `close` | center stage | Sets the player's position on the stage. If enabled, the player can reset positioning according to this information by hitting the d and w keys simultaneously. |
+| `trial.textbox` | Optional | multilingual (string) | — | Displays specified text in a box specified in the textbox settings in `system.def` under `[Trials Mode]`. Supports specification as `trial.textbox`, or `trial.textbox.en`, `trial.textbox.es`, etc. for multilingual support. Defaults to `trial.textbox.en` (or `trial.textbox`) if the selected language cannot be matched. |
+| `trial.showvarvalpairs` | Optional | comma-separated integers, in pairs (0..n pairs) | — | Determines whether a trial should be displayed based on the specified variable and value pair(s). Useful if a trial should only be displayed when the character has a specific variable/value pair set, such as being in a specific groove or mode. If specified, the trial only displays if all variable-value pairs return true. These pairs are for the character only (not for helpers). Variables can test multiple values, separated by `\|` (e.g. `trial.showforvarvalpairs = 12, 0\|2\|4` tests var(12) for values 0, 2, and 4). We have a section dedicated to this parameter as it is more advanced.|
+
+### Trial Step Definition Parameters
+These parameters are used to defined each trial step.
+Trial steps are shown in sequence, but the order for the parameters within that sequence does not matter.
+Trial steps are written out as `trialstep.X.<parameter>` where 'X' is the trial step number starting at '1'.
+
+| Parameter | Required | Format | Default | Description |
+|---|---|---|---|---|
+| `trialstep.X.text` | Optional | multilingual (string) | — | Text for trial step (only displayed in vertical trials layout). Supports specification as `trialstep.X.text`, or `trialstep.X.text.en`, `trialstep.X.text.es`, etc. for multilingual support. Defaults to `trialstep.X.text.en` (or `trialstep.X.text`) if the selected language cannot be matched. |
+| `trialstep.X.glyphs` | Optional | string (see [Glyph documentation](https://github.com/ikemen-engine/Ikemen-GO/wiki/Miscellaneous-info#movelists)) | — | Same syntax as movelist glyphs. Glyphs are displayed in vertical and horizontal trials layouts. |
+| `trialstep.X.stateno` | Mandatory* | integer or comma-separated integers, or integers separated by `\|` | — | State to be checked to pass trial, whether it's the main character or a helper. On a projectile step it means the state the projectile was FIRED FROM, which the module records when the projectile spawns — note that for a projectile fired by way of a helper this is the root's move state (e.g. 1000 for a Hadoken thrown by a helper out of state 1000), not the helper's own state number. *Optional, and safely omitted, on a step whose `projid` already identifies the projectile on its own. |
+| `trialstep.X.animno` | Optional | integer or comma-separated integers, or integers separated by `\|` | — | Identifies animno to be checked to pass trial. Useful in certain cases. |
+| `trialstep.X.hitcount` | Optional | integer or comma-separated integers, or integers separated by `\|` | `1` | Specifies a hit count criteria to meet before proceeding to the next trial step. Useful for multi-hit moves, or for moves that don't hit (e.g. taunts). `hitcount = 0` has no hit to advance on, so it passes on the character ENTERING the step's `stateno` instead. Repeats of the same move therefore need to be performed again each time - useful where nothing connects at all, such as a custom combo against a dummy set to `trial.guardmode = auto`. |
+| `trialstep.X.isthrow` | Optional | `true`/`false`, or comma-separated true/false | `false` | Identifies whether the trial step is a throw. |
+| `trialstep.X.iscounterhit` | Optional | `true`/`false`, or comma-separated true/false | `false` | Identifies whether the trial step should be a counter hit. Typically does not work with helpers or projectiles. |
+| `trialstep.X.ishelper` | Optional | `true`/`false`, or comma-separated true/false | `false` | Identifies whether the trial step is a hit from a helper. |
+| `trialstep.X.isproj` | Optional | `true`/`false`, or comma-separated true/false | `false` | Identifies whether the trial step is a hit from a projectile. The step passes only when the projectile actually connects with the dummy, not when it is fired. Not needed alongside a `projid` (which already identifies the step as a projectile) — only required when the projectile is identified by `stateno` instead. Setting both is harmless. |
+| `trialstep.X.projid` | Optional | integer or comma-separated integers, or integers separated by `\|` | — | The ID given to the projectile by the character's `Projectile` sctrl (authors spell it `ProjID`, `projid`, or plain `id`). The step passes on the frame a projectile with that ID hits the dummy.|
+| `trialstep.X.validforvarvalpairs` | Optional | comma-separated integers, in pairs (0..n pairs) | — | Sister to `showforvarvalpairs`. Optionally checks a trial step against var-value pairs — useful when forcing completion under specific conditions (e.g. a custom combo state). Pairs are valid for the entire trial step, regardless of condensed terminology. |
+| `trialstep.X.validfortickcount` | Optional | integer, or comma-separated integers | nil | Pauses the trials checking logic until the next hit is registered for the specified tickcount. |
+
+### Condensed Trial Steps
+For some trials, you might elect to show what normally might be several trial steps as a condensed trial step, which essentially boils down to specifying a series of values separated by commas.
+A good example of this would be a magic chain, as in the previously shown trials code block.
+All trial step definition parameters other than `text` and `glyphs` can be specified as condensed trial steps, but the rule is that if one parameter for a trial step is specified as a condensed step, then each other parameter (other than `text` and `glyps`) must have an equal number of entries.
+Below is an example of a simple condensed trial step:
+
+```
+[TrialDef, Condensed Standing Punch Chain]
+; Condensed steps can be very practical for multi-state moves where the trial step should only clear if all of the states are met, without having to create multiple trial steps.
+
+trialstep.1.text = Standing Light to Strong Punch Chain		
+trialstep.1.glyphs = ^X_-^Y			
+trialstep.1.stateno = 200, 210		
+trialstep.1.hitcount = 1, 1
+```
+
+### Using the `|` (or) Operand
+For other trials, you might accept various versions of a similar move that have different `stateno` or `animno`, to name a few possibilities.
+A good example of this would be a trial for a Shoryuken where the punch strength is immaterial, but the states differ from one punch strength to the next.
+This is where the `|` operand comes in, here is an example of it being applied:
+
+```
+[TrialDef, KFM Kung Fu Palm]
+; In this trial, we use the "or" operand, specified by using the | character, to let the user specify multiple different stateno or animno for which the trialstep or microstep is valid.
+
+trialstep.1.text = Kung Fu Palm
+trialstep.1.glyphs = _QDF^P
+trialstep.1.stateno = 1000|1010
+```
+
+### How to Handle Projectiles
+
+Use `\|` where a character fires more than one projectile for the same move, or the ID is an expression (e.g. `projid = 3005\|3006` for `ID = 3005+(var(5)=2)`).<br>• A `projid` alone is enough to mark a step as a projectile step; `isproj` isn't needed alongside one.<br>• Add `stateno` too when a character reuses one ID across several moves (e.g. CvS Sagat's ProjID 1000 across states 1000/1050/1070 — `projid = 1000` with `stateno = 1070` isolates the heavy Tiger Shot).<br>• If the sctrl declares no ID, it defaults to 0, so `projid = 0` matches every ID-less projectile — pair with `stateno` to narrow it down.<br>• A step with `isproj = true` and no `projid` matches on `stateno` alone and still requires a connect. `projid` has no effect when `hitcount = 0`.
+
+### How to Handle Helpers
+
+
+### Tips and Tricks When Writing Your `trials.def` file
+
+
+### `kfm_zss` Sample Trial Definition File
+
+A sample `trials.def` for `kfm_zss` is provided below. The trials are presented to the player in the order in which they are listed in `trials.def`. Detailed information for each configurable parameter can be found in this template.
+
+```
 [TrialDef, KFM's First Trial]
 
+trial.difficulty = Beginner
 trial.dummymode = stand
 trial.guardmode = none
 trial.dummybuttonjam = none
@@ -511,6 +208,7 @@ trialstep.1.glyphs = _QDF^Y
 trialstep.1.stateno = 1010
 
 ; trialstep.1.animno =
+; trialstep.1.projid =
 ; trialstep.1.hitcount =
 ; trialstep.1.isthrow =
 ; trialstep.1.iscounterhit =
@@ -518,35 +216,6 @@ trialstep.1.stateno = 1010
 ; trialstep.1.isproj =
 ; trialstep.1.validforvarvalpairs = 
 ; trialstep.1.validfortickcount = 
-
-; TrialDef Parameter Descriptions
-; ===============================
-; [TriafDef, TrialTitle] - [TrialDef] mandatory - trial title after the comma is optional.
-
-; trial.dummymode - optional - valid options are stand (default), crouch, jump, wjump. Defaults to stand if unspecified.
-; trial.guardmode - optional - valid options are none, auto. Defaults to none if unspecified.
-; trial.dummybuttonjam - optional - valid options are none, a, b, c, x, y, z, start, d, w. Defaults to none if unspecified.
-; trial.dummylife - optional - sets the dummy's life total.
-; trial.playerlife - optional - sets the player's life total. Useful for trials that involve desparation moves or require a specific life state.
-; trial.dummypos - optional - sets the dummy's position on the stage. Valid options are left-corner, right-corner, far, medium, close. If enabled, the player can reset positioning according to this information by hitting the d and w keys simultaneously. Defaults to center stage.
-; trial.playerpos - optional - sets the player's position on the stage. Valid options are left-corner, right-corner, far, medium, close. If enabled, the player can reset positioning according to this information by hitting the d and w keys simultaneously. Defaults to center stage.
-; trial.showvarvalpairs - optional - (comma-separated integers, specified in pairs, can specify 0..n pairs). Used to determine whether a trial should be displayed based on the specified variable and value pair(s) in this field. Useful if a trial should only be displayed when character has a specific variable/value pair set, such as being in a specific groove or mode. If specified, the trial will only be displayed if all variable-value pairs return true. These variable-value pairs should only be for the character (not for helpers). Finally, variables can have multiple specified values to test against, which should be separated by the "|" character (e.g. `trial.showforvarvalpairs = 12, 0|2|4` would test var(12) for values 0, 2, and 4).
-; trial.textbox - optional - multilingual - displays specified text in a box specified in the textbox settings in system.def under [Trials Mode]. Supports specification as trial.textbox, or trial.textbox.en, trial.textbox.es, etc. for multilingual support. Will default to trial.textbox.en (or trial.textbox) if selected language cannot be matched.
-
-; The options above are defined once per trial. The other parameters can be defined for each trial step - notice the syntax, where X is the trial number.
-
-; trialstep.X.text - optional - multilingual - (string). Text for trial step (only displayed in vertical trials layout). Supports specification as trialstep.X.text, or trialstep.X.text.en, trialstep.X.text.es, etc. for multilingual support. Will default to trialstep.X.text.en (or trialstep.X.text) if selected language cannot be matched.
-; trialstep.X.glyphs - optional - (string, see Glyph documentation [https://github.com/ikemen-engine/Ikemen-GO/wiki/Miscellaneous-info#movelists] for syntax). Same syntax as movelist glyphs. Glyphs are displayed in vertical and horizontal trials layouts.
-; trialstep.X.stateno - mandatory - (integer or comma-separated integers). State to be checked to pass trial. This is the state whether it's the main character, a helper, or even a projectile.
-
-; trialstep.X.animno - optional - (integer or comma-separated integers). Identifies animno to be checked to pass trial. Useful in certain cases.
-; trialstep.X.hitcount - optional - (integer or comma-separated integers), will default to 1 if not defined. In some instances, you might want to specify a trial step to meet a hit count criteria before proceeding to the next trial step. Useful for multi-hit moves, or for moves that don't hit (e.g. taunts).
-; trialstep.X.isthrow - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step is a throw. Should be 'true' is trial step is a throw.
-; trialstep.X.iscounterhit - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step should be a counter hit. Typically does not work with helpers or projectiles.
-; trialstep.X.ishelper - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step is a helper. Should be 'true' is trial step is a hit from a helper.
-; trialstep.X.isproj - optional - (true or false, or comma-separated true/false), will default to false if not defined. Identifies whether the trial step is a projectile. Should be 'true' is trial step is a hit from a projectile.
-; trialstep.X.validforvarvalpairs - optional - (comma-separated integers, specified in pairs, can specify 0..n pairs). Sister functionality to "showforvarvalpairs". These variable-value pairs are used to optionally check a trial step. Useful if you are forcing the trial step to be completed when certain var-val pairs are met (for instance, while in a custom combo state). Variable-value pairs are considered valid for entire trial step (regardless if the trial step is specified using condensed terminology).
-; trialstep.X.validfortickcount - optional (integer, or comma-separate integers), will default to nil if not defined. Makes the trials checking logic pause until the next hit is registered for the tickcount specified.
 
 ;---------------------------------------------
 
@@ -593,7 +262,7 @@ trialstep.1.stateno = 200, 210
 trialstep.1.hitcount = 1, 1
 
 ; When desired, you can collapse multiple steps into a single one but using comma separated values in the following parameters:
-; stateno, animno, hitcount, isthrow, iscounterhit, ishelper, isproj
+; stateno, animno, projid, hitcount, isthrow, iscounterhit, ishelper, isproj
 ; If one parameter on the trial step is defined using comma separated values, all parameters on that trial step must be defined similarly.
 
 ;---------------------------------------------
@@ -649,40 +318,98 @@ trialstep.1.text = Jumping Strong Kick
 trialstep.1.glyphs = _AIR^B
 trialstep.1.stateno = 640
 
-trialstep.2.text = Standing Light Kick
-trialstep.2.glyphs = ^A
-trialstep.2.stateno = 230
+trialstep.2.text = Standing Kick Chain
+trialstep.2.glyphs = ^A_-^B
+trialstep.2.stateno = 230, 240
 
-trialstep.3.text = Standing Strong Kick
-trialstep.3.glyphs = ^B
-trialstep.3.stateno = 240
+trialstep.3.text = Fast Kung Fu Zankou
+trialstep.3.glyphs = _QDF^A^B
+trialstep.3.stateno = 1420
 
-trialstep.4.text = Fast Kung Fu Zankou
-trialstep.4.glyphs = _QDF^A^B
-trialstep.4.stateno = 1420
-
-trialstep.5.text = Triple Kung Fu Palm
-trialstep.5.glyphs = _QDF_QDF^P
-trialstep.5.stateno = 3000
-trialstep.5.hitcount = 3
+trialstep.4.text = Triple Kung Fu Palm
+trialstep.4.glyphs = _QDF_QDF^P
+trialstep.4.stateno = 3000
+trialstep.4.hitcount = 3
 ```
 
-## Editing the Character's Def File
+### Pause Menu Options
 
-Finally, you'll want to modify the character's definition file so that Ikemen knows to read the trials data for that character. 
-In the character's definition file (i.e. `kfmZ.def` for kfmZ), under `[Files]`, add the line `trials = trials.def`.
+Pausing a Trials match opens the mode's own pause menu. It is engine-native: the
+`[Trials Pause Menu]` section shipped in `+system.def` is the whole of the registration, because
+the engine turns any section matching `*pause*menu` into a pause menu and opens the one named
+after the current game mode. A screenpack customizes it by declaring the same section in its own
+`system.def` — there is nothing to edit in `trials.lua`.
 
+- **Trials List**: the character's trials, one per line, with the current one marked. Selecting
+  one jumps to it, starts its progress over and recenters the pair.
+- **Advancement**: Auto-Advance or Repeat — whether clearing a trial moves to the next one or
+  replays it, so a single trial can be drilled.
+- **Reset on Success**: recenters the players when a trial is cleared. If dummy and/or player
+  positions are specified for the trial, they are moved accordingly.
+- **Layout**: Vertical or Horizontal, switchable mid-match.
+- **Textboxes**: shows or hides a trial's explanatory text, for trials that carry any.
+- **Speedrun**: On or Off. See below.
+- **Progress**: erases recorded progress, for this character or for everyone. See below.
+
+Speedrun apart, the last four are **player preferences**: their defaults are the values shipped in
+`external/mods/trials/config.ini`, and the player's choice is written back to that same file the
+moment it changes, winning on the next launch. A screenpack author sets the pack's defaults by
+editing those shipped values. Note that the module rewrites `config.ini` whenever a preference
+changes, so comments added to it will be lost.
+
+Next Trial and Previous Trial remain supported for screenpacks that would rather list them than
+use the Trials List, but neither is part of the default menu.
+
+### Trial Select
+
+Trials Mode ships with a Trials Selection menu that can be shown either immediately after stage select, or right before the fight kicks off.
+Trials can optionally be categorized by difficulty, allowing you to organize them for players when you ship your character or game.
+The Trials Selection menu is fully configurable, just like all other aspects of the Trials Mode UI.
+
+## Speedrun
+
+Speedrun is a run at the whole character, in order, against the clock. Turning it on from the pause
+menu:
+
+- takes **Trials List** off the pause menu, so no trial can be skipped;
+- holds **Advancement** at Auto-Advance, since Repeat would stall a run;
+- restarts from the first trial with the total timer running.
+
+With Speedrun on, loading into a match skips the Trial Select view and starts on the first trial.
+Clearing every trial in one uninterrupted run records the total as that character's best run time;
+jumping to a trial invalidates the run, so a run only counts if it was played straight through.
+Individual clears and best times are recorded during a speedrun exactly as they are outside one.
+
+The character's best run time is shown beside the Speedrun item in the pause menu once they have
+one.
+
+Speedrun is **not** saved: it belongs to the sitting it was started in, and turns itself off
+whenever the player returns to the character select screen — via Character Change, the end of a
+match, or leaving the mode. Recorded clears and best run times are of course kept.
+
+## Progress
+
+Progress is saved per character to `save/trials.json`, next to the engine's own save data. For each
+trial it records whether it has been cleared and the best time; for each character it also records
+the best full-run time from Speedrun. It is written the moment a trial is cleared.
+
+```json
+{
+  "version": 1,
+  "chars": {
+    "chars/kfmz/kfmz.def": {
+      "trials": {
+        "KFM's First Trial": { "cleared": true, "besttime": 214 }
+      },
+      "speedrun": { "cleared": true, "besttime": 4820 }
+    }
+  }
+}
 ```
-[Files]
-trials = trials.def        ;Ikemen feature: Trials mode data
-```
 
-## Pause Menu Options
+Characters are keyed by their def path, so renaming a character's display name keeps its progress.
+Trials are keyed by the name in `[TrialDef, <name>]`, so trials can be reordered, added or removed
+without losing anything; renaming a trial starts it a fresh record and leaves the old one orphaned,
+which is harmless. Times are in ticks (60 to the second).
 
-Trials Mode ships with the several pause menu options. Customizing the pause menu must be done by editing the `motif.setBaseTrialsInfo()` in `trials.lua`.
-- **Next Trial**: advance to the next trial
-- **Previous Trial**: return to the previous trial
-- **Trials List**: view a list of the trials, and select which one to activate
-- **Trial Advancement**: toggles between either Auto-Advance or Repeat, allows the player to play a single trial on repeat if desired
-- **Reset on Success**: resets the players to center stage when the trial is cleared. This can be set in the `system.def`, but the player can modify it in-game as well. If dummy and/or player positions are specified, the dummy and player will be moved accordingly.
-- **Trials Layout**: toggles between Vertical and Horizontal trials layout. This can be set in the `system.def`, but the player can modify it in-game as well.
+Deleting `save/trials.json` resets all progress.
