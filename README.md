@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://private-user-images.githubusercontent.com/76234389/646944453-bfb7bdda-f66d-40dc-98b1-77a4979bdbbe.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3ODg3MTI4OTYsIm5iZiI6MTc4ODcxMjU5NiwicGF0aCI6Ii83NjIzNDM4OS82NDY5NDQ0NTMtYmZiN2JkZGEtZjY2ZC00MGRjLTk4YjEtNzdhNDk3OWJkYmJlLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNjA5MDYlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjYwOTA2VDE2MzYzNlomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTViZmQ0MWI3ZDYyMGI2N2E4NmViZGY3NDc2Y2EyOGYwNDA5MWRlZGQyYTgzOWU5NmMxMzlhY2M3YWI3MTAwYjImWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JnJlc3BvbnNlLWNvbnRlbnQtdHlwZT1pbWFnZSUyRnBuZyJ9.Y6UkQucvoMrMW5IljdnZ8dfEfu2UOnrr2pjJrKpoupI" alt="RomMCart" width="240" />
+<img src=".github/trials_logo.png" alt="Ikemen GO Trials Mode Logo" width="240" />
 
 ---
 
@@ -19,7 +19,13 @@ You can find sample trials files for some of my favorite characters in [this rep
 ## Preview
 
 ## Features
-
+- Per-character trial authoring. Creators add a `trials = trials.def` line to a character's def file, and define any number of trials in that `trials.def` file, each a sequence of steps checked against live match state. Steps can match on state numbers, anim numbers, hit counts, throws, counter-hits, helper and projectile hits. 
+- Multi-step trials can be condensed in a single step, and steps can accept multiple valid values using an `|` "or" operand for flexible move recognition. All text supports language-suffixed keys for multilingual releases.
+- Per-trial setup. Each trial can set the dummy's stance, automatic guarding, dummy button presses, and life totals for both dummy and player, as well as an assigned difficulty for the trial. It can also place both fighters at named stage positions, which the player can snap back to at any time by pressing the associated key combination.
+- Every aspect of the Trials Mode UI is customizable - fonts, backgrounds for all elements (like titles, upcoming/current/completed trial steps,etc.), animations, defaults, etc. Sprites and sounds for Trials Mode can be neatly packaged in the module's own `trials.sff` and `trials.snd`, or merged into the screenpack's `system.sff` and `system.snd`. Trials Mode also ships with an engine-native pause menu. 
+- Trials can be displayed as a vertical readout (step text plus input glyphs) and a horizontal readout in the style of KOF XIV.
+- Trials progress is persistent. Per-character progress (cleared status and best times) is saved and keyed so that it is resilient to changes in `trials.def`. The module also ships with a Speedrun Mode, where the player can attempt to log a best time running through the whole character's trials in order against a single timer.
+- Configurable Trial Select screen. Trials Mode ships a selection menu that appears either right after stage select or just before the fight begins. Trials can optionally be grouped by difficulty (Beginner, Intermediate, Advanced, Expert), which the player cycles through and which tracks a cleared tally per category.
 
 ## Installation
 1. Extract archive content into your Ikemen directory - you should see new content in "./external/mods/trials/"
@@ -38,8 +44,8 @@ Everything below ships inside `external/mods/trials/`.
 | File | Role | Contents |
 |---|---|---|
 | `+system.def` | The hand-off into the *screenpack's* menus. Provides the main-menu entry (`[Title Info]`, `[Select Info]`) and the `[Trials Pause Menu]` section the engine turns into the in-match pause menu. | This file contains Menu item names, value labels (Auto-Advance/Repeat, Vertical/Horizontal, difficulty labels, etc.), and instructions for merging into the screenpack's own `system.def`. |
-| `config.ini` | Per-install storage for player preferences (Advancement, Layout, Reset on Success, Textboxes, timers). Rewritten by the module the moment a player changes one in the pause menu, so hand edits/comments here don't persist. | Contains options key/value pairs - you likely will not edit this file. |
-| `system.def` | The mode's own UI configuration, loaded by `trials.lua` (not by the screenpack). Everything under `[Trials Mode]`: title text, layout (vertical/horizontal), Trial Select banner and rows, glyph/anim wiring, textbox styling. | This file is how you configure Trials Mode's appearance. |
+| `config.ini` | The mode's behavioural defaults *and* per-install player preferences (Advancement, Layout, Reset on Success, Textboxes, timers). The shipped values are the defaults; the module rewrites the file the moment a player changes one in the pause menu, dropping the comments in the process. | Options key/value pairs. Edit the shipped values to set your pack's defaults. |
+| `system.def` | The mode's own UI configuration, loaded by `trials.lua` (not by the screenpack). Everything under `[Trials Mode]`: title text, per-layout element positions, Trial Select banner and rows, glyph/anim wiring, textbox styling. Behavioural defaults (layout, reset on success) live in `config.ini`, not here. | This file is how you configure Trials Mode's appearance. |
 | `trials.lua` | The module itself — the only file the engine loads directly. Implements the game mode: parses each character's `trials.def`, checks trial steps against match state, draws the Trial Select/pause menus, and reads/writes `config.ini` and `save/trials.json`. | Lua source - you likely won't change any of this code. |
 | `trials.sff` | The mode's bundled sprite sheet, auto-detected on load. Supplies default art (backgrounds, banners, clear markers) so the mode looks right even if the screenpack's own `system.sff` doesn't carry matching sprites. | Sprite data - you can drop your sprites for the Trials Mode UI in this file, or in your `system.sff`. |
 | `trials.zss` | Engine-side state and helper functions the mode depends on (camera framing, dummy/player repositioning, button-jam handling). Loaded automatically by `trials.lua`; not part of the screenpack. | Global states - you won't edit this file. |
@@ -50,7 +56,7 @@ Everything below ships inside `external/mods/trials/`.
 Not shipped, but referenced by the README: a sample `trials.def` (and matching character `.def` edit) for `kfm_zss`, and additional community trials files at the [Sample Trials Definition Files repo](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files). `trials.snd` and `trials.air` are optional files a creator may drop in beside `trials.lua`; the module ships neither.
 
 ## system.def and UI Customization
-The Trials Mode external module supports full customization UI through the included `system.def`, with background sprites and animations pulled directly from your screenpack's `system.sff`, or from a separately bundled module-specific `trials.sff`, if so desired. 
+The Trials Mode external module supports full customization of the UI through the included `system.def`, with background sprites and animations pulled directly from your screenpack's `system.sff`, or from a separately bundled module-specific `trials.sff`, if so desired. 
 The module ships with a `trials.sff` and it is automatically detected on load when included in the module folder.
 
 Sounds work the same way. Every `snd` parameter in the module's `system.def` — `success.snd` and `allclear.snd` — is read from a `trials.snd` placed beside `trials.lua`, and from your screenpack's `system.snd` when there is none.
@@ -95,6 +101,7 @@ trialstep.2.text = Standing Strong Punch
 trialstep.2.glyphs = ^Y
 trialstep.2.stateno = 210
 ```
+
 In short, each trial has a section header followed by a set of parameters that we will explain in the next sections.
 The trial's section header, e.g. `[TrialDef, KFM's First Trial]`. `TrialDef` is mandatory; the trial title after the comma is optional.
 Trial parameters come in two flavors - Trial Definition Parameters that are defined once per trial, and Trial Step Definition Parameters that are defined for each step in the trial.
@@ -342,10 +349,11 @@ after the current game mode. A screenpack customizes it by declaring the same se
 - **Speedrun**: On or Off. See below.
 - **Progress**: erases recorded progress, for this character or for everyone. See below.
 
-Speedrun apart, the last four are **player preferences**: `system.def` provides the screenpack's
-authored default, the player's choice is saved to `external/mods/trials/config.ini` the moment it
-changes, and that file wins on the next launch. Note that the module rewrites `config.ini`
-whenever a preference changes, so comments added to it will be lost.
+Speedrun apart, the last four are **player preferences**: their defaults are the values shipped in
+`external/mods/trials/config.ini`, and the player's choice is written back to that same file the
+moment it changes, winning on the next launch. A screenpack author sets the pack's defaults by
+editing those shipped values. Note that the module rewrites `config.ini` whenever a preference
+changes, so comments added to it will be lost.
 
 Next Trial and Previous Trial remain supported for screenpacks that would rather list them than
 use the Trials List, but neither is part of the default menu.

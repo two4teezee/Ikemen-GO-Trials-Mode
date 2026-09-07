@@ -20,14 +20,15 @@
 menu.itemname.trials = "TRIALS MODE"
 
 ; GENERAL TRIALS OPTIONS ---------------------------------------------------
-; trialsresetonsuccess: set to "true" to reset character positions after each trial success (except the final one). Can optionally specify fadein and fadeout parameters - will default to shown values.
-; trialslayout: "vertical" or "horizontal" are the only valid values. Defaults to "vertical" if not specified. Affects scrolling logic, as stated above, also enables dynamic step width. Can be changed via the pause menu if screenpack author leaves the option in.
 ; trialslocalcoord: localcoord for the trials mode. Defaults to 320,240 if not specified.
 ; trialslistdisplay: valid values are "select", "start", and "off". "select" shows the menu between stage select and the fight loading; "start" shows it once the match is up, over the frozen pair; "off" never asks and starts on the first trial. Defaults to "start". The pause menu's Trials List works the same either way.
 ; --   Note: "select" falls back to the "start" menu for characters whose trials use showforvarvalpairs. Those trials are picked by the player's groove or mode, and the variables holding it do not exist until the match is up, so asking before the fight would list every groove's trials.
+; --
+; Layout (vertical/horizontal) and Reset on Success are player preferences, not UI config. Their
+; shipped defaults and the player's saved choices both live in config.ini's [Options] - see the
+; legend at the top of that file. Layout also selects the scrolling behaviour and enables dynamic
+; step width; the fadein/fadeout parameters below still style the Reset on Success transition.
 ; --------------------------------------------------------------------------
-trialsresetonsuccess = false
-trialslayout = vertical
 trialslocalcoord = 1280,720
 trialslistdisplay = select
 
@@ -89,7 +90,7 @@ selscreenpalfx.mul = 100, 100, 100
 selscreenpalfx.add = ; 0, 0, 0
 
 ; RESETONSUCCESS FADES -----------------------------------------------------
-; Used when "trialsresetonsuccess" is set to "true"
+; Used when Reset on Success is enabled (config.ini [Options] Trials.ResetOnSuccess = true).
 ; --------------------------------------------------------------------------
 fadein.time = 40
 fadein.col = {0, 0, 0}

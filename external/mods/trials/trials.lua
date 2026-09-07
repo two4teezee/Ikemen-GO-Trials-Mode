@@ -430,14 +430,12 @@ end
 
 trials.trials_mode = f_buildCompatConfig(trials.trials_mode or {})
 
--- config.ini's [Options] override the screenpack's authored defaults, but only where the
--- player has actually set one. 
-if opts.Layout ~= nil then
-	trials.trials_mode.trialslayout = tostring(opts.Layout):lower()
-end
-if opts.ResetOnSuccess ~= nil then
-	trials.trials_mode.trialsresetonsuccess = opts.ResetOnSuccess ~= false
-end
+-- config.ini's [Options] is the single source of truth for these behavioural defaults: the
+-- shipped file carries the defaults and the pause menu rewrites it as the player changes them.
+-- system.def no longer carries a layout / reset-on-success default - it only styles the mode.
+trials.trials_mode.trialslayout =
+	tostring(opts.Layout):lower() == 'horizontal' and 'horizontal' or 'vertical'
+trials.trials_mode.trialsresetonsuccess = opts.ResetOnSuccess == true
 if opts.Textboxes ~= nil then
 	local visible = tostring(opts.Textboxes):lower() ~= 'hide'
 	trials.trials_mode.textbox_visible = visible
@@ -3788,13 +3786,12 @@ function menu.f_trialsReset()
 	else
 		menu.trialadvancement = 2
 	end
-	if (opts.ResetOnSuccess ~= nil and opts.ResetOnSuccess ~= false)
-		or (opts.ResetOnSuccess == nil and trials.trials_mode.trialsresetonsuccess == true) then
+	if trials.trials_mode.trialsresetonsuccess == true then
 		menu.trialresetonsuccess = 1
 	else
 		menu.trialresetonsuccess = 2
 	end
-	if tostring(opts.Layout or trials.trials_mode.trialslayout):lower() == "vertical" then
+	if trials.trials_mode.trialslayout == "vertical" then
 		menu.trialslayout = 1
 	else
 		menu.trialslayout = 2
