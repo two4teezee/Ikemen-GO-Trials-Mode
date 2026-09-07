@@ -1215,6 +1215,14 @@ function trials.f_inittrialsData()
 		currenttrialmicrostep = 1,
 		validfortickcount = 0,
 		comboCounter = 0,
+		-- A step that requires no connect has no hit to key off, so the only thing separating one
+		-- of them from the next is the player entering a state again. stateinstance counts those
+		-- entries, laststateno/laststatetime spot them, and nohitinstance remembers the one that
+		-- satisfied the last no-hit step so the following step cannot take the same one.
+		stateinstance = 0,
+		laststateno = nil,
+		laststatetime = nil,
+		nohitinstance = nil,
 		projsource = {},
 		maxsteps = 0,
 		starttick = roundTime(),
@@ -1993,9 +2001,29 @@ textboxwindow4 = trials.mtlcy
 end
 
 
+-- Nothing already in progress counts towards a fresh attempt: whatever state the player is in has
+-- been spent, so the first no-hit step of one still needs an entry of its own.
+function trials.f_spendState()
+	if trials.data ~= nil then
+		trials.data.nohitinstance = trials.data.stateinstance
+	end
+end
+
 function trials.f_trialsChecker(CheckIt)
 	--This function sets dummy actions according to the character trials info and validates trials attempts
 	--To help follow along, ct = current trial, cts = current trial step, ncts = next current trial step
+	-- Count the root's state entries whether or not a Trial is accepting input, so the count does not
+	-- depend on a banner or a fade being up. A move cancelled into itself - the whole point of a custom
+	-- combo - keeps its state number, so a fall in state time is what marks that entry. Time stalls
+	-- rather than falls while the match is paused, which is why this is a < and not a ~=.
+	if CheckIt == 'root' then
+		local sn, st = stateNo(), time()
+		if sn ~= trials.data.laststateno or (trials.data.laststatetime ~= nil and st < trials.data.laststatetime) then
+			trials.data.stateinstance = trials.data.stateinstance + 1
+		end
+		trials.data.laststateno = sn
+		trials.data.laststatetime = st
+	end
 	if ct <= #trials.data.trial and trials.draw.success == 0 and trials.draw.fade == 0 and trials.data.active then
 	
 			if trials.data.trial[ct].trialstep[cts].hitcount[ctms] == nil then
@@ -2042,6 +2070,11 @@ function trials.f_trialsChecker(CheckIt)
 		player(1)
 		local step = trials.data.trial[ct].trialstep[cts]
 		local newhit = comboCount() > trials.data.comboCounter
+		-- A step that requires no connect is satisfied by its state alone, and that is true of every
+		-- frame the player spends in it - one move would otherwise be consumed by a whole run of
+		-- identical no-hit steps, one per frame. One entry into the state satisfies one of them.
+		local newstate = trials.data.stateinstance ~= trials.data.nohitinstance
+		local nohitok = step.hitcount[ctms] == 0 and newstate
 		local isprojstep = step.isproj[ctms] or step.projid[ctms] ~= nil
 		if CheckIt ~= nil and CheckIt ~= 'root' then
 			helperIndex(CheckIt)
@@ -2082,7 +2115,7 @@ function trials.f_trialsChecker(CheckIt)
 			-- A helper that fires a projectile scores the hit on the root, not on itself, so
 			-- neither one's moveHit ever reports it. projid covers that case.
 			helpercheck = ((moveHit() > 0 or projid >= 0) and newhit)
-				or step.isthrow[ctms] or step.hitcount[ctms] == 0
+				or step.isthrow[ctms] or nohitok
 			if trials.data.trial[ct].trialstep[cts].validforvar ~= nil and helpercheck then
 				for i = 1, #trials.data.trial[ct].trialstep[cts].validforvar, 1 do
 					if helpercheck then
@@ -2097,7 +2130,7 @@ function trials.f_trialsChecker(CheckIt)
 			if step.hitcount[ctms] == 0 then
 				-- A step that is not required to connect has no hit to key off, so state is all
 				-- there is to match on - projid never comes into it.
-				projcheck = statecheck and animcheck
+				projcheck = statecheck and animcheck and newstate
 			elseif wantids == nil then
 				-- Legacy step with no projid: match stateno as before, but require a real hit.
 				projcheck = statecheck and animcheck and projid >= 0 and newhit
@@ -2122,7 +2155,7 @@ function trials.f_trialsChecker(CheckIt)
 			end
 		end
 
-		maincharcheck = (statecheck and not(isprojstep) and not(step.ishelper[ctms]) and animcheck and ((moveHit() > 0 and newhit) or step.isthrow[ctms] or step.hitcount[ctms] == 0))
+		maincharcheck = (statecheck and not(isprojstep) and not(step.ishelper[ctms]) and animcheck and ((moveHit() > 0 and newhit) or step.isthrow[ctms] or nohitok))
 		if trials.data.trial[ct].trialstep[cts].validforvar ~= nil and maincharcheck then
 			for i = 1, #trials.data.trial[ct].trialstep[cts].validforvar, 1 do
 				if maincharcheck then
@@ -2145,6 +2178,9 @@ function trials.f_trialsChecker(CheckIt)
 				end
 			elseif trials.data.trial[ct].trialstep[cts].hitcount[ctms] == 0 then
 				trials.data.trial[ct].trialstep[cts].stephitscount[ctms] = 0
+				-- Matching is consuming for a no-hit step: 0 == 0 below always passes it. Spend the
+				-- entry that satisfied it so the next one has to wait for its own.
+				trials.data.nohitinstance = trials.data.stateinstance
 			end
 
 			if trials.data.trial[ct].trialstep[cts].hitcount[ctms] == trials.data.trial[ct].trialstep[cts].stephitscount[ctms] then
@@ -2160,6 +2196,7 @@ function trials.f_trialsChecker(CheckIt)
 						end
 						trials.data.comboCounter = comboCount()
 					elseif ((comboCount() == 0 and trials.data.trial[ct].trialstep[cts].hitcount[ctms] ~= 0) and trials.data.validfortickcount == 0) or (trials.data.validfortickcount > 0 and comboCount() > trials.data.comboCounter) then
+						trials.f_spendState()
 						trials.data.currenttrialstep = 1
 						trials.data.currenttrialmicrostep = 1
 						trials.data.trial[ct].trialstep[cts].stephitscount[ctms] = 0
@@ -2196,6 +2233,7 @@ function trials.f_trialsChecker(CheckIt)
 						if trials.data.trialadvancement then
 							trials.data.currenttrial = ct + 1
 						end
+						trials.f_spendState()
 						trials.data.currenttrialstep = 1
 						trials.data.comboCounter = 0
 						if ct < #trials.data.trial or (not trials.data.trialadvancement and ct == #trials.data.trial) then
@@ -2210,10 +2248,19 @@ function trials.f_trialsChecker(CheckIt)
 								trials.draw.fade = trials.draw.fadein + trials.draw.fadeout
 							end
 						end
+						-- The banner is what normally releases the latch f_trialsDummySetup keeps, so a motif that
+						-- displays none has to release it here or the next Trial runs on the previous one's dummy
+						-- settings. The last Trial is the All Clear's business: it leaves currenttrial past the end
+						-- of the table, which f_trialsDummySetup only survives once allclear is set.
+						if trials.draw.success == 0 and trials.data.currenttrial <= #trials.data.trial then
+							trials.data.trial[ct].active = false
+							trials.data.active = false
+						end
 					end
 				end
 			end
 		elseif ((comboCount() == 0 and trials.data.trial[ct].trialstep[cts].hitcount[ctms] ~= 0) and trials.data.validfortickcount == 0) or (trials.data.validfortickcount > 0 and comboCount() > trials.data.comboCounter) then
+			trials.f_spendState()
 			trials.data.currenttrialstep = 1
 			trials.data.currenttrialmicrostep = 1
 			trials.data.comboCounter = 0
@@ -2278,8 +2325,15 @@ function trials.f_trialsSuccess(successstring, index)
 	animDraw(banner.front.AnimData)
 	trials.draw[successstring] = trials.draw[successstring] - 1
 	trials.data.trial[index].complete = true
-	trials.data.trial[index].active = false
-	trials.data.active = false
+	-- Only hand the frame back once the banner is done. Dropping active while it is still up lets
+	-- f_trialsDrawer run f_trialsDummySetup for the Trial that has already been advanced to, which
+	-- latches that Trial's active flag - and then the mapSets at the top of this function wipe the
+	-- dummy mode, guard mode and button jam it just applied, with the latch spent so nothing applies
+	-- them again. The dummy would stay parked in stand for the whole of the next Trial.
+	if trials.draw[successstring] <= 0 then
+		trials.data.trial[index].active = false
+		trials.data.active = false
+	end
 	if not trials.data.trialadvancement then
 		trials.data.trial[index].starttick = roundTime()
 	end
@@ -3521,11 +3575,15 @@ function trials.f_gotoTrial(index, keepTimer, noMenu)
 		trials.select.open = false
 		trials.f_menuHold(false)
 	end
+	trials.f_spendState()
 	trials.data.currenttrialstep = 1
 	trials.data.currenttrialmicrostep = 1
 	trials.data.comboCounter = 0
 	trials.data.currenttrial = index
 	trials.data.successtrial = nil
+	-- Picking a Trial cancels the banner the previous one may still be showing. Left up, it would
+	-- keep running against the Trial just jumped to and mark that one complete.
+	trials.draw.success = 0
 	trials.data.trial[index].complete = false
 	trials.data.trial[index].active = false
 	trials.data.active = false
