@@ -18,7 +18,7 @@ You can find sample trials files for some of my favorite characters in [this rep
 
 ## Preview
 
-https://github.com/user-attachments/assets/8ab9e7fd-04cc-4d6a-b2b3-372022469591
+https://github.com/user-attachments/assets/c0d08e4e-ea2b-4c0e-bd4c-ca88552f112c
 
 ## Features
 - Per-character trial authoring. Creators add a `trials = trials.def` line to a character's def file, and define any number of trials in that `trials.def` file, each a sequence of steps checked against live match state. Steps can match on state numbers, anim numbers, hit counts, throws, counter-hits, helper and projectile hits. 
