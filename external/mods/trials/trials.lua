@@ -35,6 +35,19 @@ if type(trials.ini.Options) ~= 'table' then trials.ini.Options = {} end
 if type(trials.ini.Options.Trials) ~= 'table' then trials.ini.Options.Trials = {} end
 local opts = trials.ini.Options.Trials
 
+-- [Config] TrialsChar / TrialsStage: the Trials counterparts of the engine's Config.TrainingChar and
+-- Config.TrainingStage. Blank leaves the dummy / stage to be picked on the select screen.
+if type(trials.ini.Config) ~= 'table' then trials.ini.Config = {} end
+local function f_cfgPath(key)
+	local v = trials.ini.Config[key]
+	if type(v) ~= 'string' then
+		return ''
+	end
+	return (v:gsub('\\', '/'):match('^%s*(.-)%s*$'))
+end
+trials.charPath = f_cfgPath('TrialsChar')
+trials.stagePath = f_cfgPath('TrialsStage')
+
 -- Persists one Player Preference the moment it changes.
 function trials.f_savePref(key, value)
 	opts[key] = value
@@ -752,16 +765,35 @@ end
 --;===========================================================
 --; main.lua
 --;===========================================================
+-- The ref of the TrialsChar dummy, adding it to the roster the way the engine adds a TrainingChar
+-- that select.def leaves out: excluded, so it never turns up as a random pick or an arcade opponent.
+-- Mods load after the roster is built, so this happens on entering the mode rather than at load.
+local function f_trialsCharRef()
+	if trials.charPath == '' then
+		return nil
+	end
+	local key = trials.charPath:lower()
+	if main.t_charDef[key] == nil then
+		main.f_addChar(trials.charPath .. ', order = 0, ordersurvival = 0, exclude = 1', true, false)
+	end
+	if main.t_charDef[key] == nil then
+		print('Trials: TrialsChar (' .. trials.charPath .. ') could not be loaded; P2 will be picked on the select screen.')
+		trials.charPath = ''
+	end
+	return main.t_charDef[key]
+end
+
 main.t_itemname.trials = function()
-	if main.t_charDef[gameOption('Config.TrainingChar'):lower()] ~= nil then
-		main.forceChar[2] = {main.t_charDef[gameOption('Config.TrainingChar'):lower()]}
+	local dummyRef = f_trialsCharRef()
+	if dummyRef ~= nil then
+		main.forceChar[2] = {dummyRef}
 	end
 	--main.lifebar.p1score = true
 	--main.lifebar.p2ailevel = true
 	main.motif.dialogue = false
 	main.roundTime = -1
 	main.selectMenu[2] = true
-	if gameOption('Config.TrainingStage') == '' then
+	if trials.stagePath == '' then
 		main.stageMenu = true
 	end
 	main.teamMenu[1].ratio = false
@@ -4302,6 +4334,25 @@ hook.add("start.f_selectReset", "f_trialsSpeedrunReset", function()
 	trials.f_resetSpeedrun()
 	trials.f_restoreSelect()
 end)
+-- TrialsStage. The engine only puts Config.TrainingStage up in training mode, so trials hands its own
+-- stage over as an assigned one - which also wins over a character's stage parameter, as the
+-- training stage does. A stage that cannot be loaded falls back to the engine's own choice.
+local f_setStageOrig = start.f_setStage
+function start.f_setStage(num, assigned)
+	if gameMode('trials') and trials.stagePath ~= '' and not main.stageMenu then
+		local ref = main.t_stageDef[trials.stagePath:lower()]
+		if ref == nil then
+			ref = main.f_addStage(trials.stagePath)
+		end
+		if ref ~= nil then
+			return f_setStageOrig(ref, true)
+		end
+		print('Trials: TrialsStage (' .. trials.stagePath .. ') could not be loaded; using the default stage instead.')
+		trials.stagePath = ''
+	end
+	return f_setStageOrig(num, assigned)
+end
+
 hook.add("launchFight", "f_trialsPreFightMenu", function()
 	trials.f_preFightMenu()
 end)
