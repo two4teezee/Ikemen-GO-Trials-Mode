@@ -1531,6 +1531,14 @@ function trials.f_trialsDummySetup()
 			mapSet('_iksys_trialsDummyMode', 2)
 		elseif trials.data.trial[trials.data.currenttrial].dummymode == 'wjump' then
 			mapSet('_iksys_trialsDummyMode', 3)
+		elseif trials.data.trial[trials.data.currenttrial].dummymode == 'fjump' then
+			mapSet('_iksys_trialsDummyMode', 4)
+		elseif trials.data.trial[trials.data.currenttrial].dummymode == 'bjump' then
+			mapSet('_iksys_trialsDummyMode', 5)
+		elseif trials.data.trial[trials.data.currenttrial].dummymode == 'fwjump' then
+			mapSet('_iksys_trialsDummyMode', 6)
+		elseif trials.data.trial[trials.data.currenttrial].dummymode == 'bwjump' then
+			mapSet('_iksys_trialsDummyMode', 7)
 		end
 		if trials.data.trial[trials.data.currenttrial].guardmode == 'none' then
 			mapSet('_iksys_trialsGuardMode', 0)
@@ -1558,16 +1566,41 @@ function trials.f_trialsDummySetup()
 		elseif trials.data.trial[trials.data.currenttrial].buttonjam == 'w' then
 			mapSet('_iksys_trialsButtonJam', 9)
 		end
-		-- Frames the dummy waits between button jam presses. Set alongside the jam itself, so a
-		-- Trial that leaves it out goes back to the default rather than keeping the last one's.
-		mapSet('_iksys_trialsButtonJamInterval', trials.data.trial[trials.data.currenttrial].buttondelay or trials.buttonJamDelayDefault)
+		-- Frames the dummy waits between button jam presses - or, in the jump modes, from takeoff to its
+		-- one press per jump. Set alongside the jam itself, so a Trial that leaves it out goes back to
+		-- the default for its mode rather than keeping the last one's.
+		local jt = trials.data.trial[trials.data.currenttrial]
+		local jdefault = trials.t_jumpModes[jt.dummymode] and trials.buttonJamAirDelayDefault or trials.buttonJamDelayDefault
+		mapSet('_iksys_trialsButtonJamInterval', jt.buttondelay or jdefault)
+		mapSet('_iksys_trialsAirJamState', 0)
+		-- Frames the dummy stays on the ground between jumps in the jump dummy modes, set the same way.
+		mapSet('_iksys_trialsJumpInterval', trials.data.trial[trials.data.currenttrial].jumpdelay or trials.jumpDelayDefault)
+		mapSet('_iksys_trialsJumpDelay', 0)
+		-- A dummy that acts (one of the jump dummymodes, or a button jam) walks back to its dummypos
+		-- distance from the player before it does, so the action always starts from the spacing the
+		-- Trial was written for - even after the player has moved or a forward jump has closed it.
+		-- Corner placements have no distance to keep, and a dummy that only stands or crouches is left
+		-- alone so it never backs away from the player's approach.
+		local t = trials.data.trial[trials.data.currenttrial]
+		local acts = trials.t_jumpModes[t.dummymode] or (t.buttonjam ~= nil and t.buttonjam ~= 'none')
+		mapSet('_iksys_trialsDistance', acts and (trials.t_dummyDistance[t.dummypos] or 0) or 0)
+		mapSet('_iksys_trialsDirection', 0)
 		trials.data.trial[trials.data.currenttrial].active = true
 	end
 	player(1)
 end
 
+-- trial.dummypos values the dummy keeps its distance for, as _iksys_trialsDistance values.
+trials.t_dummyDistance = {close = 1, medium = 2, far = 3}
+-- trial.dummymode values that count as the dummy acting, for the distance keeping above.
+trials.t_jumpModes = {jump = true, wjump = true, fjump = true, bjump = true, fwjump = true, bwjump = true}
+
 -- trial.dummybuttondelay when a Trial leaves it out: the gap the button jam has always used.
 trials.buttonJamDelayDefault = 11
+-- The same in the jump modes, where it counts from takeoff: attack as soon as the dummy leaves the ground.
+trials.buttonJamAirDelayDefault = 0
+-- trial.dummyjumpdelay when a Trial leaves it out: jump again as soon as the dummy lands.
+trials.jumpDelayDefault = 0
 
 local function f_iconAnimString(step)
 	local t = {}
@@ -2312,6 +2345,8 @@ function trials.f_trialsSuccess(successstring, index)
 	mapSet('_iksys_trialsDummyMode', 0)
 	mapSet('_iksys_trialsGuardMode', 0)
 	mapSet('_iksys_trialsButtonJam', 0)
+	mapSet('_iksys_trialsDistance', 0)
+	mapSet('_iksys_trialsDirection', 0)
 	player(1)
 	if not trials.data.trial[index].complete or (successstring == "allclear" and not trials.data.allclear) then
 		-- Play sound only once
@@ -4086,7 +4121,8 @@ for row = 1, #main.t_selChars, 1 do
 						dummymode = "stand",
 						guardmode = "none",
 						buttonjam = "none",
-						buttondelay = trials.buttonJamDelayDefault,
+						buttondelay = nil, -- resolved per mode when the Trial starts
+						jumpdelay = trials.jumpDelayDefault,
 						active = false,
 						complete = false,
 						p1life = -1,
@@ -4129,6 +4165,15 @@ for row = 1, #main.t_selChars, 1 do
 				trial[i].guardmode = f_trimforchar(lcline, "=", "after")
 			elseif lcline:find("dummybuttonjam") then
 				trial[i].buttonjam = f_trimforchar(lcline, "=", "after")
+			elseif lcline:find("dummyjumpdelay") then
+				local v = f_trimforchar(lcline, "=", "after")
+				local n = tonumber(v)
+				if n ~= nil and n >= 0 and n == math.floor(n) then
+					trial[i].jumpdelay = n
+				elseif v ~= "" then
+					print('Trials: ' .. tostring(main.t_selChars[row].name) .. ' - "' .. trial[i].name
+						.. '" has an invalid trial.dummyjumpdelay (' .. v .. '). Expected a whole number of frames, 0 or more.')
+				end
 			elseif lcline:find("dummybuttondelay") then
 				local v = f_trimforchar(lcline, "=", "after")
 				local n = tonumber(v)
