@@ -15,6 +15,7 @@
 # _iksys_trialsDummyMode: 0 - stand, 1 - crouch, 2 - jump, 3 - wjump
 # _iksys_trialsDistance: 0 - any, 1 - close, 2 - medium, 3 - far
 # _iksys_trialsButtonJam: 0 - none, 1-9 - a/b/c/x/y/z/s/d/w
+# _iksys_trialsButtonJamInterval: frames to wait between button jam presses (trial.dummybuttondelay)
 # _iksys_trialsInitPosX: value: 
 # _iksys_trialsInitPosY: value: 
 # _iksys_trialsMenuOpen: countdown re-seeded by Lua while the Trial select view is up; > 0 holds both sides
@@ -286,7 +287,7 @@ ignoreHitPause if gameMode = "trials" {
 						if map(_iksys_trialsButtonJamDelay) > 0 {
 							mapAdd{map: "_iksys_trialsButtonJamDelay"; value: -1}
 						} else {
-							map(_iksys_trialsButtonJamDelay) := 11;
+							map(_iksys_trialsButtonJamDelay) := map(_iksys_trialsButtonJamInterval);
 							switch map(_iksys_trialsButtonJam) {
 							case 1:
 								for i = 0; numHelper; 1 {

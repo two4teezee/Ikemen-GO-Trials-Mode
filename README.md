@@ -118,6 +118,7 @@ They allow the user to characterize the trial or set initialization parameters f
 | `trial.dummymode` | Optional | `stand`, `crouch`, `jump`, `wjump` | `stand` | Sets the dummy's stance/mode for the trial. |
 | `trial.guardmode` | Optional | `none`, `auto` | `none` | Sets whether the dummy blocks automatically (`auto`) or not (`none`). |
 | `trial.dummybuttonjam` | Optional | `none`, `a`, `b`, `c`, `x`, `y`, `z`, `start`, `d`, `w` | `none` | Sets a button for the dummy to hold during the trial. |
+| `trial.dummybuttondelay` | Optional | integer (frames, 0 or more) | `11` | Sets how many frames the dummy waits between presses of its `trial.dummybuttonjam` button. `0` presses it every frame. Has no effect unless `trial.dummybuttonjam` is set. An invalid value is ignored, with a warning printed to the console. |
 | `trial.dummylife` | Optional | integer | — | Sets the dummy's life total. |
 | `trial.playerlife` | Optional | integer | — | Sets the player's life total. Useful for trials that involve desperation moves or require a specific life state. |
 | `trial.dummypos` | Optional | `left-corner`, `right-corner`, `far`, `medium`, `close` | center stage | Sets the dummy's position on the stage. If enabled, the player can reset positioning according to this information by hitting the d and w keys simultaneously. |
@@ -196,6 +197,7 @@ trial.difficulty = Beginner
 trial.dummymode = stand
 trial.guardmode = none
 trial.dummybuttonjam = none
+; trial.dummybuttondelay =
 ; trial.dummylife =
 ; trial.playerlife =
 ; trial.dummypos =

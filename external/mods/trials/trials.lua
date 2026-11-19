@@ -1558,10 +1558,16 @@ function trials.f_trialsDummySetup()
 		elseif trials.data.trial[trials.data.currenttrial].buttonjam == 'w' then
 			mapSet('_iksys_trialsButtonJam', 9)
 		end
+		-- Frames the dummy waits between button jam presses. Set alongside the jam itself, so a
+		-- Trial that leaves it out goes back to the default rather than keeping the last one's.
+		mapSet('_iksys_trialsButtonJamInterval', trials.data.trial[trials.data.currenttrial].buttondelay or trials.buttonJamDelayDefault)
 		trials.data.trial[trials.data.currenttrial].active = true
 	end
 	player(1)
 end
+
+-- trial.dummybuttondelay when a Trial leaves it out: the gap the button jam has always used.
+trials.buttonJamDelayDefault = 11
 
 local function f_iconAnimString(step)
 	local t = {}
@@ -4080,6 +4086,7 @@ for row = 1, #main.t_selChars, 1 do
 						dummymode = "stand",
 						guardmode = "none",
 						buttonjam = "none",
+						buttondelay = trials.buttonJamDelayDefault,
 						active = false,
 						complete = false,
 						p1life = -1,
@@ -4122,6 +4129,15 @@ for row = 1, #main.t_selChars, 1 do
 				trial[i].guardmode = f_trimforchar(lcline, "=", "after")
 			elseif lcline:find("dummybuttonjam") then
 				trial[i].buttonjam = f_trimforchar(lcline, "=", "after")
+			elseif lcline:find("dummybuttondelay") then
+				local v = f_trimforchar(lcline, "=", "after")
+				local n = tonumber(v)
+				if n ~= nil and n >= 0 and n == math.floor(n) then
+					trial[i].buttondelay = n
+				elseif v ~= "" then
+					print('Trials: ' .. tostring(main.t_selChars[row].name) .. ' - "' .. trial[i].name
+						.. '" has an invalid trial.dummybuttondelay (' .. v .. '). Expected a whole number of frames, 0 or more.')
+				end
 			elseif lcline:find("playerlife") then
 				trial[i].p1life = tonumber(f_trimforchar(lcline, "=", "after"))
 			elseif lcline:find("dummylife") then
