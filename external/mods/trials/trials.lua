@@ -5,7 +5,7 @@
 ---- Cable Dorado 2 (CD2)
 -------------------------------------------------------------------------
 -- This external module implements TRIALS game mode. Features full 
--- screenpack integration via config.ini, +system.def and system.def, 
+-- screenpack integration via config.ini, +system.def and trialsmode.def, 
 -- providing the ability to create and read trials definitions for any 
 -- character, and a trials menu option. Documentation on how to create 
 -- trials definitions and use trials mode is in README.md.
@@ -22,7 +22,7 @@ table.insert(zss, modulePath .. "trials.zss")
 modifyGameOption("Common.States", zss)
 
 trials = {}
-trials = loadIni(modulePath .. 'system.def')
+trials = loadIni(modulePath .. 'trialsmode.def')
 
 trials.configPath = modulePath .. 'config.ini'
 
@@ -34,6 +34,19 @@ trials.ini = cfgok and cfg or {}
 if type(trials.ini.Options) ~= 'table' then trials.ini.Options = {} end
 if type(trials.ini.Options.Trials) ~= 'table' then trials.ini.Options.Trials = {} end
 local opts = trials.ini.Options.Trials
+
+-- [Config] TrialsChar / TrialsStage: the Trials counterparts of the engine's Config.TrainingChar and
+-- Config.TrainingStage. Blank leaves the dummy / stage to be picked on the select screen.
+if type(trials.ini.Config) ~= 'table' then trials.ini.Config = {} end
+local function f_cfgPath(key)
+	local v = trials.ini.Config[key]
+	if type(v) ~= 'string' then
+		return ''
+	end
+	return (v:gsub('\\', '/'):match('^%s*(.-)%s*$'))
+end
+trials.charPath = f_cfgPath('TrialsChar')
+trials.stagePath = f_cfgPath('TrialsStage')
 
 -- Persists one Player Preference the moment it changes.
 function trials.f_savePref(key, value)
@@ -251,7 +264,7 @@ if main.f_fileExists(modulePath .. 'trials.sff') then
 	trialsSff = sffNew(searchFile(modulePath .. 'trials.sff', {motif.def, '', 'data/'}))
 end
 
--- The sounds this module owns - the ones named by a "snd" parameter in its own system.def - come
+-- The sounds this module owns - the ones named by a "snd" parameter in its own trialsmode.def - come
 -- out of an optional trials.snd beside this file, exactly as its sprites come out of trials.sff.
 -- Ship one and every such group,number refers to it; ship none and they refer to the screenpack's
 -- system.snd, which is where they resolved before the file was an option. Sounds the module reads
@@ -270,14 +283,14 @@ local trialsAnims = {}
 do
 	-- Actions reach "anim" parameters from three files, each overriding the numbers the one before
 	-- it declared: the screenpack's own def, an optional trials.air beside this module, and the
-	-- module's system.def, which is where the sample drops anims meant for trials mode. Whichever
+	-- module's trialsmode.def, which is where the sample drops anims meant for trials mode. Whichever
 	-- file an action was authored in, f_loadAnimData draws it out of trialsSff, so its sprite
 	-- numbers refer to trials.sff wherever this module ships one.
 	local loaded = false
 	for _, v in ipairs({
 		{motif.def, sff},
 		{modulePath .. 'trials.air', trialsSff},
-		{modulePath .. 'system.def', trialsSff},
+		{modulePath .. 'trialsmode.def', trialsSff},
 	}) do
 		local path, animSff = v[1], v[2]
 		local found = path == motif.def
@@ -432,7 +445,7 @@ trials.trials_mode = f_buildCompatConfig(trials.trials_mode or {})
 
 -- config.ini's [Options] is the single source of truth for these behavioural defaults: the
 -- shipped file carries the defaults and the pause menu rewrites it as the player changes them.
--- system.def no longer carries a layout / reset-on-success default - it only styles the mode.
+-- trialsmode.def no longer carries a layout / reset-on-success default - it only styles the mode.
 trials.trials_mode.trialslayout =
 	tostring(opts.Layout):lower() == 'horizontal' and 'horizontal' or 'vertical'
 trials.trials_mode.trialsresetonsuccess = opts.ResetOnSuccess == true
@@ -752,16 +765,35 @@ end
 --;===========================================================
 --; main.lua
 --;===========================================================
+-- The ref of the TrialsChar dummy, adding it to the roster the way the engine adds a TrainingChar
+-- that select.def leaves out: excluded, so it never turns up as a random pick or an arcade opponent.
+-- Mods load after the roster is built, so this happens on entering the mode rather than at load.
+local function f_trialsCharRef()
+	if trials.charPath == '' then
+		return nil
+	end
+	local key = trials.charPath:lower()
+	if main.t_charDef[key] == nil then
+		main.f_addChar(trials.charPath .. ', order = 0, ordersurvival = 0, exclude = 1', true, false)
+	end
+	if main.t_charDef[key] == nil then
+		print('Trials: TrialsChar (' .. trials.charPath .. ') could not be loaded; P2 will be picked on the select screen.')
+		trials.charPath = ''
+	end
+	return main.t_charDef[key]
+end
+
 main.t_itemname.trials = function()
-	if main.t_charDef[gameOption('Config.TrainingChar'):lower()] ~= nil then
-		main.forceChar[2] = {main.t_charDef[gameOption('Config.TrainingChar'):lower()]}
+	local dummyRef = f_trialsCharRef()
+	if dummyRef ~= nil then
+		main.forceChar[2] = {dummyRef}
 	end
 	--main.lifebar.p1score = true
 	--main.lifebar.p2ailevel = true
 	main.motif.dialogue = false
 	main.roundTime = -1
 	main.selectMenu[2] = true
-	if gameOption('Config.TrainingStage') == '' then
+	if trials.stagePath == '' then
 		main.stageMenu = true
 	end
 	main.teamMenu[1].ratio = false
@@ -786,7 +818,7 @@ end
 --trials spr/anim data
 local tr_pos = trials.trials_mode
 
--- Walks to a system.def node, creating empty tables for any level a screenpack left out, so
+-- Walks to a trialsmode.def node, creating empty tables for any level a screenpack left out, so
 -- every element the drawer reaches for ends up with at least a blank anim.
 local function f_node(t, ...)
 	local node = t
@@ -799,7 +831,7 @@ local function f_node(t, ...)
 end
 
 -- The Trial select menu block is newer than the rest of [Trials Mode], so fill in anything a
--- system.def predating it would not have declared. Everything else here is authored in system.def.
+-- trialsmode.def predating it would not have declared. Everything else here is authored in trialsmode.def.
 do
 	local m = f_node(tr_pos, 'trialsmenu')
 	if type(m.pos) ~= 'table' then m.pos = {0, 0} end
@@ -1531,6 +1563,14 @@ function trials.f_trialsDummySetup()
 			mapSet('_iksys_trialsDummyMode', 2)
 		elseif trials.data.trial[trials.data.currenttrial].dummymode == 'wjump' then
 			mapSet('_iksys_trialsDummyMode', 3)
+		elseif trials.data.trial[trials.data.currenttrial].dummymode == 'fjump' then
+			mapSet('_iksys_trialsDummyMode', 4)
+		elseif trials.data.trial[trials.data.currenttrial].dummymode == 'bjump' then
+			mapSet('_iksys_trialsDummyMode', 5)
+		elseif trials.data.trial[trials.data.currenttrial].dummymode == 'fwjump' then
+			mapSet('_iksys_trialsDummyMode', 6)
+		elseif trials.data.trial[trials.data.currenttrial].dummymode == 'bwjump' then
+			mapSet('_iksys_trialsDummyMode', 7)
 		end
 		if trials.data.trial[trials.data.currenttrial].guardmode == 'none' then
 			mapSet('_iksys_trialsGuardMode', 0)
@@ -1558,10 +1598,41 @@ function trials.f_trialsDummySetup()
 		elseif trials.data.trial[trials.data.currenttrial].buttonjam == 'w' then
 			mapSet('_iksys_trialsButtonJam', 9)
 		end
+		-- Frames the dummy waits between button jam presses - or, in the jump modes, from takeoff to its
+		-- one press per jump. Set alongside the jam itself, so a Trial that leaves it out goes back to
+		-- the default for its mode rather than keeping the last one's.
+		local jt = trials.data.trial[trials.data.currenttrial]
+		local jdefault = trials.t_jumpModes[jt.dummymode] and trials.buttonJamAirDelayDefault or trials.buttonJamDelayDefault
+		mapSet('_iksys_trialsButtonJamInterval', jt.buttondelay or jdefault)
+		mapSet('_iksys_trialsAirJamState', 0)
+		-- Frames the dummy stays on the ground between jumps in the jump dummy modes, set the same way.
+		mapSet('_iksys_trialsJumpInterval', trials.data.trial[trials.data.currenttrial].jumpdelay or trials.jumpDelayDefault)
+		mapSet('_iksys_trialsJumpDelay', 0)
+		-- A dummy that acts (one of the jump dummymodes, or a button jam) walks back to its dummypos
+		-- distance from the player before it does, so the action always starts from the spacing the
+		-- Trial was written for - even after the player has moved or a forward jump has closed it.
+		-- Corner placements have no distance to keep, and a dummy that only stands or crouches is left
+		-- alone so it never backs away from the player's approach.
+		local t = trials.data.trial[trials.data.currenttrial]
+		local acts = trials.t_jumpModes[t.dummymode] or (t.buttonjam ~= nil and t.buttonjam ~= 'none')
+		mapSet('_iksys_trialsDistance', acts and (trials.t_dummyDistance[t.dummypos] or 0) or 0)
+		mapSet('_iksys_trialsDirection', 0)
 		trials.data.trial[trials.data.currenttrial].active = true
 	end
 	player(1)
 end
+
+-- trial.dummypos values the dummy keeps its distance for, as _iksys_trialsDistance values.
+trials.t_dummyDistance = {close = 1, medium = 2, far = 3}
+-- trial.dummymode values that count as the dummy acting, for the distance keeping above.
+trials.t_jumpModes = {jump = true, wjump = true, fjump = true, bjump = true, fwjump = true, bwjump = true}
+
+-- trial.dummybuttondelay when a Trial leaves it out: the gap the button jam has always used.
+trials.buttonJamDelayDefault = 11
+-- The same in the jump modes, where it counts from takeoff: attack as soon as the dummy leaves the ground.
+trials.buttonJamAirDelayDefault = 0
+-- trial.dummyjumpdelay when a Trial leaves it out: jump again as soon as the dummy lands.
+trials.jumpDelayDefault = 0
 
 local function f_iconAnimString(step)
 	local t = {}
@@ -1865,7 +1936,7 @@ textboxwindow4 = trials.mtlcy
 					end
 
 					-- Draw tail. Head and tail are fixed-width caps: they are drawn at exactly the scale
-					-- their system.def node declares, on both axes. Only the body between them stretches,
+					-- their trialsmode.def node declares, on both axes. Only the body between them stretches,
 					-- and only on x. The anims already carry those scales from f_loadAnimData, but the
 					-- draw sets them again so the loop never depends on what the previous step left behind.
 					local hpalfx = {
@@ -1890,7 +1961,7 @@ textboxwindow4 = trials.mtlcy
 					end
 
 					-- Draw BG for Glyphs - stretch to the glyph run on x, start from tail pos. Only x is
-					-- derived: y stays at the scale the system.def node declares, so the body matches the
+					-- derived: y stays at the scale the trialsmode.def node declares, so the body matches the
 					-- height of the head and tail it sits between.
 					local bgstretch = hbg.scale[1]
 					if bgsize[1] > 0 then bgstretch = (padding + totalglyphlength + padding)/bgsize[1] end
@@ -2306,6 +2377,8 @@ function trials.f_trialsSuccess(successstring, index)
 	mapSet('_iksys_trialsDummyMode', 0)
 	mapSet('_iksys_trialsGuardMode', 0)
 	mapSet('_iksys_trialsButtonJam', 0)
+	mapSet('_iksys_trialsDistance', 0)
+	mapSet('_iksys_trialsDirection', 0)
 	player(1)
 	if not trials.data.trial[index].complete or (successstring == "allclear" and not trials.data.allclear) then
 		-- Play sound only once
@@ -3255,6 +3328,63 @@ end
 --;===========================================================
 --; Trial select menu - before the fight
 --;===========================================================
+-- What the select screen had settled on when the pre-fight list opened. f_selectReset hands every
+-- side fresh tables rather than clearing the old ones, so holding on to these is enough to put the
+-- picks back after it runs.
+local function f_snapshotSelect()
+	local snap = {}
+	for side = 1, 2 do
+		local p = start.p[side]
+		snap[side] = {
+			t_selected = p.t_selected,
+			t_selTemp = p.t_selTemp,
+			t_selCmd = p.t_selCmd,
+			numChars = p.numChars,
+			teamEnd = p.teamEnd,
+			selEnd = p.selEnd,
+		}
+	end
+	return snap
+end
+
+-- Cancel out of the pre-fight list goes back one step rather than all the way to P1's pick: to stage
+-- select when there is one, otherwise to P2's pick. Runs off the start.f_selectReset hook, after the
+-- reset f_selectMode does on the way back to the select screen. The stage cursor survives that
+-- reset on its own and stageEnd is cleared by it, so the stage list reopens on the stage picked.
+function trials.f_restoreSelect()
+	local snap = trials.backToSelectSnap
+	trials.backToSelectSnap = nil
+	if snap == nil or not gameMode('trials') then
+		return
+	end
+	local stageStep = main.stageMenu
+	-- With no stage select, the step before the list is P2's pick - but only if P2 was picked at all.
+	-- A forced P2 means the step before is P1's pick, which is what the plain reset already gives.
+	local p2Step = not stageStep and main.selectMenu[2] and main.forceChar[2] == nil and #snap[2].t_selected > 0
+	if not stageStep and not p2Step then
+		return
+	end
+	for side = 1, 2 do
+		local p, s = start.p[side], snap[side]
+		p.numChars = s.numChars
+		p.teamEnd = s.teamEnd
+		if side == 2 and p2Step then
+			p.selEnd = false
+			p.t_selected = {}
+			p.t_selTemp = {}
+			p.t_selCmd = {}
+			for _, v in ipairs(s.t_selCmd) do
+				table.insert(p.t_selCmd, {cmd = v.cmd, player = v.player, selectState = 0})
+			end
+		else
+			p.selEnd = s.selEnd
+			p.t_selected = s.t_selected
+			p.t_selTemp = s.t_selTemp
+			p.t_selCmd = s.t_selCmd
+		end
+	end
+end
+
 function trials.f_preFightMenu()
 	if not gameMode('trials') or trials.f_listDisplay() ~= 'select' then
 		return
@@ -3284,8 +3414,10 @@ function trials.f_preFightMenu()
 		return
 	end
 	node.item = trials.f_firstUncleared(node.items, node.trials, node.ref)
-	-- Whatever the cursor opens on is what a cancel settles for, so there is always an answer.
+	-- Whatever the cursor rests on is the answer; cancel means no answer and goes back to select.
 	trials.pendingTrial = node.items[node.item].displayname
+	trials.backToSelect = false
+	local snap = f_snapshotSelect()
 	sndPlay(motif.Snd, sec.enter.snd[1], sec.enter.snd[2])
 	resetKey()
 	esc(false)
@@ -3310,8 +3442,13 @@ function trials.f_preFightMenu()
 		end
 		local it = node.items[node.item]
 		if cancel then
+			-- Back out one step to the select screen (stage select, or P2's pick without one). The
+			-- fight is already being set up by now, so f_selectVersus is told to call it off.
 			esc(false)
 			sndPlay(motif.Snd, sec.cancel.snd[1], sec.cancel.snd[2])
+			trials.pendingTrial = nil
+			trials.backToSelect = true
+			trials.backToSelectSnap = snap
 			break
 		elseif done then
 			sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
@@ -4016,6 +4153,8 @@ for row = 1, #main.t_selChars, 1 do
 						dummymode = "stand",
 						guardmode = "none",
 						buttonjam = "none",
+						buttondelay = nil, -- resolved per mode when the Trial starts
+						jumpdelay = trials.jumpDelayDefault,
 						active = false,
 						complete = false,
 						p1life = -1,
@@ -4058,6 +4197,24 @@ for row = 1, #main.t_selChars, 1 do
 				trial[i].guardmode = f_trimforchar(lcline, "=", "after")
 			elseif lcline:find("dummybuttonjam") then
 				trial[i].buttonjam = f_trimforchar(lcline, "=", "after")
+			elseif lcline:find("dummyjumpdelay") then
+				local v = f_trimforchar(lcline, "=", "after")
+				local n = tonumber(v)
+				if n ~= nil and n >= 0 and n == math.floor(n) then
+					trial[i].jumpdelay = n
+				elseif v ~= "" then
+					print('Trials: ' .. tostring(main.t_selChars[row].name) .. ' - "' .. trial[i].name
+						.. '" has an invalid trial.dummyjumpdelay (' .. v .. '). Expected a whole number of frames, 0 or more.')
+				end
+			elseif lcline:find("dummybuttondelay") then
+				local v = f_trimforchar(lcline, "=", "after")
+				local n = tonumber(v)
+				if n ~= nil and n >= 0 and n == math.floor(n) then
+					trial[i].buttondelay = n
+				elseif v ~= "" then
+					print('Trials: ' .. tostring(main.t_selChars[row].name) .. ' - "' .. trial[i].name
+						.. '" has an invalid trial.dummybuttondelay (' .. v .. '). Expected a whole number of frames, 0 or more.')
+				end
 			elseif lcline:find("playerlife") then
 				trial[i].p1life = tonumber(f_trimforchar(lcline, "=", "after"))
 			elseif lcline:find("dummylife") then
@@ -4175,8 +4332,41 @@ hook.add("start.f_selectScreen", "f_trialsSelectScreen", trials.f_trialsSelectSc
 -- trialslistdisplay = select puts the menu.
 hook.add("start.f_selectReset", "f_trialsSpeedrunReset", function()
 	trials.f_resetSpeedrun()
+	trials.f_restoreSelect()
 end)
+-- TrialsStage. The engine only puts Config.TrainingStage up in training mode, so trials hands its own
+-- stage over as an assigned one - which also wins over a character's stage parameter, as the
+-- training stage does. A stage that cannot be loaded falls back to the engine's own choice.
+local f_setStageOrig = start.f_setStage
+function start.f_setStage(num, assigned)
+	if gameMode('trials') and trials.stagePath ~= '' and not main.stageMenu then
+		local ref = main.t_stageDef[trials.stagePath:lower()]
+		if ref == nil then
+			ref = main.f_addStage(trials.stagePath)
+		end
+		if ref ~= nil then
+			return f_setStageOrig(ref, true)
+		end
+		print('Trials: TrialsStage (' .. trials.stagePath .. ') could not be loaded; using the default stage instead.')
+		trials.stagePath = ''
+	end
+	return f_setStageOrig(num, assigned)
+end
+
 hook.add("launchFight", "f_trialsPreFightMenu", function()
 	trials.f_preFightMenu()
 end)
+-- launchFight has no way for a hook to call the fight off, but it gives up on the match whenever
+-- the VS screen reports a cancel. So a cancel out of the pre-fight list is passed off as one: the
+-- match is dropped before anything loads, and f_selectMode resets selection and reopens the
+-- select screen, the same as backing out of the VS screen; f_restoreSelect then puts the picks back
+-- so the player lands one step back instead of on P1's pick.
+local f_selectVersusOrig = start.f_selectVersus
+function start.f_selectVersus(...)
+	if trials.backToSelect then
+		trials.backToSelect = false
+		return false
+	end
+	return f_selectVersusOrig(...)
+end
 

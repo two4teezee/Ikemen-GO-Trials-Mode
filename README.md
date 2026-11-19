@@ -115,12 +115,14 @@ They allow the user to characterize the trial or set initialization parameters f
 | Parameter | Required | Format | Default | Description |
 |---|---|---|---|---|
 | `trial.difficulty` | Optional | `Beginner`, `Intermediate`, `Advanced`, `Expert` (case-insensitive) | — (uncategorized) | Puts the trial behind that filter in the Trial Select view, which the player cycles with left and right, and counts towards that filter's cleared tally. Trials that don't declare one are collected under "Other". If no trial in the file declares a difficulty, there is nothing to filter by and the list stays flat and in def order, exactly as before. An unrecognised value is ignored, with a warning printed to the console. |
-| `trial.dummymode` | Optional | `stand`, `crouch`, `jump`, `wjump` | `stand` | Sets the dummy's stance/mode for the trial. |
+| `trial.dummymode` | Optional | `stand`, `crouch`, `jump`, `wjump`, `fjump`, `bjump`, `fwjump`, `bwjump` | `stand` | Sets the dummy's stance/mode for the trial. `fjump` and `bjump` jump forward and back (relative to the way the dummy faces) while `jump` jumps straight up; `fwjump` and `bwjump` do the same for `wjump`. |
 | `trial.guardmode` | Optional | `none`, `auto` | `none` | Sets whether the dummy blocks automatically (`auto`) or not (`none`). |
-| `trial.dummybuttonjam` | Optional | `none`, `a`, `b`, `c`, `x`, `y`, `z`, `start`, `d`, `w` | `none` | Sets a button for the dummy to hold during the trial. |
+| `trial.dummybuttonjam` | Optional | `none`, `a`, `b`, `c`, `x`, `y`, `z`, `start`, `d`, `w` | `none` | Sets a button for the dummy to press repeatedly during the trial. When one of the jumps in `trial.dummymode` is set, it becomes a jump attack instead: the button is pressed after takeoff. |
+| `trial.dummyjumpdelay` | Optional | integer (frames, 0 or more) | `0` | Sets how many frames the dummy stays on the ground after landing before it jumps again in the jump `trial.dummymode`s (`jump`, `wjump`, `fjump`, `bjump`, `fwjump`, `bwjump`). `0` jumps again as soon as it lands. The extra jump the `w` modes make in the air is not delayed. Has no effect in `stand` or `crouch`. |
+| `trial.dummybuttondelay` | Optional | integer (frames, 0 or more) | `11`, or `0` with a jump `trial.dummymode` | Sets how many frames the dummy waits between presses of its `trial.dummybuttonjam` button; `0` presses the button every frame. When one of the jumps in `trial.dummymode` is set, it instead sets how many frames after takeoff the dummy presses the button.  Has no effect unless `trial.dummybuttonjam` is set. |
 | `trial.dummylife` | Optional | integer | — | Sets the dummy's life total. |
 | `trial.playerlife` | Optional | integer | — | Sets the player's life total. Useful for trials that involve desperation moves or require a specific life state. |
-| `trial.dummypos` | Optional | `left-corner`, `right-corner`, `far`, `medium`, `close` | center stage | Sets the dummy's position on the stage. If enabled, the player can reset positioning according to this information by hitting the d and w keys simultaneously. |
+| `trial.dummypos` | Optional | `left-corner`, `right-corner`, `far`, `medium`, `close` | center stage | Sets the dummy's position on the stage. If enabled, the player can reset positioning according to this information by hitting the d and w keys simultaneously. When it is `close`, `medium` or `far` and the dummy has something to do (one of the jump `trial.dummymode`s, or a `trial.dummybuttonjam`), the dummy also walks back to that distance from the player before each action - after the player moves, or after a forward jump closes the gap. A dummy set to `stand` or `crouch` with no `trial.dummybuttonjam` is never moved. |
 | `trial.playerpos` | Optional | `left-corner`, `right-corner`, `far`, `medium`, `close` | center stage | Sets the player's position on the stage. If enabled, the player can reset positioning according to this information by hitting the d and w keys simultaneously. |
 | `trial.textbox` | Optional | multilingual (string) | — | Displays specified text in a box specified in the textbox settings in `system.def` under `[Trials Mode]`. Supports specification as `trial.textbox`, or `trial.textbox.en`, `trial.textbox.es`, etc. for multilingual support. Defaults to `trial.textbox.en` (or `trial.textbox`) if the selected language cannot be matched. |
 | `trial.showvarvalpairs` | Optional | comma-separated integers, in pairs (0..n pairs) | — | Determines whether a trial should be displayed based on the specified variable and value pair(s). Useful if a trial should only be displayed when the character has a specific variable/value pair set, such as being in a specific groove or mode. If specified, the trial only displays if all variable-value pairs return true. These pairs are for the character only (not for helpers). Variables can test multiple values, separated by `\|` (e.g. `trial.showforvarvalpairs = 12, 0\|2\|4` tests var(12) for values 0, 2, and 4). We have a section dedicated to this parameter as it is more advanced.|
@@ -177,7 +179,11 @@ trialstep.1.stateno = 1000|1010
 
 ### How to Handle Projectiles
 
-Use `\|` where a character fires more than one projectile for the same move, or the ID is an expression (e.g. `projid = 3005\|3006` for `ID = 3005+(var(5)=2)`).<br>• A `projid` alone is enough to mark a step as a projectile step; `isproj` isn't needed alongside one.<br>• Add `stateno` too when a character reuses one ID across several moves (e.g. CvS Sagat's ProjID 1000 across states 1000/1050/1070 — `projid = 1000` with `stateno = 1070` isolates the heavy Tiger Shot).<br>• If the sctrl declares no ID, it defaults to 0, so `projid = 0` matches every ID-less projectile — pair with `stateno` to narrow it down.<br>• A step with `isproj = true` and no `projid` matches on `stateno` alone and still requires a connect. `projid` has no effect when `hitcount = 0`.
+Use `\|` where a character fires more than one projectile for the same move, or the ID is an expression (e.g. `projid = 3005\|3006` for `ID = 3005+(var(5)=2)`).
+<br>• A `projid` alone is enough to mark a step as a projectile step; `isproj` isn't needed alongside one.
+<br>• Add `stateno` too when a character reuses one ID across several moves (e.g. CvS Sagat's ProjID 1000 across states 1000/1050/1070 — `projid = 1000` with `stateno = 1070` isolates the heavy Tiger Shot).
+<br>• If the sctrl declares no ID, it defaults to 0, so `projid = 0` matches every ID-less projectile — pair with `stateno` to narrow it down.
+<br>• A step with `isproj = true` and no `projid` matches on `stateno` alone and still requires a connect. `projid` has no effect when `hitcount = 0`.
 
 ### How to Handle Helpers
 
@@ -187,7 +193,9 @@ Use `\|` where a character fires more than one projectile for the same move, or 
 
 ### `kfm_zss` Sample Trial Definition File
 
-A sample `trials.def` for `kfm_zss` is provided below. The trials are presented to the player in the order in which they are listed in `trials.def`. Detailed information for each configurable parameter can be found in this template.
+A sample `trials.def` for `kfm_zss` is provided below. 
+The trials are presented to the player in the order in which they are listed in `trials.def`. 
+Detailed information for each configurable parameter can be found in this template.
 
 ```
 [TrialDef, KFM's First Trial]
@@ -196,6 +204,8 @@ trial.difficulty = Beginner
 trial.dummymode = stand
 trial.guardmode = none
 trial.dummybuttonjam = none
+; trial.dummybuttondelay =
+; trial.dummyjumpdelay =
 ; trial.dummylife =
 ; trial.playerlife =
 ; trial.dummypos =
@@ -334,31 +344,39 @@ trialstep.4.hitcount = 3
 
 ### Pause Menu Options
 
-Pausing a Trials match opens the mode's own pause menu. It is engine-native: the
-`[Trials Pause Menu]` section shipped in `+system.def` is the whole of the registration, because
-the engine turns any section matching `*pause*menu` into a pause menu and opens the one named
-after the current game mode. A screenpack customizes it by declaring the same section in its own
-`system.def` — there is nothing to edit in `trials.lua`.
+Pausing a Trials match opens the mode's own pause menu. 
+It is engine-native: the `[Trials Pause Menu]` section shipped in `+system.def` is the whole of the registration, because the engine turns any section matching `*pause*menu` into a pause menu and opens the one named after the current game mode. 
+A screenpack customizes it by declaring the same section in its own `system.def` — there is nothing to edit in `trials.lua`.
 
-- **Trials List**: the character's trials, one per line, with the current one marked. Selecting
-  one jumps to it, starts its progress over and recenters the pair.
-- **Advancement**: Auto-Advance or Repeat — whether clearing a trial moves to the next one or
-  replays it, so a single trial can be drilled.
-- **Reset on Success**: recenters the players when a trial is cleared. If dummy and/or player
-  positions are specified for the trial, they are moved accordingly.
+- **Trials List**: the character's trials, one per line, with the current one marked. Selecting one jumps to it, starts its progress over and recenters the pair.
+- **Advancement**: Auto-Advance or Repeat — whether clearing a trial moves to the next one or replays it, so a single trial can be drilled.
+- **Reset on Success**: recenters the players when a trial is cleared. If dummy and/or player positions are specified for the trial, they are moved accordingly.
 - **Layout**: Vertical or Horizontal, switchable mid-match.
 - **Textboxes**: shows or hides a trial's explanatory text, for trials that carry any.
 - **Speedrun**: On or Off. See below.
 - **Progress**: erases recorded progress, for this character or for everyone. See below.
 
-Speedrun apart, the last four are **player preferences**: their defaults are the values shipped in
-`external/mods/trials/config.ini`, and the player's choice is written back to that same file the
-moment it changes, winning on the next launch. A screenpack author sets the pack's defaults by
-editing those shipped values. Note that the module rewrites `config.ini` whenever a preference
-changes, so comments added to it will be lost.
+Speedrun apart, the last four are **player preferences**: their defaults are the values shipped in `external/mods/trials/config.ini`, and the player's choice is written back to that same file the moment it changes, winning on the next launch. 
+A screenpack author sets the pack's defaults by editing those shipped values. Note that the module rewrites `config.ini` whenever a preference changes, so comments added to it will be lost.
 
-Next Trial and Previous Trial remain supported for screenpacks that would rather list them than
-use the Trials List, but neither is part of the default menu.
+### Trials Character and Stage
+
+Like training mode's `TrainingChar` and `TrainingStage`, Trials Mode can load a fixed dummy and stage instead of having them picked on the select screen. 
+They are set by hand in the `[Config]` section of `external/mods/trials/config.ini`:
+
+```ini
+[Config]
+TrialsChar  = kfm
+TrialsStage = stages/stage0.def
+```
+
+- `TrialsChar` is the character loaded as the dummy (P2), written the way `select.def` lists it. P2 is then skipped on the select screen. A character that is not in `select.def` is still loaded, excluded from random selection, as the engine does for `TrainingChar`.
+- `TrialsStage` is the stage to fight on. Stage select is then skipped, and the stage is used even when the dummy has a `stage` parameter in `select.def`.
+- Leave either blank to pick it on the select screen. A path that cannot be loaded prints a warning to the console and falls back to the select screen (character) or the default stage (stage).
+
+These are independent of training mode's settings: `TrainingChar` and `TrainingStage` no longer affect Trials Mode.
+
+Next Trial and Previous Trial remain supported for screenpacks that would rather list them than use the Trials List, but neither is part of the default menu.
 
 ### Trial Select
 
@@ -376,22 +394,19 @@ menu:
 - restarts from the first trial with the total timer running.
 
 With Speedrun on, loading into a match skips the Trial Select view and starts on the first trial.
-Clearing every trial in one uninterrupted run records the total as that character's best run time;
-jumping to a trial invalidates the run, so a run only counts if it was played straight through.
+Clearing every trial in one uninterrupted run records the total as that character's best run time; jumping to a trial invalidates the run, so a run only counts if it was played straight through.
 Individual clears and best times are recorded during a speedrun exactly as they are outside one.
 
-The character's best run time is shown beside the Speedrun item in the pause menu once they have
-one.
+The character's best run time is shown beside the Speedrun item in the pause menu once they have one.
 
-Speedrun is **not** saved: it belongs to the sitting it was started in, and turns itself off
-whenever the player returns to the character select screen — via Character Change, the end of a
-match, or leaving the mode. Recorded clears and best run times are of course kept.
+Speedrun is **not** saved: it belongs to the sitting it was started in, and turns itself off whenever the player returns to the character select screen — via Character Change, the end of a match, or leaving the mode. 
+Recorded clears and best run times are of course kept.
 
 ## Progress
 
-Progress is saved per character to `save/trials.json`, next to the engine's own save data. For each
-trial it records whether it has been cleared and the best time; for each character it also records
-the best full-run time from Speedrun. It is written the moment a trial is cleared.
+Progress is saved per character to `save/trials.json`, next to the engine's own save data. 
+For each trial it records whether it has been cleared and the best time; for each character it also records the best full-run time from Speedrun. 
+It is written the moment a trial is cleared.
 
 ```json
 {
@@ -408,8 +423,7 @@ the best full-run time from Speedrun. It is written the moment a trial is cleare
 ```
 
 Characters are keyed by their def path, so renaming a character's display name keeps its progress.
-Trials are keyed by the name in `[TrialDef, <name>]`, so trials can be reordered, added or removed
-without losing anything; renaming a trial starts it a fresh record and leaves the old one orphaned,
-which is harmless. Times are in ticks (60 to the second).
+Trials are keyed by the name in `[TrialDef, <name>]`, so trials can be reordered, added or removed without losing anything; renaming a trial starts it a fresh record and leaves the old one orphaned, which is harmless. 
+Times are in ticks (60 to the second).
 
 Deleting `save/trials.json` resets all progress.
