@@ -120,6 +120,10 @@ They allow the user to characterize the trial or set initialization parameters f
 | `trial.dummybuttonjam` | Optional | `none`, `a`, `b`, `c`, `x`, `y`, `z`, `start`, `d`, `w` | `none` | Sets a button for the dummy to press repeatedly during the trial. When one of the jumps in `trial.dummymode` is set, it becomes a jump attack instead: the button is pressed after takeoff. |
 | `trial.dummyjumpdelay` | Optional | integer (frames, 0 or more) | `0` | Sets how many frames the dummy stays on the ground after landing before it jumps again in the jump `trial.dummymode`s (`jump`, `wjump`, `fjump`, `bjump`, `fwjump`, `bwjump`). `0` jumps again as soon as it lands. The extra jump the `w` modes make in the air is not delayed. Has no effect in `stand` or `crouch`. |
 | `trial.dummybuttondelay` | Optional | integer (frames, 0 or more) | `11`, or `0` with a jump `trial.dummymode` | Sets how many frames the dummy waits between presses of its `trial.dummybuttonjam` button; `0` presses the button every frame. When one of the jumps in `trial.dummymode` is set, it instead sets how many frames after takeoff the dummy presses the button.  Has no effect unless `trial.dummybuttonjam` is set. |
+| `trial.dummyscript` | Optional | [input script](#input-scripts-demos-and-dummy-routines) | — | A scripted routine for the dummy, for attacks a button jam can't express (mixups, specials, throws). While it plays, `trial.dummymode`, `trial.dummybuttonjam` and the distance keeping are switched off; `trial.guardmode` still works. |
+| `trial.dummyscriptloop` | Optional | `true` / `false` | `false` | Starts `trial.dummyscript` over each time it ends. |
+| `trial.dummyscriptdelay` | Optional | integer (frames, 0 or more) | `0` | Frames between loops of `trial.dummyscript`. |
+| `trial.demoscript` | Optional | [input script](#input-scripts-demos-and-dummy-routines) | — | What the CPU does when the player picks Watch Demo from the pause menu. |
 | `trial.dummylife` | Optional | integer | — | Sets the dummy's life total. |
 | `trial.playerlife` | Optional | integer | — | Sets the player's life total. Useful for trials that involve desperation moves or require a specific life state. |
 | `trial.dummypos` | Optional | `left-corner`, `right-corner`, `far`, `medium`, `close` | center stage | Sets the dummy's position on the stage. If enabled, the player can reset positioning according to this information by hitting the d and w keys simultaneously. When it is `close`, `medium` or `far` and the dummy has something to do (one of the jump `trial.dummymode`s, or a `trial.dummybuttonjam`), the dummy also walks back to that distance from the player before each action - after the player moves, or after a forward jump closes the gap. A dummy set to `stand` or `crouch` with no `trial.dummybuttonjam` is never moved. |
@@ -176,6 +180,37 @@ trialstep.1.text = Kung Fu Palm
 trialstep.1.glyphs = _QDF^P
 trialstep.1.stateno = 1000|1010
 ```
+
+### Input Scripts: Demos and Dummy Routines
+`trial.demoscript` (what the CPU does for Watch Demo) and `trial.dummyscript` (the dummy's routine) use the same notation: comma-separated `frames:inputs`.
+
+```
+trial.demoscript = 6:D, 3:D+F, 3:F+x, 40:_   ; quarter circle forward + x, then wait
+trial.dummyscript = 50:_, 1:x, 50:_, 6:D, 1:D+a, 6:D
+trial.dummyscriptloop = true
+```
+
+- **Frames** is how long the inputs are held. Leave it off (`D+F`) for a single frame.
+- **Inputs** are `U`, `D`, `F`, `B` and the buttons `a`, `b`, `c`, `x`, `y`, `z`, `s`, `d`, `w`, joined with `+`. `_` means nothing held. They are case-sensitive: `D` is down, `d` is the button.
+- `F` and `B` are relative to the way the character faces, exactly as in a command.
+- A script can be at most 3600 frames (one minute). A script that can't be read is reported in the console when the character loads and is ignored.
+
+The scripted inputs go through the character's command buffer like real button presses, so a motion written out frame by frame comes out as the special. Allow a frame or two more than the command's minimum, the same slack a player needs.
+
+**Watch Demo** restarts the trial, switches the player's controller off and plays `trial.demoscript`, with a DEMO banner (`demo.*` in `trialsmode.def`). The steps light up as the CPU performs them, but nothing is recorded: the CPU's clear never counts as the player's. When the script ends, or the player presses the menu's done or cancel key, the controller is switched back on and the trial restarts for the player. Watch Demo is not available during a speedrun.
+
+The dummy's script starts each time the trial starts accepting input, and stops when the trial is cleared.
+
+#### Recording a demo
+Writing a script by hand is fiddly, so the module can record one for you. Set `RecordDemo = true` in the `[Config]` section of `config.ini` and a **Record Demo** item appears in the pause menu. Pick it and perform the trial. The take ends by itself when the trial is cleared, or you can pause to end it early. The console prints a ready-made line, which is also written to `save/trials_demo.txt`:
+
+```
+trial.demoscript = 3:D, 2:D+F, 2:F+x, 1:_
+```
+
+Recording starts with your first input, so the pause needn't be timed, and the press that closed the menu isn't included. Set `RecordDemo` back to `false` before you ship.
+
+`RecordDemo = true` also adds **Record Dummy**, which records a `trial.dummyscript` the same way. For the take, your controller drives the dummy, and a second controller, if one is connected, drives P1. The dummy's own settings (`trial.dummymode`, button jam, distance) and its script are switched off while you record; its guard mode stays. When you pause to end the take, the controllers are handed back and the trial restarts with the dummy's settings in place. `F` and `B` are recorded relative to the way the dummy faces, which is how a dummy script plays them back.
 
 ### How to Handle Projectiles
 
@@ -348,6 +383,7 @@ Pausing a Trials match opens the mode's own pause menu.
 It is engine-native: the `[Trials Pause Menu]` section shipped in `+system.def` is the whole of the registration, because the engine turns any section matching `*pause*menu` into a pause menu and opens the one named after the current game mode. 
 A screenpack customizes it by declaring the same section in its own `system.def` — there is nothing to edit in `trials.lua`.
 
+- **Watch Demo**: the CPU performs the current trial, for trials that have a `trial.demoscript`. See [Input Scripts](#input-scripts-demos-and-dummy-routines).
 - **Trials List**: the character's trials, one per line, with the current one marked. Selecting one jumps to it, starts its progress over and recenters the pair.
 - **Advancement**: Auto-Advance or Repeat — whether clearing a trial moves to the next one or replays it, so a single trial can be drilled.
 - **Reset on Success**: recenters the players when a trial is cleared. If dummy and/or player positions are specified for the trial, they are moved accordingly.

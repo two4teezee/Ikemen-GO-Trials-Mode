@@ -22,6 +22,7 @@
 # _iksys_trialsInitPosY: value: 
 # _iksys_trialsMenuOpen: countdown re-seeded by Lua while the Trial select view is up; > 0 holds both sides
 # _iksys_trialsMenuHeld: 1 while this side is being held, so control is handed back once on release
+# _iksys_trialsScript: 1 while an input script drives this side; _iksys_trialsIn<Up|Down|Fwd|Back|a|b|c|x|y|z|s|d|w>: 1 for each input held this frame (map names are case-insensitive, so the directions are spelled out to stay clear of the b and d buttons)
 
 #===============================================================================
 # Functions
@@ -87,6 +88,52 @@ default:
 	# Nothing to press
 }
 
+[Function TrialsScriptPress()]
+# One frame of an input script - trial.demoscript on P1, trial.dummyscript on P2 - on the root and
+# every helper. Lua sets one map per input every frame the script runs (trials.f_scriptTick).
+# F and B are relative to facing, as in a command.
+for i = 0; numHelper; 1 {
+	if map(_iksys_trialsInUp) {
+		assertInput{flag: U; redirectID: helperIndex($i), ID}
+	}
+	if map(_iksys_trialsInDown) {
+		assertInput{flag: D; redirectID: helperIndex($i), ID}
+	}
+	if map(_iksys_trialsInFwd) {
+		assertInput{flag: F; redirectID: helperIndex($i), ID}
+	}
+	if map(_iksys_trialsInBack) {
+		assertInput{flag: B; redirectID: helperIndex($i), ID}
+	}
+	if map(_iksys_trialsIna) {
+		assertInput{flag: a; redirectID: helperIndex($i), ID}
+	}
+	if map(_iksys_trialsInb) {
+		assertInput{flag: b; redirectID: helperIndex($i), ID}
+	}
+	if map(_iksys_trialsInc) {
+		assertInput{flag: c; redirectID: helperIndex($i), ID}
+	}
+	if map(_iksys_trialsInx) {
+		assertInput{flag: x; redirectID: helperIndex($i), ID}
+	}
+	if map(_iksys_trialsIny) {
+		assertInput{flag: y; redirectID: helperIndex($i), ID}
+	}
+	if map(_iksys_trialsInz) {
+		assertInput{flag: z; redirectID: helperIndex($i), ID}
+	}
+	if map(_iksys_trialsIns) {
+		assertInput{flag: s; redirectID: helperIndex($i), ID}
+	}
+	if map(_iksys_trialsInd) {
+		assertInput{flag: d; redirectID: helperIndex($i), ID}
+	}
+	if map(_iksys_trialsInw) {
+		assertInput{flag: w; redirectID: helperIndex($i), ID}
+	}
+}
+
 [Function TrialsResetCamera()]
 Camera{view: fighting}
 
@@ -104,6 +151,11 @@ ignoreHitPause if gameMode = "trials" {
 		map(_iksys_trialsReposition) := 0;
 		map(_iksys_trialsMenuOpen) := 0;
 		map(_iksys_trialsMenuHeld) := 0;
+		map(_iksys_trialsScript) := 0;
+	}
+	# Input scripts (demonstrations and dummy scripts), pressed for whichever side Lua is driving.
+	if !isHelper && roundState = 2 && map(_iksys_trialsScript) != 0 {
+		call TrialsScriptPress();
 	}
 	# Hold both sides still while the Trial select view is up, so the buttons that drive the
 	# menu don't also drive the character. Lua re-seeds the counter every frame the view is up

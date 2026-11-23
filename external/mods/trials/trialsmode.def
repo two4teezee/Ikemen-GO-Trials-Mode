@@ -493,6 +493,23 @@ success.front.spr =
 success.front.displaytime = -1
 success.front.layerno = 0
 
+; DEMONSTRATION -------------------------------------------------------------
+; demo.*: shown while the CPU plays a Trial's trial.demoscript (pause menu: Watch Demo). The
+;   player's controller is switched off for it; the menu's done or cancel key ends it early.
+;   With RecordDemo = true in config.ini, demo.text also shows the REC readout while recording.
+; --------------------------------------------------------------------------
+demo.anchor = center
+demo.pos = 640,90
+demo.text.offset = 0,0
+demo.text.font = 4,0,0, 120, 200, 255
+demo.text.scale = 2,2
+demo.text.font.height = -1
+demo.text.text = "DEMO"
+demo.bg.offset = 0,0
+demo.bg.spr =
+demo.bg.anim = -1
+demo.bg.layerno = 0
+
 ; TRIALS ALL CLEAR BANNER --------------------------------------------------
 ; allclear.snd comes from the same place success.snd does - trials.snd if the module ships
 ; one, the screenpack's system.snd if it does not.

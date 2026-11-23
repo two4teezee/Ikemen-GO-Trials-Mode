@@ -912,6 +912,22 @@ do
 	o.layerno = tonumber(o.layerno) or 0
 end
 
+-- The demonstration banner (demo.*) is newer than the rest of [Trials Mode]; a trialsmode.def
+-- predating it still gets one. Shown while Watch Demo plays, and as the REC readout while recording.
+do
+	local d = f_node(tr_pos, 'demo')
+	if type(d.pos) ~= 'table' then d.pos = {trials.mtlcx / 2, 90} end
+	local t = f_node(d, 'text')
+	if type(t.offset) ~= 'table' then t.offset = {0, 0} end
+	if type(t.font) ~= 'table' then t.font = {-1, 0, 0} end
+	if type(t.scale) ~= 'table' then t.scale = {1, 1} end
+	if t.text == nil then t.text = 'DEMO' end
+	if t.layerno == nil then t.layerno = 2 end
+	local bg = f_node(d, 'bg')
+	if type(bg.offset) ~= 'table' then bg.offset = {0, 0} end
+	if bg.layerno == nil then bg.layerno = 2 end
+end
+
 local function f_palfxDefaults(fx)
 	if type(fx.add) ~= 'table' then fx.add = {0, 0, 0} end
 	if type(fx.mul) ~= 'table' then fx.mul = {256, 256, 256} end
@@ -1026,6 +1042,7 @@ do
 	f_anchorPos(f_node(tr_pos, 'trialreset', 'text'), 'pos')
 	f_anchorPos(f_node(tr_pos, 'success'), 'pos')
 	f_anchorPos(f_node(tr_pos, 'allclear'), 'pos')
+	f_anchorPos(f_node(tr_pos, 'demo'), 'pos')
 	f_anchorPos(f_node(tr_pos, 'textbox'), 'pos')
 	f_anchorPos(f_node(tr_pos, 'trialsmenu'), 'pos')
 	for _, layout in ipairs({'vertical', 'horizontal'}) do
@@ -1070,6 +1087,7 @@ local t_elems = {
 	{n = f_node(tr_pos, 'success', 'front'),               p = tr_pos.success.pos},
 	{n = f_node(tr_pos, 'allclear', 'bg'),                 p = tr_pos.allclear.pos},
 	{n = f_node(tr_pos, 'allclear', 'front'),              p = tr_pos.allclear.pos},
+	{n = f_node(tr_pos, 'demo', 'bg'),                      p = tr_pos.demo.pos},
 	{n = f_node(tr_pos, 'textbox', 'bg'),                  p = tr_pos.textbox.pos},
 	{n = f_node(tr_pos, 'textbox', 'front'),               p = tr_pos.textbox.pos},
 }
@@ -1452,6 +1470,7 @@ function trials.f_trialsBuilder()
 		totaltrialtimer = f_newText(trials.trials_mode.totaltrialtimer),
 		currenttrialtimer = f_newText(trials.trials_mode.currenttrialtimer),
 		trialreset_text = f_newText(trials.trials_mode.trialreset.text),
+		demo_text = f_newText(trials.trials_mode.demo.text),
 	}
 	for _, v in ipairs({'vertical','horizontal'}) do
 		trials.draw[v] = {
@@ -1659,6 +1678,8 @@ function trials.f_trialsDrawer()
 	if trials.data.trialsInitialized and roundState() == 2 and not trials.data.active and trials.draw.fade == 0 then
 		trials.f_trialsDummySetup()
 		trials.data.active = true
+		-- After the dummy setup, which would otherwise hand the dummy back its own moves.
+		trials.f_startDummyScript(trials.data.currenttrial)
 	end
 
 	if paused() and not trials.data.trialsPaused then
@@ -2290,7 +2311,20 @@ function trials.f_trialsChecker(CheckIt)
 					else
 						trials.data.validfortickcount = 0
 					end
-					if trials.data.currenttrialstep > #trials.data.trial[ct].trialstep then
+					if trials.data.currenttrialstep > #trials.data.trial[ct].trialstep and trials.f_demoActive() then
+						-- A demonstration only shows the way: the Trial starts over and nothing is
+						-- recorded, so the CPU's clear never counts as the player's.
+						trials.f_spendState()
+						trials.data.currenttrialstep = 1
+						trials.data.comboCounter = comboCount()
+					elseif trials.data.currenttrialstep > #trials.data.trial[ct].trialstep then
+						trials.f_stopScript(2)
+						-- A take that clears the Trial is complete: end it here rather than making the
+						-- author pause. Only a take that has started counts; one still armed or waiting
+						-- holds nothing yet.
+						if trials.f_recording() and trials.rec.phase == 'recording' then
+							trials.f_finishRecording(false)
+						end
 						-- Record the clear here, not from f_trialsSuccess: that runs every frame the
 						-- banner is up, by which point the drawer has already moved ct on to the next
 						-- Trial, so it would credit the clear to the wrong one. This block runs once.
@@ -3483,7 +3517,9 @@ function trials.f_applySpeedrun()
 	local on = trials.f_speedrunEnabled()
 	local items = {}
 	for _, item in ipairs(trials.rootItems) do
-		if not (on and item.itemname == 'trialslist') then
+		-- Record Demo and Record Dummy are authoring aids: listed only with [Config] RecordDemo = true.
+		local authoring = item.itemname == 'trialsrecord' or item.itemname == 'trialsrecorddummy'
+		if not (on and item.itemname == 'trialslist') and not (authoring and not trials.recordEnabled) then
 			items[#items + 1] = item
 		end
 	end
@@ -3536,6 +3572,10 @@ function trials.f_trialsMode()
 	trials.f_syncAspect()
 
 	if roundStart() then
+		trials.f_cancelRecording()
+		trials.f_endDemo(false)
+		trials.f_stopScript(1)
+		trials.f_stopScript(2)
 		trials.data = nil
 		-- Empty the trials list back to the items and loop the section declared.
 		if trials.listNode ~= nil and trials.listTail ~= nil then
@@ -3616,7 +3656,11 @@ function trials.f_trialsMode()
 		end
 	elseif trialsExist and roundState() == 2 and trials.data.trialsInitialized then
 		-- If trials initialized, draw elements and check for success!
+		if trials.f_demoActive() and not paused() then
+			trials.f_demoTick()
+		end
 		trials.f_trialsDrawer()
+		trials.f_demoBanner()
 		player(1)
 		trials.f_trialsChecker('root')
 		if numHelper() > 0 and trials.draw.success == 0 then
@@ -3625,6 +3669,10 @@ function trials.f_trialsMode()
 			end
 		end
 		player(1)
+		if not paused() then
+			trials.f_scriptTick()
+		end
+		trials.f_recordTick()
 	elseif roundState() == 2 then
 		-- No trials present!
 		player(2)
@@ -3638,6 +3686,414 @@ function trials.f_trialsMode()
 		end
 		trials.notrialscounter:update({x = trials.trials_mode.trialcounter_pos[1], y = trials.trials_mode.trialcounter_pos[2], text = trials.trials_mode.trialcounter_notrialsdata_text})
 		trials.notrialscounter:draw()
+	end
+end
+
+--;===========================================================
+--; Input scripts: demonstrations (P1) and dummy scripts (P2)
+--;===========================================================
+-- trial.demoscript and trial.dummyscript are written the same way: comma-separated tokens of
+-- <frames>:<inputs>, inputs joined with +, _ for nothing held. A token without a frame count lasts
+-- one frame. F and B are relative to the way the character faces, as in a command.
+--    trial.demoscript = 6:D, 3:D+F, 3:F+x, 40:_    ; a quarter circle forward + x
+-- Lua sets one map per input on the scripted character every frame, and trials.zss's
+-- TrialsScriptPress asserts them; asserted input reaches the command buffer like a held button.
+trials.t_scriptInputs = {'U', 'D', 'F', 'B', 'a', 'b', 'c', 'x', 'y', 'z', 's', 'd', 'w'}
+local t_scriptValid = {}
+for _, k in ipairs(trials.t_scriptInputs) do t_scriptValid[k] = true end
+trials.scriptMaxFrames = 3600
+
+-- Script text -> array of per-frame input sets; nil and a reason when it cannot be read.
+function trials.f_parseScript(src)
+	if type(src) ~= 'string' or src:match('^%s*$') then
+		return nil, 'empty'
+	end
+	local frames = {}
+	for tok in (src .. ','):gmatch('([^,]*),') do
+		tok = tok:gsub('%s+', '')
+		if tok ~= '' then
+			local n, inputs = tok:match('^(%d+):(.+)$')
+			if n == nil then
+				n, inputs = 1, tok
+			end
+			n = tonumber(n)
+			local set = {}
+			if inputs ~= '_' then
+				for k in (inputs .. '+'):gmatch('([^+]*)%+') do
+					-- case-sensitive, as in a command: directions U D F B, buttons a b c x y z s d w
+					-- (b and d are buttons, not back and down)
+					if not t_scriptValid[k] then
+						return nil, 'unknown input "' .. k .. '" in "' .. tok .. '"'
+					end
+					set[k] = true
+				end
+			end
+			for _ = 1, n, 1 do
+				frames[#frames + 1] = set
+				if #frames > trials.scriptMaxFrames then
+					return nil, 'longer than ' .. trials.scriptMaxFrames .. ' frames'
+				end
+			end
+		end
+	end
+	if #frames == 0 then
+		return nil, 'empty'
+	end
+	return frames
+end
+
+-- One running script per side: trials.scripts[1] the demo, [2] the dummy's.
+trials.scripts = {}
+
+-- Map names are case-insensitive in the engine (stored lowercased), so the directions cannot be
+-- _iksys_trialsInD / InB: those would be the same maps as the d and b buttons.
+trials.t_scriptMapName = {U = 'Up', D = 'Down', F = 'Fwd', B = 'Back'}
+
+local function f_setScriptMaps(pn, set)
+	player(pn)
+	mapSet('_iksys_trialsScript', set ~= nil and 1 or 0)
+	for _, k in ipairs(trials.t_scriptInputs) do
+		mapSet('_iksys_trialsIn' .. (trials.t_scriptMapName[k] or k), (set ~= nil and set[k]) and 1 or 0)
+	end
+	player(1)
+end
+
+function trials.f_startScript(pn, frames, loop, delay)
+	trials.scripts[pn] = {frames = frames, pos = 1, loop = loop, delay = delay or 0, wait = 0}
+end
+
+function trials.f_stopScript(pn)
+	if trials.scripts[pn] ~= nil then
+		trials.scripts[pn] = nil
+		f_setScriptMaps(pn, nil)
+	end
+end
+
+-- One frame of every running script. Returns nothing; a finished non-looping script stops itself.
+function trials.f_scriptTick()
+	for pn = 1, 2, 1 do
+		local s = trials.scripts[pn]
+		if s ~= nil then
+			if s.wait > 0 then
+				s.wait = s.wait - 1
+				f_setScriptMaps(pn, {})
+			elseif s.pos > #s.frames then
+				if s.loop then
+					s.pos, s.wait = 1, s.delay
+					f_setScriptMaps(pn, {})
+				else
+					trials.f_stopScript(pn)
+					if pn == 1 then
+						trials.f_demoScriptDone()
+					end
+				end
+			else
+				f_setScriptMaps(pn, s.frames[s.pos])
+				s.pos = s.pos + 1
+			end
+		end
+	end
+end
+
+-- The dummy's own walking, jumping and button jam, switched off so they cannot fight a script or a
+-- dummy take (auto-guard stays).
+local function f_quietDummy()
+	player(2)
+	mapSet('_iksys_trialsDummyMode', 0)
+	mapSet('_iksys_trialsButtonJam', 0)
+	mapSet('_iksys_trialsDistance', 0)
+	player(1)
+end
+
+-- The dummy's script runs while its trial is accepting input.
+function trials.f_startDummyScript(index)
+	trials.f_stopScript(2)
+	-- A dummy take is the author driving the dummy: no script, and none of its own moves.
+	if trials.rec ~= nil and trials.rec.pn == 2 then
+		f_quietDummy()
+		return
+	end
+	local trial = trials.data.trial[index]
+	if trial == nil or trial.dummyscript == '' then
+		return
+	end
+	if trial.dummyframes == nil then
+		local frames, why = trials.f_parseScript(trial.dummyscript)
+		if frames == nil then
+			print('Trials: "' .. trial.name .. '" has an unreadable trial.dummyscript (' .. why .. ').')
+			trial.dummyscript = ''
+			return
+		end
+		trial.dummyframes = frames
+	end
+	f_quietDummy()
+	trials.f_startScript(2, trial.dummyframes, trial.dummyscriptloop, trial.dummyscriptdelay)
+end
+
+----------------------------------------------------------------
+-- Demonstrations
+----------------------------------------------------------------
+-- Watching one: the trial restarts (so both sides are back in their start positions), P1's
+-- controller is pointed at an empty input slot so the player cannot interfere, and trial.demoscript
+-- plays. The steps light up as it goes, but nothing is recorded. When it ends - or the player
+-- skips it with the menu's done or cancel key - the controller comes back and the trial starts
+-- over for the player to try.
+trials.demoSlot = 12 -- MaxPlayerNo; nobody's keys or pad are configured on it in practice
+
+function trials.f_demoActive()
+	return trials.demo ~= nil
+end
+
+function trials.f_hasDemo(index)
+	local trial = trials.data ~= nil and trials.data.trial[index] or nil
+	return trial ~= nil and trial.demoscript ~= ''
+end
+
+function trials.f_startDemo(index)
+	local trial = trials.data.trial[index]
+	if trial.demoframes == nil then
+		local frames, why = trials.f_parseScript(trial.demoscript)
+		if frames == nil then
+			print('Trials: "' .. trial.name .. '" has an unreadable trial.demoscript (' .. why .. ').')
+			trial.demoscript = ''
+			return false
+		end
+		trial.demoframes = frames
+	end
+	trials.f_gotoTrial(index, false, true)
+	trials.demo = {trial = index, phase = 'waiting', tail = 0}
+	return true
+end
+
+-- Called every frame from the match loop while a demo is on.
+function trials.f_demoTick()
+	local dm = trials.demo
+	if dm.phase == 'waiting' then
+		-- for the restart's fade and reposition to finish
+		if trials.data.active and trials.draw.fade == 0 then
+			local ok, orig = pcall(getRemapInput, 1)
+			dm.remap = ok and orig or 1
+			pcall(remapInput, 1, trials.demoSlot)
+			trials.f_startScript(1, trials.data.trial[dm.trial].demoframes, false, 0)
+			dm.phase = 'playing'
+		end
+	elseif dm.phase == 'tail' then
+		-- let the last move finish before handing back
+		dm.tail = dm.tail - 1
+		if dm.tail <= 0 then
+			trials.f_endDemo(true)
+			return
+		end
+	end
+	local sec = trials.f_selectSection()
+	if sec ~= nil and dm.phase ~= 'waiting' then
+		-- Raw UI input: P1's own command input is remapped away for the demo.
+		local held = getInput(-1, sec.menu.done.key) or getInput(-1, sec.menu.cancel.key)
+		if held and dm.released then
+			trials.f_endDemo(true)
+			return
+		end
+		if not held then
+			dm.released = true
+		end
+	end
+end
+
+-- demo.* over the match: the DEMO banner while one plays, or the REC readout while a take is on.
+function trials.f_demoBanner()
+	local dm = trials.trials_mode.demo
+	local str
+	if trials.f_recording() then
+		local who = trials.rec.pn == 2 and 'REC DUMMY' or 'REC'
+		str = trials.rec.phase == 'recording' and (who .. ' ' .. #trials.rec.frames) or (who .. ' - waiting for input (pause to stop)')
+	elseif trials.f_demoActive() then
+		animUpdate(dm.bg.AnimData)
+		animDraw(dm.bg.AnimData)
+		str = dm.text.text
+	end
+	if str ~= nil and str ~= '' then
+		trials.draw.demo_text:update({x = dm.pos[1] + dm.text.offset[1], y = dm.pos[2] + dm.text.offset[2], text = str})
+		trials.draw.demo_text:draw()
+	end
+end
+
+function trials.f_demoScriptDone()
+	if trials.demo ~= nil then
+		trials.demo.phase = 'tail'
+		trials.demo.tail = 60
+	end
+end
+
+-- restart: start the trial over for the player (false when the match is being torn down).
+function trials.f_endDemo(restart)
+	local dm = trials.demo
+	if dm == nil then
+		return
+	end
+	trials.demo = nil
+	trials.f_stopScript(1)
+	if dm.remap ~= nil then
+		pcall(remapInput, 1, dm.remap)
+	end
+	if restart and trials.data ~= nil and trials.data.trial[dm.trial] ~= nil then
+		trials.f_gotoTrial(dm.trial, false, true)
+	end
+end
+
+----------------------------------------------------------------
+-- Recording a demo (authoring aid)
+----------------------------------------------------------------
+-- With [Config] RecordDemo = true in config.ini, the pause menu offers Record Demo and Record
+-- Dummy. Pick one and play; clearing the trial (or pausing) ends the take. What the recorded side
+-- held is printed to the console as a trial.demoscript (P1) or trial.dummyscript (P2) line, and
+-- written to save/trials_demo.txt, ready to paste into a trial file.
+do
+	local v = tostring(trials.ini.Config.RecordDemo or ''):lower()
+	trials.recordEnabled = v == 'true' or v == '1' or v == 'yes'
+end
+trials.recordPath = 'save/trials_demo.txt'
+
+-- A frame set as script text: inputs in t_scriptInputs order, _ for none.
+local function f_setText(set)
+	local k = {}
+	for _, n in ipairs(trials.t_scriptInputs) do
+		if set[n] then k[#k + 1] = n end
+	end
+	return #k > 0 and table.concat(k, '+') or '_'
+end
+
+-- Frames -> "n:inputs, ..." with runs of identical frames merged; the inverse of f_parseScript.
+function trials.f_scriptText(frames)
+	local out, last, run = {}, nil, 0
+	for _, set in ipairs(frames) do
+		local s = f_setText(set)
+		if s == last then
+			run = run + 1
+		else
+			if last ~= nil then out[#out + 1] = run .. ':' .. last end
+			last, run = s, 1
+		end
+	end
+	if last ~= nil then out[#out + 1] = run .. ':' .. last end
+	return table.concat(out, ', ')
+end
+
+function trials.f_recording()
+	return trials.rec ~= nil
+end
+
+-- pn 1 records P1 for trial.demoscript, pn 2 the dummy for trial.dummyscript. A dummy take swaps
+-- the two sides' controllers, so the author's pad drives the dummy (and a second pad, if any, drives
+-- P1); the swap is undone when the take ends.
+function trials.f_startRecording(pn)
+	pn = pn or 1
+	trials.f_cancelRecording()
+	-- 'armed' until every button is let go, so the press that closed the menu is not recorded
+	trials.rec = {frames = {}, phase = 'armed', pn = pn}
+	if pn == 2 then
+		local ok1, r1 = pcall(getRemapInput, 1)
+		local ok2, r2 = pcall(getRemapInput, 2)
+		if ok1 and ok2 then
+			trials.rec.remap = {r1, r2}
+			pcall(remapInput, 1, r2)
+			pcall(remapInput, 2, r1)
+		end
+		trials.f_stopScript(2)
+		f_quietDummy()
+	end
+end
+
+-- Give the controllers back after a dummy take.
+local function f_releaseRecording(rec)
+	if rec ~= nil and rec.remap ~= nil then
+		pcall(remapInput, 1, rec.remap[1])
+		pcall(remapInput, 2, rec.remap[2])
+	end
+end
+
+-- Drop a take without printing it (the match is ending or being torn down).
+function trials.f_cancelRecording()
+	local rec = trials.rec
+	trials.rec = nil
+	f_releaseRecording(rec)
+end
+
+local function f_heldNow(pn)
+	player(pn)
+	local set, any = {}, false
+	for _, k in ipairs(trials.t_scriptInputs) do
+		local ok, t = pcall(inputTime, k)
+		if ok and type(t) == 'number' and t > 0 then
+			set[k], any = true, true
+		end
+	end
+	player(1)
+	return set, any
+end
+
+-- restart: after a dummy take, start the trial over so the dummy's own settings and script come
+-- back (false when the trial is being cleared, which moves on by itself).
+function trials.f_finishRecording(restart)
+	local rec = trials.rec
+	trials.rec = nil
+	if rec == nil then
+		return
+	end
+	f_releaseRecording(rec)
+	if rec.pn == 2 and restart ~= false and trials.data ~= nil and #trials.data.trial > 0 then
+		local ct = math.min(trials.data.currenttrial, #trials.data.trial)
+		trials.f_gotoTrial(ct, false, true)
+	end
+	local f = rec.frames
+	-- Leading and trailing frames with nothing held carry nothing, and neither does the start
+	-- press that paused the game to end the take.
+	while #f > 0 and (next(f[#f]) == nil or (f[#f].s and f_setText(f[#f]) == 's')) do
+		table.remove(f)
+	end
+	if #f == 0 then
+		print('Trials: Record Demo stopped with nothing recorded.')
+		return
+	end
+	f[#f + 1] = {}
+	local line = (rec.pn == 2 and 'trial.dummyscript = ' or 'trial.demoscript = ') .. trials.f_scriptText(f)
+	print('Trials: recorded ' .. #f .. ' frames:\n' .. line)
+	local ok = pcall(main.f_fileWrite, trials.recordPath, line .. '\n')
+	if ok then
+		print('Trials: also written to ' .. trials.recordPath .. '.')
+	end
+	trials.lastRecording = line
+end
+
+-- Every frame of the match loop, paused or not: pausing is what ends a take.
+function trials.f_recordTick()
+	local rec = trials.rec
+	if rec == nil then
+		return
+	end
+	if paused() then
+		-- Still armed is the pause that started the take; past that, a pause ends it, even one
+		-- with nothing recorded yet (which also hands a dummy take's controllers back).
+		if rec.phase ~= 'armed' then
+			trials.f_finishRecording()
+		end
+		return
+	end
+	local set, any = f_heldNow(rec.pn or 1)
+	if rec.phase == 'armed' then
+		if not any then
+			rec.phase = 'waiting'
+		end
+	elseif rec.phase == 'waiting' then
+		-- the take starts with the first input, not with dead air
+		if any then
+			rec.phase = 'recording'
+			rec.frames[1] = set
+		end
+	else
+		rec.frames[#rec.frames + 1] = set
+		if #rec.frames >= trials.scriptMaxFrames then
+			trials.f_finishRecording()
+		end
 	end
 end
 
@@ -3707,6 +4163,11 @@ function trials.f_gotoTrial(index, keepTimer, noMenu)
 	if trials.data == nil or not trials.data.trialsInitialized or trials.data.trial[index] == nil then
 		return true
 	end
+	-- Going anywhere else ends a demo first, so the player always gets their controller back.
+	if trials.f_demoActive() then
+		trials.f_endDemo(false)
+	end
+	trials.f_stopScript(2)
 	-- Picking a Trial is what dismisses the select view, wherever it was picked from.
 	if trials.select ~= nil and trials.select.open then
 		trials.select.open = false
@@ -3963,6 +4424,45 @@ menu.t_itemname['previoustrial'] = function(t, item, cursorPosY, moveTxt, sec)
 	return true
 end
 
+local function f_leavePause()
+	menu.currentMenu[1] = menu.currentMenu[2]
+	menu.pauseExitDelay = gameOption('Input.PauseExitDelay')
+end
+
+-- Watch Demo: the CPU plays the Trial's trial.demoscript. Not during a speedrun, which it would void.
+menu.t_itemname['trialsdemo'] = function(t, item, cursorPosY, moveTxt, sec)
+	if getInput(-1, sec.menu.done.key) and trials.data ~= nil and trials.data.trialsInitialized and #trials.data.trial > 0 then
+		local ct_ = math.min(trials.data.currenttrial, #trials.data.trial)
+		if not trials.f_speedrunEnabled() and not trials.f_demoActive() and trials.f_hasDemo(ct_) and trials.f_startDemo(ct_) then
+			sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
+			f_leavePause()
+		else
+			sndPlay(motif.Snd, sec.cancel.snd[1], sec.cancel.snd[2])
+		end
+	end
+	return true
+end
+
+-- Record Demo: see trials.f_recordTick. Not offered unless RecordDemo is on.
+menu.t_itemname['trialsrecord'] = function(t, item, cursorPosY, moveTxt, sec)
+	if getInput(-1, sec.menu.done.key) and trials.recordEnabled and trials.data ~= nil and not trials.f_demoActive() then
+		sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
+		trials.f_startRecording(1)
+		f_leavePause()
+	end
+	return true
+end
+
+-- Record Dummy: the same for P2, played on the author's controller; see trials.f_startRecording.
+menu.t_itemname['trialsrecorddummy'] = function(t, item, cursorPosY, moveTxt, sec)
+	if getInput(-1, sec.menu.done.key) and trials.recordEnabled and trials.data ~= nil and not trials.f_demoActive() then
+		sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
+		trials.f_startRecording(2)
+		f_leavePause()
+	end
+	return true
+end
+
 local t_trialsPrefs = {
 	trialadvancement = true,
 	trialresetonsuccess = true,
@@ -4169,6 +4669,10 @@ for row = 1, #main.t_selChars, 1 do
 						textbox = "",
 						textcnt = 0,
 						starttick = roundTime()+1,
+						demoscript = "",
+						dummyscript = "",
+						dummyscriptloop = false,
+						dummyscriptdelay = 0,
 						trialstep = {},
 					}
 					temp = {}
@@ -4177,6 +4681,23 @@ for row = 1, #main.t_selChars, 1 do
 						line = "Trial " .. tostring(i)
 					end
 					trial[i].name = line
+				end
+			-- Input scripts. Matched on the whole key, ahead of the substring matches below, and read
+			-- from the line as written: they are case-sensitive (D is down, d the button).
+			elseif f_trimforchar(lcline, "=", "before") == "trial.demoscript" then
+				trial[i].demoscript = f_trimforchar(line, "=", "after")
+			elseif f_trimforchar(lcline, "=", "before") == "trial.dummyscript" then
+				trial[i].dummyscript = f_trimforchar(line, "=", "after")
+			elseif f_trimforchar(lcline, "=", "before") == "trial.dummyscriptloop" then
+				trial[i].dummyscriptloop = f_trimforchar(lcline, "=", "after") == "true"
+			elseif f_trimforchar(lcline, "=", "before") == "trial.dummyscriptdelay" then
+				local v = f_trimforchar(lcline, "=", "after")
+				local n = tonumber(v)
+				if n ~= nil and n >= 0 and n == math.floor(n) then
+					trial[i].dummyscriptdelay = n
+				elseif v ~= "" then
+					print('Trials: ' .. tostring(main.t_selChars[row].name) .. ' - "' .. trial[i].name
+						.. '" has an invalid trial.dummyscriptdelay (' .. v .. '). Expected a whole number of frames, 0 or more.')
 				end
 			elseif lcline:find("difficulty") then
 				local d = f_trimforchar(lcline, "=", "after")
@@ -4319,6 +4840,21 @@ for row = 1, #main.t_selChars, 1 do
 				end
 			end
 		end
+		-- Input scripts are read now, so a typo is reported at load rather than when played.
+		for _, t in ipairs(trial) do
+			for _, f in ipairs({'demoscript', 'dummyscript'}) do
+				if t[f] ~= '' then
+					local frames, why = trials.f_parseScript(t[f])
+					if frames == nil then
+						print('Trials: ' .. tostring(main.t_selChars[row].name) .. ' - "' .. t.name
+							.. '" has an unreadable trial.' .. f .. ' (' .. why .. '); it is ignored.')
+						t[f] = ''
+					else
+						t[f == 'demoscript' and 'demoframes' or 'dummyframes'] = frames
+					end
+				end
+			end
+		end
 		main.t_selChars[row].trialsdata = trial
 	end
 end
@@ -4331,6 +4867,8 @@ hook.add("start.f_selectScreen", "f_trialsSelectScreen", trials.f_trialsSelectSc
 -- Fires once selection is settled and before the fight loads, which is where
 -- trialslistdisplay = select puts the menu.
 hook.add("start.f_selectReset", "f_trialsSpeedrunReset", function()
+	trials.f_cancelRecording()
+	trials.f_endDemo(false)
 	trials.f_resetSpeedrun()
 	trials.f_restoreSelect()
 end)
