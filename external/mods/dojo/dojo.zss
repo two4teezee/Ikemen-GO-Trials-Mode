@@ -1,52 +1,55 @@
-# -- IKEMEN GO TRIALS MODE EXTERNAL MODULE --------------------------------
-# ---- trial.zss - trials mode global state and functions.
-# ---- This file is loaded by the Trials module to configure the Trials 
-# ---- Mode global state and functions. It is not loaded by the screenpack's
-# ---- system.def, so it is not part of the main menu or pause menu. The 
-# ---- Trials module loads this file itself.
+# -- IKEMEN GO DOJO MODULE --------------------------------------------------
+# ---- dojo.zss - global states and functions shared by every mode this
+# ---- module hosts: Trials, the Game Tutorial and Character Guides.
+# ---- It is loaded by dojo.lua, not by the screenpack's system.def, so it
+# ---- is not part of the main menu or pause menu. The maps keep the
+# ---- _iksys_tutorial prefix of the shared core (see dojo.lua).
 # --
 # -- Module developed by two4teezee
 # -------------------------------------------------------------------------
 
 # maps set via Pause Menu (menu.lua)
-# _iksys_trialsDummyControl: 0 - cooperative, 1 - ai, 2 - manual
-# _iksys_trialsGuardMode: 0 - none, 1 - auto, 2 - all, 3 - random
-# _iksys_trialsFallRecovery: 0 - none, 1 - ground, 2 - air, 3 - random
-# _iksys_trialsDummyMode: 0 - stand, 1 - crouch, 2 - jump, 3 - wjump, 4 - fjump, 5 - bjump, 6 - fwjump, 7 - bwjump
-# _iksys_trialsDistance: 0 - any, 1 - close, 2 - medium, 3 - far (set from trial.dummypos)
-# _iksys_trialsButtonJam: 0 - none, 1-9 - a/b/c/x/y/z/s/d/w
-# _iksys_trialsButtonJamInterval: frames to wait between button jam presses (trial.dummybuttondelay)
-# _iksys_trialsAirJamState / _iksys_trialsAirJamTimer: the jump modes' once-per-jump button jam (see Button jam)
-# _iksys_trialsJumpInterval: frames to stay on the ground between jumps in the jump dummy modes (trial.dummyjumpdelay)
-# _iksys_trialsInitPosX: value: 
-# _iksys_trialsInitPosY: value: 
-# _iksys_trialsMenuOpen: countdown re-seeded by Lua while the Trial select view is up; > 0 holds both sides
-# _iksys_trialsMenuHeld: 1 while this side is being held, so control is handed back once on release
+# _iksys_tutorialDummyControl: 0 - cooperative, 1 - ai, 2 - manual
+# _iksys_tutorialGuardMode: 0 - none, 1 - afterhit (guards for 15 frames after being hit), 2 - all (lesson.guardmode = auto), 3 - random
+# _iksys_tutorialFallRecovery: 0 - none, 1 - ground, 2 - air, 3 - random
+# _iksys_tutorialDummyMode: 0 - stand, 1 - crouch, 2 - jump, 3 - wjump, 4 - fjump, 5 - bjump, 6 - fwjump, 7 - bwjump
+# _iksys_tutorialDistance: 0 - any, 1 - close, 2 - medium, 3 - far (set from lesson.dummypos)
+# _iksys_tutorialButtonJam: 0 - none, 1-9 - a/b/c/x/y/z/s/d/w
+# _iksys_tutorialButtonJamInterval: frames to wait between button jam presses (lesson.dummybuttondelay)
+# _iksys_tutorialAirJamState / _iksys_tutorialAirJamTimer: the jump modes' once-per-jump button jam (see Button jam)
+# _iksys_tutorialJumpInterval: frames to stay on the ground between jumps in the jump dummy modes (lesson.dummyjumpdelay)
+# _iksys_tutorialSetLife: life the refill restores (lesson.dummylife / lesson.playerlife), else lifeMax
+# _iksys_tutorialReposition / _iksys_tutorialCameraReset: one-shot requests from Lua, cleared here once served
+# _iksys_tutorialCameraPosX, _iksys_tutorialPlayerPosX/Y, _iksys_tutorialDummyPosX/Y: where a reposition puts the camera and both sides
+# _iksys_tutorialButtonJamDelay: frames before the next button jam press, re-armed by Lua after a reset fade
+# _iksys_tutorialMenuOpen: countdown re-seeded by Lua while the Lesson select view is up; > 0 holds both sides
+# _iksys_tutorialMenuHeld: 1 while this side is being held, so control is handed back once on release
+# _iksys_tutorialScript: 1 while an input script drives this side; _iksys_tutorialIn<Up|Down|Fwd|Back|a|b|c|x|y|z|s|d|w>: 1 for each input held this frame (map names are case-insensitive, so the directions are spelled out to stay clear of the b and d buttons)
 
 #===============================================================================
 # Functions
 #===============================================================================
-[Function TrialsReposition()]
-if map(_iksys_trialsReposition) != 0 {
+[Function TutorialReposition()]
+if map(_iksys_tutorialReposition) != 0 {
 	Camera{
 		view: free; 
-		pos: map(_iksys_trialsCameraPosX), (map(_iksys_trialsPlayerPosY) + map(_iksys_trialsDummyPosY))/2;
+		pos: map(_iksys_tutorialCameraPosX), (map(_iksys_tutorialPlayerPosY) + map(_iksys_tutorialDummyPosY))/2;
 	}
 	PosSet{
-		x: map(_iksys_trialsPlayerPosX); 
-		y: map(_iksys_trialsPlayerPosY); 
+		x: map(_iksys_tutorialPlayerPosX); 
+		y: map(_iksys_tutorialPlayerPosY); 
 		redirectID: player(1),id;
 	}
 	PosSet{
-		x: map(_iksys_trialsDummyPosX);
-		y: map(_iksys_trialsDummyPosY);
+		x: map(_iksys_tutorialDummyPosX);
+		y: map(_iksys_tutorialDummyPosY);
 		redirectID: player(2),id;
 	}
 }
 
-[Function TrialsButtonJamPress()]
-# One frame of the button set by _iksys_trialsButtonJam, on the root and every helper.
-switch map(_iksys_trialsButtonJam) {
+[Function TutorialButtonJamPress()]
+# One frame of the button set by _iksys_tutorialButtonJam, on the root and every helper.
+switch map(_iksys_tutorialButtonJam) {
 case 1:
 	for i = 0; numHelper; 1 {
 		assertInput{flag: a; redirectID: helperIndex($i), ID}
@@ -87,7 +90,53 @@ default:
 	# Nothing to press
 }
 
-[Function TrialsResetCamera()]
+[Function TutorialScriptPress()]
+# One frame of an input script - lesson.demoscript on P1, lesson.dummyscript on P2 - on the root and
+# every helper. Lua sets one map per input every frame the script runs (tutorial.f_scriptTick).
+# F and B are relative to facing, as in a command.
+for i = 0; numHelper; 1 {
+	if map(_iksys_tutorialInUp) {
+		assertInput{flag: U; redirectID: helperIndex($i), ID}
+	}
+	if map(_iksys_tutorialInDown) {
+		assertInput{flag: D; redirectID: helperIndex($i), ID}
+	}
+	if map(_iksys_tutorialInFwd) {
+		assertInput{flag: F; redirectID: helperIndex($i), ID}
+	}
+	if map(_iksys_tutorialInBack) {
+		assertInput{flag: B; redirectID: helperIndex($i), ID}
+	}
+	if map(_iksys_tutorialIna) {
+		assertInput{flag: a; redirectID: helperIndex($i), ID}
+	}
+	if map(_iksys_tutorialInb) {
+		assertInput{flag: b; redirectID: helperIndex($i), ID}
+	}
+	if map(_iksys_tutorialInc) {
+		assertInput{flag: c; redirectID: helperIndex($i), ID}
+	}
+	if map(_iksys_tutorialInx) {
+		assertInput{flag: x; redirectID: helperIndex($i), ID}
+	}
+	if map(_iksys_tutorialIny) {
+		assertInput{flag: y; redirectID: helperIndex($i), ID}
+	}
+	if map(_iksys_tutorialInz) {
+		assertInput{flag: z; redirectID: helperIndex($i), ID}
+	}
+	if map(_iksys_tutorialIns) {
+		assertInput{flag: s; redirectID: helperIndex($i), ID}
+	}
+	if map(_iksys_tutorialInd) {
+		assertInput{flag: d; redirectID: helperIndex($i), ID}
+	}
+	if map(_iksys_tutorialInw) {
+		assertInput{flag: w; redirectID: helperIndex($i), ID}
+	}
+}
+
+[Function TutorialResetCamera()]
 Camera{view: fighting}
 
 #===============================================================================
@@ -95,30 +144,36 @@ Camera{view: fighting}
 #===============================================================================
 [StateDef -4]
 
-ignoreHitPause if gameMode = "trials" {
+# Trials plays as gameMode "trials", the Game Tutorial and Character Guides as "tutorial".
+ignoreHitPause if gameMode = "trials" || gameMode = "tutorial" {
 	# Round start reset
 	if roundState = 0 {
 		powerSet{value: powerMax}
-		map(_iksys_trialsLifeTimer) := 0;
-		map(_iksys_trialsPowerTimer) := 0;
-		map(_iksys_trialsReposition) := 0;
-		map(_iksys_trialsMenuOpen) := 0;
-		map(_iksys_trialsMenuHeld) := 0;
+		map(_iksys_tutorialLifeTimer) := 0;
+		map(_iksys_tutorialPowerTimer) := 0;
+		map(_iksys_tutorialReposition) := 0;
+		map(_iksys_tutorialMenuOpen) := 0;
+		map(_iksys_tutorialMenuHeld) := 0;
+		map(_iksys_tutorialScript) := 0;
 	}
-	# Hold both sides still while the Trial select view is up, so the buttons that drive the
+	# Input scripts (demonstrations and dummy scripts), pressed for whichever side Lua is driving.
+	if !isHelper && roundState = 2 && map(_iksys_tutorialScript) != 0 {
+		call TutorialScriptPress();
+	}
+	# Hold both sides still while the Lesson select view is up, so the buttons that drive the
 	# menu don't also drive the character. Lua re-seeds the counter every frame the view is up
-	# (trials.f_menuHold), so the hold lets go on its own if the view ever stops driving it.
+	# (tutorial.f_menuHold), so the hold lets go on its own if the view ever stops driving it.
 	# ctrlSet is not self-clearing: nothing in a character's own standing state restores ctrl, so
 	# the release branch has to hand control back, exactly once, whichever way the hold ended.
 	if !isHelper {
-		if map(_iksys_trialsMenuOpen) > 0 {
-			map(_iksys_trialsMenuOpen) := map(_iksys_trialsMenuOpen) - 1;
+		if map(_iksys_tutorialMenuOpen) > 0 {
+			map(_iksys_tutorialMenuOpen) := map(_iksys_tutorialMenuOpen) - 1;
 			if roundState = 2 {
-				map(_iksys_trialsMenuHeld) := 1;
+				map(_iksys_tutorialMenuHeld) := 1;
 				ctrlSet{value: 0}
 			}
-		} else if map(_iksys_trialsMenuHeld) != 0 {
-			map(_iksys_trialsMenuHeld) := 0;
+		} else if map(_iksys_tutorialMenuHeld) != 0 {
+			map(_iksys_tutorialMenuHeld) := 0;
 			ctrlSet{value: 1}
 		}
 	}
@@ -126,29 +181,29 @@ ignoreHitPause if gameMode = "trials" {
 	if !isHelper {
 		# Life
 		if moveType = H || dizzy {
-			mapSet{map: "_iksys_trialsLifeTimer"; value: 0}
+			mapSet{map: "_iksys_tutorialLifeTimer"; value: 0}
 		} else {
-			mapAdd{map: "_iksys_trialsLifeTimer"; value: 1}
+			mapAdd{map: "_iksys_tutorialLifeTimer"; value: 1}
 		}
-		if map(_iksys_trialsLifeTimer) >= 60 {
-			if map(_iksys_trialsSetLife) > 0 {
-				lifeSet{value: map(_iksys_trialsSetLife)}
-				redLifeSet{value: map(_iksys_trialsSetLife)}
+		if map(_iksys_tutorialLifeTimer) >= 60 {
+			if map(_iksys_tutorialSetLife) > 0 {
+				lifeSet{value: map(_iksys_tutorialSetLife)}
+				redLifeSet{value: map(_iksys_tutorialSetLife)}
 			} else {
 				lifeSet{value: lifeMax}
 				redLifeSet{value: lifeMax}
 			}
-			mapSet{map: "_iksys_trialsLifeTimer"; value: 0}
+			mapSet{map: "_iksys_tutorialLifeTimer"; value: 0}
 		}
 		# Power
 		if ctrl = 0 {
-			mapSet{map: "_iksys_trialsPowerTimer"; value: 0}
+			mapSet{map: "_iksys_tutorialPowerTimer"; value: 0}
 		} else {
-			mapAdd{map: "_iksys_trialsPowerTimer"; value: 1}
+			mapAdd{map: "_iksys_tutorialPowerTimer"; value: 1}
 		}
-		if map(_iksys_trialsPowerTimer) >= 60 {
+		if map(_iksys_tutorialPowerTimer) >= 60 {
 			powerSet{value: powerMax}
-			mapSet{map: "_iksys_trialsPowerTimer"; value: 0}
+			mapSet{map: "_iksys_tutorialPowerTimer"; value: 0}
 		}
 	}
 	# Disable normal KO behavior
@@ -169,54 +224,53 @@ ignoreHitPause if gameMode = "trials" {
 	if teamSide = 2 && !isHelper {
 		if roundState = 0 {
 			# Round start reset
-			map(_iksys_trialsAirJumpNum) := 0;
-			map(_iksys_trialsButtonJam) := 0;
-			map(_iksys_trialsDirection) := 0;
-			map(_iksys_trialsDistance) := 0;
-			map(_iksys_trialsDummyControl) := 0;
-			map(_iksys_trialsDummyMode) := 0;
-			map(_iksys_trialsJumpDelay) := 0;
-			map(_iksys_trialsAirJamState) := 0;
-			map(_iksys_trialsFallRecovery) := 0;
-			map(_iksys_trialsGuardMode) := 0;
+			map(_iksys_tutorialButtonJam) := 0;
+			map(_iksys_tutorialDirection) := 0;
+			map(_iksys_tutorialDistance) := 0;
+			map(_iksys_tutorialDummyControl) := 0;
+			map(_iksys_tutorialDummyMode) := 0;
+			map(_iksys_tutorialJumpDelay) := 0;
+			map(_iksys_tutorialAirJamState) := 0;
+			map(_iksys_tutorialFallRecovery) := 0;
+			map(_iksys_tutorialGuardMode) := 0;
 		}
 		if roundState = 2 {
 			# Dummy Control: Cooperative
-			if aiLevel = 0 && map(_iksys_trialsDummyControl) = 0 {
+			if aiLevel = 0 && map(_iksys_tutorialDummyControl) = 0 {
 				# Guard mode: Random
-				if map(_iksys_trialsGuardMode) = 3 {
+				if map(_iksys_tutorialGuardMode) = 3 {
 					if random < 500 {
 						assertSpecial{flag: autoGuard}
 					}
 				# Guard mode: All
-				} else if map(_iksys_trialsGuardMode) = 2 {
+				} else if map(_iksys_tutorialGuardMode) = 2 {
 					assertSpecial{flag: autoGuard}
 				# Guard mode: Auto
-				} else if map(_iksys_trialsGuardMode) = 1 {
+				} else if map(_iksys_tutorialGuardMode) = 1 {
 					if moveType = H || stateNo = const(StateDownedGetHit_gettingUp) {
-						map(_iksys_trialsAutoGuardTimer) := 15;
+						map(_iksys_tutorialAutoGuardTimer) := 15;
 					} else {
-						map(_iksys_trialsAutoGuardTimer) := (map(_iksys_trialsAutoGuardTimer) - 1);
+						map(_iksys_tutorialAutoGuardTimer) := (map(_iksys_tutorialAutoGuardTimer) - 1);
 					}
-					if map(_iksys_trialsAutoGuardTimer) > 0 {
+					if map(_iksys_tutorialAutoGuardTimer) > 0 {
 						assertSpecial{flag: autoGuard}
 					}
 				}
 				# Fall Recovery
-				if map(_iksys_trialsFallRecovery) {
+				if map(_iksys_tutorialFallRecovery) {
 					if stateNo != [const(StateAirGetHit_fallRecoveryOnGroundStillFalling), const(StateAirGetHit_fallRecoveryInAir)] {
 						if moveType = H && stateType = A && hitFall && !getHitVar(isbound) && (pos y || vel y) {
 							# Ground recovery. Attempt only if common1 conditions are met
 							if vel y > 0 && pos y >= const(movement.air.gethit.groundrecover.ground.threshold) {
-								if map(_iksys_trialsFallRecovery) = 1 { 
+								if map(_iksys_tutorialFallRecovery) = 1 { 
 									let rcv = 1;
 								}
 							# Air recovery. Attempt only if conditions for ground recovery are not met
-							} else if map(_iksys_trialsFallRecovery) = 2 {
+							} else if map(_iksys_tutorialFallRecovery) = 2 {
 								let rcv = 1;
 							}
 							# Random recovery. Attempt regardless of conditions
-							if map(_iksys_trialsFallRecovery) = 3 && random < 100 {
+							if map(_iksys_tutorialFallRecovery) = 3 && random < 100 {
 								let rcv = 1;
 							}
 							if $rcv {
@@ -232,7 +286,7 @@ ignoreHitPause if gameMode = "trials" {
 									# Buffered 2 frames because asserting a command instead of inputting it has 1 frame of lag in custom fall recovery systems
 								}
 								# Random direction
-								if map(_iksys_trialsFallRecovery) = 3 {
+								if map(_iksys_tutorialFallRecovery) = 3 {
 									if random < 333 {
 										assertInput{flag: L}
 									} else if random < 500 {
@@ -254,56 +308,56 @@ ignoreHitPause if gameMode = "trials" {
 				# landing) or leaving the ground ends any walk, so the dummy mode and button jam take over.
 				let dir = 0;
 				if !ctrl || stateType = A {
-					map(_iksys_trialsDirection) := 0;
+					map(_iksys_tutorialDirection) := 0;
 				}
-				if map(_iksys_trialsDistance) != 0 && ctrl && stateType != A {
+				if map(_iksys_tutorialDistance) != 0 && ctrl && stateType != A {
 					# Close
-					if map(_iksys_trialsDistance) = 1 {
+					if map(_iksys_tutorialDistance) = 1 {
 						if p2BodyDist x > const240p(10) {
 							let dir = 1;
-							map(_iksys_trialsDirection) := 1;
+							map(_iksys_tutorialDirection) := 1;
 						} else if p2BodyDist x < -(const(size.ground.front) + const(size.ground.back) + const240p(10)) {
 							let dir = -1;
-							map(_iksys_trialsDirection) := -1;
+							map(_iksys_tutorialDirection) := -1;
 						}
 					# Medium
-					} else if map(_iksys_trialsDistance) = 2 {
+					} else if map(_iksys_tutorialDistance) = 2 {
 						if p2BodyDist x > const240p(130) {
 							let dir = 1;
-							map(_iksys_trialsDirection) := 1;
+							map(_iksys_tutorialDirection) := 1;
 						} else if p2BodyDist x < const240p(80) && backEdgeBodyDist > const240p(10) {
 							let dir = -1;
-							map(_iksys_trialsDirection) := -1;
+							map(_iksys_tutorialDirection) := -1;
 						}
 					# Far
-					# Bounds bracket where trial.dummypos = far puts the pair, as close and medium do.
-					} else if map(_iksys_trialsDistance) = 3 {
+					# Bounds bracket where lesson.dummypos = far puts the pair, as close and medium do.
+					} else if map(_iksys_tutorialDistance) = 3 {
 						if p2BodyDist x > const240p(260) {
 							let dir = 1;
-							map(_iksys_trialsDirection) := 1;
+							map(_iksys_tutorialDirection) := 1;
 						} else if p2BodyDist x < const240p(200) && backEdgeBodyDist > const240p(10) {
 							let dir = -1;
-							map(_iksys_trialsDirection) := -1;
+							map(_iksys_tutorialDirection) := -1;
 						}
 					}
 				}
-				if map(_iksys_trialsDirection) != 0 {
+				if map(_iksys_tutorialDirection) != 0 {
 					# If adjusting position is no longer needed
 					if $dir = 0 {
 						# maintain assertion only if dummy and nearest P1 are moving in the same direction
 						if vel x * p2,vel x >= 0 || backEdgeBodyDist = 0 || p2,backEdgeBodyDist = 0 {
-							map(_iksys_trialsDirection) := 0;
+							map(_iksys_tutorialDirection) := 0;
 						}
 					}
 					# If dummy should move forward and player is not trying to move dummy manually
-					if map(_iksys_trialsDirection) = 1 {
+					if map(_iksys_tutorialDirection) = 1 {
 						if inputTime(B) < 0 && inputTime(D) < 0 && inputTime(U) < 0 {
 							for i = 0; numHelper; 1 {
 								assertInput{flag: F; redirectID: helperIndex($i), ID} # Index 0 being the root
 							}
 						}
 					# If dummy should move backward and player is not trying to move dummy manually
-					} else if map(_iksys_trialsDirection) = -1 {
+					} else if map(_iksys_tutorialDirection) = -1 {
 						# Back is also guard: never walk back inside guard distance, so the dummy can't block by it.
 						if inputTime(F) < 0 && inputTime(D) < 0 && inputTime(U) < 0 && !inGuardDist {
 							for i = 0; numHelper; 1 {
@@ -315,14 +369,14 @@ ignoreHitPause if gameMode = "trials" {
 					# Jump delay: rearmed while airborne, counted down once back on the ground. The jump modes
 					# only press anything on the ground once it runs out, so the dummy waits after landing.
 					if stateType = A {
-						map(_iksys_trialsJumpDelay) := map(_iksys_trialsJumpInterval);
+						map(_iksys_tutorialJumpDelay) := map(_iksys_tutorialJumpInterval);
 					} else {
-						if map(_iksys_trialsJumpDelay) > 0 {
-							mapAdd{map: "_iksys_trialsJumpDelay"; value: -1}
+						if map(_iksys_tutorialJumpDelay) > 0 {
+							mapAdd{map: "_iksys_tutorialJumpDelay"; value: -1}
 						}
 					}
 					# Dummy mode
-					switch map(_iksys_trialsDummyMode) {
+					switch map(_iksys_tutorialDummyMode) {
 					# Crouch
 					case 1:
 						if inputTime(L) < 0 && inputTime(R) < 0 && inputTime(U) < 0 {
@@ -332,11 +386,11 @@ ignoreHitPause if gameMode = "trials" {
 						}
 					# Jump modes: up is only pressed on the ground once the dummy has control. Held through the
 					# landing it would jump on the first frame control came back, before the dummy could ever
-					# walk back to its trial.dummypos distance. F and B are still held without control: the
+					# walk back to its lesson.dummypos distance. F and B are still held without control: the
 					# pre-jump frames are where the jump picks its direction.
 					# Jump
 					case 2:
-						if inputTime(L) < 0 && inputTime(R) < 0 && inputTime(D) < 0 && (stateType = A || map(_iksys_trialsJumpDelay) <= 0) {
+						if inputTime(L) < 0 && inputTime(R) < 0 && inputTime(D) < 0 && (stateType = A || map(_iksys_tutorialJumpDelay) <= 0) {
 							for i = 0; numHelper; 1 {
 								if stateType = A || ctrl {
 									assertInput{flag: U; redirectID: helperIndex($i), ID}
@@ -346,7 +400,7 @@ ignoreHitPause if gameMode = "trials" {
 					# W Jump
 					case 3:
 						if inputTime(L) < 0 && inputTime(R) < 0 && inputTime(D) < 0 {
-							if vel y >= 0 && (stateType = A || map(_iksys_trialsJumpDelay) <= 0) {
+							if vel y >= 0 && (stateType = A || map(_iksys_tutorialJumpDelay) <= 0) {
 								for i = 0; numHelper; 1 {
 									if stateType = A || ctrl {
 										assertInput{flag: U; redirectID: helperIndex($i), ID}
@@ -356,7 +410,7 @@ ignoreHitPause if gameMode = "trials" {
 						}
 					# Forward Jump
 					case 4:
-						if inputTime(L) < 0 && inputTime(R) < 0 && inputTime(D) < 0 && (stateType = A || map(_iksys_trialsJumpDelay) <= 0) {
+						if inputTime(L) < 0 && inputTime(R) < 0 && inputTime(D) < 0 && (stateType = A || map(_iksys_tutorialJumpDelay) <= 0) {
 							for i = 0; numHelper; 1 {
 								if stateType = A || ctrl {
 									assertInput{flag: U; redirectID: helperIndex($i), ID}
@@ -366,7 +420,7 @@ ignoreHitPause if gameMode = "trials" {
 						}
 					# Back Jump
 					case 5:
-						if inputTime(L) < 0 && inputTime(R) < 0 && inputTime(D) < 0 && (stateType = A || map(_iksys_trialsJumpDelay) <= 0) {
+						if inputTime(L) < 0 && inputTime(R) < 0 && inputTime(D) < 0 && (stateType = A || map(_iksys_tutorialJumpDelay) <= 0) {
 							for i = 0; numHelper; 1 {
 								if stateType = A || ctrl {
 									assertInput{flag: U; redirectID: helperIndex($i), ID}
@@ -382,7 +436,7 @@ ignoreHitPause if gameMode = "trials" {
 					# Forward W Jump
 					case 6:
 						if inputTime(L) < 0 && inputTime(R) < 0 && inputTime(D) < 0 {
-							if vel y >= 0 && (stateType = A || map(_iksys_trialsJumpDelay) <= 0) {
+							if vel y >= 0 && (stateType = A || map(_iksys_tutorialJumpDelay) <= 0) {
 								for i = 0; numHelper; 1 {
 									if stateType = A || ctrl {
 										assertInput{flag: U; redirectID: helperIndex($i), ID}
@@ -394,7 +448,7 @@ ignoreHitPause if gameMode = "trials" {
 					# Back W Jump
 					case 7:
 						if inputTime(L) < 0 && inputTime(R) < 0 && inputTime(D) < 0 {
-							if vel y >= 0 && (stateType = A || map(_iksys_trialsJumpDelay) <= 0) {
+							if vel y >= 0 && (stateType = A || map(_iksys_tutorialJumpDelay) <= 0) {
 								for i = 0; numHelper; 1 {
 									if stateType = A || ctrl {
 										assertInput{flag: U; redirectID: helperIndex($i), ID}
@@ -412,49 +466,49 @@ ignoreHitPause if gameMode = "trials" {
 						# Do nothing
 					}
 					# Button jam
-					if map(_iksys_trialsButtonJam) > 0 {
-						if map(_iksys_trialsDummyMode) >= 2 {
+					if map(_iksys_tutorialButtonJam) > 0 {
+						if map(_iksys_tutorialDummyMode) >= 2 {
 							# Jump modes: a button pressed on the ground starts a ground attack instead of the
 							# jump, so the button is only ever pressed in the air - once per trip off the ground,
-							# _iksys_trialsButtonJamInterval frames after takeoff (a jump attack). The w modes'
+							# _iksys_tutorialButtonJamInterval frames after takeoff (a jump attack). The w modes'
 							# air jump does not rearm it. 0 - waiting to take off, 1 - counting, 2 - spent.
 							if stateType = A {
 								if moveType = H {
 									# Knocked into the air is not a jump: nothing to attack with until it lands.
-									map(_iksys_trialsAirJamState) := 2;
-								} else if map(_iksys_trialsAirJamState) = 0 {
-									map(_iksys_trialsAirJamState) := 1;
-									map(_iksys_trialsAirJamTimer) := map(_iksys_trialsButtonJamInterval);
+									map(_iksys_tutorialAirJamState) := 2;
+								} else if map(_iksys_tutorialAirJamState) = 0 {
+									map(_iksys_tutorialAirJamState) := 1;
+									map(_iksys_tutorialAirJamTimer) := map(_iksys_tutorialButtonJamInterval);
 								}
-								if map(_iksys_trialsAirJamState) = 1 {
-									if map(_iksys_trialsAirJamTimer) > 0 {
-										mapAdd{map: "_iksys_trialsAirJamTimer"; value: -1}
+								if map(_iksys_tutorialAirJamState) = 1 {
+									if map(_iksys_tutorialAirJamTimer) > 0 {
+										mapAdd{map: "_iksys_tutorialAirJamTimer"; value: -1}
 									} else {
-										map(_iksys_trialsAirJamState) := 2;
-										call TrialsButtonJamPress();
+										map(_iksys_tutorialAirJamState) := 2;
+										call TutorialButtonJamPress();
 									}
 								}
 							} else {
-								map(_iksys_trialsAirJamState) := 0;
+								map(_iksys_tutorialAirJamState) := 0;
 							}
 						} else {
-							# Other modes: press every _iksys_trialsButtonJamInterval frames.
-							if map(_iksys_trialsButtonJamDelay) > 0 {
-								mapAdd{map: "_iksys_trialsButtonJamDelay"; value: -1}
+							# Other modes: press every _iksys_tutorialButtonJamInterval frames.
+							if map(_iksys_tutorialButtonJamDelay) > 0 {
+								mapAdd{map: "_iksys_tutorialButtonJamDelay"; value: -1}
 							} else {
-								map(_iksys_trialsButtonJamDelay) := map(_iksys_trialsButtonJamInterval);
-								call TrialsButtonJamPress();
+								map(_iksys_tutorialButtonJamDelay) := map(_iksys_tutorialButtonJamInterval);
+								call TutorialButtonJamPress();
 							}
 						}
 					}
 				}
-				if map(_iksys_trialsReposition) != 0 {
-					call TrialsReposition();
-					map(_iksys_trialsReposition) := 0;
+				if map(_iksys_tutorialReposition) != 0 {
+					call TutorialReposition();
+					map(_iksys_tutorialReposition) := 0;
 				}
-				if map(_iksys_trialsCameraReset) != 0 {
-					call TrialsResetCamera();
-					map(_iksys_trialsCameraReset) := 0;
+				if map(_iksys_tutorialCameraReset) != 0 {
+					call TutorialResetCamera();
+					map(_iksys_tutorialCameraReset) := 0;
 				}
 			}
 		}

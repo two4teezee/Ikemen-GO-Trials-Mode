@@ -1,27 +1,42 @@
-; -- IKEMEN GO TRIALS MODE EXTERNAL MODULE --------------------------------
-; ---- system.def - trials mode graphic elements / UI configuration.
-; ---- This file is loaded by the Trials module to configure the Trials
-; ---- Mode UI. It is not loaded by the screenpack's system.def, so it is 
-; ---- not part of the main menu or pause menu. The Trials module loads 
-; ---- this file itself. The settings provided in this file are defaults 
-; ---- that show an integration with the `ikemen1` screenpack.
+; -- IKEMEN GO DOJO MODULE -------------------------------------------------
+; ---- dojo.def - graphic elements / UI configuration for every mode the
+; ---- Dojo hosts: Trials, the Game Tutorial and Character Guides.
+; ---- Loaded by dojo.lua, not by the screenpack's system.def, so it is not
+; ---- part of the main menu or pause menu. The settings provided in this
+; ---- file are defaults that show an integration with the `ikemen1`
+; ---- screenpack.
+; --
+; ---- Three sections:
+; ----   Dojo           - the look every mode shares. Restyle here once.
+; ----   Trials Mode    - laid over it for Trials.
+; ----   Tutorial Mode  - laid over it for the Game Tutorial and Character
+; ----                    Guides.
+; ---- The two mode sections only need the keys that differ; shipped, that
+; ---- is their labels ("Trial" vs "Lesson"). Any key from the Dojo section
+; ---- can be repeated in either one to style that mode apart.
+; --
+; ---- Key names are mode-neutral (title, steps, counter, menu, ...).
+; ---- The older spellings are still read, in any section: Trials Mode's
+; ---- (trialtitle, trialsteps, trialcounter, trialsmenu, ...) and the old
+; ---- standalone tutorialmode.def's (lessontitle, lessonsteps,
+; ---- lessoncounter, tutorialmenu, ...), so a section copied from either
+; ---- still works. A trialsmode.def from Trials Mode 1.x, which has no Dojo
+; ---- section, can be dropped in as dojo.def: its Trials Mode section is
+; ---- then used as the shared look.
 ; --
 ; -- Module developed by two4teezee
 ; -------------------------------------------------------------------------
 
-[Trials Mode]
-; NOTE: Values provided in this sample meant for `mugen1` screenpack, 1280x720 resolution.
-; Please modify the values in this file to properly configure the trials mode for your screenpack.
+[Dojo]
+; NOTE: Values provided in this sample meant for `ikemen1` screenpack, 1280x720 resolution.
+; Please modify the values in this file to properly configure the modes for your screenpack.
+; Throughout, "trial" stands for any exercise, a trial or a lesson alike: the modes share one engine.
+; The on-screen labels (titles, counters, timers, the list title) are in [Trials Mode] and
+; [Tutorial Mode] at the end of this file.
 
-; TITLE SCREEN --------------------------------------------------------------------
-; The title of the mode, shown on the title screen and in the menu. 
-; Screenpacks can override this with their own title, but if they don't, this is what is shown.
-; -----------------------------------------------------------------------------------
-menu.itemname.trials = "TRIALS MODE"
-
-; GENERAL TRIALS OPTIONS ---------------------------------------------------
-; trialslocalcoord: localcoord for the trials mode. Defaults to 320,240 if not specified.
-; trialslistdisplay: valid values are "select", "start", and "off". "select" shows the menu between stage select and the fight loading; "start" shows it once the match is up, over the frozen pair; "off" never asks and starts on the first trial. Defaults to "start". The pause menu's Trials List works the same either way.
+; GENERAL OPTIONS ----------------------------------------------------------
+; localcoord: localcoord for the modes' UI. Defaults to 320,240 if not specified.
+; listdisplay: valid values are "select", "start", and "off". "select" shows the menu between stage select and the fight loading; "start" shows it once the match is up, over the frozen pair; "off" never asks and starts on the first trial. Defaults to "start". The pause menu's list works the same either way. The Game Tutorial always picks its lesson from its own list before the match.
 ; --   Note: "select" falls back to the "start" menu for characters whose trials use showforvarvalpairs. Those trials are picked by the player's groove or mode, and the variables holding it do not exist until the match is up, so asking before the fight would list every groove's trials.
 ; --
 ; Layout (vertical/horizontal) and Reset on Success are player preferences, not UI config. Their
@@ -29,11 +44,11 @@ menu.itemname.trials = "TRIALS MODE"
 ; legend at the top of that file. Layout also selects the scrolling behaviour and enables dynamic
 ; step width; the fadein/fadeout parameters below still style the Reset on Success transition.
 ; --------------------------------------------------------------------------
-trialslocalcoord = 1280,720
-trialslistdisplay = select
+localcoord = 1280,720
+listdisplay = select
 
 ; ELEMENT ANCHORS ----------------------------------------------------------
-; Everything below is authored on the trialslocalcoord canvas, but the screen it lands on is
+; Everything below is authored on the localcoord canvas, but the screen it lands on is
 ; whatever aspect the match is running at. With the aspect ratio option set to "stage", every
 ; stage can bring its own, so a UI authored at 1280,720 has to survive a 4:3 stage.
 ;
@@ -42,13 +57,13 @@ trialslistdisplay = select
 ;   left   - keeps its distance from the left edge (the default for anything authored on the left)
 ;   center - stays the same fraction across
 ;   right  - keeps its distance from the right edge
-; The elements that take it are trialtitle.<layout>, trialsteps.<layout>, trialcounter,
-; totaltrialtimer, currenttrialtimer, trialreset.text, textbox, success, allclear and trialsmenu.
+; The elements that take it are title.<layout>, steps.<layout>, counter,
+; totaltimer, currenttimer, reset.text, textbox, success, allclear and menu.
 ; Leave it out and the module infers one from where the element sits on the canvas, which is right
 ; for the usual corner-pinned HUD but is only a guess - say it outright if the element matters.
 ;
-; The two windows authored in canvas space - trialsteps.<layout>.window.* and
-; trialsmenu.overlay.window - are not anchored: each edge follows its own side of the screen, so
+; The two windows authored in canvas space - steps.<layout>.window.* and
+; menu.overlay.window - are not anchored: each edge follows its own side of the screen, so
 ; they keep their authored margins and stretch or narrow with the aspect.
 ;
 ; None of this does anything when the stage's aspect matches the canvas: every number below is
@@ -61,23 +76,23 @@ trialslistdisplay = select
 ; to 2. Defaults to 0, which is where every trials element used to be drawn.
 ; All of these layers are drawn on top of the stage and the characters - layerno only orders
 ; trials elements against each other. Elements sharing a layer keep their usual draw order
-; (trialsteps bg, trial title, textbox, then the individual steps and their glyphs), so
+; (steps bg, trial title, textbox, then the individual steps and their glyphs), so
 ; raising an element's layerno is how you pull it in front of something that would normally
 ; be drawn after it.
 ; --------------------------------------------------------------------------
 
 ; WHERE SPRITES AND SOUNDS COME FROM ---------------------------------------
-; Every "spr" and "anim" below is resolved out of the module's own trials.sff when one sits
-; beside trials.lua, and out of the screenpack's system.sff when it does not.
+; Every "spr" and "anim" below is resolved out of the module's own dojo.sff when one sits
+; beside dojo.lua, and out of the screenpack's system.sff when it does not.
 ; Sounds work the same way: every "snd" parameter in this file (success.snd, allclear.snd) is
-; resolved out of an optional trials.snd beside trials.lua, and out of the screenpack's
-; system.snd when there is none. The module ships a trials.sff but no trials.snd, so sounds
-; come from the screenpack out of the box - drop a trials.snd in and they come from it instead.
-; It is the whole file that switches, not one sound at a time: once a trials.snd is present,
+; resolved out of an optional dojo.snd beside dojo.lua, and out of the screenpack's
+; system.snd when there is none. The module ships a dojo.sff but no dojo.snd, so sounds
+; come from the screenpack out of the box - drop a dojo.snd in and they come from it instead.
+; It is the whole file that switches, not one sound at a time: once a dojo.snd is present,
 ; a group,number missing from it plays nothing rather than falling back to system.snd.
 ; The pause menu's own sounds are not affected either way. cursor.move, cursor.done, enter and
-; cancel are read from the screenpack's [Trials Pause Menu] / [Pause Menu] section and always
-; play out of system.snd, so the trials list answers like every other menu in the screenpack.
+; cancel are read from the screenpack's [Trials Pause Menu] / [Tutorial Pause Menu] / [Pause Menu] section and always
+; play out of system.snd, so the list answers like every other menu in the screenpack.
 ; --------------------------------------------------------------------------
 
 ; SELSCREENPALFX -----------------------------------------------------------
@@ -90,7 +105,7 @@ selscreenpalfx.mul = 100, 100, 100
 selscreenpalfx.add = ; 0, 0, 0
 
 ; RESETONSUCCESS FADES -----------------------------------------------------
-; Used when Reset on Success is enabled (config.ini [Options] Trials.ResetOnSuccess = true).
+; Used when Reset on Success is enabled (config.ini [Options] Trials.ResetOnSuccess / Tutorial.ResetOnSuccess = true).
 ; --------------------------------------------------------------------------
 fadein.time = 40
 fadein.col = {0, 0, 0}
@@ -102,86 +117,84 @@ fadeout.anim = -1
 ; TRIALTITLE OPTIONS -------------------------------------------------------
 ; TRAILTITLE options can be specified for both vertical and horizontal layouts simultaneously.
 ; TRIALTITLE VERTICAL ------------------------------------------------------
-trialtitle.vertical.anchor = left
-trialtitle.vertical.pos = 140,190
-trialtitle.vertical.text.offset = 0,-25
-trialtitle.vertical.text.font = 1,0,1, 255, 200, 100
-trialtitle.vertical.text.text = "Trial: %s"
-trialtitle.vertical.text.scale = 2,2
-trialtitle.vertical.text.font.height = -1
-trialtitle.vertical.bg.offset = 0, 0
-trialtitle.vertical.bg.spr = 
-trialtitle.vertical.bg.anim = -1
-trialtitle.vertical.bg.scale = 1.0, 1.0
-trialtitle.vertical.bg.facing = 1
-trialtitle.vertical.bg.displaytime = -1
-trialtitle.vertical.bg.layerno = 0
-trialtitle.vertical.front.offset = 0, 0
-trialtitle.vertical.front.spr = 
-trialtitle.vertical.front.anim = -1
-trialtitle.vertical.front.scale = 1.0, 1.0
-trialtitle.vertical.front.facing = 1
-trialtitle.vertical.front.displaytime = -1
-trialtitle.vertical.front.layerno = 0
+title.vertical.anchor = left
+title.vertical.pos = 140,190
+title.vertical.text.offset = 0,-25
+title.vertical.text.font = 1,0,1, 255, 200, 100
+title.vertical.text.scale = 2,2
+title.vertical.text.font.height = -1
+title.vertical.bg.offset = 0, 0
+title.vertical.bg.spr = 
+title.vertical.bg.anim = -1
+title.vertical.bg.scale = 1.0, 1.0
+title.vertical.bg.facing = 1
+title.vertical.bg.displaytime = -1
+title.vertical.bg.layerno = 0
+title.vertical.front.offset = 0, 0
+title.vertical.front.spr = 
+title.vertical.front.anim = -1
+title.vertical.front.scale = 1.0, 1.0
+title.vertical.front.facing = 1
+title.vertical.front.displaytime = -1
+title.vertical.front.layerno = 0
 ; TRIALTITLE HORIZONTAL ----------------------------------------------------
-trialtitle.horizontal.anchor = left
-trialtitle.horizontal.pos = 140,190
-trialtitle.horizontal.text.offset = 0,-25
-trialtitle.horizontal.text.font = 1,0,1, 255, 200, 100
-trialtitle.horizontal.text.text = "Trial: %s"
-trialtitle.horizontal.text.scale = 2,2
-trialtitle.horizontal.text.font.height = -1
-trialtitle.horizontal.bg.offset = 0, 0
-trialtitle.horizontal.bg.spr = 
-trialtitle.horizontal.bg.anim = -1
-trialtitle.horizontal.bg.scale = 1.0, 1.0
-trialtitle.horizontal.bg.facing = 1
-trialtitle.horizontal.bg.displaytime = -1
-trialtitle.horizontal.bg.layerno = 0
-trialtitle.horizontal.front.offset = 0, 0
-trialtitle.horizontal.front.spr = 
-trialtitle.horizontal.front.anim = -1
-trialtitle.horizontal.front.scale = 1.0, 1.0
-trialtitle.horizontal.front.facing = 1
-trialtitle.horizontal.front.displaytime = -1
-trialtitle.horizontal.front.layerno = 0
+title.horizontal.anchor = left
+title.horizontal.pos = 140,190
+title.horizontal.text.offset = 0,-25
+title.horizontal.text.font = 1,0,1, 255, 200, 100
+title.horizontal.text.scale = 2,2
+title.horizontal.text.font.height = -1
+title.horizontal.bg.offset = 0, 0
+title.horizontal.bg.spr = 
+title.horizontal.bg.anim = -1
+title.horizontal.bg.scale = 1.0, 1.0
+title.horizontal.bg.facing = 1
+title.horizontal.bg.displaytime = -1
+title.horizontal.bg.layerno = 0
+title.horizontal.front.offset = 0, 0
+title.horizontal.front.spr = 
+title.horizontal.front.anim = -1
+title.horizontal.front.scale = 1.0, 1.0
+title.horizontal.front.facing = 1
+title.horizontal.front.displaytime = -1
+title.horizontal.front.layerno = 0
 
 ; TRIALSTEPS OPTIONS -------------------------------------------------------
 ; TRIALSTEPS options can be specified for both vertical and horizontal layouts simultaneously.
-; trialsteps.<layout>.pos: local origin from which trial steps are drawn. Other elements have their own origin specifications.
-; trialsteps.<layout>.spacing: spacing between trial steps. For horizontal layout, the second argument determines the spacing between rows.
-; trialsteps.<layout>.window: X1,Y1,X2,Y2: display window for trials--will create automated scrolling or line returns, depending on the trial layout of choice
-; trialsteps.horizontal.padding: horizontal layouts only - padding between glyphs and edges of the background element along the x (horizontal) axis.
-; trialsteps.<layout>.bg. ...: optional background displayed behind all other trial step text, background elements, etc.
+; steps.<layout>.pos: local origin from which trial steps are drawn. Other elements have their own origin specifications.
+; steps.<layout>.spacing: spacing between trial steps. For horizontal layout, the second argument determines the spacing between rows.
+; steps.<layout>.window: X1,Y1,X2,Y2: display window for trials--will create automated scrolling or line returns, depending on the trial layout of choice
+; steps.horizontal.padding: horizontal layouts only - padding between glyphs and edges of the background element along the x (horizontal) axis.
+; steps.<layout>.bg. ...: optional background displayed behind all other trial step text, background elements, etc.
 ; TRIALSTEPS VERTICAL ------------------------------------------------------
-trialsteps.vertical.anchor = left
-trialsteps.vertical.pos = 140,190
-trialsteps.vertical.spacing = 0,25
-trialsteps.vertical.window.withouttextbox = 100,175, 1180,550
-trialsteps.vertical.window.withtextbox = 100,175, 1180,550
+steps.vertical.anchor = left
+steps.vertical.pos = 140,190
+steps.vertical.spacing = 0,25
+steps.vertical.window.withouttextbox = 100,175, 1180,550
+steps.vertical.window.withtextbox = 100,175, 1180,550
 
-trialsteps.vertical.bg.offset = 0, 0
-trialsteps.vertical.bg.spr = 
-trialsteps.vertical.bg.anim = -1
-trialsteps.vertical.bg.scale = 1.0, 1.0
-trialsteps.vertical.bg.facing = 1
-trialsteps.vertical.bg.displaytime = -1
-trialsteps.vertical.bg.layerno = 0
+steps.vertical.bg.offset = 0, 0
+steps.vertical.bg.spr = 
+steps.vertical.bg.anim = -1
+steps.vertical.bg.scale = 1.0, 1.0
+steps.vertical.bg.facing = 1
+steps.vertical.bg.displaytime = -1
+steps.vertical.bg.layerno = 0
 ; TRIALSTEPS HORIZONTAL ----------------------------------------------------
-trialsteps.horizontal.anchor = left
-trialsteps.horizontal.pos = 140,180
-trialsteps.horizontal.spacing = 0,40
-trialsteps.horizontal.window.withouttextbox = 100,175, 1180,550
-trialsteps.horizontal.window.withtextbox = 100,175, 780,550
-trialsteps.horizontal.padding = 10
+steps.horizontal.anchor = left
+steps.horizontal.pos = 140,180
+steps.horizontal.spacing = 0,40
+steps.horizontal.window.withouttextbox = 100,175, 1180,550
+steps.horizontal.window.withtextbox = 100,175, 780,550
+steps.horizontal.padding = 10
 
-trialsteps.horizontal.bg.offset = 0, 0
-trialsteps.horizontal.bg.spr = 
-trialsteps.horizontal.bg.anim = -1
-trialsteps.horizontal.bg.scale = 1.0, 1.0
-trialsteps.horizontal.bg.facing = 1
-trialsteps.horizontal.bg.displaytime = -1
-trialsteps.horizontal.bg.layerno = 0
+steps.horizontal.bg.offset = 0, 0
+steps.horizontal.bg.spr = 
+steps.horizontal.bg.anim = -1
+steps.horizontal.bg.scale = 1.0, 1.0
+steps.horizontal.bg.facing = 1
+steps.horizontal.bg.displaytime = -1
+steps.horizontal.bg.layerno = 0
 
 ; UPCOMINGSTEP -------------------------------------------------------------
 ; UPCOMINGSTEP options can be specified for both vertical and horizontal layouts simultaneously.
@@ -358,7 +371,7 @@ completedstep.horizontal.glyphs.palfx.color = 0
 ; glyphs.<layout>.offset: x,y offset from current trialstep position
 ; glyphs.<layout>.scale: x,y scale for glyphs
 ; glyphs.<layout>.spacing: x,y spacing from one glyph element to another on the same trialstep
-; glyphs.<layout>.layerno: which trials layer the glyphs sit on. They are the engine's own motif glyph anims, shared with the movelist, so the layer is set explicitly every frame rather than inherited from whatever last used them. Keep it below trialsmenu.layerno or glyphs will draw over the Trial select menu.
+; glyphs.<layout>.layerno: which trials layer the glyphs sit on. They are the engine's own motif glyph anims, shared with the movelist, so the layer is set explicitly every frame rather than inherited from whatever last used them. Keep it below menu.layerno or glyphs will draw over the Trial select menu.
 ; glyphs.vertical.align: alignment for glyphs (vertical layout only)
 ; glyphs.vertical.scalewithtext: true or false; scales glyphs according to font height - ignores scale parameter when set to true.
 ; GLYPHS VERTICAL ----------------------------------------------------------
@@ -376,44 +389,39 @@ glyphs.horizontal.layerno = 1
 glyphs.horizontal.align = 0
 
 ; TRIALS COUNTER AND TIMERS ------------------------------------------------
-; trialcounter shows the current trial number
-; totaltrialtimer shows the total time for the trial. It is erased if the pause menu is used to skip or rewind.
-; currenttrialtimer shows the time spent on the current trial attempt.
+; counter shows the current trial number
+; totaltimer shows the total time for the trial. It is erased if the pause menu is used to skip or rewind.
+; currenttimer shows the time spent on the current trial attempt.
 ; --------------------------------------------------------------------------
-trialcounter.anchor = left
-trialcounter.pos = 10,690
-trialcounter.font = 1,0,1
-trialcounter.scale = 2,2
-trialcounter.font.height = -1
-trialcounter.text = "Trial %s of %t"
-trialcounter.allclear.text = "All Trials Clear"
-trialcounter.notrialsdata.text = "No Trials Data Found"
-totaltrialtimer.anchor = right
-totaltrialtimer.pos	= 1270,690
-totaltrialtimer.font = 1,0,-1
-totaltrialtimer.scale = 2,2
-totaltrialtimer.font.height = -1
-totaltrialtimer.text = "Trial Timer: %s"
-currenttrialtimer.anchor = right
-currenttrialtimer.pos = 1270,710
-currenttrialtimer.font = 1,0,-1
-currenttrialtimer.scale = 2,2
-currenttrialtimer.font.height = -1
-currenttrialtimer.text = "Current Trial: %s"
+counter.anchor = left
+counter.pos = 10,690
+counter.font = 1,0,1
+counter.scale = 2,2
+counter.font.height = -1
+totaltimer.anchor = right
+totaltimer.pos	= 1270,690
+totaltimer.font = 1,0,-1
+totaltimer.scale = 2,2
+totaltimer.font.height = -1
+currenttimer.anchor = right
+currenttimer.pos = 1270,710
+currenttimer.font = 1,0,-1
+currenttimer.scale = 2,2
+currenttimer.font.height = -1
 
 ; TRIAL RESET REMINDER AND SWITCH ------------------------------------------
-; trialreset.enabled allows the user to reset the player and dummy position to center stage (or specified trials position) when the desired keys are pressed simultaneously
-; trialreset.buttonpress: specify key combination for the user to reset the trial position
-; trialreset.text displays a string that reminds the player they can reset the trial position with the specified key input
+; reset.enabled allows the user to reset the player and dummy position to center stage (or specified trials position) when the desired keys are pressed simultaneously
+; reset.buttonpress: specify key combination for the user to reset the trial position
+; reset.text displays a string that reminds the player they can reset the trial position with the specified key input
 ; --------------------------------------------------------------------------
-trialreset.enabled = true
-trialreset.buttonpress = d&w
-trialreset.text.anchor = left
-trialreset.text.pos = 10,710
-trialreset.text.font = 1,0,1
-trialreset.text.scale = 2,2
-trialreset.text.font.height = -1
-trialreset.text.text = "Hit d + w to reset position"
+reset.enabled = true
+reset.buttonpress = d&w
+reset.text.anchor = left
+reset.text.pos = 10,710
+reset.text.font = 1,0,1
+reset.text.scale = 2,2
+reset.text.font.height = -1
+reset.text.text = "Hit d + w to reset position"
 
 ; TRIALS TEXT BOX ----------------------------------------------------------
 ; A textbox can accompany each trial if it is specified within the trials definition file.
@@ -428,7 +436,7 @@ trialreset.text.text = "Hit d + w to reset position"
 ; --------------------------------------------------------------------------
 textbox.visible = true
 ; Pinned to the right edge, which is what keeps its authored relationship to the step window when
-; the stage is not 16:9 - trialsteps.horizontal.window.withtextbox stops against it on that side.
+; the stage is not 16:9 - steps.horizontal.window.withtextbox stops against it on that side.
 textbox.anchor = right
 textbox.pos = 740,120
 textbox.text.window = 50,0, 300,50
@@ -468,7 +476,7 @@ textbox.portrait.facing = 1
 textbox.portrait.scale = 1.5, 1.5
 
 ; TRIAL SUCCESS BANNER -----------------------------------------------------
-; success.snd is read from trials.snd when the module ships one, otherwise from the
+; success.snd is read from dojo.snd when the module ships one, otherwise from the
 ; screenpack's system.snd. See "WHERE SPRITES AND SOUNDS COME FROM" near the top.
 ; --------------------------------------------------------------------------
 success.anchor = center
@@ -494,7 +502,7 @@ success.front.displaytime = -1
 success.front.layerno = 0
 
 ; TRIALS ALL CLEAR BANNER --------------------------------------------------
-; allclear.snd comes from the same place success.snd does - trials.snd if the module ships
+; allclear.snd comes from the same place success.snd does - dojo.snd if the module ships
 ; one, the screenpack's system.snd if it does not.
 ; --------------------------------------------------------------------------
 allclear.anchor = center
@@ -519,12 +527,151 @@ allclear.front.spr =
 allclear.front.displaytime = -1
 allclear.front.layerno = 0
 
+; TEACHING ELEMENTS --------------------------------------------------------
+; Used by any trial or lesson whose file asks for them: instruction pages (trial.page.N.*), a hint
+; (trial.hint), a demo (trial.demoscript) or repetitions (trial.repeat). A file without any of
+; these never shows them.
+; --------------------------------------------------------------------------
+
+; INSTRUCTION PAGES --------------------------------------------------------
+; A trial's trial.page.N.title / trial.page.N.text, shown when the trial is entered and again
+; from the pause menu's Show Instructions. Play is held while they are up. The menu's done key turns
+; the page (or finishes the typing), its cancel key goes back one.
+; instructions.pos is the block's centre; everything else is offset from it.
+; instructions.title.text: %s is the page title (the trial name when the page has none), %n the
+;   trial name.
+; instructions.text.window: x1,y1,x2,y2 from pos; the body wraps inside it. Write \n in a page's
+;   text for a line break.
+; instructions.text.drawspeed: frames per character as the text types out; 0 shows it at once.
+; instructions.page.text: %s is this page, %t the page count. Not drawn for a single page.
+; instructions.snd: played when the pages open (dojo.snd if shipped, else system.snd).
+; instructions.page.snd: played each time a page is shown, the first one included, from the same
+;   place. A page can play its own instead with trial.page.N.snd.
+; instructions.portrait.<options>: a portrait drawn with the pages, the way textbox.portrait is drawn
+;   with the textbox. spr or anim, offset from pos, scale, facing, layerno. A page can show its own
+;   with trial.page.N.portrait.spr / .anim / .source, which replace the spr and anim given here.
+;   source: "system" takes spr and anim from the module's own sprites and actions (see WHERE SPRITES
+;     AND SOUNDS COME FROM); "char" takes them from P1's own sff and air.
+;   window: x1,y1,x2,y2 from the portrait's position to clip it to; all zero leaves it unclipped.
+;   Leave spr blank and anim at -1 for no portrait unless a page asks for one.
+; --------------------------------------------------------------------------
+instructions.pos = 640,360
+instructions.snd = -1,0
+instructions.overlay.visible = true
+instructions.overlay.window = -640,-360, 640,360
+instructions.overlay.col = 0, 0, 0
+instructions.overlay.alpha = 0, 160
+instructions.overlay.layerno = 2
+instructions.bg.offset = 0,0
+instructions.bg.spr =
+instructions.bg.anim = -1
+instructions.bg.scale = 1.0, 1.0
+instructions.bg.layerno = 2
+instructions.title.offset = 0,-150
+instructions.title.font = 4,0,0, 255, 220, 120
+instructions.title.scale = 2,2
+instructions.title.font.height = -1
+instructions.title.text = "%s"
+instructions.title.layerno = 2
+instructions.text.offset = -380,-100
+instructions.text.window = -390,-110, 390,130
+instructions.text.font = 1,0,1
+instructions.text.scale = 2,2
+instructions.text.font.height = -1
+instructions.text.drawspeed = 1
+instructions.text.layerno = 2
+instructions.page.offset = 380,170
+instructions.page.font = 1,0,-1, 190, 190, 190
+instructions.page.scale = 2,2
+instructions.page.font.height = -1
+instructions.page.text = "%s/%t"
+instructions.page.layerno = 2
+instructions.page.snd = -1,0
+instructions.portrait.source = "char" ; valid options are "system" or "char"
+instructions.portrait.spr = 9000,1
+instructions.portrait.anim = -1
+instructions.portrait.offset = -620,-110
+instructions.portrait.window = 0,0, 0,0
+instructions.portrait.facing = 1
+instructions.portrait.scale = 1.5,1.5
+instructions.portrait.layerno = 2
+instructions.prompt.offset = 0,170
+instructions.prompt.font = 1,0,0, 255, 255, 255
+instructions.prompt.scale = 2,2
+instructions.prompt.font.height = -1
+instructions.prompt.text = "Press to continue"
+instructions.prompt.layerno = 2
+instructions.front.offset = 0,0
+instructions.front.spr =
+instructions.front.anim = -1
+instructions.front.layerno = 2
+
+; HINT ---------------------------------------------------------------------
+; A trial's trial.hint, shown once the player has failed it trial.hintafter times (from the
+; start when hintafter is 0), while the Hints option is on. A failure is an attempt that got
+; partway and was dropped, or - in a blocking trial - being hit instead of blocking.
+; hint.text.text: %s is the hint. hint.text.window: x1,y1,x2,y2 from pos to wrap in; all zero
+;   leaves it on one line.
+; --------------------------------------------------------------------------
+hint.visible = true
+hint.pos = 640,640
+hint.text.offset = 0,0
+hint.text.font = 1,0,0, 255, 230, 140
+hint.text.scale = 2,2
+hint.text.font.height = -1
+hint.text.text = "Hint: %s"
+hint.text.window = 0,0, 0,0
+hint.bg.offset = 0,0
+hint.bg.spr =
+hint.bg.anim = -1
+hint.bg.layerno = 0
+
+; DEMONSTRATION -------------------------------------------------------------
+; demo.*: shown while the CPU plays a trial's trial.demoscript (pause menu: Watch Demo). The player's
+;   controller is switched off for it; the menu's done or cancel key ends it early.
+; demoprompt.*: shown once the player has failed a trial trial.demoafter times, pointing them
+;   at Watch Demo. Set demoprompt.text.text to "" to leave it out.
+; --------------------------------------------------------------------------
+demo.pos = 640,90
+demo.text.offset = 0,0
+demo.text.font = 4,0,0, 120, 200, 255
+demo.text.scale = 2,2
+demo.text.font.height = -1
+demo.text.text = "DEMO"
+demo.bg.offset = 0,0
+demo.bg.spr =
+demo.bg.anim = -1
+demo.bg.layerno = 0
+demoprompt.pos = 640,600
+demoprompt.text.offset = 0,0
+demoprompt.text.font = 1,0,0, 120, 200, 255
+demoprompt.text.scale = 2,2
+demoprompt.text.font.height = -1
+demoprompt.text.text = "Stuck? Pause and pick Watch Demo."
+
+; REPETITION COUNTER -------------------------------------------------------
+; Drawn for trials with trial.repeat above 1. %s is the clears made, %t the clears needed.
+; repcounter.snd plays on each clear short of the last (the last gets the success banner).
+; --------------------------------------------------------------------------
+repcounter.pos = 640,120
+repcounter.snd = -1,0
+repcounter.text.offset = 0,0
+repcounter.text.font = 4,0,0, 255, 255, 255
+repcounter.text.scale = 2,2
+repcounter.text.font.height = -1
+repcounter.text.text = "%s / %t"
+repcounter.bg.offset = 0,0
+repcounter.bg.spr =
+repcounter.bg.anim = -1
+repcounter.bg.layerno = 0
+
+
 ; TRIAL SELECT MENU --------------------------------------------------------
 ; The menu of the character's trials, shown when the match loads and again whenever the player
 ; picks "Trials List" from the pause menu. It is drawn by the module, so everything about it is
 ; configured here rather than in the screenpack's [Trials Pause Menu] section.
 ;
-; Rows are laid out from trialsmenu.pos, trialsmenu.spacing apart, trialsmenu.visibleitems at a
+; Rows are laid out from menu.pos, menu.spacing apart, menu.visibleitems at a
 ; time. A row is one of three kinds, each with its own text and background:
 ;   header - the difficulty filter, shown only when the character has more than one to cycle
 ;   item   - a trial. Uses .active when the cursor is on it, .selected for the trial in play
@@ -533,146 +680,146 @@ allclear.front.layerno = 0
 ; Every bg/front/cursor/status element takes the usual spr, anim, offset, scale, facing,
 ; displaytime and layerno parameters. Leave spr empty and anim at -1 to draw nothing.
 ; --------------------------------------------------------------------------
-; trialsmenu.layerno is the layer every element in this block sits on unless it names its own.
+; menu.layerno is the layer every element in this block sits on unless it names its own.
 ; The menu covers a live match, so it defaults to 2 rather than sharing layer 0 with the HUD.
-trialsmenu.layerno = 2
+menu.layerno = 2
 ; The rows are a centred block, so the whole menu travels as one with the middle of the screen.
-trialsmenu.anchor = center
-trialsmenu.pos = 320,240
-trialsmenu.spacing = 0,26
-trialsmenu.visibleitems = 9
-; trialsmenu.window clips every row's text to this rectangle. Leave unset for no clipping.
-trialsmenu.window = 
+menu.anchor = center
+menu.pos = 320,240
+menu.spacing = 0,26
+menu.visibleitems = 9
+; menu.window clips every row's text to this rectangle. Leave unset for no clipping.
+menu.window = 
 
-trialsmenu.bg.offset = 0,-40
-trialsmenu.bg.spr = 
-trialsmenu.bg.anim = -1
-trialsmenu.bg.scale = 1.0, 1.0
-trialsmenu.bg.facing = 1
-trialsmenu.bg.displaytime = -1
-trialsmenu.bg.layerno = 0
+menu.bg.offset = 0,-40
+menu.bg.spr = 
+menu.bg.anim = -1
+menu.bg.scale = 1.0, 1.0
+menu.bg.facing = 1
+menu.bg.displaytime = -1
+menu.bg.layerno = 0
 
-trialsmenu.front.offset = 0,-40
-trialsmenu.front.spr = 
-trialsmenu.front.anim = -1
-trialsmenu.front.scale = 1.0, 1.0
-trialsmenu.front.facing = 1
-trialsmenu.front.displaytime = -1
-trialsmenu.front.layerno = 0
+menu.front.offset = 0,-40
+menu.front.spr = 
+menu.front.anim = -1
+menu.front.scale = 1.0, 1.0
+menu.front.facing = 1
+menu.front.displaytime = -1
+menu.front.layerno = 0
 
-; trialsmenu.overlay dims whatever is behind the menu. Set visible to false to leave the match visible.
+; menu.overlay dims whatever is behind the menu. Set visible to false to leave the match visible.
 ; alpha is source,destination, the same as every other overlay in the engine: 0,128 halves what is
 ; behind it. Raising the first number adds col to the picture rather than dimming it.
-trialsmenu.overlay.visible = true
-trialsmenu.overlay.window = 0,0,1280,720
-trialsmenu.overlay.col = 0,0,0
-trialsmenu.overlay.alpha = 0,64
-trialsmenu.overlay.layerno = 0
+menu.overlay.visible = true
+menu.overlay.window = 0,0,1280,720
+menu.overlay.col = 0,0,0
+menu.overlay.alpha = 0,64
+menu.overlay.layerno = 0
 
 ; TITLE --------------------------------------------------------------------
-trialsmenu.title.offset = 320,-52
-trialsmenu.title.font = 1,0,0, 255, 255, 255
-trialsmenu.title.scale = 2,2
-trialsmenu.title.font.height = -1
-trialsmenu.title.text = "Trial Selection"
+menu.title.offset = 320,-52
+menu.title.font = 1,0,0, 255, 255, 255
+menu.title.scale = 2,2
+menu.title.font.height = -1
 
 ; FILTER HEADER ------------------------------------------------------------
 ; The difficulty filter the player cycles with left and right, and how many of it are cleared.
-; It is pinned: trialsmenu.header.offset places it relative to trialsmenu.pos and it stays there
+; It is pinned: menu.header.offset places it relative to menu.pos and it stays there
 ; while the rows scroll underneath. The text and value offsets are relative to the banner.
 ;
-; trialsmenu.headerdisplay picks the shape:
+; menu.headerdisplay picks the shape:
 ;   default    - one banner, naming the filter on show. Arrows mark that there are others.
-;   sidebyside - every filter laid out at trialsmenu.header.spacing apart, the one on show
-;                wearing the trialsmenu.header.active elements below.
+;   sidebyside - every filter laid out at menu.header.spacing apart, the one on show
+;                wearing the menu.header.active elements below.
 ;
-; trialsmenu.header.active.* styles the filter on show. It inherits from the plain header
+; menu.header.active.* styles the filter on show. It inherits from the plain header
 ; elements, so leaving it out means both look the same - which is what "default" has always
 ; done, and what makes side by side need a highlight of its own before it reads.
 ;
-; trialsmenu.header.value.text formats the tally; "" leaves it off, which side by side often
+; menu.header.value.text formats the tally; "" leaves it off, which side by side often
 ; wants once six of them are on one line.
-trialsmenu.headerdisplay = default
-trialsmenu.header.offset = 0, -26
-trialsmenu.header.spacing = 150,0
-trialsmenu.header.text.offset = 0,0
-trialsmenu.header.text.font = 1,0,1, 255, 220, 120
-trialsmenu.header.text.scale = 2,2
-trialsmenu.header.text.font.height = -1
+menu.headerdisplay = default
+menu.header.offset = 0, -26
+menu.header.spacing = 150,0
+menu.header.text.offset = 0,0
+menu.header.text.font = 1,0,1, 255, 220, 120
+menu.header.text.scale = 2,2
+menu.header.text.font.height = -1
 
-trialsmenu.header.value.offset = 640,0
-trialsmenu.header.value.font = 1,0,-1, 255, 220, 120
-trialsmenu.header.value.scale = 2,2
-trialsmenu.header.value.font.height = -1
-trialsmenu.header.value.text = "%s"
+menu.header.value.offset = 640,0
+menu.header.value.font = 1,0,-1, 255, 220, 120
+menu.header.value.scale = 2,2
+menu.header.value.font.height = -1
+menu.header.value.text = "%s"
 
 ; The filter on show. Declare only what should differ from the elements above.
-trialsmenu.header.active.text.font = 1,0,1, 255, 255, 255
-trialsmenu.header.active.value.font = 1,0,-1, 255, 255, 255
-trialsmenu.header.bg.offset = 0,0
-trialsmenu.header.bg.spr = 
-trialsmenu.header.bg.anim = -1
-trialsmenu.header.bg.scale = 1.0, 1.0
-trialsmenu.header.bg.facing = 1
-trialsmenu.header.bg.displaytime = -1
-trialsmenu.header.bg.layerno = 0
+menu.header.active.text.font = 1,0,1, 255, 255, 255
+menu.header.active.value.font = 1,0,-1, 255, 255, 255
+menu.header.bg.offset = 0,0
+menu.header.bg.spr = 
+menu.header.bg.anim = -1
+menu.header.bg.scale = 1.0, 1.0
+menu.header.bg.facing = 1
+menu.header.bg.displaytime = -1
+menu.header.bg.layerno = 0
 
 ; ROWS ---------------------------------------------------------------------
-trialsmenu.item.text.offset = 0,0
-trialsmenu.item.text.font = 1,0,1, 190, 190, 190
-trialsmenu.item.text.scale = 2,2
-trialsmenu.item.text.font.height = -1
+menu.item.text.offset = 0,0
+menu.item.text.font = 1,0,1, 190, 190, 190
+menu.item.text.scale = 2,2
+menu.item.text.font.height = -1
+menu.item.locked.text.font = 1,0,1, 110, 110, 110
 
-; trialsmenu.item.active.overlay is a rect drawn under the row the cursor is on, the highlight bar
-; that follows it down the list. It works like trialsmenu.overlay, except its window is x1,y1,x2,y2
+; menu.item.active.overlay is a rect drawn under the row the cursor is on, the highlight bar
+; that follows it down the list. It works like menu.overlay, except its window is x1,y1,x2,y2
 ; taken from that row's origin rather than from the screen, so it travels with the cursor: y1 is how
 ; far above the row's baseline the bar starts, y2 how far below it ends. Give the window no area, or
 ; set visible to false, to leave the bar off and highlight the row by text colour alone.
-trialsmenu.item.active.overlay.visible = true
-trialsmenu.item.active.overlay.window = -12,-15, 652,10
-trialsmenu.item.active.overlay.col = 255,255,255
-trialsmenu.item.active.overlay.alpha = 48,255
-trialsmenu.item.active.overlay.layerno = 2
+menu.item.active.overlay.visible = true
+menu.item.active.overlay.window = -12,-15, 652,10
+menu.item.active.overlay.col = 255,255,255
+menu.item.active.overlay.alpha = 48,255
+menu.item.active.overlay.layerno = 2
 ; .selected is the trial currently in play, whether or not the cursor is on it.
-trialsmenu.item.selected.text.offset = 0,0
-trialsmenu.item.selected.text.font = 1,0,1, 120, 255, 160
-trialsmenu.item.selected.text.scale = 2,2
-trialsmenu.item.selected.text.font.height = -1
+menu.item.selected.text.offset = 0,0
+menu.item.selected.text.font = 1,0,1, 120, 255, 160
+menu.item.selected.text.scale = 2,2
+menu.item.selected.text.font.height = -1
 
-trialsmenu.item.bg.offset = 0,0
-trialsmenu.item.bg.spr = 
-trialsmenu.item.bg.anim = -1
-trialsmenu.item.bg.scale = 1.0, 1.0
-trialsmenu.item.bg.facing = 1
-trialsmenu.item.bg.displaytime = -1
-trialsmenu.item.bg.layerno = 0
+menu.item.bg.offset = 0,0
+menu.item.bg.spr = 
+menu.item.bg.anim = -1
+menu.item.bg.scale = 1.0, 1.0
+menu.item.bg.facing = 1
+menu.item.bg.displaytime = -1
+menu.item.bg.layerno = 0
 
 ; .active is the row the cursor is on.
-trialsmenu.item.active.text.offset = 0,0
-trialsmenu.item.active.text.font = 1,0,1, 255, 255, 255
-trialsmenu.item.active.text.scale = 2,2
-trialsmenu.item.active.text.font.height = -1
-trialsmenu.item.active.bg.offset = 0,0
-trialsmenu.item.active.bg.spr = 
-trialsmenu.item.active.bg.anim = -1
-trialsmenu.item.active.bg.scale = 1.0, 1.0
-trialsmenu.item.active.bg.facing = 1
-trialsmenu.item.active.bg.displaytime = -1
-trialsmenu.item.active.bg.layerno = 0
+menu.item.active.text.offset = 0,0
+menu.item.active.text.font = 1,0,1, 255, 255, 255
+menu.item.active.text.scale = 2,2
+menu.item.active.text.font.height = -1
+menu.item.active.bg.offset = 0,0
+menu.item.active.bg.spr = 
+menu.item.active.bg.anim = -1
+menu.item.active.bg.scale = 1.0, 1.0
+menu.item.active.bg.facing = 1
+menu.item.active.bg.displaytime = -1
+menu.item.active.bg.layerno = 0
 
 ; PER-CATEGORY OVERRIDES ---------------------------------------------------
 ; Any of the row and banner elements above can be respecified for one difficulty category, by
 ; putting the category name straight after "item" or "header":
 ;
-;   trialsmenu.item.<category>.text.*            a trial of that difficulty, at rest
-;   trialsmenu.item.<category>.active.text.*     ...under the cursor
-;   trialsmenu.item.<category>.selected.text.*   ...when it is the trial in play
-;   trialsmenu.item.<category>.bg.*              its row background
-;   trialsmenu.item.<category>.active.bg.*       ...under the cursor
-;   trialsmenu.item.<category>.active.overlay.*  its highlight bar, under the cursor
-;   trialsmenu.header.<category>.text.*          the banner, while that filter is showing
-;   trialsmenu.header.<category>.value.*         its cleared tally
-;   trialsmenu.header.<category>.bg.*            its background
+;   menu.item.<category>.text.*            a trial of that difficulty, at rest
+;   menu.item.<category>.active.text.*     ...under the cursor
+;   menu.item.<category>.selected.text.*   ...when it is the trial in play
+;   menu.item.<category>.bg.*              its row background
+;   menu.item.<category>.active.bg.*       ...under the cursor
+;   menu.item.<category>.active.overlay.*  its highlight bar, under the cursor
+;   menu.header.<category>.text.*          the banner, while that filter is showing
+;   menu.header.<category>.value.*         its cleared tally
+;   menu.header.<category>.bg.*            its background
 ;
 ; Categories for a row are beginner, intermediate, advanced, expert and other ("other" being the
 ; trials whose def declares no trial.difficulty). The banner adds "all", the unfiltered view.
@@ -684,87 +831,127 @@ trialsmenu.item.active.bg.layerno = 0
 ; For example, to make Expert trials red, shift them right, and give the Expert banner its own
 ; sprite, without touching anything else:
 ;
-;   trialsmenu.item.expert.text.font = 1,0,1, 255, 90, 90
-;   trialsmenu.item.expert.text.offset = 12,0
-;   trialsmenu.item.expert.active.text.font = 1,0,1, 255, 160, 160
-;   trialsmenu.header.expert.bg.spr = 6550,0
+;   menu.item.expert.text.font = 1,0,1, 255, 90, 90
+;   menu.item.expert.text.offset = 12,0
+;   menu.item.expert.active.text.font = 1,0,1, 255, 160, 160
+;   menu.header.expert.bg.spr = 6550,0
 ; --------------------------------------------------------------------------
 
 ; CURSOR -------------------------------------------------------------------
 ; Drawn on the active row, under its text.
-trialsmenu.cursor.offset = 0,0
-trialsmenu.cursor.spr = 
-trialsmenu.cursor.anim = -1
-trialsmenu.cursor.scale = 1.0, 1.0
-trialsmenu.cursor.facing = 1
-trialsmenu.cursor.displaytime = -1
-trialsmenu.cursor.layerno = 0
+menu.cursor.offset = 0,0
+menu.cursor.spr = 
+menu.cursor.anim = -1
+menu.cursor.scale = 1.0, 1.0
+menu.cursor.facing = 1
+menu.cursor.displaytime = -1
+menu.cursor.layerno = 0
 
 ; CLEAR MARKER -------------------------------------------------------------
-; Whether a trial has been cleared, shown at trialsmenu.status.offset from the row's origin.
+; Whether a trial has been cleared, shown at menu.status.offset from the row's origin.
 ; Name a sprite or an anim and it is drawn there; leave both unset and the .text label is drawn
 ; instead. That is the swap: point status.cleared.spr at your own sprite and it replaces the
 ; "CLEAR" text. Set a state's text to "" and leave its art unset to show nothing for that state.
 ; Only one of the two is ever drawn, so .scale applies to whichever it is - size it for your
 ; sprite once you name one.
-trialsmenu.status.offset = 500,0
-trialsmenu.status.cleared.offset = 0,0
-trialsmenu.status.cleared.spr = 
-trialsmenu.status.cleared.anim = -1
-trialsmenu.status.cleared.scale = 2,2
-trialsmenu.status.cleared.facing = 1
-trialsmenu.status.cleared.displaytime = -1
-trialsmenu.status.cleared.layerno = 0
-trialsmenu.status.cleared.text = "CLEAR"
-trialsmenu.status.cleared.font = 1,0,1, 120, 255, 160
-trialsmenu.status.cleared.font.height = -1
-trialsmenu.status.uncleared.offset = 0,0
-trialsmenu.status.uncleared.spr = 
-trialsmenu.status.uncleared.anim = -1
-trialsmenu.status.uncleared.scale = 2,2
-trialsmenu.status.uncleared.facing = 1
-trialsmenu.status.uncleared.displaytime = -1
-trialsmenu.status.uncleared.layerno = 0
-trialsmenu.status.uncleared.text = "----"
-trialsmenu.status.uncleared.font = 1,0,1, 130, 130, 130
-trialsmenu.status.uncleared.font.height = -1
+menu.status.offset = 500,0
+menu.status.cleared.offset = 0,0
+menu.status.cleared.spr = 
+menu.status.cleared.anim = -1
+menu.status.cleared.scale = 2,2
+menu.status.cleared.facing = 1
+menu.status.cleared.displaytime = -1
+menu.status.cleared.layerno = 0
+menu.status.cleared.text = "CLEAR"
+menu.status.cleared.font = 1,0,1, 120, 255, 160
+menu.status.cleared.font.height = -1
+menu.status.uncleared.offset = 0,0
+menu.status.uncleared.spr = 
+menu.status.uncleared.anim = -1
+menu.status.uncleared.scale = 2,2
+menu.status.uncleared.facing = 1
+menu.status.uncleared.displaytime = -1
+menu.status.uncleared.layerno = 0
+menu.status.uncleared.text = "----"
+menu.status.uncleared.font = 1,0,1, 130, 130, 130
+menu.status.uncleared.font.height = -1
+
+; Rows a gated file has not opened yet ([Tutorial] tutorial.gated = true in the file).
+menu.status.locked.offset = 0,0
+menu.status.locked.spr = 
+menu.status.locked.anim = -1
+menu.status.locked.scale = 2,2
+menu.status.locked.facing = 1
+menu.status.locked.displaytime = -1
+menu.status.locked.layerno = 0
+menu.status.locked.text = "LOCKED"
+menu.status.locked.font = 1,0,1, 110, 110, 110
+menu.status.locked.font.height = -1
 
 ; BEST TIME ----------------------------------------------------------------
 ; %s is the best clear time. Set text to "" to leave times off the menu entirely.
-trialsmenu.besttime.offset = 640,0
-trialsmenu.besttime.font = 1,0,-1, 190, 190, 190
-trialsmenu.besttime.scale = 2,2
-trialsmenu.besttime.font.height = -1
-trialsmenu.besttime.text = "%s"
+menu.besttime.offset = 640,0
+menu.besttime.font = 1,0,-1, 190, 190, 190
+menu.besttime.scale = 2,2
+menu.besttime.font.height = -1
+menu.besttime.text = "%s"
 
 ; SCROLL ARROWS ------------------------------------------------------------
-; Shown when the list runs past trialsmenu.visibleitems in that direction. Offsets are relative
-; to trialsmenu.pos. Like the clear marker, each arrow takes either art or a label: name a sprite
+; Shown when the list runs past menu.visibleitems in that direction. Offsets are relative
+; to menu.pos. Like the clear marker, each arrow takes either art or a label: name a sprite
 ; or an anim and it is drawn, leave both unset and .text is drawn instead. Only one of the two is
 ; ever drawn, so .scale applies to whichever it is. Set .text to "" with no art to hide an arrow.
-trialsmenu.arrow.up.offset = 660, 0
-trialsmenu.arrow.up.spr = 
-trialsmenu.arrow.up.anim = 65510
-trialsmenu.arrow.up.scale = 1,1
-trialsmenu.arrow.up.facing = 1
-trialsmenu.arrow.up.displaytime = -1
-trialsmenu.arrow.up.layerno = 0
-trialsmenu.arrow.up.text = 
-trialsmenu.arrow.up.font = 
-trialsmenu.arrow.up.font.height = 
-trialsmenu.arrow.down.offset = 660,210
-trialsmenu.arrow.down.spr = 
-trialsmenu.arrow.down.anim = 65511
-trialsmenu.arrow.down.scale = 1,1
-trialsmenu.arrow.down.facing = 1
-trialsmenu.arrow.down.displaytime = 
-trialsmenu.arrow.down.layerno = 0
-trialsmenu.arrow.down.text = 
-trialsmenu.arrow.down.font = 
-trialsmenu.arrow.down.font.height = 
+menu.arrow.up.offset = 660, 0
+menu.arrow.up.spr = 
+menu.arrow.up.anim = 65510
+menu.arrow.up.scale = 1,1
+menu.arrow.up.facing = 1
+menu.arrow.up.displaytime = -1
+menu.arrow.up.layerno = 0
+menu.arrow.up.text = 
+menu.arrow.up.font = 
+menu.arrow.up.font.height = 
+menu.arrow.down.offset = 660,210
+menu.arrow.down.spr = 
+menu.arrow.down.anim = 65511
+menu.arrow.down.scale = 1,1
+menu.arrow.down.facing = 1
+menu.arrow.down.displaytime = 
+menu.arrow.down.layerno = 0
+menu.arrow.down.text = 
+menu.arrow.down.font = 
+menu.arrow.down.font.height = 
+
+; --------------------------------------------------------------------------
+; MODE SECTIONS
+; Each is laid over [Dojo] for its own modes. Only the keys listed differ from the shared look;
+; add any [Dojo] key to style that mode apart.
+; --------------------------------------------------------------------------
+
+[Trials Mode]
+; Trials.
+title.vertical.text.text = "Trial: %s"
+title.horizontal.text.text = "Trial: %s"
+counter.text = "Trial %s of %t"
+counter.allclear.text = "All Trials Clear"
+counter.nodata.text = "No Trials Data Found"
+totaltimer.text = "Trial Timer: %s"
+currenttimer.text = "Current Trial: %s"
+menu.title.text = "Trial Selection"
+
+[Tutorial Mode]
+; The Game Tutorial and Character Guides.
+title.vertical.text.text = "Lesson: %s"
+title.horizontal.text.text = "Lesson: %s"
+counter.text = "Lesson %s of %t"
+counter.allclear.text = "All Lessons Clear"
+counter.nodata.text = "No lessons for this character"
+totaltimer.text = "Total Time: %s"
+currenttimer.text = "Lesson Time: %s"
+menu.title.text = "Lessons"
 
 ; ANIMATIONS -------------------------------------------------------------
-; Here you can drop animations specific to trials mode.
+; Actions for "anim" parameters in any section. Sprite numbers refer to dojo.sff.
 ; ------------------------------------------------------------------------
 
 [Begin Action 65510] ; Up arrow for trials menu
