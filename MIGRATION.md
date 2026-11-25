@@ -27,7 +27,7 @@ What you do have to do is replace the module folder and copy a few files across.
 ## Quick checklist
 1. Back up `external/mods/trials/`, then delete it.
 2. Extract the Dojo into your Ikemen GO folder, so you have `external/mods/dojo/`.
-3. Copy your `Trials.*`, `TrialsChar` and `TrialsStage` values from the old `config.ini` into the new one.
+3. Copy your `Trials.*`, `TrialsChar` and `TrialsStage` values from the old `config.ini` into the new one. `TrialsChar` is now called `TrialsDummy`; the old name is still read.
 4. If you customised the look, copy your old `trialsmode.def` to `external/mods/dojo/dojo.def`, and your own `trials.sff` / `trials.snd` / `trials.air` to `dojo.sff` / `dojo.snd` / `dojo.air`.
 5. Leave `save/trials.json` and your characters' `trials.def` files where they are.
 6. Start the game and look at the console. The Dojo warns you there if the old folder is still installed.
@@ -61,10 +61,10 @@ By default the main menu gains a **Dojo** submenu holding Trials, Game Tutorial 
 
 ```ini
 [Modes]
-Trials          = 1
-GameTutorial    = 0
-CharacterGuides = 0
-Tutorial        = 0
+Trials           = on
+SystemTutorial   = off
+CharacterGuides  = off
+CombinedTutorial = off
 ```
 
 A mode that's off is hidden from every menu, even if a screenpack lists it.
@@ -72,11 +72,11 @@ A mode that's off is hidden from every menu, even if a screenpack lists it.
 ## 3. Carry over your settings
 Use the new `config.ini` and copy your values into it. Don't drop the old file in its place: the old file lacks the new sections, such as `[Modes]` and `SystemTutorial`, so the Game Tutorial would have no lessons to offer.
 
-Every Trials key kept its name:
+Every Trials key kept its name except `TrialsChar`, now `TrialsDummy` (the old name is still read, with a console reminder):
 
 | Section | Keys |
 |---|---|
-| `[Config]` | `TrialsChar`, `TrialsStage` |
+| `[Config]` | `TrialsDummy` (was `TrialsChar`), `TrialsStage` |
 | `[Options]` | `Trials.Advancement`, `Trials.Layout`, `Trials.ResetOnSuccess`, `Trials.Textboxes`, `Trials.TotalTimer`, `Trials.TrialTimer` |
 
 There is one new Trials option, `Trials.Hints` (default `true`). It shows or hides a trial's hint, for trials that have one.
@@ -140,37 +140,25 @@ Trials Mode 1.x added a single `menu.itemname.trials = "Trials Mode"` item. The 
 ```ini
 menu.itemname.dojo = "Dojo"
 menu.itemname.dojo.trials = "Trials"
-menu.itemname.dojo.tutorialgame = "Game Tutorial"
-menu.itemname.dojo.tutorialchars = "Character Guides"
+menu.itemname.dojo.systemtutorial = "Game Tutorial"
+menu.itemname.dojo.characterguides = "Character Guides"
 menu.itemname.dojo.back = "Back"
 ```
 
 If your screenpack's own `system.def` already lists `menu.itemname.trials`, that line still works. In that case, comment out the Dojo lines in `+system.def`, or remove `trials` from the submenu, so Trials isn't listed twice. Any of the Dojo's items can stand at the top level or in another submenu.
 
 ### Pause menu
-A screenpack's own `[Trials Pause Menu]` that uses the old itemnames keeps working. They're renamed when the module loads, and so are their `menu.valuename.*` labels:
-
-| Old itemname | New itemname |
-|---|---|
-| `trialslist` | `tutoriallist` |
-| `trialsopts` | `tutorialopts` |
-| `trialsspeedrun` | `tutorialspeedrun` |
-| `nexttrial` / `previoustrial` | `tutorialnext` / `tutorialprevious` |
-| `trialadvancement` | `tutorialadvancement` |
-| `trialresetonsuccess` | `tutorialresetonsuccess` |
-| `trialslayout` | `tutoriallayout` |
-| `trialstextboxes` | `tutorialtextboxes` |
-| `trialsprogress` | `tutorialprogress` |
-| `trialsclearcharprogress` / `trialsclearcharconfirm` | `tutorialclearcharprogress` / `tutorialclearcharconfirm` |
-| `trialsclearprogress` / `trialsclearconfirm` | `tutorialclearprogress` / `tutorialclearconfirm` |
-| `trialsdifficulty` | `tutorialdifficulty` |
+A screenpack's own `[Trials Pause Menu]` keeps working as it is. The shipped section still uses Trials Mode 1.x's itemnames (`trialslist`, `trialsopts`, `trialadvancement`, `trialslayout`, `nexttrial`, ...). Inside the module, both pause menus share one set of `tutorial*` itemnames, and `[Trials Pause Menu]`'s are renamed to those when the module loads, along with their `menu.valuename.*` labels. So a `[Trials Pause Menu]` may also use the `tutorial*` names.
 
 An old section won't offer the new rows. To get them, use the shipped `[Trials Pause Menu]` in `+system.def`, or copy its lines into your own:
 
-- **Show Instructions** (`tutorialinstructions`). It only appears for a trial that has instruction pages.
-- **Watch Demo** (`tutorialdemo`). It only appears for a trial that has a demo, and never during a speedrun.
-- **Hints** (`tutorialhints`), in the options submenu.
-- **Record Demo / Record Dummy** (`tutorialrecord`, `tutorialrecorddummy`). They're authoring aids, only listed with `RecordDemo = true` in `config.ini`.
+- **Show Instructions** (`trialsinstructions`). It only appears for a trial that has instruction pages.
+- **Watch Demo** (`trialsdemo`). It only appears for a trial that has a demo, and never during a speedrun.
+- **Restart Trial** (`trialsrestart`).
+- **Hints** (`trialshints`), in the options submenu.
+- **Record Demo / Record Dummy** (`trialsrecord`, `trialsrecorddummy`). They're authoring aids, only listed with `RecordDemo = true` in `config.ini`.
+
+Chapter names can be relabelled with `menu.valuename.trialschapter_<id>`, as difficulties are with `trialsdifficulty_*`.
 
 Rows that would do nothing for the current trial are hidden automatically. Shipping them in your section costs nothing.
 
@@ -207,11 +195,10 @@ With `RecordDemo = true` in `config.ini`, Record Demo in the pause menu captures
 | Module folder | `external/mods/trials/` | `external/mods/dojo/` |
 | UI def | `trialsmode.def`, `[Trials Mode]` | `dojo.def`: `[Dojo]` + `[Trials Mode]` + `[Tutorial Mode]` |
 | Sprites / sounds / actions | `trials.sff` / `.snd` / `.air` | `dojo.sff` / `.snd` / `.air` |
-| Main menu | `trials` item, top level | `dojo` submenu holding `trials`, `tutorialgame`, `tutorialchars` |
-| Pause menu itemnames | `trialslist`, `trialsopts`, ... | `tutoriallist`, `tutorialopts`, ... (old ones still read) |
+| Main menu | `trials` item, top level | `dojo` submenu holding `trials`, `systemtutorial`, `characterguides` |
 | Console messages | | Prefixed `Dojo:` |
 
-The game mode (`trials`), save file (`save/trials.json`), config keys (`TrialsChar`, `TrialsStage`, `Trials.*`), char def key (`trials =`) and pause section (`[Trials Pause Menu]`) are unchanged.
+The game mode (`trials`), save file (`save/trials.json`), config keys (`TrialsStage`, `Trials.*`; `TrialsChar` is now `TrialsDummy` but still read), char def key (`trials =`), pause section (`[Trials Pause Menu]`) and its itemnames are unchanged.
 
 ## Troubleshooting
 - **Trials is listed twice, or the menu misbehaves.** The old `external/mods/trials/` folder is probably still installed; delete it. Or your screenpack lists `trials` itself as well as the Dojo submenu; see [Main menu](#main-menu).

@@ -73,9 +73,9 @@ The screenpack decides which modes the player sees by the main-menu items it lis
 | Item | Mode |
 |---|---|
 | `trials` | **Trials.** The select screen, with every character that has no trials file greyed out, then that character's trials. |
-| `tutorialgame` | **Game Tutorial.** A list of the game-wide lessons, each going straight into a match. P1 is `TutorialPlayerChar`, or the lesson's own `playerchar`. With no `TutorialPlayerChar`, P1 is picked on the select screen first. |
-| `tutorialchars` | **Character Guides.** The select screen, with every character that has no lesson file of its own greyed out, then only that character's lessons. |
-| `tutorial` | **Combined tutorial.** The select screen, then the game-wide lessons and the character's own lessons in one list. Not in the default menu. |
+| `systemtutorial` | **Game Tutorial.** A list of the game-wide lessons, each going straight into a match. P1 is `TutorialPlayerChar`, or the lesson's own `playerchar`. With `TutorialPlayerChar` blank, P1 is picked on the select screen first. |
+| `characterguides` | **Character Guides.** The select screen, with every character that has no lesson file of its own greyed out, then only that character's lessons. |
+| `combinedtutorial` | **Combined Tutorial.** The select screen, then the game-wide lessons and the character's own lessons in one list. Not in the default menu. |
 
 The shipped `+system.def` lists the first three as a submenu:
 
@@ -83,12 +83,14 @@ The shipped `+system.def` lists the first three as a submenu:
 [Title Info]
 menu.itemname.dojo = "Dojo"
 menu.itemname.dojo.trials = "Trials"
-menu.itemname.dojo.tutorialgame = "Game Tutorial"
-menu.itemname.dojo.tutorialchars = "Character Guides"
+menu.itemname.dojo.systemtutorial = "Game Tutorial"
+menu.itemname.dojo.characterguides = "Character Guides"
 menu.itemname.dojo.back = "Back"
 ```
 
 To put them somewhere else, copy the lines you want into your screenpack's `system.def` and comment them out in `+system.def`. Each item can also stand at the top level, for example `menu.itemname.trials = "Trials Mode"`. `[Modes]` in `config.ini` hides any mode, even when the screenpack lists it.
+
+The standalone Tutorial Mode's itemnames, `tutorialgame`, `tutorialchars` and `tutorial`, still open the Game Tutorial, Character Guides and the Combined Tutorial, in menus and in `[Select Info]` titles (`title.<itemname>.text`).
 
 In the Game Tutorial, the dummy is chosen in this order:
 1. `TutorialDummy`;
@@ -121,11 +123,11 @@ The Dojo replaces both Trials Mode and the standalone Tutorial Mode module. **De
 
 See [MIGRATION.md](MIGRATION.md) for a step-by-step guide. In short:
 
-- Your characters' `trials.def` files, `save/trials.json`, the `TrialsChar` / `TrialsStage` settings and the `Trials.*` preferences all carry over unchanged.
+- Your characters' `trials.def` files, `save/trials.json`, the `TrialsStage` setting and the `Trials.*` preferences all carry over unchanged. `TrialsChar` is now `TrialsDummy`; the old name is still read.
 - A screenpack `system.def` that lists `menu.itemname.trials` keeps working.
-- Move your `config.ini` preferences across: the keys keep their names.
+- Move your `config.ini` preferences across: the keys keep their names (except `TrialsChar`, above).
 - A customised `trialsmode.def` keeps working: rename it `dojo.def`. With no `[Dojo]` section, its `[Trials Mode]` is used as the look of every mode. Its key names are all still read, though the shipped file now uses mode-neutral ones (see [dojo.def: the look](#dojodef-the-look)).
-- A screenpack's own `[Trials Pause Menu]` that uses the old itemnames (`trialslist`, `trialsopts`, `trialadvancement`, `trialslayout`, `nexttrial`, ...) keeps working too. Both pause menus now share one set of itemnames (see [The pause menus](#the-pause-menus)). Replace your `+system.def` to pick up the new items.
+- A screenpack's own `[Trials Pause Menu]` that uses the old itemnames (`trialslist`, `trialsopts`, `trialadvancement`, `trialslayout`, `nexttrial`, ...) keeps working too: the shipped section still uses them, plus `trials*` names for the new rows (see [The pause menus](#the-pause-menus)). Replace your `+system.def` to pick up the new items.
 - Trials gain every tutorial feature. They also follow the tutorials' parsing rules:
   - **Keys must be written in full.** Trials used to accept any line that contained the key's name.
   - **A language suffix always wins.** The suffixed version of a step's text now always beats the plain one.
@@ -137,6 +139,7 @@ See [MIGRATION.md](MIGRATION.md) for a step-by-step guide. In short:
 - Move your settings from `external/mods/tutorial/config.ini` into the Dojo's `config.ini`. The tutorial keys keep their names: `TutorialDummy`, `TutorialPlayerChar`, `TutorialStage`, `SystemTutorial`, `RecordDemo` and `Tutorial.*`.
 - Point `SystemTutorial` at the files' new location, for example `external/mods/dojo/gametutorial.def`.
 - `save/tutorial.json`, characters' `tutorial = ...` lines and `[Tutorial Pause Menu]` overrides carry over unchanged.
+- A screenpack that lists `tutorialgame`, `tutorialchars` or `tutorial` keeps working. The Dojo's names are `systemtutorial`, `characterguides` and `combinedtutorial`; the old ones are still read, for `title.<itemname>.text` too.
 - `tutorialmode.def` and `tutorial.sff` are gone; every mode now uses `dojo.def` and `dojo.sff`. If you customised `tutorialmode.def`, copy the keys you changed into the `[Tutorial Mode]` section at the end of `dojo.def`. Both spellings of the key names are read there, so they can be pasted unchanged.
 
 ## Writing trials and lessons
@@ -165,7 +168,7 @@ A character can have both. The two files are read by the same parser, so either 
 SystemTutorial = external/mods/dojo/gametutorial.def, data/my_screenpack_lessons.def
 ```
 
-These are lessons about the game, not about one character. They make up the Game Tutorial, and the combined `tutorial` mode offers them to every character ahead of its own.
+These are lessons about the game, not about one character. They make up the Game Tutorial, and the Combined Tutorial (`combinedtutorial`) offers them to every character ahead of its own.
 
 `chars` limits a game-wide lesson to some characters, which makes it character content. It then leaves the Game Tutorial and moves to the Character Guides of the characters it names. Game-wide lessons are never part of Trials.
 
@@ -351,6 +354,17 @@ lesson.demoscript = 3:D, 2:D+F, 2:F+x, 1:_
 ```
 
 Set `RecordDemo` back to `false` before you ship.
+
+### Demonstrations only
+With `TutorialDemonstrationsOnly = true` in `config.ini`, the tutorial modes (Game Tutorial, Character Guides, Combined Tutorial) only show lessons; the player never plays them. Trials is unaffected.
+
+- Each lesson shows its instruction pages, then plays its `demoscript` on a loop under the DEMO banner. The player's controller stays off.
+- The menu's done key steps forward: next page, then the demo, then the next lesson. After the last lesson it opens the lesson list.
+- The cancel key steps back: previous page. From the demo, it goes back to the lesson's last page, or to the previous lesson if the lesson has no pages.
+- Nothing is cleared or recorded, so gated lessons are all open. Speedrun, Watch Demo and the record rows are left out of the pause menu. Restart, Next / Previous and the lesson list still work.
+- Every lesson needs a `demoscript`. A lesson without one, or with one that can't be read, is left out of the list, and the console names it.
+
+The prompt under the demo is `demoonlyprompt.*` in `dojo.def`. `demoonlyprompt.text.last` replaces `demoonlyprompt.text.text` on the last lesson.
 
 **Record Dummy** records a `dummyscript` the same way:
 - For the take, your controller drives the dummy. A second controller, if one is connected, drives P1.
@@ -543,24 +557,24 @@ Each row is marked cleared, uncleared or locked, with its best time. The cursor 
 ### The pause menus
 Pausing during a match opens the mode's own pause menu. Trials opens `[Trials Pause Menu]`; the Game Tutorial and Character Guides open `[Tutorial Pause Menu]`. Both are defined in `+system.def`, and a screenpack overrides either by declaring the same section in its own `system.def`.
 
-Both menus use the same itemnames, list the same items, and offer every feature in every mode; only the labels differ. A row that would do nothing for the entry being played is left out of the menu: Show Instructions without pages, Watch Demo without a `demoscript` (or during a speedrun), the list during a speedrun, and the record rows unless `RecordDemo = true`.
+Both menus list the same items and offer every feature in every mode. Each section uses its own mode's itemnames: `trials*` ones in `[Trials Pause Menu]` (Trials Mode 1.x's, where a row already had one), `tutorial*` ones in `[Tutorial Pause Menu]`. `[Trials Pause Menu]` also accepts the `tutorial*` names. A row that would do nothing for the entry being played is left out of the menu: Show Instructions without pages, Watch Demo without a `demoscript` (or during a speedrun), the list during a speedrun, and the record rows unless `RecordDemo = true`.
 
-| Itemname | Label (Trials / tutorials) | What it does |
-|---|---|---|
-| `tutorialinstructions` | Show Instructions | The current entry's pages again. |
-| `tutorialdemo` | Watch Demo | The CPU performs it (needs a `demoscript`). |
-| `tutorialrestart` | Restart Trial / Restart Lesson | Back to the first step and the start positions. |
-| `tutoriallist` | Trials List / Lesson List | Every entry, as on the list screen. Picking one starts it. |
-| `tutorialnext`, `tutorialprevious` | Next / Previous | Neither will move onto a locked entry. Not in the default menus. |
-| `tutorialopts` | Trials Mode Options / Tutorial Options | A submenu holding the rows below. |
-| `tutorialspeedrun` | Speedrun Mode | See below. |
-| `tutorialadvancement` | Advancement | Auto-Advance moves on after a clear; Repeat replays it. |
-| `tutorialresetonsuccess` | Reset on Success | Returns both sides to their start positions after each clear. |
-| `tutoriallayout` | Layout | The vertical or horizontal step readout, switchable mid-match. |
-| `tutorialtextboxes` | Textboxes | Shows or hides `textbox`. |
-| `tutorialhints` | Hints | Shows or hides `hint`. |
-| `tutorialprogress` | Clear Progress | Erases this character's records, or everything in this mode's save file. |
-| `tutorialrecord`, `tutorialrecorddummy` | Record Demo, Record Dummy | Only with `RecordDemo = true` (see [Recording a demo](#recording-a-demo)). |
+| Trials itemname | Tutorial itemname | Label (Trials / tutorials) | What it does |
+|---|---|---|---|
+| `trialsinstructions` | `tutorialinstructions` | Show Instructions | The current entry's pages again. |
+| `trialsdemo` | `tutorialdemo` | Watch Demo | The CPU performs it (needs a `demoscript`). |
+| `trialsrestart` | `tutorialrestart` | Restart Trial / Restart Lesson | Back to the first step and the start positions. |
+| `trialslist` | `tutoriallist` | Trials List / Lesson List | Every entry, as on the list screen. Picking one starts it. |
+| `nexttrial`, `previoustrial` | `tutorialnext`, `tutorialprevious` | Next / Previous | Neither will move onto a locked entry. Not in the default menus. |
+| `trialsopts` | `tutorialopts` | Trials Mode Options / Tutorial Options | A submenu holding the rows below. |
+| `trialsspeedrun` | `tutorialspeedrun` | Speedrun Mode | See below. |
+| `trialadvancement` | `tutorialadvancement` | Advancement | Auto-Advance moves on after a clear; Repeat replays it. |
+| `trialresetonsuccess` | `tutorialresetonsuccess` | Reset on Success | Returns both sides to their start positions after each clear. |
+| `trialslayout` | `tutoriallayout` | Layout | The vertical or horizontal step readout, switchable mid-match. |
+| `trialstextboxes` | `tutorialtextboxes` | Textboxes | Shows or hides `textbox`. |
+| `trialshints` | `tutorialhints` | Hints | Shows or hides `hint`. |
+| `trialsprogress` | `tutorialprogress` | Clear Progress | Erases this character's records, or everything in this mode's save file. |
+| `trialsrecord`, `trialsrecorddummy` | `tutorialrecord`, `tutorialrecorddummy` | Record Demo, Record Dummy | Only with `RecordDemo = true` (see [Recording a demo](#recording-a-demo)). |
 
 Advancement, Reset on Success, Layout, Textboxes and Hints are player preferences. They're saved to `config.ini` as soon as they change, separately for Trials (`Trials.*`) and the tutorials (`Tutorial.*`).
 
@@ -614,26 +628,27 @@ Each mode family has its own save file, written the moment something is cleared:
 ## Configuration
 
 ### config.ini
-**`[Modes]`** switches each mode on (`1`) or off (`0`, `false`, `no`, `off`). A mode that is off is hidden from every menu, even when the screenpack's `system.def` lists it. When every mode of a family is off, the module doesn't read that family's files. A mode left out of `[Modes]` is on.
+**`[Modes]`** switches each mode `on` or `off`. `0`, `false` and `no` also mean off, and `1` on, so an older `config.ini` still works. A mode that is off is hidden from every menu, even when the screenpack's `system.def` lists it. When every mode of a family is off, the module doesn't read that family's files. A mode left out of `[Modes]` is on.
 
 | Key | Mode |
 |---|---|
 | `Trials` | `trials` |
-| `GameTutorial` | `tutorialgame` |
-| `CharacterGuides` | `tutorialchars` |
-| `Tutorial` | `tutorial` (combined) |
+| `SystemTutorial` | `systemtutorial` (Game Tutorial) |
+| `CharacterGuides` | `characterguides` |
+| `CombinedTutorial` | `combinedtutorial` |
 
 **`[Config]`** is set by hand; the pause menu never changes it. Characters are written the way `select.def` lists them (e.g. `kfm`). A character that isn't in `select.def` is still loaded, excluded from random selection, as the engine does for `TrainingChar`. A path that can't be loaded prints a warning and falls back to the select screen (character) or the default stage (stage).
 
 | Key | Mode | Description |
 |---|---|---|
-| `TrialsChar` | Trials | A character always loaded as the dummy (P2). Blank: picked on the select screen. |
+| `TrialsDummy` | Trials | A character always loaded as the dummy (P2). Blank: picked on the select screen. Formerly `TrialsChar`, which is still read. |
 | `TrialsStage` | Trials | A stage always used (e.g. `stages/stage0.def`), even over a dummy's `stage` parameter in `select.def`. Blank: picked on the select screen. |
 | `TutorialDummy` | tutorials | The dummy (P2). Blank: picked on the select screen, or a mirror of P1 in a Game Tutorial without one. Formerly `TutorialChar`, which is still read. |
-| `TutorialPlayerChar` | Game Tutorial | The character P1 plays the game-wide lessons with. A lesson can override it with `playerchar`. Blank: picked on the select screen before the lesson list. |
+| `TutorialPlayerChar` | Game Tutorial | The character P1 plays the game-wide lessons with. A lesson can override it with `playerchar`. Ships as `kfm_zss`, so the Game Tutorial opens straight on its lesson list. Blank, or a character that can't be loaded: picked on the select screen before the lesson list. |
 | `TutorialStage` | tutorials | A stage always used. Blank: picked on the select screen. |
 | `SystemTutorial` | tutorials | Game-wide lesson files, comma-separated, relative to the Ikemen folder. Blank: character lessons only. |
 | `RecordDemo` | all | `true` adds Record Demo and Record Dummy to the pause menus. For authors; leave it `false` when shipping. |
+| `TutorialDemonstrationsOnly` | tutorials | `true` turns every tutorial mode into a walkthrough the player watches rather than plays (see [Demonstrations only](#demonstrations-only)). Default `false`. |
 
 These settings are independent of training mode's `TrainingChar` and `TrainingStage`.
 
@@ -655,7 +670,7 @@ Key names are mode-neutral. The older spellings are still read in any section, s
 | `counter.*`, `totaltimer.*`, `currenttimer.*`, `reset.*` | The counter, the timers and the position-reset reminder (d+w). |
 | `textbox.*` | `textbox`, with an optional portrait. |
 | `instructions.*` | The instruction pages: overlay, title, wrapped body text that types itself out, page number, prompt, portrait and page sound. Pages can override the portrait and sound. |
-| `hint.*`, `repcounter.*`, `demo.*`, `demoprompt.*` | The hint, the repetition counter, the DEMO banner (REC while recording) and the prompt pointing at Watch Demo. |
+| `hint.*`, `repcounter.*`, `demo.*`, `demoprompt.*`, `demoonlyprompt.*` | The hint, the repetition counter, the DEMO banner (REC while recording), the prompt pointing at Watch Demo, and the controls prompt under a demonstrations-only demo. |
 | `success.*`, `allclear.*` | The banners for a clear and for clearing everything. |
 | `menu.*` | The list: rows, cursor, filter banner, cleared/uncleared/locked markers, best times, scroll arrows. |
 | `selscreenpalfx.*`, `fadein.*`, `fadeout.*` | Greying out characters with nothing to play, and the reposition fade. |

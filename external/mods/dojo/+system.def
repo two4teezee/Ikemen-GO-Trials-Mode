@@ -1,111 +1,121 @@
 ; -- IKEMEN GO DOJO MODULE ------------------------------------------------
-; ---- +system.def - default menu and pause menu extensions.
-; ---- This file adds the module's modes to the main menu and provides the
-; ---- text for their pause menus: [Trials Pause Menu] while a Trials match
-; ---- is paused, [Tutorial Pause Menu] in the Game Tutorial and Character
-; ---- Guides. The engine opens the section named after the game mode, so a
-; ---- screenpack overrides either one by declaring it in its own system.def.
-; --
+; +system.def - default main menu and pause menu extensions.
+; This file adds the module's modes to the main menu and provides the
+; text for their pause menus.
+; 
 ; -- Module developed by two4teezee
 ; -------------------------------------------------------------------------
 
 [Title Info]
 ; The Dojo: the module's modes, as one submenu at the end of the main menu. To place them elsewhere, copy
 ; these lines into your screenpack's system.def where you want them and comment them out here.
-;   trials        - Trials: the select screen, then the character's trials (trials = trials.def)
-;   tutorialgame  - Game Tutorial: a list of the game-wide lessons, each going straight into a match
-;                   (config.ini's TutorialPlayerChar is P1; blank picks P1 on the select screen first)
-;   tutorialchars - Character Guides: the select screen, with only characters that have their own
-;                   lesson file left ungrayed, and only those lessons offered
+;   trials          - Trials: the select screen, then the character's trials (trials = trials.def)
+;   systemtutorial  - Game Tutorial: a list of the game-wide lessons, each going straight into a match
+;                     (config.ini's TutorialPlayerChar is P1; blank picks P1 on the select screen first)
+;   characterguides - Character Guides: the select screen, with only characters that have their own
+;                     lesson file left ungrayed, and only those lessons offered
 ; Each can also be listed on its own, at the top level or in another submenu. A fourth item,
-; `tutorial`, offers the game-wide lessons and the character's own in a single list after the select
-; screen. config.ini's [Modes] hides any of them.
+; `combinedtutorial`, offers the game-wide lessons and the character's own in a single list after the
+; select screen. config.ini's [Modes] hides any of them. The standalone Tutorial Mode's itemnames
+; (tutorialgame, tutorialchars, tutorial) are still accepted.
 menu.itemname.dojo = "Dojo"
 menu.itemname.dojo.trials = "Trials"
-menu.itemname.dojo.tutorialgame = "Game Tutorial"
-menu.itemname.dojo.tutorialchars = "Character Guides"
+; menu.itemname.dojo.combinedtutorial = "Tutorial"
+menu.itemname.dojo.systemtutorial = "Game Tutorial"
+menu.itemname.dojo.characterguides = "Character Guides"
 menu.itemname.dojo.back = "Back"
 
 [Select Info]
+; The select screen's title for each mode, keyed by its itemname. The tutorial modes fall back to
+; title.tutorial.text when theirs is not set. (The Game Tutorial only shows the select
+; screen when config.ini's TutorialPlayerChar is blank.)
 title.trials.text = "Trials Mode"
-title.tutorial.text = "Tutorial Mode"
+; title.tutorial.text = "Tutorial Mode"
+; title.combinedtutorial.text = "Tutorial"
+title.systemtutorial.text = "Game Tutorial"
+title.characterguides.text = "Character Guides"
 
 ;--------------------------------------------------------------------------
-; Pause menus. Both use the same itemnames and offer the same features; only the labels differ.
-; Rows that would do nothing for the current trial or lesson are left out of the menu. Trials Mode's older itemnames
-; (trialslist, trialsopts, trialadvancement, nexttrial, ...) are still accepted in a screenpack's own
-; [Trials Pause Menu].
+; Pause menus. Both offer the same features; each uses its own mode's itemnames and labels.
+; Rows that would do nothing for the current trial or lesson are left out of the menu.
+; [Trials Pause Menu] also accepts the tutorial* itemnames.
 ;
-;   back                  Continue
-;   tutorialinstructions  Show Instructions - the current trial's / lesson's pages again
-;   tutorialdemo          Watch Demo - the CPU performs it (needs a demoscript)
-;   tutorialrecord        Record Demo, tutorialrecorddummy Record Dummy - only with RecordDemo = true
-;   tutorialrestart       Restart - back to the first step and the start positions
-;   tutoriallist          the list of trials / lessons; picking one starts it
-;   tutorialnext / tutorialprevious - the next / previous one
-;   tutorialopts          an options submenu holding the rows below
-;   tutorialspeedrun, tutorialadvancement, tutorialresetonsuccess, tutoriallayout,
-;   tutorialtextboxes, tutorialhints, tutorialprogress (tutorialclearcharprogress, tutorialclearprogress)
+;   [Trials Pause Menu]      [Tutorial Pause Menu]
+;   back                     back                     Continue
+;   trialsinstructions       tutorialinstructions     Show Instructions - the current entry's pages again
+;   trialsdemo               tutorialdemo             Watch Demo - the CPU performs it (needs a demoscript)
+;   trialsrecord             tutorialrecord           Record Demo - only with RecordDemo = true
+;   trialsrecorddummy        tutorialrecorddummy      Record Dummy - only with RecordDemo = true
+;   trialsrestart            tutorialrestart          Restart - back to the first step and the start positions
+;   trialslist               tutoriallist             the list of entries; picking one starts it
+;   nexttrial / previoustrial  tutorialnext / tutorialprevious - the next / previous one
+;   trialsopts               tutorialopts             an options submenu holding the rows below
+;   trialsspeedrun           tutorialspeedrun         Speedrun Mode
+;   trialadvancement         tutorialadvancement      Advancement
+;   trialresetonsuccess      tutorialresetonsuccess   Reset on Success
+;   trialslayout             tutoriallayout           Layout
+;   trialstextboxes          tutorialtextboxes        Textboxes
+;   trialshints              tutorialhints            Hints
+;   trialsprogress           tutorialprogress         Clear Progress, holding:
+;   trialsclearcharprogress  tutorialclearcharprogress  this character's records
+;   trialsclearprogress      tutorialclearprogress    everything in the mode's save file
+; Filter labels: menu.valuename.trialsdifficulty_* / trialschapter_* and tutorialdifficulty_* / tutorialchapter_*.
 ;--------------------------------------------------------------------------
 
 [Trials Pause Menu]
-; Trials Pause option names and labels.
-menu.valuename.tutorialadvancement_autoadvance = Auto-Advance
-menu.valuename.tutorialadvancement_repeat = Repeat
-menu.valuename.tutorialresetonsuccess_enabled = Yes
-menu.valuename.tutorialresetonsuccess_disabled = No
-menu.valuename.tutoriallayout_vertical = Vertical
-menu.valuename.tutoriallayout_horizontal = Horizontal
-menu.valuename.tutorialtextboxes_show = Show
-menu.valuename.tutorialtextboxes_hide = Hide
-menu.valuename.tutorialhints_show = Show
-menu.valuename.tutorialhints_hide = Hide
-menu.valuename.tutorialspeedrun_enabled = On
-menu.valuename.tutorialspeedrun_disabled = Off
-menu.valuename.tutorialclearprogress_ready =
-menu.valuename.tutorialclearprogress_cleared = Cleared
 
-; Trials List filter labels.
+menu.valuename.trialadvancement_autoadvance = Auto-Advance
+menu.valuename.trialadvancement_repeat = Repeat
+menu.valuename.trialresetonsuccess_enabled = Yes
+menu.valuename.trialresetonsuccess_disabled = No
+menu.valuename.trialslayout_vertical = Vertical
+menu.valuename.trialslayout_horizontal = Horizontal
+menu.valuename.trialstextboxes_show = Show
+menu.valuename.trialstextboxes_hide = Hide
+menu.valuename.trialshints_show = Show
+menu.valuename.trialshints_hide = Hide
+menu.valuename.trialsspeedrun_enabled = On
+menu.valuename.trialsspeedrun_disabled = Off
+menu.valuename.trialsclearprogress_ready =
+menu.valuename.trialsclearprogress_cleared = Cleared
+
 ; The list is filtered by chapter when any trial declares trial.chapter, by difficulty otherwise.
 ; "All" is every trial; "Other" collects the ones that declare neither.
-menu.valuename.tutorialdifficulty_all = All
-menu.valuename.tutorialdifficulty_beginner = Beginner
-menu.valuename.tutorialdifficulty_intermediate = Intermediate
-menu.valuename.tutorialdifficulty_advanced = Advanced
-menu.valuename.tutorialdifficulty_expert = Expert
-menu.valuename.tutorialdifficulty_none = Other
+menu.valuename.trialsdifficulty_all = All
+menu.valuename.trialsdifficulty_beginner = Beginner
+menu.valuename.trialsdifficulty_intermediate = Intermediate
+menu.valuename.trialsdifficulty_advanced = Advanced
+menu.valuename.trialsdifficulty_expert = Expert
+menu.valuename.trialsdifficulty_none = Other
 
 menu.itemname.back = Continue
-; Show Instructions and Watch Demo only appear for a trial that has pages (trial.page.N.*) or a
-; demo (trial.demoscript); the rest of the time they are left out of the menu.
-menu.itemname.tutorialinstructions = Show Instructions
-menu.itemname.tutorialdemo = Watch Demo
-; Only listed when config.ini has RecordDemo = true (authoring aids).
-menu.itemname.tutorialrecord = Record Demo
-menu.itemname.tutorialrecorddummy = Record Dummy
-menu.itemname.tutorialrestart = Restart Trial
-menu.itemname.tutoriallist = Trials List
-menu.itemname.tutoriallist.back = Back
-menu.itemname.tutorialopts = Trials Mode Options
-menu.itemname.tutorialopts.tutorialspeedrun = Speedrun Mode
-; menu.itemname.tutorialopts.tutorialnext = Next Trial ; Feature is supported.
-; menu.itemname.tutorialopts.tutorialprevious = Previous Trial ; Feature is supported.
-menu.itemname.tutorialopts.tutorialadvancement = Advancement
-menu.itemname.tutorialopts.tutorialresetonsuccess = Reset on Success
-menu.itemname.tutorialopts.tutoriallayout = Layout
-menu.itemname.tutorialopts.tutorialtextboxes = Textboxes
-menu.itemname.tutorialopts.tutorialhints = Hints
-menu.itemname.tutorialopts.tutorialprogress.spacer = -
-menu.itemname.tutorialopts.tutorialprogress = Clear Trials Progress
-menu.itemname.tutorialopts.tutorialprogress.tutorialclearcharprogress = Clear This Character's Progress
-menu.itemname.tutorialopts.tutorialprogress.tutorialclearcharprogress.tutorialclearcharconfirm = Yes, Erase This Character
-menu.itemname.tutorialopts.tutorialprogress.tutorialclearcharprogress.back = Cancel
-menu.itemname.tutorialopts.tutorialprogress.tutorialclearprogress = Clear All Progress
-menu.itemname.tutorialopts.tutorialprogress.tutorialclearprogress.tutorialclearconfirm = Yes, Erase Everything
-menu.itemname.tutorialopts.tutorialprogress.tutorialclearprogress.back = Cancel
-menu.itemname.tutorialopts.tutorialprogress.spacer = -
-menu.itemname.tutorialopts.tutorialprogress.back = Back
-menu.itemname.tutorialopts.back = Back
+; menu.itemname.trialsinstructions = Show Instructions
+menu.itemname.trialsdemo = Watch Demo
+menu.itemname.trialsrecord = Record Demo
+menu.itemname.trialsrecorddummy = Record Dummy
+; menu.itemname.trialsrestart = Restart Trial
+menu.itemname.trialslist = Trials List
+menu.itemname.trialslist.back = Back
+menu.itemname.trialsopts = Trials Mode Options
+menu.itemname.trialsopts.trialsspeedrun = Speedrun Mode
+; menu.itemname.trialsopts.nexttrial = Next Trial ; Feature is supported.
+; menu.itemname.trialsopts.previoustrial = Previous Trial ; Feature is supported.
+menu.itemname.trialsopts.trialadvancement = Advancement
+menu.itemname.trialsopts.trialresetonsuccess = Reset on Success
+menu.itemname.trialsopts.trialslayout = Layout
+menu.itemname.trialsopts.trialstextboxes = Textboxes
+menu.itemname.trialsopts.trialshints = Hints
+menu.itemname.trialsopts.trialsprogress.spacer = -
+menu.itemname.trialsopts.trialsprogress = Clear Trials Progress
+menu.itemname.trialsopts.trialsprogress.trialsclearcharprogress = Clear This Character's Progress
+menu.itemname.trialsopts.trialsprogress.trialsclearcharprogress.trialsclearcharconfirm = Yes, Erase This Character
+menu.itemname.trialsopts.trialsprogress.trialsclearcharprogress.back = Cancel
+menu.itemname.trialsopts.trialsprogress.trialsclearprogress = Clear All Progress
+menu.itemname.trialsopts.trialsprogress.trialsclearprogress.trialsclearconfirm = Yes, Erase Everything
+menu.itemname.trialsopts.trialsprogress.trialsclearprogress.back = Cancel
+menu.itemname.trialsopts.trialsprogress.spacer = -
+menu.itemname.trialsopts.trialsprogress.back = Back
+menu.itemname.trialsopts.back = Back
 
 menu.itemname.menuinput = Button Config
 menu.itemname.menuinput.keyboard = Key Config
@@ -118,7 +128,7 @@ menu.itemname.characterchange = Character Change
 menu.itemname.exit = Exit
 
 [Tutorial Pause Menu]
-; Tutorial Pause option names and labels.
+
 menu.valuename.tutorialadvancement_autoadvance = Auto-Advance
 menu.valuename.tutorialadvancement_repeat = Repeat
 menu.valuename.tutorialresetonsuccess_enabled = Yes
@@ -148,16 +158,13 @@ menu.valuename.tutorialdifficulty_expert = Expert
 menu.valuename.tutorialdifficulty_none = Other
 
 menu.itemname.back = Continue
-; Show Instructions and Watch Demo only appear for a lesson that has pages or a demoscript.
 menu.itemname.tutorialinstructions = Show Instructions
 menu.itemname.tutorialdemo = Watch Demo
-; Only listed when config.ini has RecordDemo = true (authoring aids).
 menu.itemname.tutorialrecord = Record Demo
 menu.itemname.tutorialrecorddummy = Record Dummy
 menu.itemname.tutorialrestart = Restart Lesson
 menu.itemname.tutoriallist = Lesson List
 menu.itemname.tutoriallist.back = Back
-; Next / Previous Lesson will not move onto a lesson its gated file has not opened yet, but they are available.
 ; menu.itemname.tutorialnext = Next Lesson
 ; menu.itemname.tutorialprevious = Previous Lesson
 menu.itemname.tutorialopts = Tutorial Options

@@ -60,12 +60,11 @@ end
 --;===========================================================
 -- A profile is everything that tells one family of modes apart from the other: the game mode the
 -- engine runs (which also picks the [<Gamemode> Pause Menu] section and fires the loop#<gamemode>
--- hook), the look (its own UI def and sprite/sound/action files), the player preferences, the save
--- file and the char def key its content comes from. Code shared by every mode reads these through
+-- hook), the look (which sections of dojo.def it reads; the art in dojo.sff / .snd / .air is
+-- shared), the player preferences, the save file and the char def key its content comes from. Code shared by every mode reads these through
 -- tutorial.profile, which f_useProfile sets on entering a mode.
 --   uiSections        - the sections of dojo.def that make up its look, as loadIni names
 --                       them, each laid over the one before (see f_prepareUI)
---   assets            - basename of the <assets>.sff and optional .snd / .air beside this file
 --   optsKey           - prefix of its [Options] keys in config.ini (Trials.Layout, ...)
 --   timerKey          - the [Options] key that shows the current trial's / lesson's timer
 --   bucket            - the key a character's records are kept under in the save file
@@ -79,7 +78,6 @@ tutorial.t_profiles = {
 		gamemode = 'trials',
 		title = 'trials',
 		uiSections = {'dojo', 'trials_mode'},
-		assets = 'dojo',
 		optsKey = 'Trials',
 		timerKey = 'TrialTimer',
 		progressPath = 'save/trials.json',
@@ -87,7 +85,7 @@ tutorial.t_profiles = {
 		pauseSection = 'trials_pause_menu',
 		charKey = 'trials',
 		dataField = 'trialsdata',
-		dummyKey = 'TrialsChar',
+		dummyKey = 'TrialsDummy',
 		stageKey = 'TrialsStage',
 		system = false,
 	},
@@ -97,7 +95,6 @@ tutorial.t_profiles = {
 		gamemode = 'tutorial',
 		title = 'tutorial',
 		uiSections = {'dojo', 'tutorial_mode'},
-		assets = 'dojo',
 		optsKey = 'Tutorial',
 		timerKey = 'LessonTimer',
 		progressPath = 'save/tutorial.json',
@@ -116,15 +113,16 @@ tutorial.t_profileOrder = {'trials', 'tutorial'}
 
 -- What the mode is serving, set by the main menu item that entered it:
 --   trials   - `trials`: the picked character's trials file, from the select screen
---   combined - `tutorial`: game-wide lessons first, then the picked character's own lessons
---   game     - `tutorialgame`: game-wide lessons only, launched straight from a lesson list
---   chars    - `tutorialchars`: Character Guides - the character's own lessons only
--- key is the track's switch under [Modes] in config.ini.
+--   combined - `combinedtutorial`: game-wide lessons first, then the picked character's own lessons
+--   game     - `systemtutorial`: the Game Tutorial - game-wide lessons only, launched straight from a lesson list
+--   chars    - `characterguides`: Character Guides - the character's own lessons only
+-- key is the track's switch under [Modes] in config.ini. legacy is the standalone Tutorial Mode's
+-- itemname for the track, still accepted in a screenpack's menus and [Select Info] titles.
 tutorial.t_tracks = {
-	trials   = {profile = 'trials',   itemname = 'trials',        key = 'Trials'},
-	game     = {profile = 'tutorial', itemname = 'tutorialgame',  key = 'GameTutorial'},
-	chars    = {profile = 'tutorial', itemname = 'tutorialchars', key = 'CharacterGuides'},
-	combined = {profile = 'tutorial', itemname = 'tutorial',      key = 'Tutorial'},
+	trials   = {profile = 'trials',   itemname = 'trials',           key = 'Trials'},
+	game     = {profile = 'tutorial', itemname = 'systemtutorial',   key = 'SystemTutorial',   legacy = 'tutorialgame'},
+	chars    = {profile = 'tutorial', itemname = 'characterguides',  key = 'CharacterGuides',  legacy = 'tutorialchars'},
+	combined = {profile = 'tutorial', itemname = 'combinedtutorial', key = 'CombinedTutorial', legacy = 'tutorial'},
 }
 
 -- [Modes] switches each track on or off: 0, false, no or off disables it; anything else, or leaving
@@ -147,17 +145,21 @@ end
 for _, p in pairs(tutorial.t_profiles) do
 	if type(tutorial.ini.Options[p.optsKey]) ~= 'table' then tutorial.ini.Options[p.optsKey] = {} end
 	p.opts = tutorial.ini.Options[p.optsKey]
-	-- [Config] <Mode>Char|Dummy / <Mode>Stage: the counterparts of the engine's Config.TrainingChar and
+	-- [Config] <Mode>Dummy / <Mode>Stage: the counterparts of the engine's Config.TrainingChar and
 	-- Config.TrainingStage. Blank leaves the dummy / stage to be picked on the select screen.
 	-- TutorialPlayerChar is P1 for the Game Tutorial track; blank lets P1 be picked on the select screen.
 	p.dummyPath = f_cfgPath(p.dummyKey)
 	p.stagePath = f_cfgPath(p.stageKey)
 	p.playerCharPath = p.playerKey ~= nil and f_cfgPath(p.playerKey) or ''
 end
--- TutorialChar is TutorialDummy's old name; a config.ini written before the rename still works.
-if tutorial.t_profiles.tutorial.dummyPath == '' and f_cfgPath('TutorialChar') ~= '' then
-	tutorial.t_profiles.tutorial.dummyPath = f_cfgPath('TutorialChar')
-	print('Dojo: [Config] TutorialChar has been renamed TutorialDummy; please update config.ini.')
+-- TrialsChar / TutorialChar are TrialsDummy's / TutorialDummy's old names; a config.ini written
+-- before the rename still works.
+for _, r in ipairs({{'trials', 'TrialsChar'}, {'tutorial', 'TutorialChar'}}) do
+	local p, old = tutorial.t_profiles[r[1]], r[2]
+	if p.dummyPath == '' and f_cfgPath(old) ~= '' then
+		p.dummyPath = f_cfgPath(old)
+		print('Dojo: [Config] ' .. old .. ' has been renamed ' .. p.dummyKey .. '; please update config.ini.')
+	end
 end
 
 -- The profile in force and its player preferences. f_useProfile swaps both; opts is an upvalue every
@@ -449,51 +451,46 @@ motif = loadMotif()
 local sff = motif.Sff
 local snd = motif.Snd
 
--- The profile in force's sprites, sounds and actions. f_loadAssets fills them per profile and
--- f_useProfile swaps them in; like opts, every function below shares these upvalues.
-local tutorialSff = sff
-local tutorialSnd = snd
-local tutorialAnims = {}
-
--- The modes' art: <assets>.sff, <assets>.snd and <assets>.air beside this file, each optional.
--- The sounds a profile owns - the ones named by a "snd" parameter in its own UI def - come out of
--- its .snd, exactly as its sprites come out of its .sff. Ship one and every such group,number refers
--- to it; ship none and they refer to the screenpack's system.snd. Sounds the module reads out of the
--- screenpack's own sections (the pause menu's cursor.*, enter and cancel) always stay on motif.Snd,
--- so the menu keeps answering with whatever the screenpack uses everywhere else.
--- Every mode shares one look (dojo.def), so the files are read once per basename.
+-- The Dojo's own art, shared by every mode: dojo.sff, dojo.snd and dojo.air beside this file, each
+-- optional. Ship none of a kind and that kind falls back to the screenpack's. f_loadAssets fills
+-- these once, when the first profile is built.
+--   dojoSff   - sprites for every element of dojo.def
+--   dojoSnd   - sounds for every "snd" parameter in dojo.def. Sounds the module reads out of the
+--               screenpack's own sections (the pause menu's cursor.*, enter and cancel) always stay
+--               on motif.Snd, so the menu answers with whatever the screenpack uses everywhere else.
+--   dojoAnims - actions for every "anim" parameter, from three files, each overriding the numbers
+--               the one before it declared: the screenpack's own def, dojo.air, and dojo.def itself
+--               (where the samples drop anims meant for the modes). Whichever file an action was
+--               authored in, f_loadAnimData draws it out of dojoSff, so its sprite numbers refer to
+--               dojo.sff wherever the module ships one.
 tutorial.uiDef = 'dojo.def'
-local t_assetCache = {}
-local function f_loadAssets(p)
-	local c = t_assetCache[p.assets]
-	if c ~= nil then
-		return c[1], c[2], c[3]
+local dojoSff = sff
+local dojoSnd = snd
+local dojoAnims = {}
+local assetsLoaded = false
+
+local function f_loadAssets()
+	if assetsLoaded then
+		return
 	end
-	local base = modulePath .. p.assets
-	local pSff = sff
+	assetsLoaded = true
+	local base = modulePath .. 'dojo'
 	if main.f_fileExists(base .. '.sff') then
-		pSff = sffNew(searchFile(base .. '.sff', {motif.def, '', 'data/'}))
+		dojoSff = sffNew(searchFile(base .. '.sff', {motif.def, '', 'data/'}))
 	end
-	local pSnd = snd
 	if main.f_fileExists(base .. '.snd') then
 		local ok, s = pcall(sndNew, searchFile(base .. '.snd', {motif.def, '', 'data/'}))
 		if ok and s ~= nil then
-			pSnd = s
+			dojoSnd = s
 		else
-			print('Dojo: could not read ' .. p.assets .. '.snd; sounds will come from the screenpack instead.')
+			print('Dojo: could not read dojo.snd; sounds will come from the screenpack instead.')
 		end
 	end
-	local pAnims = {}
-	-- Actions reach "anim" parameters from three files, each overriding the numbers the one before
-	-- it declared: the screenpack's own def, the profile's optional .air beside this module, and the
-	-- profile's UI def, which is where the samples drop anims meant for the mode. Whichever file an
-	-- action was authored in, f_loadAnimData draws it out of the profile's sff, so its sprite numbers
-	-- refer to that file wherever this module ships one.
 	local loaded = false
 	for _, v in ipairs({
 		{motif.def, sff},
-		{base .. '.air', pSff},
-		{modulePath .. tutorial.uiDef, pSff},
+		{base .. '.air', dojoSff},
+		{modulePath .. tutorial.uiDef, dojoSff},
 	}) do
 		local path, animSff = v[1], v[2]
 		local found = path == motif.def
@@ -505,7 +502,7 @@ local function f_loadAssets(p)
 			if ok and type(t) == 'table' then
 				loaded = true
 				for no, act in pairs(t) do
-					pAnims[no] = act
+					dojoAnims[no] = act
 				end
 			else
 				print('Dojo: could not read actions from ' .. tostring(path) .. '.')
@@ -515,8 +512,6 @@ local function f_loadAssets(p)
 	if not loaded then
 		print('Dojo: no actions could be read; "anim" parameters will be ignored.')
 	end
-	t_assetCache[p.assets] = {pSff, pSnd, pAnims}
-	return pSff, pSnd, pAnims
 end
 
 --;===========================================================
@@ -1003,8 +998,8 @@ end
 
 local function f_loadAnimData(node, x, y, sffOverride, animsOverride)
 	local node = type(node) == 'table' and node or {}
-	local sprData = sffOverride or tutorialSff
-	local animData = animsOverride or tutorialAnims
+	local sprData = sffOverride or dojoSff
+	local animData = animsOverride or dojoAnims
 	local offset = type(node.offset) == 'table' and node.offset or {0, 0}
 	local scale = type(node.scale) == 'table' and node.scale or {1.0, 1.0}
 	local spr = node.spr
@@ -1103,6 +1098,21 @@ local function f_resolvePlayerChars()
 	end
 end
 
+-- The select screen's title: [Select Info] title.<itemname>.text for the track (title.trials.text,
+-- title.systemtutorial.text, title.characterguides.text, title.combinedtutorial.text), then its
+-- legacy itemname's, falling back to the profile's own (title.tutorial.text for every tutorial
+-- track), then its label.
+local function f_selectTitle(track)
+	local t = motif.select_info.title.text or {}
+	local tr = tutorial.t_tracks[track]
+	for _, k in ipairs({tr.itemname, tr.legacy or tr.itemname, tutorial.profile.title}) do
+		if type(t[k]) == 'string' and t[k] ~= '' then
+			return t[k]
+		end
+	end
+	return tutorial.profile.label
+end
+
 -- Settings every track shares: an endless, single-character match against a dummy. Entering a track
 -- puts its profile in force first, so everything below reads that profile's config and look.
 local function f_setupMode(track)
@@ -1125,7 +1135,7 @@ local function f_setupMode(track)
 	main.matchWins.simul = {0, 0}
 	main.matchWins.single = {0, 0}
 	main.matchWins.tag = {0, 0}
-	textImgSetText(motif.select_info.title.TextSpriteData, tutorial.profile.title)
+	textImgSetText(motif.select_info.title.TextSpriteData, f_selectTitle(track))
 	remapInput(1, getLastInputController())
 	remapInput(getLastInputController(), 1)
 	setGameMode(tutorial.profile.gamemode)
@@ -1133,7 +1143,7 @@ local function f_setupMode(track)
 end
 
 -- Trials, Combined and Character Guides: the select screen picks P1, and P2 unless the profile's
--- TrialsChar / TutorialDummy forces one.
+-- TrialsDummy / TutorialDummy forces one.
 local function f_selectScreenTrack(track)
 	f_setupMode(track)
 	tutorial.dummyRef = f_charRefFor(tutorial.dummyPath, tutorial.profile.dummyKey)
@@ -2073,6 +2083,9 @@ function tutorial.f_tutorialDrawer()
 	if tutorial.data.tutorialInitialized and roundState() == 2 and not tutorial.data.active and tutorial.draw.fade == 0 then
 		tutorial.f_tutorialDummySetup()
 		tutorial.data.active = true
+		-- Demonstrations-only: whether the pair have moved since the lesson was entered. A demo that
+		-- restarted the lesson to get here is already under way, so they have.
+		tutorial.data.demoOnlyPlayed = tutorial.f_demoActive()
 		-- A lesson being entered shows its instruction pages first. A speedrun is against the clock,
 		-- so it skips them; the pause menu still opens them on request.
 		tutorial.f_startDummyScript(tutorial.data.currentlesson)
@@ -2832,7 +2845,7 @@ function tutorial.f_tutorialSuccess(successstring, index)
 	player(1)
 	if not tutorial.data.lessons[index].complete or (successstring == "allclear" and not tutorial.data.allclear) then
 		-- Play sound only once
-		sndPlay(tutorialSnd, tutorial.tutorial_mode[successstring .. '_snd'][1], tutorial.tutorial_mode[successstring .. '_snd'][2])
+		sndPlay(dojoSnd, tutorial.tutorial_mode[successstring .. '_snd'][1], tutorial.tutorial_mode[successstring .. '_snd'][2])
 	end
 	-- The banner text is centred on its element's pos rather than its own offset.
 	local banner = tutorial.tutorial_mode[successstring]
@@ -3074,7 +3087,7 @@ function tutorial.f_catName(cat)
 end
 
 function tutorial.f_speedrunEnabled()
-	return menu.tutorialspeedrun == 1
+	return menu.tutorialspeedrun == 1 and not tutorial.f_demoOnly()
 end
 
 -- What the list is filtered by. Chapters when any lesson names one; difficulty when none does
@@ -3157,7 +3170,8 @@ end
 -- same file (as the list stands, after grooves have thinned it) has been cleared.
 function tutorial.f_isLocked(index, arr, ref)
 	arr = arr or (tutorial.data ~= nil and tutorial.data.lessons or nil)
-	if arr == nil or arr[index] == nil or not arr[index].gated then
+	-- Nothing is ever cleared in demonstrations-only, so nothing could ever open.
+	if arr == nil or arr[index] == nil or not arr[index].gated or tutorial.f_demoOnly() then
 		return false
 	end
 	for i = index - 1, 1, -1 do
@@ -4101,10 +4115,14 @@ end
 --   tutoriallist                         - not during a speedrun
 --   tutorialdemo                         - only for an entry with a demoscript, and not in a speedrun
 --   tutorialinstructions                 - only for an entry with instruction pages
+-- In demonstrations-only, Watch Demo and both Record rows go: the demo is already playing, and
+-- there is no playing the lesson to record.
 -- Run again whenever the pause menu opens (menu.f_init below), since the current entry moves on.
 local function f_rootItemShown(name, on)
 	if name == 'tutorialrecord' or name == 'tutorialrecorddummy' then
-		return tutorial.recordEnabled
+		return tutorial.recordEnabled and not tutorial.f_demoOnly()
+	elseif name == 'tutorialdemo' and tutorial.f_demoOnly() then
+		return false
 	elseif name == 'tutoriallist' then
 		return not on
 	elseif name == 'tutorialdemo' or name == 'tutorialinstructions' then
@@ -4318,6 +4336,7 @@ function tutorial.f_tutorialMode()
 			tutorial.f_demoTick()
 		end
 		tutorial.f_tutorialDrawer()
+		tutorial.f_demoOnlyGuard()
 		player(1)
 		tutorial.f_tutorialChecker('root')
 		if numHelper() > 0 and tutorial.draw.success == 0 then
@@ -4413,6 +4432,10 @@ local function f_uiTeach()
 	local dprompt = f_node(tm, 'demoprompt')
 	if type(dprompt.pos) ~= 'table' then dprompt.pos = {cx, tutorial.mtlcy - 80} end
 	textNode(f_node(dprompt, 'text'), 'Pause and pick Watch Demo to see it done')
+	local doprompt = f_node(tm, 'demoonlyprompt')
+	if type(doprompt.pos) ~= 'table' then doprompt.pos = {cx, tutorial.mtlcy - 80} end
+	local dot = textNode(f_node(doprompt, 'text'), 'Confirm: next lesson    Back: instructions')
+	if dot.last == nil then dot.last = 'Confirm: lesson list    Back: instructions' end
 	local rep = f_node(tm, 'repcounter')
 	if type(rep.pos) ~= 'table' then rep.pos = {cx, 40} end
 	artNode(f_node(rep, 'bg'))
@@ -4436,12 +4459,13 @@ local function f_uiTeach()
 		rep = f_newText(rep.text),
 		demo = f_newText(demo.text),
 		demoprompt = f_newText(dprompt.text),
+		demoonlyprompt = f_newText(doprompt.text),
 	}
 end
 
 local function f_playSnd(snd)
 	if type(snd) == 'table' and tonumber(snd[1]) ~= nil and snd[1] >= 0 then
-		sndPlay(tutorialSnd, snd[1], snd[2] or 0)
+		sndPlay(dojoSnd, snd[1], snd[2] or 0)
 	end
 end
 
@@ -4525,8 +4549,8 @@ end
 
 -- Builds the portrait for one instruction page. A page that names a portrait.spr or portrait.anim of
 -- its own replaces both of the def's, so a page's sprite is never hidden behind the def's anim.
--- source picks where they come from: "system" is the module's sprites and actions (the profile's .sff and
--- .air / its UI def, as every other element), "char" is P1's own sff and air.
+-- source picks where they come from: "system" is the Dojo's own sprites and actions (dojo.sff and
+-- dojo.air / dojo.def, as every other element), "char" is P1's own sff and air.
 local function f_pagePortrait(pg)
 	local por = tutorial.tutorial_mode.instructions.portrait
 	local pp = type(pg.portrait) == 'table' and pg.portrait or {}
@@ -4699,10 +4723,12 @@ end
 
 function tutorial.f_countRep(index)
 	local lesson = tutorial.data.lessons[index]
-	if not tutorial.f_demoActive() then
+	-- A demo never earns a clear, and demonstrations-only never has anything else.
+	local watching = tutorial.f_demoActive() or tutorial.f_demoOnly()
+	if not watching then
 		lesson.repsdone = (lesson.repsdone or 0) + 1
 	end
-	if lesson.repsdone >= (lesson.reps or 1) and not tutorial.f_demoActive() then
+	if lesson.repsdone >= (lesson.reps or 1) and not watching then
 		lesson.repsdone = 0
 		return true
 	end
@@ -4722,7 +4748,7 @@ end
 -- offer). Idle frames at the first step are not failures.
 function tutorial.f_noteFail(index)
 	local lesson = tutorial.data.lessons[index]
-	if lesson ~= nil and not tutorial.f_demoActive() then
+	if lesson ~= nil and not tutorial.f_demoActive() and not tutorial.f_demoOnly() then
 		lesson.fails = (lesson.fails or 0) + 1
 	end
 end
@@ -4777,6 +4803,14 @@ function tutorial.f_drawLessonExtras(index)
 		local dm = tm.demo
 		f_drawArt(dm.bg, dm.pos[1], dm.pos[2])
 		f_drawText(t.demo, dm.text, dm.pos[1], dm.pos[2], dm.text.text)
+		if tutorial.f_demoOnly() then
+			local dp = tm.demoonlyprompt
+			local last = index >= #tutorial.data.lessons
+			local str = last and dp.text.last or dp.text.text
+			if str ~= '' then
+				f_drawText(t.demoonlyprompt, dp.text, dp.pos[1], dp.pos[2], str)
+			end
+		end
 	elseif tutorial.f_demoOffered(lesson) then
 		local dp = tm.demoprompt
 		f_drawText(t.demoprompt, dp.text, dp.pos[1], dp.pos[2], dp.text.text)
@@ -5071,7 +5105,9 @@ function tutorial.f_hasDemo(index)
 	return lesson ~= nil and lesson.demoscript ~= ''
 end
 
-function tutorial.f_startDemo(index)
+-- inPlace: the pair are already in their start positions (the lesson was only just entered), so
+-- the lesson is not restarted first. Demonstrations-only uses it to save a second fade.
+function tutorial.f_startDemo(index, inPlace)
 	local lesson = tutorial.data.lessons[index]
 	if lesson.demoframes == nil then
 		local frames, why = tutorial.f_parseScript(lesson.demoscript)
@@ -5082,9 +5118,14 @@ function tutorial.f_startDemo(index)
 		end
 		lesson.demoframes = frames
 	end
-	tutorial.f_gotoLesson(index, false, true)
+	if not inPlace then
+		tutorial.f_gotoLesson(index, false, true)
+	end
 	lesson.pagesSeen = true
 	tutorial.demo = {lesson = index, phase = 'waiting', tail = 0}
+	if tutorial.data ~= nil then
+		tutorial.data.demoOnlyPlayed = true
+	end
 	return true
 end
 
@@ -5104,12 +5145,33 @@ function tutorial.f_demoTick()
 		-- let the last move finish before handing back
 		dm.tail = dm.tail - 1
 		if dm.tail <= 0 then
-			tutorial.f_endDemo(true)
+			if tutorial.f_demoOnly() then
+				-- demonstrations-only: round again until the player moves on
+				tutorial.f_startDemo(dm.lesson)
+			else
+				tutorial.f_endDemo(true)
+			end
 			return
 		end
 	end
 	local sec = tutorial.f_selectSection()
-	if sec ~= nil and dm.phase ~= 'waiting' then
+	if sec ~= nil and dm.phase ~= 'waiting' and tutorial.f_demoOnly() then
+		-- done steps forward, cancel back; each needs a fresh press, so the one that closed the
+		-- pages or picked the lesson is not read again here
+		local done = getInput(-1, sec.menu.done.key)
+		local back = getInput(-1, sec.menu.cancel.key)
+		if dm.released and done then
+			sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
+			tutorial.f_demoOnlyNext(dm.lesson)
+			return
+		elseif dm.released and back then
+			if tutorial.f_demoOnlyBack(dm.lesson) then
+				sndPlay(motif.Snd, sec.cursor.move.snd[1], sec.cursor.move.snd[2])
+				return
+			end
+		end
+		dm.released = not done and not back
+	elseif sec ~= nil and dm.phase ~= 'waiting' then
 		-- Raw UI input: P1's own command input is remapped away for the demo.
 		local held = getInput(-1, sec.menu.done.key) or getInput(-1, sec.menu.cancel.key)
 		if held and dm.released then
@@ -5163,6 +5225,89 @@ do
 	tutorial.recordEnabled = v == 'true' or v == '1' or v == 'yes'
 end
 tutorial.recordPath = 'save/tutorial_demo.txt'
+
+----------------------------------------------------------------
+-- Demonstrations only
+----------------------------------------------------------------
+-- With [Config] TutorialDemonstrationsOnly = true, every tutorial track (not Trials) becomes a
+-- show-and-tell: a lesson's instruction pages, then its demo, looping, with the player's controller
+-- off throughout. The menu's done key steps forward (next page, then the demo, then the next
+-- lesson; the lesson list after the last), cancel steps back (previous page, or from the demo back
+-- to the pages - the previous lesson when there are none). Nothing is ever cleared or recorded.
+-- Lessons without a lesson.demoscript have nothing to show, so they are left out of the list.
+do
+	local v = tostring(tutorial.ini.Config.TutorialDemonstrationsOnly or ''):lower()
+	tutorial.demoOnlyEnabled = v == 'true' or v == '1' or v == 'yes'
+end
+
+function tutorial.f_demoOnly()
+	return tutorial.demoOnlyEnabled and tutorial.profile ~= nil and tutorial.profile.id == 'tutorial'
+end
+
+-- Whether a lesson is offered at all: in demonstrations-only, only one with a demo to show.
+local t_demoOnlyWarned = {}
+function tutorial.f_lessonOffered(lesson)
+	if not tutorial.f_demoOnly() or lesson.demoscript ~= '' then
+		return true
+	end
+	if not t_demoOnlyWarned[lesson] then
+		t_demoOnlyWarned[lesson] = true
+		print('Dojo: "' .. tostring(lesson.name) .. '" has no lesson.demoscript, so TutorialDemonstrationsOnly leaves it out.')
+	end
+	return false
+end
+
+-- Done during a demonstrations-only demo: on to the next lesson, or the list after the last one.
+function tutorial.f_demoOnlyNext(index)
+	tutorial.f_endDemo(false)
+	if index < #tutorial.data.lessons then
+		tutorial.f_gotoLesson(index + 1, false, true)
+	else
+		tutorial.f_openSelect()
+	end
+end
+
+-- Cancel during a demonstrations-only demo: back to this lesson's pages, else the previous lesson.
+-- False when there is nowhere to go back to, and the demo carries on.
+function tutorial.f_demoOnlyBack(index)
+	local lesson = tutorial.data.lessons[index]
+	if lesson ~= nil and type(lesson.pages) == 'table' and #lesson.pages > 0 then
+		tutorial.f_endDemo(false)
+		tutorial.f_openPages(index)
+		-- stepping back lands on the page before the demo: the last one
+		if #lesson.pages > 1 then
+			tutorial.pages.page = #lesson.pages
+			f_showPage(tutorial.pages, lesson)
+		end
+		return true
+	elseif index > 1 then
+		tutorial.f_endDemo(false)
+		tutorial.f_gotoLesson(index - 1, false, true)
+		return true
+	end
+	return false
+end
+
+-- Run every match frame after the drawer, before the checker: whenever a lesson is up and neither
+-- its pages nor its demo are, the demo starts. This is the one place that does it, so every way
+-- of arriving at a lesson - entering it, closing its pages, backing out of the list - ends in the
+-- demo, and no frame is ever left for the player to play the lesson themselves. A lesson just
+-- entered still has the pair in their start positions, so its first demo starts in place; any
+-- later one restarts the lesson to put them back.
+function tutorial.f_demoOnlyGuard()
+	if not tutorial.f_demoOnly() or tutorial.f_demoActive() or tutorial.f_pagesOpen() then
+		return
+	end
+	local d = tutorial.data
+	if not d.active or tutorial.draw.success > 0 or tutorial.draw.fade > 0 then
+		return
+	end
+	local index = d.currentlesson
+	if d.lessons[index] == nil or not tutorial.f_hasDemo(index) then
+		return
+	end
+	tutorial.f_startDemo(index, not d.demoOnlyPlayed)
+end
 
 -- A frame set as script text: inputs in t_scriptInputs order, _ for none.
 local function f_setText(set)
@@ -5341,11 +5486,19 @@ if menu.tutorialclearcharprogress == nil then
 	menu.tutorialclearcharprogress = 1
 end
 
--- Trials Mode's pause menu itemnames from before the merge. A screenpack whose own system.def still
--- declares [Trials Pause Menu] with them keeps working: they are renamed to the shared ones before
--- the engine builds its menus (menu.f_start runs after every module has loaded). menu.valuename
--- keys are <itemname>_<value>, so they are renamed by the same table.
+-- [Trials Pause Menu]'s itemnames: Trials Mode 1.x's, plus trials* names for the rows added since.
+-- They are renamed to the shared tutorial* ones before the engine builds its menus (menu.f_start
+-- runs after every module has loaded), so the shipped section, an old screenpack's and one that
+-- uses the shared names directly all work. menu.valuename keys are <itemname>_<value>, so they are
+-- renamed by the same table.
 tutorial.t_legacyPauseItems = {
+	trialsinstructions = 'tutorialinstructions',
+	trialsdemo = 'tutorialdemo',
+	trialsrecord = 'tutorialrecord',
+	trialsrecorddummy = 'tutorialrecorddummy',
+	trialsrestart = 'tutorialrestart',
+	trialshints = 'tutorialhints',
+	trialschapter = 'tutorialchapter',
 	trialslist = 'tutoriallist',
 	trialsopts = 'tutorialopts',
 	trialsspeedrun = 'tutorialspeedrun',
@@ -5380,14 +5533,24 @@ local function f_renameLegacyPause(sec)
 		return changed and table.concat(parts, '_') or key
 	end
 	if type(sec.menu.itemname_order) == 'table' then
-		for i, suffix in ipairs(sec.menu.itemname_order) do
+		-- A row declared under both spellings is kept once, where it first appears (spacers repeat
+		-- on purpose and are left alone).
+		local order, seen = {}, {}
+		for _, suffix in ipairs(sec.menu.itemname_order) do
 			local new = rename(suffix)
-			if new ~= suffix then
-				sec.menu.itemname_order[i] = new
-				if type(sec.menu.itemname) == 'table' and sec.menu.itemname[new] == nil then
-					sec.menu.itemname[new] = sec.menu.itemname[suffix]
-				end
+			if new ~= suffix and type(sec.menu.itemname) == 'table' and sec.menu.itemname[new] == nil then
+				sec.menu.itemname[new] = sec.menu.itemname[suffix]
 			end
+			if not seen[new] or new:match('spacer%d*$') then
+				seen[new] = true
+				table.insert(order, new)
+			end
+		end
+		for i = #sec.menu.itemname_order, 1, -1 do
+			sec.menu.itemname_order[i] = nil
+		end
+		for i, suffix in ipairs(order) do
+			sec.menu.itemname_order[i] = suffix
 		end
 	end
 	if type(sec.menu.valuename) == 'table' then
@@ -5593,6 +5756,12 @@ end
 -- Show Instructions: the current lesson's pages again, over the match.
 menu.t_itemname['tutorialinstructions'] = function(t, item, cursorPosY, moveTxt, sec)
 	if getInput(-1, sec.menu.done.key) and tutorial.data ~= nil and tutorial.data.tutorialInitialized then
+		-- Demonstrations-only: the pages need the controller the demo has switched off. The demo
+		-- starts over once they close.
+		local l = tutorial.data.lessons[tutorial.data.currentlesson]
+		if tutorial.f_demoOnly() and l ~= nil and type(l.pages) == 'table' and #l.pages > 0 then
+			tutorial.f_endDemo(false)
+		end
 		if tutorial.f_openPages(tutorial.data.currentlesson) then
 			sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
 			f_leavePause()
@@ -5672,7 +5841,8 @@ end
 menu.t_itemname['tutorialspeedrun'] = function(t, item, cursorPosY, moveTxt, sec)
 	-- A Game Tutorial whose lessons need more than one P1 reloads the match between them, and a
 	-- run cannot survive that, so Speedrun Mode stays Off there.
-	if tutorial.f_speedrunSpansChars() then
+	-- Nor in demonstrations-only, where there is nothing to clear.
+	if tutorial.f_speedrunSpansChars() or tutorial.f_demoOnly() then
 		return true
 	end
 	local changed, value = menu.f_valueChanged(t.items[item], sec)
@@ -6375,12 +6545,11 @@ end
 --;===========================================================
 --; Building and switching profiles
 --;===========================================================
--- Builds one profile: its art, its UI (every f_ui* step above, in the order they always ran at load)
+-- Builds one profile: its UI (every f_ui* step above, in the order they always ran at load)
 -- and its saved progress. Leaves the profile in force, and keeps what was built on the profile so
 -- f_useProfile can put it back later without building anything again.
 function tutorial.f_buildProfile(p)
-	p.sff, p.snd, p.anims = f_loadAssets(p)
-	tutorialSff, tutorialSnd, tutorialAnims = p.sff, p.snd, p.anims
+	f_loadAssets()
 	tutorial.profile = p
 	opts = p.opts
 	local root, lx, ly = f_prepareUI(p)
@@ -6433,7 +6602,6 @@ function tutorial.f_useProfile(p)
 	end
 	tutorial.profile = p
 	opts = p.opts
-	tutorialSff, tutorialSnd, tutorialAnims = p.sff, p.snd, p.anims
 	tutorial.tutorial_mode = p.ui.root
 	tr_pos = p.ui.root
 	tutorial.mtlcx, tutorial.mtlcy = p.ui.mtlcx, p.ui.mtlcy
@@ -6575,24 +6743,27 @@ end
 function tutorial.f_lessonsFor(charData)
 	local t = {}
 	for _, l in ipairs(tutorial.systemLessons) do
-		if f_systemOnTrack(l, charData) then
+		if f_systemOnTrack(l, charData) and tutorial.f_lessonOffered(l) then
 			t[#t + 1] = main.f_tableCopy(l)
 		end
 	end
 	for _, l in ipairs(f_charLessons(charData) or {}) do
-		t[#t + 1] = main.f_tableCopy(l)
+		if tutorial.f_lessonOffered(l) then
+			t[#t + 1] = main.f_tableCopy(l)
+		end
 	end
 	return t
 end
 
 -- Cheaper than building the list: whether the current track has anything for a character at all.
 function tutorial.f_hasLessons(charData)
-	local own = f_charLessons(charData)
-	if own ~= nil and #own > 0 then
-		return true
+	for _, l in ipairs(f_charLessons(charData) or {}) do
+		if tutorial.f_lessonOffered(l) then
+			return true
+		end
 	end
 	for _, l in ipairs(tutorial.systemLessons) do
-		if f_systemOnTrack(l, charData) then
+		if f_systemOnTrack(l, charData) and tutorial.f_lessonOffered(l) then
 			return true
 		end
 	end
@@ -6640,10 +6811,12 @@ end
 -- leaving its handler out would not do - the item would still be listed, and picking it would send
 -- the menu looking for a submenu of that name.
 for _, t in pairs(tutorial.t_tracks) do
-	if t.enabled then
-		main.t_itemname[t.itemname] = t.start
-	else
-		main.t_unlockLua.modes[t.itemname] = 'false'
+	for _, name in ipairs({t.itemname, t.legacy}) do
+		if t.enabled then
+			main.t_itemname[name] = t.start
+		else
+			main.t_unlockLua.modes[name] = 'false'
+		end
 	end
 end
 -- Whichever profile the module was left on while loading, the first menu entry puts its own in force.

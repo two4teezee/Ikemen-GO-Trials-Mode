@@ -1,10 +1,6 @@
-# -- IKEMEN GO DOJO MODULE --------------------------------------------------
-# ---- dojo.zss - global states and functions shared by every mode this
-# ---- module hosts: Trials, the Game Tutorial and Character Guides.
-# ---- It is loaded by dojo.lua, not by the screenpack's system.def, so it
-# ---- is not part of the main menu or pause menu. The maps keep the
-# ---- _iksys_tutorial prefix of the shared core (see dojo.lua).
-# --
+# -- IKEMEN GO DOJO MODULE ------------------------------------------------
+# dojo.zss - global states and functions for the Ikemen GO Dojo Module
+# 
 # -- Module developed by two4teezee
 # -------------------------------------------------------------------------
 
