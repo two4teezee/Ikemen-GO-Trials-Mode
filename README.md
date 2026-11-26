@@ -22,9 +22,23 @@ Sample dojo files for some of my favourite characters are in [this repo](https:/
 
 https://github.com/user-attachments/assets/c0d08e4e-ea2b-4c0e-bd4c-ca88552f112c
 
+## Features
+- The Dojo enables four modes, all operating off a common core: **Trials**, **Game Tutorial**, **Character Guides** and **Combined Tutorial**, allowing you to create **trials** and **lessons** for your game and characters.
+- Per-character trial and lesson authoring. Creators add a `trials = trials.def` and/or `tutorial = tutorial.def` line to a character's def file, and define any number of trials or lessons in those files. 
+- Multi-step trials and lessons can be condensed in a single step, and steps can accept multiple valid values using an `|` "or" operand for flexible move recognition. 
+- All text supports language-suffixed keys for multilingual releases.
+- Per-trial and lesson setup. You can set the dummy's stance, automatic guarding, dummy button presses, and life totals for both dummy and player. It can also place both fighters at named stage positions, which the player can snap back to at any time by pressing the associated key combination.
+- Recordable /replayable demonstrations for trials and tutorials, as well as complex dummy action sequences.
+- Every aspect of the Dojo Mode UI is customizable - fonts, backgrounds for all elements (like titles, upcoming/current/completed trial steps,etc.), animations, defaults, etc. Sprites and sounds for Trials Mode can be neatly packaged in the module's own `trials.sff` and `trials.snd`, or merged into the screenpack's `system.sff` and `system.snd`. Trials Mode also ships with an engine-native pause menu. 
+- Trials and lessons can be displayed as a vertical readout (step text plus input glyphs) and a horizontal readout in the style of KOF XIV.
+- Persistent progress. Per-character progress (cleared status and best times) is saved and keyed so that it is resilient to changes in trials and tutorial definition files. Also logs clearing time for the included Speedrun mode.
+- Configurable Select screen. Trials Mode ships a selection menu that appears either right after stage select or just before the fight begins. Trials can optionally be grouped by difficulty (Beginner, Intermediate, Advanced, Expert), which the player cycles through and which tracks a cleared tally per category.
+
+
 ## Contents
 - [Overview](#overview)
 - [Preview](#preview)
+- [Features](#features)
 - [Contents](#contents)
 - [Installation](#installation)
   - [Package contents](#package-contents)
@@ -41,7 +55,6 @@ https://github.com/user-attachments/assets/c0d08e4e-ea2b-4c0e-bd4c-ca88552f112c
   - [Input scripts: demos and dummy routines](#input-scripts-demos-and-dummy-routines)
   - [Recording a demo](#recording-a-demo)
   - [Demonstrations only](#demonstrations-only)
-  - [Common state numbers](#common-state-numbers)
   - [Projectiles and helpers](#projectiles-and-helpers)
   - [Example: a trials.def](#example-a-trialsdef)
   - [Example: a character lesson file](#example-a-character-lesson-file)
@@ -67,13 +80,13 @@ Everything below is in `external/mods/dojo/`.
 
 | File | What it is |
 |---|---|
-| `dojo.lua` | The module itself. It reads every trials and lesson file, checks steps against the match, drives demos and dummy scripts, draws the HUD and menus, and saves progress. You shouldn't need to edit it. |
-| `gametutorial.lua` | The Game Tutorial's match script. The engine runs it in place of its own `default.lua` when the Game Tutorial is picked; it does nothing at any other time. |
-| `dojo.zss` | Global states the modes need: holding both sides still, repositioning, the dummy's behaviour, and pressing scripted inputs. Loaded automatically. |
+| `dojo.lua` | The module itself, contains all of the logic. It reads every trials and lesson file, checks steps against the match, drives demos and dummy scripts, draws the HUD and menus, and saves progress. |
+| `gametutorial.lua` | The Game Tutorial's match script. |
+| `dojo.zss` | Global states for the Dojo. |
 | `+system.def` | The main-menu entries, and the `[Trials Pause Menu]` and `[Tutorial Pause Menu]` sections that define each mode's in-match pause menu. |
-| `dojo.def` | The look of every mode: every position, font, sprite and sound under `[Dojo]`, and each mode's labels under `[Trials Mode]` and `[Tutorial Mode]`. |
-| `config.ini` | Which modes are on, the `[Config]` settings, and the player's saved preferences. The module rewrites this file when the player changes an option, and the comments are lost when it does. |
-| `dojo.sff` | The module's own sprites, detected automatically. |
+| `dojo.def` | Defines UI elements all modes supported by the Dojo: positions, fonts, sprites, anims and sounds. **Ships with a reference implementation for `ikemen1` - you'll likely edit this.**|
+| `config.ini` | Carries mode configurations and the player's saved preferences. The module rewrites this file when the player changes an option, and the comments are lost when it does. |
+| `dojo.sff` | The module's own sprites, detected automatically. If omitted, will look in the screenpack's `system.sff`. |
 | `gametutorial.def` | Sample game-wide lessons, in two chapters (Movement and Defence), that work with any MUGEN-standard character. |
 | `dojo.snd`, `dojo.air` (not included) | Optional. Drop them beside `dojo.lua` and the modes' sounds and animations come from them instead of the screenpack. |
 
@@ -281,18 +294,6 @@ The prompt under the demo is `demoonlyprompt.*` in `dojo.def`. `demoonlyprompt.t
 - The dummy's own settings (`dummymode`, button jam, distance) and its script are off while you record. Its guard mode stays.
 - Pause to end the take. The controllers are handed back, and the attempt restarts with the dummy's settings in place.
 - `F` and `B` are recorded relative to the way the dummy faces, which is how a dummy script plays them back.
-
-### Common state numbers
-These come from `common1.cns`, so they're the same for every MUGEN-standard character unless the character overrides them. They're useful with `hitcount = 0` for movement lessons.
-
-| State | Meaning | State | Meaning |
-|---|---|---|---|
-| 0 | standing | 100 | running forward |
-| 10 / 11 | crouching (start / held) | 105 | hopping back |
-| 20 | walking | 120 | starting to block |
-| 40 | jump start | 150 / 152 / 154 | blocking a hit: standing / crouching / air |
-| 50 | in the air | 5000+ | being hit |
-| 52 | landing | 5100 | knocked down (hitting the ground) |
 
 ### Projectiles and helpers
 - A `projid` on its own makes a step a projectile step; `isproj` isn't needed alongside it.
