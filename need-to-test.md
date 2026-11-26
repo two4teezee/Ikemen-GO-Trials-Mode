@@ -1,0 +1,1 @@
+dummyscript with distance; ideally we would see dummyscript trigger when the distance is achieved.

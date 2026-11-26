@@ -4,49 +4,43 @@
 
 ---
 
-**The Dojo Module** for Ikemen GO: Trials, a Game Tutorial and Character Guides, delivered from one shared core.
+**The Ikemen GO Dojo** delivers a complete experience for Trials, Game Tutorial and Character Guides.
 </div>
 
 ## Overview
-The Dojo adds three game modes to Ikemen GO:
+The Ikemen GO Dojo Module adds three game modes to Ikemen GO:
 
-- **Trials**: per-character combo trials. Each character ships a `trials.def`, the player works through its trials one by one, and clears and best times are saved.
-- **Game Tutorial**: lessons about your game rather than about one character, such as walking, jumping, running, or blocking high and low. You write them once, in files listed in `config.ini`.
-- **Character Guides**: lessons that teach one character, such as their specials, their combos and the way they are meant to be played. Each character ships a `tutorial.def`.
+- **Trials**: per-character combo trials. Each character's trials are defined in a `trials.def`; the player works through trials, and clears and best times are saved.
+- **Game Tutorial**: lessons about your game's systems and gameplayer features, such as movement, offense and defense. You write your game's tutorial in a single file and you can force specific characters on a per-lesson basis. You can make the tutorials interactive (player has to clear tutorials) or you can do demonstration-only tutorials.
+- **Character Guides**: lesson plans that teach one character, such as their specials, their combos and the way they are meant to be played. Defined in a `tutorial.def`.
 
-By default the three modes sit together in one main-menu submenu, **Dojo**. Any of them can be listed on its own instead, or switched off.
-
-All three modes run on the same engine. A trial and a lesson are the same thing, a sequence of steps checked against the live match. So every feature is available in every mode:
-
-- step checking (states, anims, hit counts, throws, counter-hits, helpers, projectiles, blocks, the dummy's state);
-- condensed steps and the `|` operator;
-- a configurable dummy, including scripted attack routines;
-- instruction pages, hints, demos the CPU performs, and repetitions;
-- chapters and difficulties, and lessons that open one at a time;
-- vertical and horizontal step readouts, textboxes;
-- a select list, a pause menu, Speedrun, and saved progress.
-
-The modes differ only in where their content comes from and where their progress is saved. They share one look, `[Dojo]` in `dojo.def`, and each mode overrides just its labels. Each family keeps its own pause menu, player preferences and save file.
-
-This markdown file is best viewed on GitHub or in your favourite markdown viewer. For more detail on authoring and customization, see this readme or [the wiki](https://github.com/two4teezee/Ikemen-GO-Trials-Mode/wiki). Sample trials files for some favourite characters are in [this repo](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files).
+This markdown file is best viewed on GitHub or in your favourite markdown viewer. 
+For more detail on authoring and customization, see this readme or [the wiki](https://github.com/two4teezee/Ikemen-GO-Trials-Mode/wiki). 
+Sample dojo files for some of my favourite characters are in [this repo](https://github.com/two4teezee/Ikemen-GO-Sample-Trials-Definition-Files).
 
 ## Preview
 
 https://github.com/user-attachments/assets/c0d08e4e-ea2b-4c0e-bd4c-ca88552f112c
 
 ## Contents
+- [Overview](#overview)
+- [Preview](#preview)
+- [Contents](#contents)
 - [Installation](#installation)
-- [Package contents](#package-contents)
-- [Upgrading](#upgrading)
-- [Writing trials and lessons](#writing-trials-and-lessons)
+  - [Package contents](#package-contents)
+  - [Upgrading](#upgrading)
   - [Where content comes from](#where-content-comes-from)
-  - [File layout](#file-layout)
-  - [Trial and lesson parameters](#trial-and-lesson-parameters)
+- [Trial and Tutorial Definition Files](#trial-and-tutorial-definition-files)
+  - [General Trial or Tutorial Parameter](#general-trial-or-tutorial-parameter)
+  - [Trial or Tutorial Teaching Aid Parameters](#trial-or-tutorial-teaching-aid-parameters)
+  - [Dummy Actions and Modes](#dummy-actions-and-modes)
+  - [Trial or Tutorial Filtering](#trial-or-tutorial-filtering)
   - [Step parameters](#step-parameters)
-  - [Condensed steps and the `|` operator](#condensed-steps-and-the--operator)
-  - [Blocking, blocked moves and the dummy's state](#blocking-blocked-moves-and-the-dummys-state)
+    - [Condensed Steps and the `|` Operator](#condensed-steps-and-the--operator)
+    - [Blocking, blocked moves and the Dummy's State](#blocking-blocked-moves-and-the-dummys-state)
   - [Input scripts: demos and dummy routines](#input-scripts-demos-and-dummy-routines)
   - [Recording a demo](#recording-a-demo)
+  - [Demonstrations only](#demonstrations-only)
   - [Common state numbers](#common-state-numbers)
   - [Projectiles and helpers](#projectiles-and-helpers)
   - [Example: a trials.def](#example-a-trialsdef)
@@ -59,6 +53,7 @@ https://github.com/user-attachments/assets/c0d08e4e-ea2b-4c0e-bd4c-ca88552f112c
 - [Configuration](#configuration)
   - [config.ini](#configini)
   - [dojo.def: the look](#dojodef-the-look)
+- [License](#license)
 
 ## Installation
 1. Extract the archive into your Ikemen GO folder. The module lives in `external/mods/dojo/`.
@@ -67,41 +62,7 @@ https://github.com/user-attachments/assets/c0d08e4e-ea2b-4c0e-bd4c-ca88552f112c
 4. The module ships a set of game-wide lessons in `gametutorial.def`, so the Game Tutorial has something to play straight away.
 5. Write trials and lessons for your characters (see [Writing trials and lessons](#writing-trials-and-lessons)), and share them!
 
-### Main menu entries
-The screenpack decides which modes the player sees by the main-menu items it lists:
-
-| Item | Mode |
-|---|---|
-| `trials` | **Trials.** The select screen, with every character that has no trials file greyed out, then that character's trials. |
-| `systemtutorial` | **Game Tutorial.** A list of the game-wide lessons, each going straight into a match. P1 is `TutorialPlayerChar`, or the lesson's own `playerchar`. With `TutorialPlayerChar` blank, P1 is picked on the select screen first. |
-| `characterguides` | **Character Guides.** The select screen, with every character that has no lesson file of its own greyed out, then only that character's lessons. |
-| `combinedtutorial` | **Combined Tutorial.** The select screen, then the game-wide lessons and the character's own lessons in one list. Not in the default menu. |
-
-The shipped `+system.def` lists the first three as a submenu:
-
-```ini
-[Title Info]
-menu.itemname.dojo = "Dojo"
-menu.itemname.dojo.trials = "Trials"
-menu.itemname.dojo.systemtutorial = "Game Tutorial"
-menu.itemname.dojo.characterguides = "Character Guides"
-menu.itemname.dojo.back = "Back"
-```
-
-To put them somewhere else, copy the lines you want into your screenpack's `system.def` and comment them out in `+system.def`. Each item can also stand at the top level, for example `menu.itemname.trials = "Trials Mode"`. `[Modes]` in `config.ini` hides any mode, even when the screenpack lists it.
-
-The standalone Tutorial Mode's itemnames, `tutorialgame`, `tutorialchars` and `tutorial`, still open the Game Tutorial, Character Guides and the Combined Tutorial, in menus and in `[Select Info]` titles (`title.<itemname>.text`).
-
-In the Game Tutorial, the dummy is chosen in this order:
-1. `TutorialDummy`;
-2. the character picked on the select screen, if there was one;
-3. otherwise, a mirror of P1.
-
-A blank `TutorialStage` is the engine's pick when there is no select screen.
-
-Exit returns to the main menu, and Character Change returns to the lesson list. The next lesson can need a different P1, whether you reach it from the Lesson List, Next/Previous Lesson or Auto-Advance. When it does, the match reloads with that character. For the same reason, Speedrun Mode is off in a Game Tutorial whose lessons don't all share one P1.
-
-## Package contents
+### Package contents
 Everything below is in `external/mods/dojo/`.
 
 | File | What it is |
@@ -116,116 +77,53 @@ Everything below is in `external/mods/dojo/`.
 | `gametutorial.def` | Sample game-wide lessons, in two chapters (Movement and Defence), that work with any MUGEN-standard character. |
 | `dojo.snd`, `dojo.air` (not included) | Optional. Drop them beside `dojo.lua` and the modes' sounds and animations come from them instead of the screenpack. |
 
-## Upgrading
-The Dojo replaces both Trials Mode and the standalone Tutorial Mode module. **Delete `external/mods/trials/` and `external/mods/tutorial/` before installing it**: left in place, they register the same menu items and pause menus and break the Dojo. It prints a warning at startup if it finds either one.
-
-**From Trials Mode 1.x**
-
-See [MIGRATION.md](MIGRATION.md) for a step-by-step guide. In short:
-
-- Your characters' `trials.def` files, `save/trials.json`, the `TrialsStage` setting and the `Trials.*` preferences all carry over unchanged. `TrialsChar` is now `TrialsDummy`; the old name is still read.
-- A screenpack `system.def` that lists `menu.itemname.trials` keeps working.
-- Move your `config.ini` preferences across: the keys keep their names (except `TrialsChar`, above).
-- A customised `trialsmode.def` keeps working: rename it `dojo.def`. With no `[Dojo]` section, its `[Trials Mode]` is used as the look of every mode. Its key names are all still read, though the shipped file now uses mode-neutral ones (see [dojo.def: the look](#dojodef-the-look)).
-- A screenpack's own `[Trials Pause Menu]` that uses the old itemnames (`trialslist`, `trialsopts`, `trialadvancement`, `trialslayout`, `nexttrial`, ...) keeps working too: the shipped section still uses them, plus `trials*` names for the new rows (see [The pause menus](#the-pause-menus)). Replace your `+system.def` to pick up the new items.
-- Trials gain every tutorial feature. They also follow the tutorials' parsing rules:
-  - **Keys must be written in full.** Trials used to accept any line that contained the key's name.
-  - **A language suffix always wins.** The suffixed version of a step's text now always beats the plain one.
-  - **All `validforvarvalpairs` pairs are checked.** Trials could ignore all but the first.
-  - **A hit step can follow a step that doesn't hit.** Before, such a step reset to step 1 straight away, so "dash, then attack" couldn't be cleared. Combos that drop reset exactly as before.
-  - **`guardmode` gains two values:** `afterhit` and `random`.
-
-**From the standalone Tutorial Mode module**
-- Move your settings from `external/mods/tutorial/config.ini` into the Dojo's `config.ini`. The tutorial keys keep their names: `TutorialDummy`, `TutorialPlayerChar`, `TutorialStage`, `SystemTutorial`, `RecordDemo` and `Tutorial.*`.
-- Point `SystemTutorial` at the files' new location, for example `external/mods/dojo/gametutorial.def`.
-- `save/tutorial.json`, characters' `tutorial = ...` lines and `[Tutorial Pause Menu]` overrides carry over unchanged.
-- A screenpack that lists `tutorialgame`, `tutorialchars` or `tutorial` keeps working. The Dojo's names are `systemtutorial`, `characterguides` and `combinedtutorial`; the old ones are still read, for `title.<itemname>.text` too.
-- `tutorialmode.def` and `tutorial.sff` are gone; every mode now uses `dojo.def` and `dojo.sff`. If you customised `tutorialmode.def`, copy the keys you changed into the `[Tutorial Mode]` section at the end of `dojo.def`. Both spellings of the key names are read there, so they can be pasted unchanged.
-
-## Writing trials and lessons
+### Upgrading
+See [MIGRATION.md](MIGRATION.md) for a step-by-step guide if you are upgrading from a legacy version of the Ikemen GO Trials Mode.
 
 ### Where content comes from
-**Trials** live in a file the character's def points to. In the character's `.def`, under `[Files]`, add:
+**Trials** live in a file the character's `.def` points to, same for **Character Guides**.
 
 ```
 [Files]
-trials = trials.def        ; Trials
+trials = trials.def
+tutorial = tutorial.def
 ```
-
-**Character Guides** work the same way, with their own key:
-
-```
-[Files]
-tutorial = tutorial.def    ; Character Guides
-```
-
-A character can have both. The two files are read by the same parser, so either key may point at a file written either way.
-
-**Game-wide lessons** live in files listed in `config.ini`:
+**Game-wide Tutorial** are defined in a file identified in `config.ini`:
 
 ```ini
 [Config]
-SystemTutorial = external/mods/dojo/gametutorial.def, data/my_screenpack_lessons.def
+SystemTutorial = external/mods/dojo/gametutorial.def
 ```
 
-These are lessons about the game, not about one character. They make up the Game Tutorial, and the Combined Tutorial (`combinedtutorial`) offers them to every character ahead of its own.
+## Trial and Tutorial Definition Files
+Trials and Tutorial definition files are very similar. 
+A trial is introduced by specifying `[TrialDef, <name>]` while a tutorial lesson is introduced by specifying `[Lesson, <name>]`. 
+After a trial or tutorial lesson is introduced this way, it is followed by a set of parameters that allow the engine to display and monitor all of the information that it should.
+A variety of parameters are avialable to you as a creator to define the different trials or lessons, the steps that make up the trial or lesson, and so on.
+In this section, we'll briefly look at all of the parameters available to you as an author.
 
-`chars` limits a game-wide lesson to some characters, which makes it character content. It then leaves the Game Tutorial and moves to the Character Guides of the characters it names. Game-wide lessons are never part of Trials.
+Trials and tutorial definition files share the same parameters, but you'll probably want to lay them out differently, and certain parameters only make sense for one mode or another.
+This section enumerates all of the different parameters available to you as an author.
 
-On the select screen, a character with nothing to play in the current mode is greyed out.
-
-### File layout
-Every file is written the same way, whichever mode it is for:
-
-```
-[Tutorial]                        ; optional: settings for this whole file
-tutorial.gated = true
-
-[Chapter, Movement]               ; optional: declares a chapter and its subtitle
-chapter.text = Getting around the stage.
-
-[TrialDef, Dashing]               ; one trial or lesson; the name after the comma is its title
-trial.chapter = Movement
-trial.page.1.text = Tap forward twice to dash.
-trialstep.1.text = Forward Dash
-trialstep.1.glyphs = _F_F
-trialstep.1.stateno = 100
-trialstep.1.hitcount = 0
-```
-
-- **Two spellings.** `[TrialDef, ...]`, `trial.*` and `trialstep.*` are the same as `[Lesson, ...]`, `lesson.*` and `lessonstep.*`. Use whichever reads better; the tables below give the parameter names without the prefix.
-- **Order.** Trials and lessons are listed in the order they appear in the file. One with no name after the comma is called "Trial N" (Trials) or "Lesson N" (tutorials).
-- **Keys.** Keys are case-insensitive and must be written in full. An unknown key or section prints a warning to the console, with the file and line number.
-- **Comments.** `;` starts a comment.
-- **Languages.** Text keys can take a language suffix (`trial.textbox.es`, `trialstep.1.text.ja`). The module uses the language set in Ikemen's options, then `.en`, then the key with no suffix.
-
-**`[Tutorial]` parameters**
+### General Trial or Tutorial Parameter
+Set these parameters to better organize your trials or parameters, or to force specific characters or dummies to be used for your System Tutorial lesson.
 
 | Parameter | Format | Default | Description |
 |---|---|---|---|
-| `tutorial.gated` | `true` / `false` | `false` | Opens this file's entries one at a time. Each is locked until the one before it, from the same file, has been cleared. Locked entries are shown but can't be picked. |
+| `chapter` | text | — | The chapter it belongs to. Whenever any entry names a chapter, the list is filtered by chapter. Entries without a chapter go under "Other". Useful to group trials or tutorials together in "Chapters". Chapters would be things like Movement, Offense, Defense, or Combos. |
+| `difficulty` | `Beginner`, `Intermediate`, `Advanced`, `Expert` | — | Shown on its row. When no entry in the list names a chapter, the list is filtered by difficulty instead. An unknown value is ignored, with a warning. Think of this as an orthogonal component to Chapters - you could have "Beginner" and "Expert" difficulty tutorials all in a Movement chapter. |
+| `playerchar` | character, as `select.def` lists it | `TutorialPlayerChar` | **Game-wide lessons only:** the character P1 plays it with in the Game Tutorial. Ignored elsewhere, where P1 is whoever was picked. This would be useful if you want to demonstrate a specific gameplay mechanic with a specific character. |
+| `dummychar` | character, as `select.def` lists it | `TutorialDummy` | **Game-wide lessons only:** the dummy (P2) it's played against in the Game Tutorial. When the next lesson needs a different dummy, the match reloads with it. Ignored elsewhere, with a warning. similar as above, but forcing a dummy character in your System Tutorial. For instance, maybe you can to force Ryu as a dummy to throw fireballs for a parry tutorial. |
+| `showforchars` | comma-separated list | everyone | **Game-wide lessons only:** the characters it's offered to. Each entry is matched, case-insensitively, against the character's display name, folder, def file name and def path. You can use this if you want only certain characters in your roster to have access to a systems tutorial, but you probably won't really use this option often. For example: `kfm, chars/ryu/ryu.def`. |
 
-**`[Chapter, <name>]` parameters**
-
-| Parameter | Format | Description |
-|---|---|---|
-| `chapter.text` | multilingual text | A subtitle for the chapter. |
-
-A chapter doesn't have to be declared: `chapter = Combos` creates one called "Combos". Declare it to give it a subtitle, or to fix its display name.
-
-### Trial and lesson parameters
-Set once per trial or lesson, written `trial.<parameter>` or `lesson.<parameter>`.
-
-**What it is**
-
-| Parameter | Format | Default | Description |
-|---|---|---|---|
-| `chapter` | text | — | The chapter it belongs to. Whenever any entry names a chapter, the list is filtered by chapter. Entries without a chapter go under "Other". |
-| `difficulty` | `Beginner`, `Intermediate`, `Advanced`, `Expert` | — | Shown on its row. When no entry in the list names a chapter, the list is filtered by difficulty instead. An unknown value is ignored, with a warning. |
-| `chars` | comma-separated list | everyone | Game-wide lessons only: the characters it's offered to. Each entry is matched, case-insensitively, against the character's display name, folder, def file name and def path. For example: `kfm, chars/ryu/ryu.def`. |
-| `playerchar` | character, as `select.def` lists it | `TutorialPlayerChar` | Game-wide lessons only: the character P1 plays it with in the Game Tutorial. Ignored elsewhere, where P1 is whoever was picked. |
-
-**Teaching**
+### Trial or Tutorial Teaching Aid Parameters
+A variety of features have been introduced to facilitate helping aids for the player.
+These include **Pages**, **Hints**, **Textboxes**, **Repeat** and **Demos**.
+- **Pages**: think of instruction pages that can be shown to the player when introducing a lesson. If a trial or lesson has any number of `page` parameters specified, the player has to clear the page(s) before attempting or viewing the trial or tutorial.
+- **Hints**: if specified, will be be shown to the player after a certain number of failed attempts.
+- **Textbox**: if specified, shown on-screen as the player attempts the trial or tutorial.
+- **Repeat**: if specified, the trial or tutorial must be successfully cleared that number of times.
+- **Demo**: if a `demoscript` is specified, it can be triggered to player after a certrain number of failures, it can be triggered from the pause menu, or if the trial / tutorial is set to `demonstrationonly` it can play automatically.
 
 | Parameter | Format | Default | Description |
 |---|---|---|---|
@@ -235,22 +133,25 @@ Set once per trial or lesson, written `trial.<parameter>` or `lesson.<parameter>
 | `page.N.portrait.anim` | action number | `instructions.portrait.anim` | An action to show as page N's portrait instead. Setting either `spr` or `anim` on a page replaces both defaults. |
 | `page.N.portrait.source` | `system`, `char` | `instructions.portrait.source` | Where page N's portrait comes from: the module's own sprites and actions, or P1's own `.sff` and `.air`. |
 | `page.N.snd` | group, number | `instructions.page.snd` | A sound played when page N is shown. `-1` plays nothing. |
-| `textbox` | multilingual text | — | A short note shown beside the steps while it's played. The Textboxes option hides it. |
 | `hint` | multilingual text | — | Help shown once the player has failed it `hintafter` times. |
 | `hintafter` | whole number | `0` | How many failures before the hint appears. `0` shows it from the start. |
+| `textbox` | multilingual text | — | A short note shown beside the steps while it's played. The Textboxes option hides it. |
 | `repeat` | whole number | `1` | How many times it must be cleared before it counts. A counter shows the clears made. |
 | `demoscript` | [input script](#input-scripts-demos-and-dummy-routines) | — | What the CPU does when the player picks Watch Demo. |
 | `demoafter` | whole number | `0` | How many failures before the player is pointed at Watch Demo. `0` never prompts; Watch Demo is still in the pause menu if the screenpack lists it. |
 
 A **failure** is an attempt that got partway and was dropped, such as a combo that ends early. In a blocking lesson, being hit instead of blocking is also a failure. Standing around doesn't count.
 
-**The dummy**
+### Dummy Actions and Modes
+Often, we want the dummy to simply stand there and get hit - no need to specific anything!
+But in other cases, we want the dummy to perform specific actions, or perhaps even perform a complex series of actions.
+The Dojo Module supports a ton of options to customize your dummy actions.
 
 | Parameter | Format | Default | Description |
 |---|---|---|---|
 | `dummymode` | `stand`, `crouch`, `jump`, `wjump`, `fjump`, `bjump`, `fwjump`, `bwjump` | `stand` | What the dummy does. `fjump`/`bjump` jump forward/back relative to the way the dummy faces; the `w` modes add an air jump. |
 | `guardmode` | `none`, `auto`, `afterhit`, `random` | `none` | `auto` blocks everything. `afterhit` blocks for a moment after being hit, so a combo can be started but not continued. `random` blocks about half the time. `all` is a synonym for `auto`. |
-| `dummybuttonjam` | `none`, `a`, `b`, `c`, `x`, `y`, `z`, `s` (or `start`), `d`, `w` | `none` | A button the dummy presses over and over. With a jump `dummymode` it's pressed once per jump, after takeoff (a jump attack). |
+| `dummybuttonjam` | `none`, `a`, `b`, `c`, `x`, `y`, `z`, `s` (or `start`), `d`, `w` | `none` | A button the dummy presses over and over. With a jump `dummymode` it's pressed once per jump, after takeoff (a jump attack), instead of just spamming the attack. |
 | `dummybuttondelay` | whole number (frames) | `11` (`0` with a jump mode) | Frames between presses of `dummybuttonjam`. With a jump mode, it's instead the frames after takeoff before the press. |
 | `dummyjumpdelay` | whole number (frames) | `0` | Frames the dummy waits on the ground between jumps. The air jump of the `w` modes isn't delayed. |
 | `dummyscript` | [input script](#input-scripts-demos-and-dummy-routines) | — | A scripted routine for the dummy, for attacks a button jam can't express (mixups, specials, throws). While it plays, `dummymode`, `dummybuttonjam` and the distance keeping are off; `guardmode` still works. |
@@ -260,20 +161,26 @@ A **failure** is an attempt that got partway and was dropped, such as a combo th
 | `dummypos` / `playerpos` | `left-corner`, `right-corner`, `far`, `medium`, `close` | centre stage | Where each side starts. The player can return both sides to these positions at any time with d+w. A dummy placed `close`, `medium` or `far` that has something to do (a jump mode or a button jam) walks back to that distance between actions. |
 | `dummyposoffset` / `playerposoffset` | `x, y` | `0, 0` | A nudge from the position above. |
 
-**Showing it only some of the time**
+### Trial or Tutorial Filtering
+Several or Mugen's and Ikemen's most exciting characters do some time of mode selection when entering the fight, like a Groove or ISM select.
+Because these modes often alter gameplay mechanics, not all trials or tutorials are valid for all modes.
+Character modes are almost always detectable by monitoring pairs of variables and values.
+Therefore, you can choose to show a trial or tutorial only when a specific variable/value pair condition is met using this parameter.
 
 | Parameter | Format | Description |
 |---|---|---|
 | `showforvarvalpairs` | `var, value[, var, value...]` | Shows it only while each of the player's listed variables holds its value. Use this for grooves, modes or stances. A value can list alternatives with `\|`: `12, 0\|2\|4` shows it when var(12) is 0, 2 or 4. `showvarvalpairs` is accepted too. |
 
 ### Step parameters
-Each trial or lesson is a sequence of steps, written `trialstep.N.<parameter>` or `lessonstep.N.<parameter>`, with N counting from 1. Steps may be written in any order in the file. A missing number is reported, and the steps after it move up.
+Each trial or lesson is a sequence of steps, written `step.N.<parameter>`, with N counting from 1. 
+Steps may be written in any order in the file. 
+A missing number is reported in the debug flow, and the steps after it move up.
 
 | Parameter | Format | Default | Description |
 |---|---|---|---|
-| `text` | multilingual text | — | The step's description (vertical layout). |
+| `text` | multilingual text | — | The step's description (only shown in vertical layout). |
 | `glyphs` | [glyph string](https://github.com/ikemen-engine/Ikemen-GO/wiki/Miscellaneous-info#movelists) | — | The input, drawn as glyphs (both layouts). |
-| `stateno` | number(s) | — | The state the player (or helper) must be in. For a projectile step, the state the projectile was fired from. |
+| `stateno` | number(s) | — | **MANDATORY** - The state the player (or helper) must be in when other conditions are met (hit or otherwise, see below) in order to pass this step. For a projectile step, the state the projectile was fired from. |
 | `animno` | number(s) | — | The animation the player (or helper, or projectile) must be in. |
 | `hitcount` | number(s) | `1` | Hits needed. `0` passes on entering the state with no hit at all, for movement, taunts, or moves that don't connect. On a [blocking step](#blocking-blocked-moves-and-the-dummys-state), it's the number of blocks needed. |
 | `isthrow` | `true` / `false` | `false` | The step is a throw. |
@@ -281,45 +188,48 @@ Each trial or lesson is a sequence of steps, written `trialstep.N.<parameter>` o
 | `ishelper` | `true` / `false` | `false` | The hit comes from a helper. |
 | `isproj` | `true` / `false` | `false` | The hit comes from a projectile (not needed with `projid`). |
 | `projid` | number(s) | — | The projectile's ID (its `Projectile` sctrl's `ProjID`). The step passes when that projectile hits. |
-| `guard` | `any`, `high`, `low`, `air` | — | The player must **block** an attack: standing, crouching, in the air, or any of them. |
-| `isguarded` | `true` / `false` | `false` | The player's move (from `stateno` / `animno`) must be **blocked** by the dummy. |
-| `p2stateno` | number(s) | — | The dummy's state. On its own, the step passes when the dummy enters it; on a hit step, the hit only counts while the dummy is in it. |
+| `isguarded` | `true` / `false` | `false` | The player's move (from `stateno` / `animno`) must be **blocked** by the dummy. If a trial has consecutive steps with `isguarded = true` then those steps must constitute a true blockstring to pass, unless `validfortickcount` is set (see below). |
 | `validforvarvalpairs` | `var, value[, ...]` | — | The step only counts while each of the player's listed variables holds its value. |
-| `validfortickcount` | number(s) | — | After this step passes, frames during which the combo counter may drop to 0 without resetting, as long as the next hit lands inside them. Use it for links and other moves the combo counter doesn't join up. |
-| `iconanim`, `iconanimoffset`, `iconanimscale`, `iconanimwindow` | numbers | portrait sprite | The portrait shown in the textbox while this step is current. |
+| `validfortickcount` | number(s) | — | After this step passes, frames during which the combo counter may drop to 0 without resetting, as long as the next hit lands inside them. Use it for links and other moves the combo counter doesn't join up. If the window runs out before the next step passes, the attempt resets and counts as a failure: always when the next step is a `guard`, `isguarded` or `p2stateno` step, and otherwise once no combo is still running. Blocking and blocked steps can open a window too. |
+| `guard` | `any`, `high`, `low`, `air` | — | The player must **block** an attack: standing, crouching, in the air, or any of them. Useful for tutorials. |
+| `p2stateno` | number(s) | — | The dummy's state. On its own, the step passes when the dummy enters it; on a hit step, the hit only counts while the dummy is in it. Rarely used. |
 
-### Condensed steps and the `|` operator
-Separate values with commas to fold several moves into one step. Each one has to be met in turn before the step passes:
+#### Condensed Steps and the `|` Operator
+Separate values with commas to fold several moves into one step. 
+Each one has to be met in turn before the step passes:
 
 ```
-trialstep.1.text = Standing Light to Strong Punch
-trialstep.1.glyphs = ^X_-^Y
-trialstep.1.stateno = 200, 210
-trialstep.1.hitcount = 1, 1
+step.1.text = Standing Light to Strong Punch
+step.1.glyphs = ^X_-^Y
+step.1.stateno = 200, 210
+step.1.hitcount = 1, 1
 ```
 
-When one parameter of a step is condensed, give every other condensed-capable parameter on that step the same number of entries. That is every parameter except `text` and `glyphs`.
+When one parameter of a step is condensed, give every other condensed-capable parameter on that step the same number of entries. 
+The only exceptions to this rule are the `text` and `glyphs` which only need to be specified once per step.
 
 Use `|` to accept any of several values in one place, for example any strength of a special:
 
 ```
-trialstep.1.stateno = 1000|1010|1020
+step.1.stateno = 1000|1010|1020
 ```
 
-### Blocking, blocked moves and the dummy's state
+#### Blocking, blocked moves and the Dummy's State
 `guard`, `isguarded` and `p2stateno` steps are judged on what happens, not on the combo counter, so they work where nothing ever hits.
+Here is an example of a lesson teaching the player how to block low - notice that the
 
 ```
 [Lesson, Block Low]
-lesson.dummymode = crouch
-lesson.dummybuttonjam = a
-lesson.repeat = 3
-lessonstep.1.text = Block the crouching attack
-lessonstep.1.guard = low
+dummymode = crouch
+dummybuttonjam = a
+repeat = 3
+step.1.text = Block the crouching attack
+step.1.guard = low
 ```
 
 - **`guard`** passes when the player blocks: `high` is a standing block, `low` a crouching block, `air` an air block. `hitcount` sets how many blocks are needed. Being hit instead resets the attempt and counts as a failure. Blocks are read from the common guard-hit states 150–155.
-- **`isguarded`** passes when the player's own move is blocked. Use it to teach pressure that's safe on block, with `guardmode = auto` so the dummy blocks.
+- **`isguarded`** passes when the player's own move is blocked. Use it to teach pressure that's safe on block, with `guardmode = auto` so the dummy blocks. `hitcount` sets how many blocked hits are needed. With `projid`, the step passes when one of those projectiles is blocked, and `stateno` is the state it was fired from. Only projectiles fired by the character itself count, not by its helpers.
+- **Blockstrings.** Two or more `isguarded` steps in a row (or comma-separated parts of one step) must be a true blockstring: each block has to land while the dummy is still in blockstun from the one before (guard-hit states 150–155). If the dummy recovers in between, the attempt resets and counts as a failure.
 - **`p2stateno`** on its own passes when the dummy enters one of the listed states, for example `5100` (knocked down). On a hit step, the hit only counts while the dummy is in that state.
 
 A step that hits can follow one of these steps, or any other step that doesn't hit, such as block then punish, or dash then attack. A combo that drops still sends the player back to the first step.
@@ -328,8 +238,8 @@ A step that hits can follow one of these steps, or any other step that doesn't h
 `demoscript` (what the CPU does for Watch Demo) and `dummyscript` (the dummy's routine) use the same notation: comma-separated `frames:inputs`.
 
 ```
-trial.demoscript = 6:D, 3:D+F, 3:F+x, 40:_   ; quarter circle forward + x, then wait
-trial.dummyscript = 50:_, 1:x, 50:_, 6:D, 1:D+a, 6:D
+demoscript = 6:D, 3:D+F, 3:F+x, 40:_   ; quarter circle forward + x, then wait
+dummyscript = 50:_, 1:x, 50:_, 6:D, 1:D+a, 6:D
 ```
 
 - **Frames** is how long the inputs are held. Leave it off (`D+F`) for a single frame.
@@ -347,10 +257,10 @@ Writing a demo by hand is fiddly, so the module can record one for you, in any m
 1. Set `RecordDemo = true` in `config.ini`. A **Record Demo** item appears in the pause menu.
 2. Pick it and perform the trial or lesson. Recording starts with your first input, so you don't need to time the pause, and the press that closed the menu isn't included.
 3. The take ends by itself on a clear, or pause to end it early.
-4. The console prints a ready-made line, which is also written to `save/tutorial_demo.txt`:
+4. The console prints a ready-made line, which is also written to `save/dojo_demo.txt`:
 
 ```
-lesson.demoscript = 3:D, 2:D+F, 2:F+x, 1:_
+demoscript = 3:D, 2:D+F, 2:F+x, 1:_
 ```
 
 Set `RecordDemo` back to `false` before you ship.
@@ -398,145 +308,150 @@ A sample `trials.def` for `kfm_zss`, referenced from its def with `trials = tria
 
 ```
 [TrialDef, KFM's First Trial]
-trial.difficulty = Beginner
-trial.dummymode = stand
-trial.guardmode = none
-trial.dummybuttonjam = none
-; trial.textbox = This is KFM's first trial. Good luck!
+difficulty = Beginner
+dummymode = stand
+guardmode = none
+dummybuttonjam = none
+; textbox = This is KFM's first trial. Good luck!
 
-trialstep.1.text = Strong Kung Fu Palm
-trialstep.1.glyphs = _QDF^Y
-trialstep.1.stateno = 1010
+step.1.text = Strong Kung Fu Palm
+step.1.glyphs = _QDF^Y
+step.1.stateno = 1010
 
 ;---------------------------------------------
 
 [TrialDef, Kung Fu Throw]
-trialstep.1.text = Kung Fu Throw
-trialstep.1.glyphs = [_B/_F]_+^Y
-trialstep.1.stateno = 810
-trialstep.1.isthrow = true
+step.1.text = Kung Fu Throw
+step.1.glyphs = [_B/_F]_+^Y
+step.1.stateno = 810
+step.1.isthrow = true
 
 ;---------------------------------------------
 
 [TrialDef, Kung Fu Taunt]
-trial.textbox.en = This is an English textbox!
-trial.textbox.es = Este es un cuadro de texto en español.
+textbox.en = This is an English textbox!
+textbox.es = Este es un cuadro de texto en español.
 
-trialstep.1.text.en = Kung Fu Taunt
-trialstep.1.text.es = Kung Fu Pulla
-trialstep.1.glyphs = ^S
-trialstep.1.stateno = 195
-trialstep.1.hitcount = 0
+step.1.text.en = Kung Fu Taunt
+step.1.text.es = Kung Fu Pulla
+step.1.glyphs = ^S
+step.1.stateno = 195
+step.1.hitcount = 0
 
 ;---------------------------------------------
 
 [TrialDef, Condensed Standing Punch Chain]
 ; A condensed step: both moves must be met, in turn, before the step passes.
-trialstep.1.text = Standing Light to Strong Punch Chain
-trialstep.1.glyphs = ^X_-^Y
-trialstep.1.stateno = 200, 210
-trialstep.1.hitcount = 1, 1
+step.1.text = Standing Light to Strong Punch Chain
+step.1.glyphs = ^X_-^Y
+step.1.stateno = 200, 210
+step.1.hitcount = 1, 1
 
 ;---------------------------------------------
 
 [TrialDef, KFM Kung Fu Palm]
 ; The | operator: either strength passes.
-trialstep.1.text = Kung Fu Palm
-trialstep.1.glyphs = _QDF^P
-trialstep.1.stateno = 1000|1010
+step.1.text = Kung Fu Palm
+step.1.glyphs = _QDF^P
+step.1.stateno = 1000|1010
 
 ;---------------------------------------------
 
 [TrialDef, Kung Fu Juggle Combo]
 ; The dummy starts in the right corner; d+w puts both sides back.
-trial.dummypos = right-corner
-trial.page.1.text = Juggle the dummy in the corner. Start with the Kung Fu Knee.
-trial.hint = Cancel the crouching jab into the palm as soon as it hits.
-trial.hintafter = 3
+dummypos = right-corner
+page.1.text = Juggle the dummy in the corner. Start with the Kung Fu Knee.
+hint = Cancel the crouching jab into the palm as soon as it hits.
+hintafter = 3
 
-trialstep.1.text = Kung Fu Knee and Extra Kick
-trialstep.1.glyphs = _F_F_+^K_.^K
-trialstep.1.stateno = 1060, 1055
+step.1.text = Kung Fu Knee and Extra Kick
+step.1.glyphs = _F_F_+^K_.^K
+step.1.stateno = 1060, 1055
 
-trialstep.2.text = Crouching Jab
-trialstep.2.glyphs = _D_+^X
-trialstep.2.stateno = 400
+step.2.text = Crouching Jab
+step.2.glyphs = _D_+^X
+step.2.stateno = 400
 
-trialstep.3.text = Weak Kung Fu Palm
-trialstep.3.glyphs = _QCF_+^X
-trialstep.3.stateno = 1000
+step.3.text = Weak Kung Fu Palm
+step.3.glyphs = _QCF_+^X
+step.3.stateno = 1000
 
 ;---------------------------------------------
 
 [TrialDef, Kung Fu Super Cancel]
-trial.difficulty = Advanced
-trialstep.1.text = Jumping Strong Kick
-trialstep.1.glyphs = _AIR^B
-trialstep.1.stateno = 640
+difficulty = Advanced
 
-trialstep.2.text = Standing Kick Chain
-trialstep.2.glyphs = ^A_-^B
-trialstep.2.stateno = 230, 240
+step.1.text = Jumping Strong Kick
+step.1.glyphs = _AIR^B
+step.1.stateno = 640
 
-trialstep.3.text = Fast Kung Fu Zankou
-trialstep.3.glyphs = _QDF^A^B
-trialstep.3.stateno = 1420
+step.2.text = Standing Kick Chain
+step.2.glyphs = ^A_-^B
+step.2.stateno = 230, 240
 
-trialstep.4.text = Triple Kung Fu Palm
-trialstep.4.glyphs = _QDF_QDF^P
-trialstep.4.stateno = 3000
-trialstep.4.hitcount = 3
+step.3.text = Fast Kung Fu Zankou
+step.3.glyphs = _QDF^A^B
+step.3.stateno = 1420
+
+step.4.text = Triple Kung Fu Palm
+step.4.glyphs = _QDF_QDF^P
+step.4.stateno = 3000
+step.4.hitcount = 3
 ```
 
 ### Example: a character lesson file
 ```
 ; chars/kfm/tutorial.def - referenced from kfm.def with: tutorial = tutorial.def
 
-[Chapter, Basics]
-chapter.text = Kung Fu Man's tools.
-
-[Chapter, Combos]
-
 [Lesson, Kung Fu Palm]
-lesson.chapter = Basics
-lesson.difficulty = Beginner
-lesson.page.1.title = Kung Fu Palm
-lesson.page.1.text = Kung Fu Man's main special. It travels forward and knocks the opponent away.\nLight is fast; strong reaches further.
-lesson.repeat = 3
-lesson.hint = Quarter circle forward: down, down-forward, forward - then punch.
-lesson.hintafter = 2
-lesson.demoscript = 4:D, 3:D+F, 3:F, 1:F+x, 40:_
-lesson.demoafter = 3
-lessonstep.1.text = Kung Fu Palm (any strength)
-lessonstep.1.glyphs = _QCF^P
-lessonstep.1.stateno = 1000|1010
+chapter = Basics
+difficulty = Beginner
+repeat = 3
+
+page.1.title = Kung Fu Palm
+page.1.text = Kung Fu Man's main special. It travels forward and knocks the opponent away.\nLight is fast; strong reaches further.
+
+hint = Quarter circle forward: down, down-forward, forward - then punch.
+hintafter = 2
+
+demoscript = 4:D, 3:D+F, 3:F, 1:F+x, 40:_
+demoafter = 3
+
+step.1.text = Kung Fu Palm (any strength)
+step.1.glyphs = _QCF^P
+step.1.stateno = 1000|1010
 
 [Lesson, Punish a Block]
-lesson.chapter = Basics
-lesson.page.1.text = When an attack is blocked, the attacker is open for a moment. Block the dummy's kick, then hit back before it recovers.
-lesson.dummypos = close
-lesson.dummybuttonjam = b
-lesson.dummybuttondelay = 60
-lessonstep.1.text = Block the kick
-lessonstep.1.glyphs = _B
-lessonstep.1.guard = high
-lessonstep.2.text = Punish with a crouching jab
-lessonstep.2.glyphs = _D_+^X
-lessonstep.2.stateno = 400
+chapter = Basics
+dummypos = close
+dummybuttonjam = b
+dummybuttondelay = 60
+
+page.1.text = When an attack is blocked, the attacker is open for a moment. Block the dummy's kick, then hit back before it recovers.
+
+step.1.text = Block the kick
+step.1.glyphs = _B
+step.1.guard = high
+step.2.text = Punish with a crouching jab
+step.2.glyphs = _D_+^X
+step.2.stateno = 400
 
 [Lesson, Kung Fu Juggle]
-lesson.chapter = Combos
-lesson.difficulty = Intermediate
-lesson.dummypos = right-corner
-lessonstep.1.text = Kung Fu Knee, Extra Kick
-lessonstep.1.glyphs = _F_F_+^K_.^K
-lessonstep.1.stateno = 1060, 1055
-lessonstep.2.text = Crouching Jab
-lessonstep.2.glyphs = _D_+^X
-lessonstep.2.stateno = 400
-lessonstep.3.text = Light Kung Fu Palm
-lessonstep.3.glyphs = _QCF_+^X
-lessonstep.3.stateno = 1000
+chapter = Combos
+difficulty = Intermediate
+dummypos = right-corner
+
+step.1.text = Kung Fu Knee, Extra Kick
+step.1.glyphs = _F_F_+^K_.^K
+step.1.stateno = 1060, 1055
+
+step.2.text = Crouching Jab
+step.2.glyphs = _D_+^X
+step.2.stateno = 400
+
+step.3.text = Light Kung Fu Palm
+step.3.glyphs = _QCF_+^X
+step.3.stateno = 1000
 ```
 
 `gametutorial.def` is a fuller example of game-wide lessons, with pages, repeats, hints, demos, blocking steps and a scripted dummy mixup.
@@ -643,7 +558,7 @@ Each mode family has its own save file, written the moment something is cleared:
 |---|---|---|
 | `TrialsDummy` | Trials | A character always loaded as the dummy (P2). Blank: picked on the select screen. Formerly `TrialsChar`, which is still read. |
 | `TrialsStage` | Trials | A stage always used (e.g. `stages/stage0.def`), even over a dummy's `stage` parameter in `select.def`. Blank: picked on the select screen. |
-| `TutorialDummy` | tutorials | The dummy (P2). Blank: picked on the select screen, or a mirror of P1 in a Game Tutorial without one. Formerly `TutorialChar`, which is still read. |
+| `TutorialDummy` | tutorials | The dummy (P2). Blank: picked on the select screen, or a mirror of P1 in a Game Tutorial without one. A game-wide lesson can override it with `dummychar`. Formerly `TutorialChar`, which is still read. |
 | `TutorialPlayerChar` | Game Tutorial | The character P1 plays the game-wide lessons with. A lesson can override it with `playerchar`. Ships as `kfm_zss`, so the Game Tutorial opens straight on its lesson list. Blank, or a character that can't be loaded: picked on the select screen before the lesson list. |
 | `TutorialStage` | tutorials | A stage always used. Blank: picked on the select screen. |
 | `SystemTutorial` | tutorials | Game-wide lesson files, comma-separated, relative to the Ikemen folder. Blank: character lessons only. |
@@ -651,6 +566,16 @@ Each mode family has its own save file, written the moment something is cleared:
 | `TutorialDemonstrationsOnly` | tutorials | `true` turns every tutorial mode into a walkthrough the player watches rather than plays (see [Demonstrations only](#demonstrations-only)). Default `false`. |
 
 These settings are independent of training mode's `TrainingChar` and `TrainingStage`.
+
+**`[Gating]`** opens a source's files one entry at a time: each entry is locked until the one before it, from the same file, has been cleared. Locked entries are shown but can't be picked. `on` or `off` per source, off when left out:
+
+| Key | Files it applies to |
+|---|---|
+| `Trials` | Character trial files (`trials = trials.def`). |
+| `SystemTutorial` | The game-wide lesson files in `[Config] SystemTutorial`. Shipped `on`. |
+| `CharacterGuides` | Character lesson files (`tutorial = tutorial.def`). |
+
+The Combined Tutorial follows the setting of the file each lesson came from.
 
 **`[Options]`** holds the player preferences: `Advancement`, `Layout`, `ResetOnSuccess`, `Textboxes`, `Hints` and `TotalTimer`, plus `TrialTimer` (Trials) or `LessonTimer` (tutorials). Each is prefixed `Trials.` or `Tutorial.`. The values shipped are the defaults; edit them to set your screenpack's defaults.
 

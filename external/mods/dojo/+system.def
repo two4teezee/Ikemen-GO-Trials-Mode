@@ -79,7 +79,7 @@ menu.valuename.trialsspeedrun_disabled = Off
 menu.valuename.trialsclearprogress_ready =
 menu.valuename.trialsclearprogress_cleared = Cleared
 
-; The list is filtered by chapter when any trial declares trial.chapter, by difficulty otherwise.
+; The list is filtered by chapter when any trial declares a chapter, by difficulty otherwise.
 ; "All" is every trial; "Other" collects the ones that declare neither.
 menu.valuename.trialsdifficulty_all = All
 menu.valuename.trialsdifficulty_beginner = Beginner
@@ -145,7 +145,7 @@ menu.valuename.tutorialclearprogress_ready =
 menu.valuename.tutorialclearprogress_cleared = Cleared
 
 ; Lesson list filter labels.
-; The list is filtered by chapter when any lesson declares lesson.chapter, by difficulty otherwise.
+; The list is filtered by chapter when any lesson declares a chapter, by difficulty otherwise.
 ; "All" is every lesson; "Other" collects the ones that declare neither.
 ; A chapter is shown under its own name; translate or rename one with
 ; menu.valuename.tutorialchapter_<id> (the id is the name in lowercase, e.g. advanced_movement):

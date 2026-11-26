@@ -4,7 +4,7 @@
 -- 
 -- Module developed by two4teezee
 -- -------------------------------------------------------------------------
-if type(tutorial) == 'table' and type(tutorial.f_gameTutorialRun) == 'function'
-	and gameMode('tutorial') and tutorial.track == 'game' then
-	tutorial.f_gameTutorialRun()
+if type(dojo) == 'table' and type(dojo.f_gameTutorialRun) == 'function'
+	and gameMode('tutorial') and dojo.track == 'game' then
+	dojo.f_gameTutorialRun()
 end

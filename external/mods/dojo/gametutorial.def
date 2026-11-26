@@ -1,119 +1,111 @@
 ; -- IKEMEN GO TUTORIAL MODE EXTERNAL MODULE --------------------------------
-; ---- gametutorial/gametutorial.def - sample game-wide lessons.
-; ---- This file is for lessons about the game, not about any one character: a character's own
-; ---- lessons belong in its own tutorial.def. Listed in config.ini's [Config] SystemTutorial, so
-; ---- these lessons make up the Game Tutorial, and in the combined Tutorial Mode they are offered
-; ---- to every character ahead of the character's own.
-; ---- They only use the common states every MUGEN-standard character shares (common1.cns), so
-; ---- they work with any of them:
-; ----    10/11 crouch   20 walk   40 jump start   100 run   105 hop back
-; ---- Blocking is checked with lessonstep.X.guard, which reads the common guard states.
-; ---- The Game Tutorial plays them with config.ini's TutorialPlayerChar; a lesson that needs
-; ---- someone else sets lesson.playerchar.
-; --
+; gametutorial.def - sample game-wide lessons.
+;
+; This file is for lessons about the game, not about any one character: a character's own
+; lessons belong in its own tutorial.def. Listed in config.ini's [Config] SystemTutorial, so
+; these lessons make up the Game Tutorial, and in the combined Tutorial Mode they are offered
+; to every character ahead of the character's own.
+; They only use the common states every MUGEN-standard character shares (common1.cns), so
+; they work with any of them:
+;    10/11 crouch   20 walk   40 jump start   100 run   105 hop back
+; Blocking is checked with step.X.guard, which reads the common guard states.
+; The Game Tutorial plays them with config.ini's TutorialPlayerChar; a lesson that needs
+; someone else sets playerchar.
+; 
 ; -- Module developed by two4teezee
 ; -------------------------------------------------------------------------
 
-[Tutorial]
-; true opens the lessons in this file one at a time: each needs the one before it cleared.
-tutorial.gated = true
-
-;---------------------------------------------
-[Chapter, Movement]
-chapter.text = Getting around the stage.
-
-[Chapter, Defence]
-chapter.text = Blocking high and low.
+; These lessons open one at a time ([Gating] SystemTutorial = on in config.ini).
 
 ;---------------------------------------------
 [Lesson, Walking]
-lesson.chapter = Movement
-lesson.page.1.title = Welcome
-lesson.page.1.text = These lessons cover what every fighter can do.\nEach one starts with a page like this one. Read it, then try what it describes.
-lesson.page.2.title = Walking
-lesson.page.2.text = Hold forward or back to walk. Walking is slow, but you can stop and block at any moment.
+chapter = Movement
+page.1.title = Welcome
+page.1.text = These lessons cover what every fighter can do.\nEach one starts with a page like this one. Read it, then try what it describes.
+page.2.title = Walking
+page.2.text = Hold forward or back to walk. Walking is slow, but you can stop and block at any moment.
 ; Pause and pick Watch Demo to see a lesson done. Input scripts: <frames>:<inputs>, inputs joined
 ; with +, _ for none; F and B follow the way the character faces.
-lesson.demoscript = 30:F, 20:_
-lessonstep.1.text = Walk
-lessonstep.1.glyphs = _F
-lessonstep.1.stateno = 20
-lessonstep.1.hitcount = 0
+demoscript = 30:F, 20:_
+step.1.text = Walk
+step.1.glyphs = _F
+step.1.stateno = 20
+step.1.hitcount = 0
 
 [Lesson, Crouching]
-lesson.chapter = Movement
-lesson.page.1.text = Hold down to crouch. Crouching ducks under some attacks, and it is how you block low.
-lessonstep.1.text = Crouch
-lessonstep.1.glyphs = _D
-lessonstep.1.stateno = 10|11
-lessonstep.1.hitcount = 0
+chapter = Movement
+page.1.text = Hold down to crouch. Crouching ducks under some attacks, and it is how you block low.
+step.1.text = Crouch
+step.1.glyphs = _D
+step.1.stateno = 10|11
+step.1.hitcount = 0
 
 [Lesson, Jumping]
-lesson.chapter = Movement
-lesson.page.1.text = Press up to jump. Up-forward and up-back jump in those directions. Jumping clears low attacks, but you cannot change course in the air.
-lesson.repeat = 3
-lessonstep.1.text = Jump
-lessonstep.1.glyphs = _U
-lessonstep.1.stateno = 40
-lessonstep.1.hitcount = 0
+chapter = Movement
+page.1.text = Press up to jump. Up-forward and up-back jump in those directions. Jumping clears low attacks, but you cannot change course in the air.
+repeat = 3
+step.1.text = Jump
+step.1.glyphs = _U
+step.1.stateno = 40
+step.1.hitcount = 0
 
 [Lesson, Running and Hopping Back]
-lesson.chapter = Movement
-lesson.page.1.text = Tap forward twice to run in, and back twice to hop away. Running closes distance fast; the back hop gets you out of range.
-lesson.hint = Tap the direction twice quickly - don't hold it.
-lesson.hintafter = 0
-lesson.demoscript = 2:F, 2:_, 20:F, 20:_, 2:B, 2:_, 2:B, 30:_
-lesson.demoafter = 2
-lessonstep.1.text = Run
-lessonstep.1.glyphs = _F_F
-lessonstep.1.stateno = 100
-lessonstep.1.hitcount = 0
-lessonstep.2.text = Hop back
-lessonstep.2.glyphs = _B_B
-lessonstep.2.stateno = 105
-lessonstep.2.hitcount = 0
+chapter = Movement
+page.1.text = Tap forward twice to run in, and back twice to hop away. Running closes distance fast; the back hop gets you out of range.
+hint = Tap the direction twice quickly - don't hold it.
+hintafter = 0
+demoscript = 2:F, 2:_, 20:F, 20:_, 2:B, 2:_, 2:B, 30:_
+demoafter = 2
+step.1.text = Run
+step.1.glyphs = _F_F
+step.1.stateno = 100
+step.1.hitcount = 0
+step.2.text = Hop back
+step.2.glyphs = _B_B
+step.2.stateno = 105
+step.2.hitcount = 0
 
-;---------------------------------------------
+
 [Lesson, Standing Guard]
-lesson.chapter = Defence
-lesson.page.1.title = Blocking
-lesson.page.1.text = Hold back - away from your opponent - to block. A standing block stops standing and jumping attacks.\nThe dummy will attack; block it three times.
-lesson.repeat = 3
-lesson.hint = Hold back before the attack arrives, not as it hits.
-lesson.hintafter = 2
-lesson.dummypos = close
-lesson.dummybuttonjam = x
-lesson.dummybuttondelay = 45
-lessonstep.1.text = Block a standing attack
-lessonstep.1.glyphs = _B
-lessonstep.1.guard = high
+chapter = Defence
+page.1.title = Blocking
+page.1.text = Hold back - away from your opponent - to block. A standing block stops standing and jumping attacks.\nThe dummy will attack; block it three times.
+repeat = 3
+hint = Hold back before the attack arrives, not as it hits.
+hintafter = 2
+dummypos = close
+dummybuttonjam = x
+dummybuttondelay = 45
+step.1.text = Block a standing attack
+step.1.glyphs = _B
+step.1.guard = high
 
 [Lesson, Crouching Guard]
-lesson.chapter = Defence
-lesson.page.1.text = Attacks made crouching hit low, and a standing block will not stop them. Hold down-back to block low.
-lesson.repeat = 3
-lesson.hint = Down-back, not just back: low attacks go under a standing block.
-lesson.hintafter = 2
-lesson.dummypos = close
-lesson.dummymode = crouch
-lesson.dummybuttonjam = a
-lesson.dummybuttondelay = 45
-lessonstep.1.text = Block a crouching attack
-lessonstep.1.glyphs = _DB
-lessonstep.1.guard = low
+chapter = Defence
+page.1.text = Attacks made crouching hit low, and a standing block will not stop them. Hold down-back to block low.
+repeat = 3
+hint = Down-back, not just back: low attacks go under a standing block.
+hintafter = 2
+dummypos = close
+dummymode = crouch
+dummybuttonjam = a
+dummybuttondelay = 45
+step.1.text = Block a crouching attack
+step.1.glyphs = _DB
+step.1.guard = low
 
 [Lesson, Mixed Guard]
-lesson.chapter = Defence
-lesson.page.1.text = Now the dummy mixes standing and crouching attacks. Watch for which one is coming and block it the right way: back for standing, down-back for crouching.
-lesson.hint = Hold down-back by default and stand only when you see a standing attack.
-lesson.hintafter = 2
-lesson.dummypos = close
+chapter = Defence
+page.1.text = Now the dummy mixes standing and crouching attacks. Watch for which one is coming and block it the right way: back for standing, down-back for crouching.
+hint = Hold down-back by default and stand only when you see a standing attack.
+hintafter = 2
+dummypos = close
 ; The dummy's own attacks, as an input script on a loop: a standing x, then a crouching a.
-lesson.dummyscript = 50:_, 1:x, 50:_, 6:D, 1:D+a, 6:D
-lesson.dummyscriptloop = true
-lessonstep.1.text = Block the standing attack
-lessonstep.1.glyphs = _B
-lessonstep.1.guard = high
-lessonstep.2.text = Block the crouching attack
-lessonstep.2.glyphs = _DB
-lessonstep.2.guard = low
+dummyscript = 50:_, 1:x, 50:_, 6:D, 1:D+a, 6:D
+dummyscriptloop = true
+step.1.text = Block the standing attack
+step.1.glyphs = _B
+step.1.guard = high
+step.2.text = Block the crouching attack
+step.2.glyphs = _DB
+step.2.guard = low

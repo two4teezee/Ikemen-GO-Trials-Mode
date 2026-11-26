@@ -316,9 +316,9 @@ completedstep.horizontal.glyphs.palfx.color = 0
 ; GLYPHS -------------------------------------------------------------------
 ; GLYPHS options can be specified for both vertical and horizontal layouts simultaneously, for Trials and Tutorial Modes.
 ;
-; glyphs.<layout>.offset: x,y offset from current trialstep position
+; glyphs.<layout>.offset: x,y offset from the current step's position
 ; glyphs.<layout>.scale: x,y scale for glyphs
-; glyphs.<layout>.spacing: x,y spacing from one glyph element to another on the same trialstep
+; glyphs.<layout>.spacing: x,y spacing from one glyph element to another on the same step
 ; glyphs.<layout>.layerno: which trials layer the glyphs sit on. They are the engine's own motif glyph anims, shared with the movelist, so the layer is set explicitly every frame rather than inherited from whatever last used them. Keep it below menu.layerno or glyphs will draw over the Trial select menu.
 ; glyphs.vertical.align: alignment for glyphs (vertical layout only)
 ; glyphs.vertical.scalewithtext: true or false; scales glyphs according to font height - ignores scale parameter when set to true.
@@ -384,7 +384,8 @@ reset.text.text = "Hit d + w to reset position"
 ; textbox.overlay.<options>: draw an overlay behind any other bg, text or front element
 ; textbox.bg.<options>: optional background displayed behind text but over overlay; standard options for background elements, etc.
 ; textbox.front.<options>: optional background displayed in front of text; standard options for background elements, etc.
-; textbox.portrait.<options>: allows a portrait to be drawn with or in the textbox.
+; textbox.portrait.<options>: allows a portrait to be drawn with or in the textbox. One portrait for every
+;   step: spr (group, number), offset, window, facing and scale. Leave spr blank for none.
 ; textbox.portrait.source: "system" | "char" - whether the portrait is drawn from the system.sff or the character's own sff (default: "char")
 ; --------------------------------------------------------------------------
 textbox.visible = true
@@ -491,7 +492,7 @@ allclear.front.displaytime = -1
 allclear.front.layerno = 0
 
 ; INSTRUCTION PAGES --------------------------------------------------------
-; A trial's trial.page.N.title / trial.page.N.text, shown when the trial is entered and again
+; A trial's page.N.title / page.N.text, shown when the trial is entered and again
 ; from the pause menu's Show Instructions. Play is held while they are up. The menu's done key turns
 ; the page (or finishes the typing), its cancel key goes back one.
 ; instructions.pos is the block's centre; everything else is offset from it.
@@ -503,10 +504,10 @@ allclear.front.layerno = 0
 ; instructions.page.text: %s is this page, %t the page count. Not drawn for a single page.
 ; instructions.snd: played when the pages open (dojo.snd if shipped, else system.snd).
 ; instructions.page.snd: played each time a page is shown, the first one included, from the same
-;   place. A page can play its own instead with trial.page.N.snd.
+;   place. A page can play its own instead with page.N.snd.
 ; instructions.portrait.<options>: a portrait drawn with the pages, the way textbox.portrait is drawn
 ;   with the textbox. spr or anim, offset from pos, scale, facing, layerno. A page can show its own
-;   with trial.page.N.portrait.spr / .anim / .source, which replace the spr and anim given here.
+;   with page.N.portrait.spr / .anim / .source, which replace the spr and anim given here.
 ;   source: "system" takes spr and anim from the module's own sprites and actions (see WHERE SPRITES
 ;     AND SOUNDS COME FROM); "char" takes them from P1's own sff and air.
 ;   window: x1,y1,x2,y2 from the portrait's position to clip it to; all zero leaves it unclipped.
@@ -572,7 +573,7 @@ instructions.front.anim = -1
 instructions.front.layerno = 2
 
 ; HINT ---------------------------------------------------------------------
-; A trial's trial.hint, shown once the player has failed it trial.hintafter times (from the
+; A trial's hint, shown once the player has failed it hintafter times (from the
 ; start when hintafter is 0), while the Hints option is on. A failure is an attempt that got
 ; partway and was dropped, or - in a blocking trial - being hit instead of blocking.
 ; hint.text.text: %s is the hint. hint.text.window: x1,y1,x2,y2 from pos to wrap in; all zero
@@ -594,9 +595,9 @@ hint.bg.anim = -1
 hint.bg.layerno = 0
 
 ; DEMONSTRATION -------------------------------------------------------------
-; demo.*: shown while the CPU plays a trial's trial.demoscript (pause menu: Watch Demo). The player's
+; demo.*: shown while the CPU plays a trial's demoscript (pause menu: Watch Demo). The player's
 ;   controller is switched off for it; the menu's done or cancel key ends it early.
-; demoprompt.*: shown once the player has failed a trial trial.demoafter times, pointing them
+; demoprompt.*: shown once the player has failed a trial demoafter times, pointing them
 ;   at Watch Demo. Set demoprompt.text.text to "" to leave it out.
 ; --------------------------------------------------------------------------
 demo.pos = 640,90
@@ -631,7 +632,7 @@ demoonlyprompt.text.text = "Confirm: next lesson    Back: instructions"
 demoonlyprompt.text.last = "Confirm: lesson list    Back: instructions"
 
 ; REPETITION COUNTER -------------------------------------------------------
-; Drawn for trials with trial.repeat above 1. %s is the clears made, %t the clears needed.
+; Drawn for trials with repeat above 1. %s is the clears made, %t the clears needed.
 ; repcounter.snd plays on each clear short of the last (the last gets the success banner).
 ; --------------------------------------------------------------------------
 repcounter.pos = 640,120
@@ -804,7 +805,7 @@ menu.item.active.bg.layerno = 0
 ;   menu.header.<category>.bg.*            its background
 ;
 ; Categories for a row are beginner, intermediate, advanced, expert and other ("other" being the
-; trials whose def declares no trial.difficulty). The banner adds "all", the unfiltered view.
+; trials whose def declares no difficulty). The banner adds "all", the unfiltered view.
 ;
 ; Declare only what differs: anything a category leaves out is inherited from the shared element
 ; it overrides, so a colour change is one line. A category with no block at all is drawn exactly
@@ -858,7 +859,7 @@ menu.status.uncleared.text = "----"
 menu.status.uncleared.font = 1,0,1, 130, 130, 130
 menu.status.uncleared.font.height = -1
 
-; Rows a gated file has not opened yet ([Tutorial] tutorial.gated = true in the file).
+; Rows a gated file has not opened yet ([Gating] in config.ini).
 menu.status.locked.offset = 0,0
 menu.status.locked.spr = 
 menu.status.locked.anim = -1

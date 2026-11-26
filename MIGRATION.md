@@ -163,24 +163,25 @@ Chapter names can be relabelled with `menu.valuename.trialschapter_<id>`, as dif
 Rows that would do nothing for the current trial are hidden automatically. Shipping them in your section costs nothing.
 
 ## 6. Trial authors: what changed in trials.def
-Existing `trials.def` files load as they are, and keep using the `trial.` and `trialstep.` prefixes. Trials now run on the same engine as the tutorials, though, so a few parsing rules are stricter or different:
+Existing `trials.def` files load as they are, `trial.` and `trialstep.` prefixes included. New files can drop the prefixes: inside a `[TrialDef]` section, `trial.hint` is just `hint` and `trialstep.1.text` is `step.1.text`. Trials now run on the same engine as the tutorials, though, so a few parsing rules are stricter or different:
 
 - **Keys must be written in full.** Trials Mode used to accept any line that merely contained a key's name. A misspelt or abbreviated key is now ignored, so check the console for warnings.
 - **A language suffix always wins.** If a step has both a plain and a language-suffixed version of its text, the suffixed one is now always used.
 - **All `validforvarvalpairs` pairs are checked.** Trials Mode could ignore every pair after the first. A trial with several pairs might now be hidden where it used to show.
 - **A hit step can follow a step that doesn't hit.** Before, such a step reset the trial to step 1 straight away, so a trial like "dash, then attack" couldn't be cleared. Combos that drop still reset exactly as before.
 - **`guardmode` has two more values:** `afterhit` and `random`.
+- **No `[Chapter]` or `[Tutorial]` sections.** Name a chapter with `chapter =` on its trials; gating is set in `config.ini` under `[Gating]`. A file that still has either section loads, with a console warning, and the section is skipped.
 
 Trials can now also use everything the tutorials can. These are all optional, and a trial without them behaves as before:
 
-- instruction pages shown before the trial starts (`trial.page.N.*`);
-- a hint (`trial.hint`, `trial.hintafter`);
-- a demo the CPU performs (`trial.demoscript`), and scripted dummy routines (`trial.dummyscript`);
-- repetitions (`trial.repeat`);
-- chapters (`trial.chapter`), alongside difficulties;
-- trials that open one at a time (`tutorial.gated = true` in a `[Tutorial]` section of the file).
+- instruction pages shown before the trial starts (`page.N.*`);
+- a hint (`hint`, `hintafter`);
+- a demo the CPU performs (`demoscript`), and scripted dummy routines (`dummyscript`);
+- repetitions (`repeat`);
+- chapters (`chapter`), alongside difficulties;
+- trials that open one at a time (`Trials = on` under `[Gating]` in `config.ini`).
 
-With `RecordDemo = true` in `config.ini`, Record Demo in the pause menu captures your inputs and prints a ready-to-paste `trial.demoscript = ...` line. See the README's [Writing trials and lessons](README.md#writing-trials-and-lessons) for the full reference.
+With `RecordDemo = true` in `config.ini`, Record Demo in the pause menu captures your inputs and prints a ready-to-paste `demoscript = ...` line. See the README's [Writing trials and lessons](README.md#writing-trials-and-lessons) for the full reference.
 
 ## What stays the same
 - **Progress.** `save/trials.json` keeps its layout and location. Clears and best times carry over, and the pause menu's progress options still clear only Trials progress. The tutorial modes keep theirs separately, in `save/tutorial.json`.

@@ -1,20 +1,21 @@
 -- IKEMEN GO DOJO MODULE --------------------------------------------------
--- Last tested on Ikemen GO v1.0.0-nightly-20260124 - Jan 24, 2026
+---------------------------------------------------------------------------
 -- Module developed by two4teezee
--------------------------------------------------------------------------
--- The Dojo: one external module hosting three game modes on a shared core:
---   Trials           - per-character combo trials (`trials = trials.def`)
---   Game Tutorial    - game-wide lessons (config.ini's SystemTutorial)
---   Character Guides - per-character lessons (`tutorial = tutorial.def`)
--- It features full screenpack integration via config.ini, +system.def,
--- dojo.def. Documentation on writing trials and
--- lessons, and on configuring each mode, is in README.md.
 --
--- The shared core keeps the names of the Tutorial Mode module it was merged
--- from (the `tutorial` table, `_iksys_tutorial*` maps, `tutorial*` pause
--- menu itemnames), so the two code bases stay easy to compare. What tells
--- the modes apart is a profile (tutorial.t_profiles below), not the code.
--------------------------------------------------------------------------
+-- The Ikemen GO Dojo Module is the evolution of the Ikemen GO Trials Mode,
+-- enabling four game modes on a shared core:
+--   - Trials - per-character combo trials
+--   - System Tutorial - game-wide lessons
+--   - Character Guides - per-character lessons
+--   - Combined Tutorial - system lessons + character guides in one mode
+--
+-- It features full screenpack integration via config.ini, +system.def, and
+-- dojo.def. Documentation on writing trials and lessons, and on configuring 
+-- each mode, is in README.md. I also strongly recommend reading the Wiki
+-- pages on the Ikemen GO Dojo Module GitHub repository, which are kept up to
+-- date with the latest features. The Dojo is a massive module with many 
+-- features, and they are all covered in the Wiki.
+---------------------------------------------------------------------------
 
 --;===========================================================
 --; Read Configuration Files
@@ -22,8 +23,7 @@
 
 local modulePath = "external/mods/dojo/"
 
--- The Dojo replaces both modules it grew out of. Left installed beside it, either one registers the
--- same main menu items and pause menus, and whichever loads last breaks the other.
+-- Warn if the old trials/tutorial modules are still installed; they clash with the Dojo.
 for _, old in ipairs({'external/mods/trials/trials.lua', 'external/mods/tutorial/tutorial.lua'}) do
 	if main.f_fileExists(old) then
 		print('Dojo: ' .. old .. ' is still installed; remove its folder, the Dojo replaces it.')
@@ -34,21 +34,21 @@ local zss = gameOption("Common.States")
 table.insert(zss, modulePath .. "dojo.zss")
 modifyGameOption("Common.States", zss)
 
-tutorial = {}
+dojo = {}
 
-tutorial.configPath = modulePath .. 'config.ini'
+dojo.configPath = modulePath .. 'config.ini'
 
-local cfgok, cfg = pcall(loadIni, tutorial.configPath, false)
+local cfgok, cfg = pcall(loadIni, dojo.configPath, false)
 if not cfgok then
-	print('Dojo: cannot read ' .. tutorial.configPath .. '. Player preferences will not persist.')
+	print('Dojo: cannot read ' .. dojo.configPath .. '. Player preferences will not persist.')
 end
-tutorial.ini = cfgok and cfg or {}
-if type(tutorial.ini.Options) ~= 'table' then tutorial.ini.Options = {} end
-if type(tutorial.ini.Config) ~= 'table' then tutorial.ini.Config = {} end
-if type(tutorial.ini.Modes) ~= 'table' then tutorial.ini.Modes = {} end
+dojo.ini = cfgok and cfg or {}
+if type(dojo.ini.Options) ~= 'table' then dojo.ini.Options = {} end
+if type(dojo.ini.Config) ~= 'table' then dojo.ini.Config = {} end
+if type(dojo.ini.Modes) ~= 'table' then dojo.ini.Modes = {} end
 
 local function f_cfgPath(key)
-	local v = tutorial.ini.Config[key]
+	local v = dojo.ini.Config[key]
 	if type(v) ~= 'string' then
 		return ''
 	end
@@ -58,20 +58,8 @@ end
 --;===========================================================
 --; Profiles, tracks and mode switches
 --;===========================================================
--- A profile is everything that tells one family of modes apart from the other: the game mode the
--- engine runs (which also picks the [<Gamemode> Pause Menu] section and fires the loop#<gamemode>
--- hook), the look (which sections of dojo.def it reads; the art in dojo.sff / .snd / .air is
--- shared), the player preferences, the save file and the char def key its content comes from. Code shared by every mode reads these through
--- tutorial.profile, which f_useProfile sets on entering a mode.
---   uiSections        - the sections of dojo.def that make up its look, as loadIni names
---                       them, each laid over the one before (see f_prepareUI)
---   optsKey           - prefix of its [Options] keys in config.ini (Trials.Layout, ...)
---   timerKey          - the [Options] key that shows the current trial's / lesson's timer
---   bucket            - the key a character's records are kept under in the save file
---   charKey           - the char def [Files] key naming its per-character file
---   dataField         - where that character's parsed file is kept on its t_selChars entry
---   system            - whether game-wide lessons (SystemTutorial) belong to it
-tutorial.t_profiles = {
+-- Profile: what sets a mode family apart (game mode, dojo.def sections, options, save file, char def key).
+dojo.t_profiles = {
 	trials = {
 		id = 'trials',
 		label = 'Trials',
@@ -109,25 +97,17 @@ tutorial.t_profiles = {
 	},
 }
 -- Fixed iteration order, so load-time messages and builds always come out the same way round.
-tutorial.t_profileOrder = {'trials', 'tutorial'}
+dojo.t_profileOrder = {'trials', 'tutorial'}
 
--- What the mode is serving, set by the main menu item that entered it:
---   trials   - `trials`: the picked character's trials file, from the select screen
---   combined - `combinedtutorial`: game-wide lessons first, then the picked character's own lessons
---   game     - `systemtutorial`: the Game Tutorial - game-wide lessons only, launched straight from a lesson list
---   chars    - `characterguides`: Character Guides - the character's own lessons only
--- key is the track's switch under [Modes] in config.ini. legacy is the standalone Tutorial Mode's
--- itemname for the track, still accepted in a screenpack's menus and [Select Info] titles.
-tutorial.t_tracks = {
+-- Tracks: what the mode serves; key is its [Modes] switch, legacy its old Tutorial Mode itemname.
+dojo.t_tracks = {
 	trials   = {profile = 'trials',   itemname = 'trials',           key = 'Trials'},
 	game     = {profile = 'tutorial', itemname = 'systemtutorial',   key = 'SystemTutorial',   legacy = 'tutorialgame'},
 	chars    = {profile = 'tutorial', itemname = 'characterguides',  key = 'CharacterGuides',  legacy = 'tutorialchars'},
 	combined = {profile = 'tutorial', itemname = 'combinedtutorial', key = 'CombinedTutorial', legacy = 'tutorial'},
 }
 
--- [Modes] switches each track on or off: 0, false, no or off disables it; anything else, or leaving
--- it out, enables it. A disabled track is hidden from every menu (see the end of this file), and a
--- profile none of whose tracks is on never reads its files.
+-- [Modes] switch: 0/false/no/off disables a track; anything else, or absent, enables it.
 local function f_switchOn(v)
 	if v == nil then
 		return true
@@ -135,46 +115,47 @@ local function f_switchOn(v)
 	local s = tostring(v):lower():match('^%s*(.-)%s*$')
 	return not (s == '0' or s == 'false' or s == 'no' or s == 'off')
 end
-for _, t in pairs(tutorial.t_tracks) do
-	t.enabled = f_switchOn(tutorial.ini.Modes[t.key])
+-- [Gating]: on opens a source's files one entry at a time, each locked until the one before it is cleared.
+if type(dojo.ini.Gating) ~= 'table' then dojo.ini.Gating = {} end
+function dojo.f_gatingOn(key)
+	return dojo.ini.Gating[key] ~= nil and f_switchOn(dojo.ini.Gating[key])
+end
+for _, t in pairs(dojo.t_tracks) do
+	t.enabled = f_switchOn(dojo.ini.Modes[t.key])
 	if t.enabled then
-		tutorial.t_profiles[t.profile].enabled = true
+		dojo.t_profiles[t.profile].enabled = true
 	end
 end
 
-for _, p in pairs(tutorial.t_profiles) do
-	if type(tutorial.ini.Options[p.optsKey]) ~= 'table' then tutorial.ini.Options[p.optsKey] = {} end
-	p.opts = tutorial.ini.Options[p.optsKey]
-	-- [Config] <Mode>Dummy / <Mode>Stage: the counterparts of the engine's Config.TrainingChar and
-	-- Config.TrainingStage. Blank leaves the dummy / stage to be picked on the select screen.
-	-- TutorialPlayerChar is P1 for the Game Tutorial track; blank lets P1 be picked on the select screen.
+for _, p in pairs(dojo.t_profiles) do
+	if type(dojo.ini.Options[p.optsKey]) ~= 'table' then dojo.ini.Options[p.optsKey] = {} end
+	p.opts = dojo.ini.Options[p.optsKey]
+	-- [Config] dummy / stage / P1 overrides; blank means picked on the select screen.
 	p.dummyPath = f_cfgPath(p.dummyKey)
 	p.stagePath = f_cfgPath(p.stageKey)
 	p.playerCharPath = p.playerKey ~= nil and f_cfgPath(p.playerKey) or ''
 end
--- TrialsChar / TutorialChar are TrialsDummy's / TutorialDummy's old names; a config.ini written
--- before the rename still works.
+-- Accept the pre-rename keys TrialsChar / TutorialChar.
 for _, r in ipairs({{'trials', 'TrialsChar'}, {'tutorial', 'TutorialChar'}}) do
-	local p, old = tutorial.t_profiles[r[1]], r[2]
+	local p, old = dojo.t_profiles[r[1]], r[2]
 	if p.dummyPath == '' and f_cfgPath(old) ~= '' then
 		p.dummyPath = f_cfgPath(old)
 		print('Dojo: [Config] ' .. old .. ' has been renamed ' .. p.dummyKey .. '; please update config.ini.')
 	end
 end
 
--- The profile in force and its player preferences. f_useProfile swaps both; opts is an upvalue every
--- function below shares, so reassigning it is enough.
-local opts = tutorial.t_profiles.trials.opts
-tutorial.track = 'trials'
-tutorial.profile = tutorial.t_profiles.trials
-tutorial.dummyPath = tutorial.profile.dummyPath
-tutorial.stagePath = tutorial.profile.stagePath
-tutorial.playerCharPath = tutorial.profile.playerCharPath
+-- Profile in force; opts is a shared upvalue, so reassigning it swaps preferences for every function.
+local opts = dojo.t_profiles.trials.opts
+dojo.track = 'trials'
+dojo.profile = dojo.t_profiles.trials
+dojo.dummyPath = dojo.profile.dummyPath
+dojo.stagePath = dojo.profile.stagePath
+dojo.playerCharPath = dojo.profile.playerCharPath
 
 -- True while the engine is running one of this module's modes (select screen, match, pause menu).
-function tutorial.f_inMode()
-	for _, id in ipairs(tutorial.t_profileOrder) do
-		local p = tutorial.t_profiles[id]
+function dojo.f_inMode()
+	for _, id in ipairs(dojo.t_profileOrder) do
+		local p = dojo.t_profiles[id]
 		if p.enabled and gameMode(p.gamemode) then
 			return true
 		end
@@ -183,37 +164,31 @@ function tutorial.f_inMode()
 end
 
 -- Persists one Player Preference the moment it changes.
-function tutorial.f_savePref(key, value)
+function dojo.f_savePref(key, value)
 	opts[key] = value
-	local ok, err = pcall(saveIni, tutorial.ini, tutorial.configPath)
+	local ok, err = pcall(saveIni, dojo.ini, dojo.configPath)
 	if not ok then
-		print('Dojo: could not write ' .. tutorial.configPath .. ' (' .. tostring(err) .. ').')
+		print('Dojo: could not write ' .. dojo.configPath .. ' (' .. tostring(err) .. ').')
 	end
 end
 
 --;===========================================================
 --; Progress
 --;===========================================================
-tutorial.t_difficulty = {'beginner', 'intermediate', 'advanced', 'expert'}
-tutorial.t_menuCats = {'all', 'beginner', 'intermediate', 'advanced', 'expert', 'other'}
+dojo.t_difficulty = {'beginner', 'intermediate', 'advanced', 'expert'}
+dojo.t_menuCats = {'all', 'beginner', 'intermediate', 'advanced', 'expert', 'other'}
 
--- Each profile has a save file of its own, so Trials progress stays where Trials Mode always kept it.
---   save/trials.json   {version, chars = {[def] = {trials = {[key] = rec}, speedrun = rec}}}
---   save/tutorial.json {version, chars = {[def] = {lessons = {[key] = rec}, speedrun = rec}},
---                       system = {[file] = {lessons = {...}}}, game = {speedrun = rec}}
--- The bucket a character's records sit under (trials / lessons) is the profile's `bucket`.
--- System lessons teach the engine, not a character, so one clear counts for every character.
--- game holds the Game Tutorial's speedrun, which is a run of the game-wide lessons rather than of a character.
+-- One save file per profile; system lessons count for every character, game holds the Game Tutorial speedrun.
 local function f_emptyProgress(p)
-	p = p or tutorial.profile
+	p = p or dojo.profile
 	if p.system then
 		return {version = 1, chars = {}, system = {}, game = {speedrun = {}}}
 	end
 	return {version = 1, chars = {}}
 end
 
-function tutorial.f_loadProgress(p)
-	p = p or tutorial.profile
+function dojo.f_loadProgress(p)
+	p = p or dojo.profile
 	-- A missing file is the normal first run, not an error; only a malformed one is worth saying.
 	if not main.f_fileExists(p.progressPath) then
 		return f_emptyProgress(p)
@@ -233,59 +208,58 @@ function tutorial.f_loadProgress(p)
 end
 
 -- Loaded per profile when the module builds them (f_buildProfile), and swapped in by f_useProfile.
-tutorial.progressPath = tutorial.profile.progressPath
-tutorial.progress = f_emptyProgress()
+dojo.progressPath = dojo.profile.progressPath
+dojo.progress = f_emptyProgress()
 
 local function f_saveProgress()
-	-- jsonEncode(table, path) writes the file and creates the directory. Should a build instead
-	-- return the encoded string, write it ourselves rather than losing the player's progress.
-	local ok, err = pcall(jsonEncode, tutorial.progress, tutorial.progressPath)
+	-- Write the file ourselves if jsonEncode returns a string instead of writing it.
+	local ok, err = pcall(jsonEncode, dojo.progress, dojo.progressPath)
 	if ok then
 		return
 	end
-	local ok2, str = pcall(jsonEncode, tutorial.progress)
+	local ok2, str = pcall(jsonEncode, dojo.progress)
 	if ok2 and type(str) == 'string' then
-		main.f_fileWrite(tutorial.progressPath, str)
+		main.f_fileWrite(dojo.progressPath, str)
 		return
 	end
-	print('Dojo: could not write ' .. tutorial.progressPath .. ' (' .. tostring(err) .. ').')
+	print('Dojo: could not write ' .. dojo.progressPath .. ' (' .. tostring(err) .. ').')
 end
 
-function tutorial.f_clearProgress()
-	tutorial.progress = f_emptyProgress()
-	tutorial.profile.progress = tutorial.progress
+function dojo.f_clearProgress()
+	dojo.progress = f_emptyProgress()
+	dojo.profile.progress = dojo.progress
 	f_saveProgress()
-	tutorial.selectDirty = true
+	dojo.selectDirty = true
 end
 
-function tutorial.f_clearCharProgress(ref)
-	local key = tutorial.f_charKey(ref)
+function dojo.f_clearCharProgress(ref)
+	local key = dojo.f_charKey(ref)
 	if key == nil then
 		return false
 	end
-	tutorial.progress.chars[key] = nil
+	dojo.progress.chars[key] = nil
 	f_saveProgress()
-	tutorial.selectDirty = true
+	dojo.selectDirty = true
 	return true
 end
 
-function tutorial.f_warnKey(why)
-	if not tutorial.keyWarned then
-		tutorial.keyWarned = true
+function dojo.f_warnKey(why)
+	if not dojo.keyWarned then
+		dojo.keyWarned = true
 		print('Dojo: ' .. why .. '; progress will not be recorded.')
 	end
 end
 
-function tutorial.f_charKey(ref)
+function dojo.f_charKey(ref)
 	-- Nothing is selected yet while the menus are still being built, so every hop is checked.
-	if ref == nil then ref = tutorial.p1selref end
+	if ref == nil then ref = dojo.p1selref end
 	if ref == nil and type(start.p) == 'table' and type(start.p[1]) == 'table'
 		and type(start.p[1].t_selected) == 'table' and start.p[1].t_selected[1] ~= nil then
 		ref = start.p[1].t_selected[1].ref
 	end
 	if ref == nil then
-		if not tutorial.charKeyWarned then
-			tutorial.charKeyWarned = true
+		if not dojo.charKeyWarned then
+			dojo.charKeyWarned = true
 			print('Dojo: no character is selected (p1selref is nil); progress will not be recorded.')
 		end
 		return nil
@@ -301,10 +275,9 @@ function tutorial.f_charKey(ref)
 		end
 	end
 	if path == nil then
-		-- Silence here is what makes a broken key look like a mode that simply never saves, so
-		-- say it once rather than dropping every clear from here on without a word.
-		if not tutorial.charKeyWarned then
-			tutorial.charKeyWarned = true
+		-- Warn once, so a broken key doesn't silently drop every clear.
+		if not dojo.charKeyWarned then
+			dojo.charKeyWarned = true
 			print('Dojo: could not resolve the def path for character ref ' .. tostring(ref)
 				.. '; progress will not be recorded.')
 		end
@@ -314,34 +287,34 @@ function tutorial.f_charKey(ref)
 end
 
 local function f_charProgress(create, ref)
-	local key = tutorial.f_charKey(ref)
+	local key = dojo.f_charKey(ref)
 	if key == nil then
 		return nil
 	end
-	local t = tutorial.progress.chars[key]
+	local t = dojo.progress.chars[key]
 	if t == nil then
 		if not create then
 			return nil
 		end
 		t = {}
-		tutorial.progress.chars[key] = t
+		dojo.progress.chars[key] = t
 	end
-	local b = tutorial.profile.bucket
+	local b = dojo.profile.bucket
 	if type(t[b]) ~= 'table' then t[b] = {} end
 	if type(t.speedrun) ~= 'table' then t.speedrun = {} end
 	return t
 end
 
 local function f_systemProgress(create, file)
-	local t = tutorial.progress.system[file]
+	local t = dojo.progress.system[file]
 	if t == nil then
 		if not create then
 			return nil
 		end
 		t = {}
-		tutorial.progress.system[file] = t
+		dojo.progress.system[file] = t
 	end
-	local b = tutorial.profile.bucket
+	local b = dojo.profile.bucket
 	if type(t[b]) ~= 'table' then t[b] = {} end
 	return t
 end
@@ -354,14 +327,13 @@ local function f_lessonBucket(lesson, create, ref)
 	return f_charProgress(create, ref)
 end
 
-function tutorial.f_lessonKey(index, arr)
-	-- Resolved in explicit steps rather than an and/or chain: this runs on every clear, and a nil
-	-- from here drops the record without a word, so it is worth being able to see which step failed.
-	if arr == nil and tutorial.data ~= nil then
-		arr = tutorial.data.lessons
+function dojo.f_lessonKey(index, arr)
+	-- Explicit steps, not and/or: a nil here silently drops the record, so keep each step visible.
+	if arr == nil and dojo.data ~= nil then
+		arr = dojo.data.lessons
 	end
 	if type(arr) ~= 'table' or type(arr[index]) ~= 'table' then
-		tutorial.f_warnKey('no lesson at index ' .. tostring(index))
+		dojo.f_warnKey('no lesson at index ' .. tostring(index))
 		return nil
 	end
 	if type(arr[index].key) == 'string' and arr[index].key ~= '' then
@@ -369,7 +341,7 @@ function tutorial.f_lessonKey(index, arr)
 	end
 	local name = arr[index].name
 	if type(name) ~= 'string' or name == '' then
-		tutorial.f_warnKey('lesson ' .. tostring(index) .. ' has no name')
+		dojo.f_warnKey('lesson ' .. tostring(index) .. ' has no name')
 		return nil
 	end
 	local dupe = 0
@@ -384,11 +356,11 @@ function tutorial.f_lessonKey(index, arr)
 	return name
 end
 
-function tutorial.f_lessonRecord(index, arr, ref)
-	if arr == nil and tutorial.data ~= nil then
-		arr = tutorial.data.lessons
+function dojo.f_lessonRecord(index, arr, ref)
+	if arr == nil and dojo.data ~= nil then
+		arr = dojo.data.lessons
 	end
-	local key = tutorial.f_lessonKey(index, arr)
+	local key = dojo.f_lessonKey(index, arr)
 	if key == nil then
 		return nil
 	end
@@ -396,12 +368,12 @@ function tutorial.f_lessonRecord(index, arr, ref)
 	if t == nil then
 		return nil
 	end
-	return t[tutorial.profile.bucket][key]
+	return t[dojo.profile.bucket][key]
 end
 
-function tutorial.f_speedrunRecord()
-	if tutorial.track == 'game' then
-		return tutorial.progress.game.speedrun
+function dojo.f_speedrunRecord()
+	if dojo.track == 'game' then
+		return dojo.progress.game.speedrun
 	end
 	local t = f_charProgress(false)
 	if t == nil then
@@ -410,16 +382,16 @@ function tutorial.f_speedrunRecord()
 	return t.speedrun
 end
 
-function tutorial.f_recordClear(index, ticks)
-	local key = tutorial.f_lessonKey(index)
+function dojo.f_recordClear(index, ticks)
+	local key = dojo.f_lessonKey(index)
 	if key == nil then
 		return
 	end
-	local t = f_lessonBucket(tutorial.data.lessons[index], true)
+	local t = f_lessonBucket(dojo.data.lessons[index], true)
 	if t == nil then
 		return
 	end
-	local b = tutorial.profile.bucket
+	local b = dojo.profile.bucket
 	local rec = t[b][key]
 	if rec == nil then
 		rec = {}
@@ -432,8 +404,8 @@ function tutorial.f_recordClear(index, ticks)
 	f_saveProgress()
 end
 
-function tutorial.f_recordSpeedrun(ticks)
-	local t = tutorial.track == 'game' and tutorial.progress.game or f_charProgress(true)
+function dojo.f_recordSpeedrun(ticks)
+	local t = dojo.track == 'game' and dojo.progress.game or f_charProgress(true)
 	if t == nil then
 		return
 	end
@@ -446,24 +418,12 @@ end
 
 motif = loadMotif()
 
--- The engine already loaded and owns the screenpack's sprites, sounds and fonts; reach for
--- those rather than re-parsing the files (motif.Sff / motif.Snd / motif.Fnt, see src/motif.go).
+-- Reuse the engine's already-loaded screenpack sprites and sounds.
 local sff = motif.Sff
 local snd = motif.Snd
 
--- The Dojo's own art, shared by every mode: dojo.sff, dojo.snd and dojo.air beside this file, each
--- optional. Ship none of a kind and that kind falls back to the screenpack's. f_loadAssets fills
--- these once, when the first profile is built.
---   dojoSff   - sprites for every element of dojo.def
---   dojoSnd   - sounds for every "snd" parameter in dojo.def. Sounds the module reads out of the
---               screenpack's own sections (the pause menu's cursor.*, enter and cancel) always stay
---               on motif.Snd, so the menu answers with whatever the screenpack uses everywhere else.
---   dojoAnims - actions for every "anim" parameter, from three files, each overriding the numbers
---               the one before it declared: the screenpack's own def, dojo.air, and dojo.def itself
---               (where the samples drop anims meant for the modes). Whichever file an action was
---               authored in, f_loadAnimData draws it out of dojoSff, so its sprite numbers refer to
---               dojo.sff wherever the module ships one.
-tutorial.uiDef = 'dojo.def'
+-- Dojo art shared by every mode (dojo.sff/.snd/.air), each falling back to the screenpack's; loaded once.
+dojo.uiDef = 'dojo.def'
 local dojoSff = sff
 local dojoSnd = snd
 local dojoAnims = {}
@@ -490,7 +450,7 @@ local function f_loadAssets()
 	for _, v in ipairs({
 		{motif.def, sff},
 		{base .. '.air', dojoSff},
-		{modulePath .. tutorial.uiDef, dojoSff},
+		{modulePath .. dojo.uiDef, dojoSff},
 	}) do
 		local path, animSff = v[1], v[2]
 		local found = path == motif.def
@@ -557,8 +517,7 @@ local function f_timeConvert(value)
 end
 
 local function f_trimforchar(line, char, when)
-	-- trims a string before or after a specified character.
-	-- also trims leading and trailing whitespace
+	-- Trims a string before or after a character, plus surrounding whitespace.
 	local x = string.find(line, char)
 	if x ~= nil then
 		if when == "after" then
@@ -641,34 +600,28 @@ local function f_buildCompatConfig(root)
 	return root
 end
 
--- dojo.def is written with mode-neutral key names (title, steps, counter, menu, ...). The core reads
--- one set of names, so those - and the older spellings, Trials Mode's trialtitle, trialcounter,
--- trialsmenu, ... - are moved onto it before anything else looks at a section. A key already spelled
--- the core's way wins, and the first spelling listed below wins over the ones after it, so a section
--- may use any of them (a trialsmode.def from Trials Mode 1.x, or a [Tutorial Mode] copied out of the
--- old tutorialmode.def, still works).
---   {from, to} at the top of the section, or {parent, from, to} one level down.
-tutorial.t_uiAliases = {
-	{'localcoord', 'tutoriallocalcoord'},
-	{'trialslocalcoord', 'tutoriallocalcoord'},
-	{'listdisplay', 'tutoriallistdisplay'},
-	{'trialslistdisplay', 'tutoriallistdisplay'},
-	{'title', 'lessontitle'},
-	{'trialtitle', 'lessontitle'},
-	{'steps', 'lessonsteps'},
-	{'trialsteps', 'lessonsteps'},
-	{'counter', 'lessoncounter'},
-	{'trialcounter', 'lessoncounter'},
-	{'totaltimer', 'totallessontimer'},
-	{'totaltrialtimer', 'totallessontimer'},
-	{'currenttimer', 'currentlessontimer'},
-	{'currenttrialtimer', 'currentlessontimer'},
-	{'reset', 'lessonreset'},
-	{'trialreset', 'lessonreset'},
-	{'menu', 'tutorialmenu'},
-	{'trialsmenu', 'tutorialmenu'},
-	{'lessoncounter', 'nodata', 'notutorialdata'},
-	{'lessoncounter', 'notrialsdata', 'notutorialdata'},
+-- Old dojo.def spellings mapped onto the neutral names; existing neutral keys win, from must never equal to.
+dojo.t_uiAliases = {
+	{'tutoriallocalcoord', 'localcoord'},
+	{'trialslocalcoord', 'localcoord'},
+	{'tutoriallistdisplay', 'listdisplay'},
+	{'trialslistdisplay', 'listdisplay'},
+	{'lessontitle', 'title'},
+	{'trialtitle', 'title'},
+	{'lessonsteps', 'steps'},
+	{'trialsteps', 'steps'},
+	{'lessoncounter', 'counter'},
+	{'trialcounter', 'counter'},
+	{'totallessontimer', 'totaltimer'},
+	{'totaltrialtimer', 'totaltimer'},
+	{'currentlessontimer', 'currenttimer'},
+	{'currenttrialtimer', 'currenttimer'},
+	{'lessonreset', 'reset'},
+	{'trialreset', 'reset'},
+	{'tutorialmenu', 'menu'},
+	{'trialsmenu', 'menu'},
+	{'counter', 'notutorialdata', 'nodata'},
+	{'counter', 'notrialsdata', 'nodata'},
 }
 
 local function f_aliasUI(root, aliases)
@@ -687,8 +640,7 @@ local function f_aliasUI(root, aliases)
 	return root
 end
 
--- Lays one section over another. A list value (pos = 1,2) replaces the base's whole, a block
--- (lessontitle.vertical) is merged key by key, so an override section only needs the keys it changes.
+-- Overlay one section on another: lists replace whole, blocks merge key by key.
 local function f_isList(t)
 	return type(t) == 'table' and t[1] ~= nil
 end
@@ -703,17 +655,9 @@ local function f_overlayUI(base, over)
 	return base
 end
 
--- Builds a profile's UI root out of dojo.def and settles what the rest of the build relies on.
--- [Dojo] is the look every mode shares; the profile's own section ([Trials Mode] / [Tutorial Mode])
--- is laid over it with that mode's differences (only its labels, in the shipped file). A def with no
--- [Dojo] section - a trialsmode.def from Trials Mode 1.x, renamed - uses its [Trials Mode] as the
--- shared base instead, which is the look it always gave every mode. The def is read afresh for each profile, because the
--- build hangs each profile's own anims and text objects off its root.
--- The player preferences in config.ini's [Options] are the single source of truth for the
--- behavioural defaults: the shipped file carries the defaults and the pause menu rewrites it as the
--- player changes them. The def carries no layout / reset-on-success default - it only styles.
+-- Build a profile's UI root: [Dojo] base, profile section over it; [Options] own behaviour, the def only styles.
 local function f_prepareUI(p)
-	local path = modulePath .. tutorial.uiDef
+	local path = modulePath .. dojo.uiDef
 	local ok, ini = pcall(loadIni, path)
 	if not ok or type(ini) ~= 'table' then
 		print('Dojo: could not read ' .. path .. '; the ' .. p.label .. ' UI falls back to defaults.')
@@ -731,84 +675,62 @@ local function f_prepareUI(p)
 	local root = {}
 	for i, sec in ipairs(sections) do
 		if type(ini[sec]) == 'table' then
-			f_overlayUI(root, f_aliasUI(ini[sec], tutorial.t_uiAliases))
+			f_overlayUI(root, f_aliasUI(ini[sec], dojo.t_uiAliases))
 		elseif i == 1 then
 			print('Dojo: ' .. path .. ' has no [' .. sec:gsub('_', ' ') .. '] section; the ' .. p.label .. ' UI falls back to defaults.')
 		end
 	end
 	root = f_buildCompatConfig(root)
 	local o = p.opts
-	root.tutoriallayout = tostring(o.Layout):lower() == 'horizontal' and 'horizontal' or 'vertical'
-	root.tutorialresetonsuccess = o.ResetOnSuccess == true
+	root.layout = tostring(o.Layout):lower() == 'horizontal' and 'horizontal' or 'vertical'
+	root.resetonsuccess = o.ResetOnSuccess == true
 	if type(root.textbox) ~= 'table' then root.textbox = {} end
 	if o.Textboxes ~= nil then
 		local visible = tostring(o.Textboxes):lower() ~= 'hide'
 		root.textbox_visible = visible
 		root.textbox.visible = visible
 	end
-	if type(root.tutoriallocalcoord) ~= 'table' then
-		root.tutoriallocalcoord = {320, 240}
+	if type(root.localcoord) ~= 'table' then
+		root.localcoord = {320, 240}
 	end
-	local lx = tonumber(root.tutoriallocalcoord[1]) or 320
-	local ly = tonumber(root.tutoriallocalcoord[2]) or 240
-	root.tutoriallocalcoord = {lx, ly}
+	local lx = tonumber(root.localcoord[1]) or 320
+	local ly = tonumber(root.localcoord[2]) or 240
+	root.localcoord = {lx, ly}
 	return root, lx, ly
 end
 
 -- Until a profile is built (f_buildProfile, at the end of this file) the canvas is a plain default.
-tutorial.tutorial_mode = {}
-tutorial.mtlcx = 320
-tutorial.mtlcy = 240
+dojo.ui = {}
+dojo.mtlcx = 320
+dojo.mtlcy = 240
 
 --;===========================================================
 --; Aspect ratio
 --;===========================================================
--- The UI is authored on a tutoriallocalcoord canvas, but the screen it lands on is whatever aspect
--- the match is running at. With Video.FightAspectWidth/Height set to -1 ("stage"), that is the
--- stage's own aspect, and it changes from stage to stage.
---
--- The engine's animSetLocalcoord/textImgSetLocalcoord/rectSetLocalcoord derive both their scale and
--- their x offset from the localcoord handed to them and never look at the live game width (see
--- anim.go SetLocalcoord, font.go SetLocalcoord, rect.go SetLocalcoord). Passing the authored
--- 1280,720 therefore always maps the canvas to a 16:9 band and lets the renderer centre it, so on a
--- 4:3 stage the band is wider than the screen and hangs off both edges.
---
--- screenWidth()/screenHeight() are the engine's live sys.gameWidth/gameHeight, which already carry
--- the applied fight aspect. Expressed in authored units the screen is
---     vislcx = mtlcy * screenWidth() / screenHeight()
--- wide. Handing (vislcx, mtlcy) to the setters leaves the authored scale untouched - they take it
--- from the 4:3 core height, which vislcx does not move - while pinning authored x=0 to the real
--- left screen edge and x=vislcx to the real right one. Elements are then moved to their own side of
--- that canvas by their anchor, so a UI authored at 16:9 still reads as designed at 4:3: same text
--- size, edges where the edges actually are.
---
--- When aspects match, vislcx == mtlcx and every number below is the authored one.
-tutorial.vislcx = tutorial.mtlcx
-tutorial.anchordelta = 0
+-- Lay the canvas out at the live aspect: vislcx is the visible width in authored units; anchors place elements.
+dojo.vislcx = dojo.mtlcx
+dojo.anchordelta = 0
 
 -- The live game aspect, or the authored one while the engine cannot answer yet.
 local function f_screenAspect()
 	if type(screenWidth) ~= 'function' or type(screenHeight) ~= 'function' then
-		return tutorial.mtlcx / tutorial.mtlcy
+		return dojo.mtlcx / dojo.mtlcy
 	end
 	local ok, w, h = pcall(function() return screenWidth(), screenHeight() end)
 	if not ok or type(w) ~= 'number' or type(h) ~= 'number' or w <= 0 or h <= 0 then
-		return tutorial.mtlcx / tutorial.mtlcy
+		return dojo.mtlcx / dojo.mtlcy
 	end
 	return w / h
 end
 
--- The visible canvas width for an aspect, in authored units. Clamped at 4:3 because the setters cap
--- their scale there (v = min(lx, ly*4/3)): below it the engine cannot place a localcoord without
--- changing its scale, and no stage in practice is narrower than 4:3 anyway.
+-- Visible canvas width for an aspect, clamped at 4:3 where the engine caps its scale.
 local function f_vislcx(aspect)
-	return math.max(tutorial.mtlcy * 4 / 3, tutorial.mtlcy * aspect)
+	return math.max(dojo.mtlcy * 4 / 3, dojo.mtlcy * aspect)
 end
 
--- The localcoord every tutorial element is drawn in. Always use this in place of mtlcx,mtlcy when
--- calling into the engine's *SetLocalcoord.
-function tutorial.f_localcoord()
-	return tutorial.vislcx, tutorial.mtlcy
+-- Localcoord for every Dojo element; use this, not mtlcx/mtlcy, with *SetLocalcoord.
+function dojo.f_localcoord()
+	return dojo.vislcx, dojo.mtlcy
 end
 
 -- Font metrics, memoized per font index. motif.Fnt is the engine's loaded font map.
@@ -903,9 +825,8 @@ function text:create(t)
 	if t.font ~= -1 and motif.Fnt[t.font] ~= nil then
 		textImgSetFont(t.ti, motif.Fnt[t.font])
 	end
-	-- Setter order follows the engine's own SetTextSprite (src/iniutils.go): localcoord first,
-	-- because it only stores a scale factor and does not re-derive values already committed.
-		textImgSetLocalcoord(t.ti, tutorial.f_localcoord())
+	-- Localcoord first, matching the engine's SetTextSprite order.
+		textImgSetLocalcoord(t.ti, dojo.f_localcoord())
 	textImgSetBank(t.ti, t.bank)
 	textImgSetAlign(t.ti, t.align)
 	textImgSetText(t.ti, t.text)
@@ -939,7 +860,7 @@ function text:update(t)
 		if fontChange and self.font ~= -1 and motif.Fnt[self.font] ~= nil then
 			textImgSetFont(self.ti, motif.Fnt[self.font])
 		end
-		textImgSetLocalcoord(self.ti, tutorial.f_localcoord())
+		textImgSetLocalcoord(self.ti, dojo.f_localcoord())
 		textImgSetBank(self.ti, self.bank)
 		textImgSetAlign(self.ti, self.align)
 		textImgSetText(self.ti, self.text)
@@ -951,20 +872,18 @@ function text:update(t)
 		textImgSetAngle(self.ti, self.angle)
 	else
 		self.text = t
-		textImgSetLocalcoord(self.ti, tutorial.f_localcoord())
+		textImgSetLocalcoord(self.ti, dojo.f_localcoord())
 		textImgSetText(self.ti, self.text)
 	end
 
 	return self
 end
 
--- Re-commit everything the text was built with, in create's order. :update short-circuits when no
--- field changed, so it cannot carry a new localcoord or a moved origin on its own - this is what
--- a relayout calls after the aspect, and with it the canvas the text sits in, has changed.
+-- Re-commit every field after an aspect change; :update skips unchanged fields.
 function text:relayout(x, y)
 	if x ~= nil then self.x = x end
 	if y ~= nil then self.y = y end
-	textImgSetLocalcoord(self.ti, tutorial.f_localcoord())
+	textImgSetLocalcoord(self.ti, dojo.f_localcoord())
 	textImgSetPos(self.ti, self.x + f_alignOffset(self.align), self.y)
 	textImgSetScale(self.ti, self.scaleX, self.scaleY)
 	textImgSetWindow(self.ti, self.window[1], self.window[2], self.window[3] - self.window[1], self.window[4] - self.window[2])
@@ -978,19 +897,15 @@ function text:draw()
 	return self
 end
 
--- Commits an anim's placement from its config node and an origin. Split out of f_loadAnimData so a
--- relayout can put an already-built anim back down in the new canvas without rebuilding its
--- sprites. Localcoord goes on first: animSetPos and animSetScale both divide by the scale it
--- stores, so they have to see the current one. animSetPos also rewrites the anim's reset baseline,
--- which is what keeps the animReset calls in the draw loop honest afterwards.
+-- Place an anim from its node and origin; localcoord first since pos and scale divide by it.
 local function f_placeAnim(a, node, x, y)
 	local offset = type(node.offset) == 'table' and node.offset or {0, 0}
 	local scale = type(node.scale) == 'table' and node.scale or {1.0, 1.0}
-	animSetLocalcoord(a, tutorial.f_localcoord())
+	animSetLocalcoord(a, dojo.f_localcoord())
 	animSetPos(a, offset[1] + (x or 0), offset[2] + (y or 0))
 	animSetScale(a, scale[1], scale[2])
 	animSetFacing(a, node.facing or 1)
-	animSetWindow(a, 0, 0, tutorial.vislcx, tutorial.mtlcy)
+	animSetWindow(a, 0, 0, dojo.vislcx, dojo.mtlcy)
 	animSetLayerno(a, f_clampLayerno(node.layerno))
 	animUpdate(a)
 	return a
@@ -1039,9 +954,7 @@ local function f_glyphAnim(sub, key)
 		return g.AnimData
 	end
 	if glyphSffOk == nil then
-		-- Only commit to private anims once the motif's glyph sff has been confirmed to reach us
-		-- as usable sprite data. An empty one would draw nothing at all, which is a far worse
-		-- outcome than a glyph that cannot hold a palfx of its own.
+		-- Only use private glyph anims once the motif's glyph sff is confirmed usable.
 		local ok, info = pcall(function()
 			return animGetSpriteInfo(animNew(motif.GlyphsSff, g.Spr[1] .. ', ' .. g.Spr[2] .. ', 0, 0, -1'), g.Spr[1], g.Spr[2])
 		end)
@@ -1063,10 +976,7 @@ end
 --;===========================================================
 --; main.lua
 --;===========================================================
--- The ref of a character named in config.ini or a lesson file, adding it to the roster the way the
--- engine adds a TrainingChar that select.def leaves out: excluded, so it never turns up as a random
--- pick or an arcade opponent. Mods load after the roster is built, so this happens on entering the
--- mode rather than at load. nil when path is blank or the character cannot be loaded.
+-- Resolve a config/lesson character into the roster (excluded from random); nil when blank or unloadable.
 local function f_charRefFor(path, what)
 	if path == nil or path == '' then
 		return nil
@@ -1080,49 +990,48 @@ local function f_charRefFor(path, what)
 	end
 	return main.t_charDef[key]
 end
-tutorial.f_charRefFor = f_charRefFor
+dojo.f_charRefFor = f_charRefFor
 
--- Resolves every character the Game Tutorial can force onto P1: [Config] TutorialPlayerChar, and each
--- game-wide lesson's lesson.playerchar. Done on entering the track, for the reason above.
+-- Resolve every forced Game Tutorial P1 and P2 (TutorialPlayerChar, each playerchar / dummychar) on entering the track.
 local function f_resolvePlayerChars()
-	tutorial.playerRef = f_charRefFor(tutorial.playerCharPath, 'TutorialPlayerChar')
-	if tutorial.playerRef == nil then
-		tutorial.playerCharPath = ''
-		tutorial.profile.playerCharPath = ''
+	dojo.playerRef = f_charRefFor(dojo.playerCharPath, 'TutorialPlayerChar')
+	if dojo.playerRef == nil then
+		dojo.playerCharPath = ''
+		dojo.profile.playerCharPath = ''
 	end
-	for _, l in ipairs(tutorial.systemLessons) do
+	for _, l in ipairs(dojo.systemLessons) do
 		if l.playerchar ~= nil and l.playerref == nil and not l.playercharFailed then
-			l.playerref = f_charRefFor(l.playerchar, 'lesson.playerchar of "' .. l.name .. '"')
+			l.playerref = f_charRefFor(l.playerchar, 'playerchar of "' .. l.name .. '"')
 			l.playercharFailed = l.playerref == nil
+		end
+		if l.dummychar ~= nil and l.dummyref == nil and not l.dummycharFailed then
+			l.dummyref = f_charRefFor(l.dummychar, 'dummychar of "' .. l.name .. '"')
+			l.dummycharFailed = l.dummyref == nil
 		end
 	end
 end
 
--- The select screen's title: [Select Info] title.<itemname>.text for the track (title.trials.text,
--- title.systemtutorial.text, title.characterguides.text, title.combinedtutorial.text), then its
--- legacy itemname's, falling back to the profile's own (title.tutorial.text for every tutorial
--- track), then its label.
+-- Select screen title: track itemname, then legacy itemname, then profile, then label.
 local function f_selectTitle(track)
 	local t = motif.select_info.title.text or {}
-	local tr = tutorial.t_tracks[track]
-	for _, k in ipairs({tr.itemname, tr.legacy or tr.itemname, tutorial.profile.title}) do
+	local tr = dojo.t_tracks[track]
+	for _, k in ipairs({tr.itemname, tr.legacy or tr.itemname, dojo.profile.title}) do
 		if type(t[k]) == 'string' and t[k] ~= '' then
 			return t[k]
 		end
 	end
-	return tutorial.profile.label
+	return dojo.profile.label
 end
 
--- Settings every track shares: an endless, single-character match against a dummy. Entering a track
--- puts its profile in force first, so everything below reads that profile's config and look.
+-- Shared track setup: endless single-character match vs a dummy, with the track's profile in force.
 local function f_setupMode(track)
-	tutorial.f_useProfile(tutorial.t_profiles[tutorial.t_tracks[track].profile])
-	tutorial.track = track
+	dojo.f_useProfile(dojo.t_profiles[dojo.t_tracks[track].profile])
+	dojo.track = track
 	--main.lifebar.p1score = true
 	--main.lifebar.p2ailevel = true
 	main.motif.dialogue = false
 	main.roundTime = -1
-	if tutorial.stagePath == '' then
+	if dojo.stagePath == '' then
 		main.stageMenu = true
 	end
 	main.teamMenu[1].ratio = false
@@ -1138,49 +1047,44 @@ local function f_setupMode(track)
 	textImgSetText(motif.select_info.title.TextSpriteData, f_selectTitle(track))
 	remapInput(1, getLastInputController())
 	remapInput(getLastInputController(), 1)
-	setGameMode(tutorial.profile.gamemode)
+	setGameMode(dojo.profile.gamemode)
 	setHomeTeam(1)
 end
 
--- Trials, Combined and Character Guides: the select screen picks P1, and P2 unless the profile's
--- TrialsDummy / TutorialDummy forces one.
+-- Select screen picks P1, and P2 unless the profile forces a dummy.
 local function f_selectScreenTrack(track)
 	f_setupMode(track)
-	tutorial.dummyRef = f_charRefFor(tutorial.dummyPath, tutorial.profile.dummyKey)
-	if tutorial.dummyRef ~= nil then
-		main.forceChar[2] = {tutorial.dummyRef}
+	dojo.dummyRef = f_charRefFor(dojo.dummyPath, dojo.profile.dummyKey)
+	if dojo.dummyRef ~= nil then
+		main.forceChar[2] = {dojo.dummyRef}
 	end
 	main.selectMenu[2] = true
 	hook.run("main.t_itemname")
 	return start.f_selectMode
 end
 
--- Main menu entries, one per track. Registered under each track's itemname at the end of this file,
--- and only while the track is switched on in [Modes].
-tutorial.t_tracks.trials.start = function()
+-- Main menu entries per track, registered at file end when enabled in [Modes].
+dojo.t_tracks.trials.start = function()
 	return f_selectScreenTrack('trials')
 end
 
-tutorial.t_tracks.combined.start = function()
+dojo.t_tracks.combined.start = function()
 	return f_selectScreenTrack('combined')
 end
 
-tutorial.t_tracks.chars.start = function()
+dojo.t_tracks.chars.start = function()
 	return f_selectScreenTrack('chars')
 end
 
--- Game Tutorial. Story mode's route past the select screen: with no select menu on either side the
--- engine goes straight to main.luaPath, and gametutorial.lua's lesson list launches each match
--- itself. Whatever config.ini leaves blank is picked on the select screen first instead - P1 when
--- there is no TutorialPlayerChar, the dummy and the stage likewise - and the lesson list follows it.
-tutorial.t_tracks.game.start = function()
+-- Game Tutorial: skip the select screen unless config leaves P1, dummy or stage blank; gametutorial.lua runs the matches.
+dojo.t_tracks.game.start = function()
 	f_setupMode('game')
 	f_resolvePlayerChars()
-	tutorial.dummyRef = f_charRefFor(tutorial.dummyPath, 'TutorialDummy')
-	main.selectMenu[1] = tutorial.playerRef == nil
+	dojo.dummyRef = f_charRefFor(dojo.dummyPath, 'TutorialDummy')
+	main.selectMenu[1] = dojo.playerRef == nil
 	if main.selectMenu[1] then
-		if tutorial.dummyRef ~= nil then
-			main.forceChar[2] = {tutorial.dummyRef}
+		if dojo.dummyRef ~= nil then
+			main.forceChar[2] = {dojo.dummyRef}
 		end
 		main.selectMenu[2] = true
 	else
@@ -1194,10 +1098,9 @@ tutorial.t_tracks.game.start = function()
 end
 
 -- The profile in force's UI section. Reassigned by f_useProfile; every function below shares it.
-local tr_pos = tutorial.tutorial_mode
+local ui = dojo.ui
 
--- Walks to a dojo.def node, creating empty tables for any level a screenpack left out, so
--- every element the drawer reaches for ends up with at least a blank anim.
+-- Walk to a dojo.def node, creating any missing levels.
 local function f_node(t, ...)
 	local node = t
 	for i = 1, select('#', ...) do
@@ -1208,13 +1111,12 @@ local function f_node(t, ...)
 	return node
 end
 
--- The categories tutorialmenu.item / .header can restyle: the difficulty tiers, all and other,
--- plus any chapter id the def declares a block for (tutorialmenu.item.movement.text.font = ...).
+-- Categories menu.item / .header can restyle: difficulty tiers, all, other, and declared chapter ids.
 local t_menuStructural = {text = true, bg = true, active = true, selected = true, locked = true,
 	overlay = true, value = true, spacing = true, offset = true}
 local function f_menuCats(m)
 	local t, seen = {}, {}
-	for _, c in ipairs(tutorial.t_menuCats) do t[#t + 1] = c; seen[c] = true end
+	for _, c in ipairs(dojo.t_menuCats) do t[#t + 1] = c; seen[c] = true end
 	for _, group in ipairs({'item', 'header'}) do
 		if type(m[group]) == 'table' then
 			for k, v in pairs(m[group]) do
@@ -1230,13 +1132,11 @@ end
 --;===========================================================
 --; UI build
 --;===========================================================
--- Everything from here to f_uiMenuDraw runs once per profile, from f_buildProfile at the end of this
--- file, with that profile's UI section in tr_pos and its canvas in mtlcx / mtlcy.
+-- UI build steps, run once per profile from f_buildProfile.
 
--- The Lesson select menu block is newer than the rest of the UI defs, so fill in anything a def
--- predating it would not have declared. Everything else here is authored in the def.
+-- Fill menu defaults a def predating the lesson select menu lacks.
 local function f_uiMenuDefaults()
-	local m = f_node(tr_pos, 'tutorialmenu')
+	local m = f_node(ui, 'menu')
 	if type(m.pos) ~= 'table' then m.pos = {0, 0} end
 	if type(m.spacing) ~= 'table' then m.spacing = {0, 20} end
 	m.visibleitems = math.max(1, tonumber(m.visibleitems) or 10)
@@ -1250,7 +1150,7 @@ local function f_uiMenuDefaults()
 			if act[k] == nil then act[k] = v end
 		end
 	end
-	-- Rows a gated file has not opened yet (tutorial.gated) inherit the plain row unless restyled.
+	-- Rows a gated file has not opened yet ([Gating] in config.ini) inherit the plain row unless restyled.
 	do
 		local base, lk = f_node(m, 'item', 'text'), f_node(m, 'item', 'locked', 'text')
 		for k, v in pairs(base) do
@@ -1280,10 +1180,7 @@ local function f_uiMenuDefaults()
 		if n.layerno == nil then n.layerno = m.layerno end
 	end
 	if type(f_node(m, 'status').offset) ~= 'table' then m.status.offset = {0, 0} end
-	-- The active row's own overlay: the same kind of rect as tutorialmenu.overlay, but drawn under one
-	-- row rather than the whole menu, so it travels with the cursor. Its window is x1,y1,x2,y2 taken
-	-- from the row's origin. A zero-size window draws nothing, which is what a def predating this
-	-- element leaves behind.
+	-- Active row overlay: rect under the cursor row, window relative to the row; zero size draws nothing.
 	do
 		local ro = f_node(m, 'item', 'active', 'overlay')
 		if type(ro.window) ~= 'table' then ro.window = {0, 0, 0, 0} end
@@ -1316,7 +1213,7 @@ local function f_uiMenuDefaults()
 		end
 	end
 	local o = f_node(m, 'overlay')
-	if type(o.window) ~= 'table' then o.window = {0, 0, tutorial.mtlcx, tutorial.mtlcy} end
+	if type(o.window) ~= 'table' then o.window = {0, 0, dojo.mtlcx, dojo.mtlcy} end
 	if type(o.col) ~= 'table' then o.col = {0, 0, 0} end
 	if type(o.alpha) ~= 'table' then o.alpha = {0, 128} end
 	o.layerno = tonumber(o.layerno) or 0
@@ -1333,12 +1230,12 @@ end
 local function f_uiStepDefaults()
 for _, sub in ipairs({'upcomingstep', 'currentstep', 'completedstep'}) do
 	for _, layout in ipairs({'vertical', 'horizontal'}) do
-		f_palfxDefaults(f_node(tr_pos, sub, layout, 'bg', 'palfx'))
-		f_palfxDefaults(f_node(tr_pos, sub, layout, 'glyphs', 'palfx'))
+		f_palfxDefaults(f_node(ui, sub, layout, 'bg', 'palfx'))
+		f_palfxDefaults(f_node(ui, sub, layout, 'glyphs', 'palfx'))
 		local paths = {{'bg'}}
 		if layout == 'horizontal' then paths = {{'bg'}, {'bg', 'tail'}, {'bg', 'head'}} end
 		for _, path in ipairs(paths) do
-			local n = f_node(tr_pos, sub, layout, unpack(path))
+			local n = f_node(ui, sub, layout, unpack(path))
 			if type(n.offset) ~= 'table' then n.offset = {0, 0} end
 			if type(n.scale) ~= 'table' then n.scale = {1, 1} end
 			n.offset[1] = tonumber(n.offset[1]) or 0
@@ -1350,7 +1247,7 @@ for _, sub in ipairs({'upcomingstep', 'currentstep', 'completedstep'}) do
 end
 -- Glyph placement is driven entirely off these, on every step of every Lesson.
 for _, layout in ipairs({'vertical', 'horizontal'}) do
-	local g = f_node(tr_pos, 'glyphs', layout)
+	local g = f_node(ui, 'glyphs', layout)
 	if type(g.offset) ~= 'table' then g.offset = {0, 0} end
 	if type(g.scale) ~= 'table' then g.scale = {1, 1} end
 	if type(g.spacing) ~= 'table' then g.spacing = {0, 0} end
@@ -1358,13 +1255,12 @@ for _, layout in ipairs({'vertical', 'horizontal'}) do
 	if layout == 'horizontal' then g.align = 1 end
 end
 
--- The select screen reads the flat compat aliases, which were copied off the nested node before
--- any of this ran, so hand them the normalized values rather than whatever the def left behind.
+-- Hand the normalized values to the flat compat aliases the select screen reads.
 do
-	local fx = f_palfxDefaults(f_node(tr_pos, 'selscreenpalfx'))
+	local fx = f_palfxDefaults(f_node(ui, 'selscreenpalfx'))
 	for _, k in ipairs({'add', 'mul', 'sinadd', 'invertall', 'color'}) do
-		tr_pos['selscreenpalfx.' .. k] = fx[k]
-		tr_pos['selscreenpalfx_' .. k] = fx[k]
+		ui['selscreenpalfx.' .. k] = fx[k]
+		ui['selscreenpalfx_' .. k] = fx[k]
 	end
 end
 end
@@ -1372,21 +1268,13 @@ end
 --;===========================================================
 --; Anchors
 --;===========================================================
--- Which screen edge an element was authored against. On a screen whose aspect matches the canvas
--- this changes nothing; on a narrower or wider one it decides where the element goes:
---   left   - keeps its authored x, so it stays the same distance from the left edge
---   right  - moves by the whole width difference, so it keeps its distance from the right edge
---   center - moves by half of it, so it stays the same fraction across
--- Screenpacks name it per element as <element>.anchor. Anything that predates the key is inferred
--- from where the element was authored, which is right for the usual corner-pinned HUD but is only a
--- guess: a def that cares should say so. Windows spanning the canvas (the step window, the menu
--- overlay) are not anchored at all - each edge follows its own side, so the window stretches.
+-- Anchor: left keeps x, right keeps distance to the right edge, center keeps the fraction; inferred if unset.
 local t_anchorFactor = {left = 0, center = 0.5, right = 1}
 
 local function f_inferAnchor(x)
-	if x <= tutorial.mtlcx / 3 then
+	if x <= dojo.mtlcx / 3 then
 		return 'left'
-	elseif x >= tutorial.mtlcx * 2 / 3 then
+	elseif x >= dojo.mtlcx * 2 / 3 then
 		return 'right'
 	end
 	return 'center'
@@ -1404,12 +1292,7 @@ local function f_anchorOf(node, x)
 	return f_inferAnchor(x)
 end
 
--- Every authored x the layout owns, paired with how it moves. Each entry holds the pristine value
--- read off the def, so a relayout is always computed from the authored number rather than from the
--- last aspect's result. `t` is the table the value lives in and `i` its index, which is enough to
--- write it back in place - and because f_buildCompatConfig aliased the flat keys onto these very
--- tables, the lessoncounter_pos style lookups elsewhere see the same update.
--- One list per profile; f_useProfile swaps it in with the rest of the profile's UI.
+-- Authored x values and how each moves, kept pristine so relayouts never drift; one list per profile.
 local t_anchored = {}
 
 -- An element origin: one x that moves as a unit with the node's anchor.
@@ -1421,8 +1304,7 @@ local function f_anchorPos(node, key)
 	t_anchored[#t_anchored + 1] = {t = pos, i = 1, orig = pos[1], anchor = f_anchorOf(node, pos[1])}
 end
 
--- A window authored in canvas space, as x1,y1,x2,y2: its left edge holds to the left of the screen
--- and its right edge to the right, so it covers the same margins whatever the aspect.
+-- Anchor a canvas-space window edge-to-edge so it keeps its margins at any aspect.
 local function f_anchorSpan(node, key)
 	if type(node) ~= 'table' or type(node[key]) ~= 'table' or type(node[key][3]) ~= 'number' then
 		return
@@ -1434,26 +1316,26 @@ end
 
 local function f_uiAnchors()
 	t_anchored = {}
-	f_anchorPos(f_node(tr_pos, 'lessoncounter'), 'pos')
-	f_anchorPos(f_node(tr_pos, 'totallessontimer'), 'pos')
-	f_anchorPos(f_node(tr_pos, 'currentlessontimer'), 'pos')
-	f_anchorPos(f_node(tr_pos, 'lessonreset', 'text'), 'pos')
-	f_anchorPos(f_node(tr_pos, 'success'), 'pos')
-	f_anchorPos(f_node(tr_pos, 'allclear'), 'pos')
-	f_anchorPos(f_node(tr_pos, 'textbox'), 'pos')
-	f_anchorPos(f_node(tr_pos, 'tutorialmenu'), 'pos')
+	f_anchorPos(f_node(ui, 'counter'), 'pos')
+	f_anchorPos(f_node(ui, 'totaltimer'), 'pos')
+	f_anchorPos(f_node(ui, 'currenttimer'), 'pos')
+	f_anchorPos(f_node(ui, 'reset', 'text'), 'pos')
+	f_anchorPos(f_node(ui, 'success'), 'pos')
+	f_anchorPos(f_node(ui, 'allclear'), 'pos')
+	f_anchorPos(f_node(ui, 'textbox'), 'pos')
+	f_anchorPos(f_node(ui, 'menu'), 'pos')
 	for _, layout in ipairs({'vertical', 'horizontal'}) do
-		f_anchorPos(f_node(tr_pos, 'lessontitle', layout), 'pos')
-		f_anchorPos(f_node(tr_pos, 'lessonsteps', layout), 'pos')
-		f_anchorSpan(f_node(tr_pos, 'lessonsteps', layout, 'window'), 'withouttextbox')
-		f_anchorSpan(f_node(tr_pos, 'lessonsteps', layout, 'window'), 'withtextbox')
+		f_anchorPos(f_node(ui, 'title', layout), 'pos')
+		f_anchorPos(f_node(ui, 'steps', layout), 'pos')
+		f_anchorSpan(f_node(ui, 'steps', layout, 'window'), 'withouttextbox')
+		f_anchorSpan(f_node(ui, 'steps', layout, 'window'), 'withtextbox')
 	end
-	f_anchorSpan(f_node(tr_pos, 'tutorialmenu', 'overlay'), 'window')
+	f_anchorSpan(f_node(ui, 'menu', 'overlay'), 'window')
 end
 
 -- Writes every anchored x for the current canvas width. Returns whether anything actually moved.
 local function f_applyAnchors()
-	local delta = tutorial.anchordelta
+	local delta = dojo.anchordelta
 	local moved = false
 	for _, v in ipairs(t_anchored) do
 		local x = v.orig + delta * t_anchorFactor[v.anchor]
@@ -1465,38 +1347,32 @@ local function f_applyAnchors()
 	return moved
 end
 
--- f_buildProfile lays each canvas out for the aspect the game is in when it is built, so everything
--- is placed correctly from the start. Loading happens on the motif's aspect; the match relayouts on
--- its own when the stage brings a different one (tutorial.f_syncAspect).
+-- f_buildProfile lays out for the current aspect; f_syncAspect relayouts when a stage changes it.
 
--- Each element caches its Anim on its own config node as .AnimData, the same convention the
--- engine uses for motif elements (and that textbox.overlay.RectData already follows here).
--- p is the pos table the element hangs off, held by reference rather than read now: a relayout
--- rewrites those numbers in place, and every anim has to be put back down at the new ones.
--- f_loadAnimData adds the node's own offset on top of the origin.
+-- Elements cache their Anim on .AnimData; p is held by reference so relayouts move them.
 local t_elems = {}
 local function f_uiElems()
 t_elems = {
-	{n = f_node(tr_pos, 'lessonsteps', 'vertical', 'bg'),   p = tr_pos.lessonsteps.vertical.pos},
-	{n = f_node(tr_pos, 'lessonsteps', 'horizontal', 'bg'), p = tr_pos.lessonsteps.horizontal.pos},
-	{n = f_node(tr_pos, 'success', 'bg'),                  p = tr_pos.success.pos},
-	{n = f_node(tr_pos, 'success', 'front'),               p = tr_pos.success.pos},
-	{n = f_node(tr_pos, 'allclear', 'bg'),                 p = tr_pos.allclear.pos},
-	{n = f_node(tr_pos, 'allclear', 'front'),              p = tr_pos.allclear.pos},
-	{n = f_node(tr_pos, 'textbox', 'bg'),                  p = tr_pos.textbox.pos},
-	{n = f_node(tr_pos, 'textbox', 'front'),               p = tr_pos.textbox.pos},
+	{n = f_node(ui, 'steps', 'vertical', 'bg'),   p = ui.steps.vertical.pos},
+	{n = f_node(ui, 'steps', 'horizontal', 'bg'), p = ui.steps.horizontal.pos},
+	{n = f_node(ui, 'success', 'bg'),                  p = ui.success.pos},
+	{n = f_node(ui, 'success', 'front'),               p = ui.success.pos},
+	{n = f_node(ui, 'allclear', 'bg'),                 p = ui.allclear.pos},
+	{n = f_node(ui, 'allclear', 'front'),              p = ui.allclear.pos},
+	{n = f_node(ui, 'textbox', 'bg'),                  p = ui.textbox.pos},
+	{n = f_node(ui, 'textbox', 'front'),               p = ui.textbox.pos},
 }
-t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'tutorialmenu', 'bg'),    p = tr_pos.tutorialmenu.pos}
-t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'tutorialmenu', 'front'), p = tr_pos.tutorialmenu.pos}
+t_elems[#t_elems + 1] = {n = f_node(ui, 'menu', 'bg'),    p = ui.menu.pos}
+t_elems[#t_elems + 1] = {n = f_node(ui, 'menu', 'front'), p = ui.menu.pos}
 for _, path in ipairs({
 	{'cursor'}, {'header', 'bg'}, {'item', 'bg'}, {'item', 'active', 'bg'},
 	{'status', 'cleared'}, {'status', 'uncleared'}, {'status', 'locked'}, {'arrow', 'up'}, {'arrow', 'down'},
 }) do
-	t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'tutorialmenu', unpack(path))}
+	t_elems[#t_elems + 1] = {n = f_node(ui, 'menu', unpack(path))}
 end
-for _, cat in ipairs(f_menuCats(tr_pos.tutorialmenu)) do
+for _, cat in ipairs(f_menuCats(ui.menu)) do
 	for _, path in ipairs({{'item', 'bg'}, {'item', 'active', 'bg'}, {'header', 'bg'}, {'header', 'active', 'bg'}}) do
-		local n = tr_pos.tutorialmenu[path[1]][cat]
+		local n = ui.menu[path[1]][cat]
 		for i = 2, #path, 1 do
 			n = type(n) == 'table' and n[path[i]] or nil
 		end
@@ -1506,14 +1382,14 @@ for _, cat in ipairs(f_menuCats(tr_pos.tutorialmenu)) do
 	end
 end
 for _, layout in ipairs({'vertical', 'horizontal'}) do
-	t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'lessontitle', layout, 'bg'),    p = tr_pos.lessontitle[layout].pos}
-	t_elems[#t_elems + 1] = {n = f_node(tr_pos, 'lessontitle', layout, 'front'), p = tr_pos.lessontitle[layout].pos}
+	t_elems[#t_elems + 1] = {n = f_node(ui, 'title', layout, 'bg'),    p = ui.title[layout].pos}
+	t_elems[#t_elems + 1] = {n = f_node(ui, 'title', layout, 'front'), p = ui.title[layout].pos}
 end
 for _, sub in ipairs({'upcomingstep', 'currentstep', 'completedstep'}) do
-	t_elems[#t_elems + 1] = {n = f_node(tr_pos, sub, 'vertical', 'bg')}
-	t_elems[#t_elems + 1] = {n = f_node(tr_pos, sub, 'horizontal', 'bg')}
-	t_elems[#t_elems + 1] = {n = f_node(tr_pos, sub, 'horizontal', 'bg', 'tail')}
-	t_elems[#t_elems + 1] = {n = f_node(tr_pos, sub, 'horizontal', 'bg', 'head')}
+	t_elems[#t_elems + 1] = {n = f_node(ui, sub, 'vertical', 'bg')}
+	t_elems[#t_elems + 1] = {n = f_node(ui, sub, 'horizontal', 'bg')}
+	t_elems[#t_elems + 1] = {n = f_node(ui, sub, 'horizontal', 'bg', 'tail')}
+	t_elems[#t_elems + 1] = {n = f_node(ui, sub, 'horizontal', 'bg', 'head')}
 end
 for _, v in ipairs(t_elems) do
 	v.n.AnimData = f_loadAnimData(v.n, v.p ~= nil and v.p[1] or nil, v.p ~= nil and v.p[2] or nil)
@@ -1521,10 +1397,9 @@ for _, v in ipairs(t_elems) do
 end
 end
 
--- One text object per visible row per style, the same shape as the step text lines. Built once at
--- load: none of it depends on match state, and the menu shown before the fight needs it early.
+-- Lesson menu text objects, one per visible row per style, built once at load.
 local function f_uiMenuDraw()
-	local m = tr_pos.tutorialmenu
+	local m = ui.menu
 	local d = {
 		title = f_newText(m.title),
 		arrowup = f_newText(m.arrow.up),
@@ -1541,20 +1416,18 @@ local function f_uiMenuDraw()
 		d.uncleared[i] = f_newText(m.status.uncleared)
 		d.locked[i] = f_newText(m.status.locked)
 	end
-	tutorial.menuDraw = d
+	dojo.menuDraw = d
 end
 
--- Glyph runs are laid out once per match from lessonsteps.pos, so an anchor move has to be walked
--- back through them. Every term of the original placement is kept per glyph, so this re-derives the
--- same number rather than nudging the old one, and repeats without drifting.
-function tutorial.f_relayoutGlyphs()
-	if tutorial.data == nil or type(tutorial.data.lessons) ~= 'table' then
+-- Re-derive glyph positions from their original terms after an anchor move.
+function dojo.f_relayoutGlyphs()
+	if dojo.data == nil or type(dojo.data.lessons) ~= 'table' then
 		return
 	end
 	for _, layout in ipairs({'vertical', 'horizontal'}) do
-		local ox = tr_pos.lessonsteps[layout].pos[1] + tr_pos.glyphs[layout].offset[1]
-		local oy = tr_pos.lessonsteps[layout].pos[2] + tr_pos.glyphs[layout].offset[2]
-		for _, lesson in ipairs(tutorial.data.lessons) do
+		local ox = ui.steps[layout].pos[1] + ui.glyphs[layout].offset[1]
+		local oy = ui.steps[layout].pos[2] + ui.glyphs[layout].offset[2]
+		for _, lesson in ipairs(dojo.data.lessons) do
 			for _, step in ipairs(lesson.steps or {}) do
 				local gl = type(step.glyphline) == 'table' and step.glyphline[layout] or nil
 				if type(gl) == 'table' then
@@ -1570,28 +1443,23 @@ function tutorial.f_relayoutGlyphs()
 	end
 end
 
--- Puts the whole layout back down for the aspect the game is in now. Cheap and idempotent when
--- nothing changed, which is every frame but the first of a match on a stage whose aspect differs
--- from the one the module was loaded on. Called from the draw entry points rather than from a hook,
--- because the aspect only ever matters at the point something is about to be drawn.
-function tutorial.f_syncAspect()
+-- Relayout for the current aspect; cheap no-op when unchanged, called where drawing happens.
+function dojo.f_syncAspect()
 	local vislcx = f_vislcx(f_screenAspect())
-	if vislcx == tutorial.vislcx then
+	if vislcx == dojo.vislcx then
 		return false
 	end
-	tutorial.vislcx = vislcx
-	tutorial.anchordelta = vislcx - tutorial.mtlcx
+	dojo.vislcx = vislcx
+	dojo.anchordelta = vislcx - dojo.mtlcx
 	f_applyAnchors()
-	-- Anims hold the localcoord and the origin they were placed with, and animReset in the draw loop
-	-- restores them, so each one has to be placed again rather than merely redrawn.
+	-- Re-place every anim; animReset would otherwise restore the old localcoord and origin.
 	for _, v in ipairs(t_elems) do
 		if v.n.AnimData ~= nil then
 			f_placeAnim(v.n.AnimData, v.n, v.p ~= nil and v.p[1] or nil, v.p ~= nil and v.p[2] or nil)
 		end
 	end
-	-- Text sprites hold a localcoord too. The ones drawn from a per-frame :update pick the new one up
-	-- on their own, but those built once with their position baked in do not.
-	local d = tutorial.menuDraw
+	-- Relayout text sprites built once with a baked position.
+	local d = dojo.menuDraw
 	if d ~= nil then
 		d.title:relayout()
 		d.arrowup:relayout()
@@ -1607,15 +1475,15 @@ function tutorial.f_syncAspect()
 			end
 		end
 	end
-	if tutorial.notutorialcounter ~= nil then
-		tutorial.notutorialcounter:relayout(tr_pos.lessoncounter.pos[1], tr_pos.lessoncounter.pos[2])
+	if dojo.nodatacounter ~= nil then
+		dojo.nodatacounter:relayout(ui.counter.pos[1], ui.counter.pos[2])
 	end
-	local dr = tutorial.draw
+	local dr = dojo.draw
 	if dr ~= nil then
-		dr.lessoncounter:relayout(tr_pos.lessoncounter.pos[1], tr_pos.lessoncounter.pos[2])
-		dr.totallessontimer:relayout(tr_pos.totallessontimer.pos[1], tr_pos.totallessontimer.pos[2])
-		dr.currentlessontimer:relayout(tr_pos.currentlessontimer.pos[1], tr_pos.currentlessontimer.pos[2])
-		dr.lessonreset_text:relayout(tr_pos.lessonreset.text.pos[1], tr_pos.lessonreset.text.pos[2])
+		dr.counter:relayout(ui.counter.pos[1], ui.counter.pos[2])
+		dr.totaltimer:relayout(ui.totaltimer.pos[1], ui.totaltimer.pos[2])
+		dr.currenttimer:relayout(ui.currenttimer.pos[1], ui.currenttimer.pos[2])
+		dr.reset_text:relayout(ui.reset.text.pos[1], ui.reset.text.pos[2])
 		dr.textbox_text:relayout()
 		dr.textbox_title:relayout()
 		dr.success_text:relayout()
@@ -1623,12 +1491,12 @@ function tutorial.f_syncAspect()
 		for _, layout in ipairs({'vertical', 'horizontal'}) do
 			local dl = dr[layout]
 			if type(dl) == 'table' then
-				local w = tr_pos.lessonsteps[layout].window
+				local w = ui.steps[layout].window
 				dl.windowXrange = w.withouttextbox[3] - w.withouttextbox[1]
 				dl.windowXrangeWtext = w.withtextbox[3] - w.withtextbox[1]
-				dl.lessontitle_text:relayout(
-					tr_pos.lessontitle[layout].pos[1] + tr_pos.lessontitle[layout].text.offset[1],
-					tr_pos.lessontitle[layout].pos[2] + tr_pos.lessontitle[layout].text.offset[2]
+				dl.title_text:relayout(
+					ui.title[layout].pos[1] + ui.title[layout].text.offset[1],
+					ui.title[layout].pos[2] + ui.title[layout].text.offset[2]
 				)
 				for _, key in ipairs({'upcomingtextline', 'currenttextline', 'completedtextline'}) do
 					for _, obj in ipairs(dl[key] or {}) do
@@ -1638,28 +1506,27 @@ function tutorial.f_syncAspect()
 			end
 		end
 	end
-	-- Glyph runs are laid out from lessonsteps.pos, which has just moved under them.
-	tutorial.f_relayoutGlyphs()
+	-- Glyph runs are laid out from steps.pos, which has just moved under them.
+	dojo.f_relayoutGlyphs()
 	return true
 end
 
 --;===========================================================
 --; start.lua
 --;===========================================================
-tutorial.selectScreenPalMod = 'normal'
+dojo.selectScreenPalMod = 'normal'
 
--- Current lesson / step / microstep, refreshed by f_tutorialDrawer every frame and read by the
--- checker and the textbox portrait; tutorialExist is latched at round start.
+-- Current lesson / step / microstep, refreshed by f_drawer; lessonsExist is latched at round start.
 local ct, cts, ctms
-local tutorialExist = false
+local lessonsExist = false
 
-function tutorial.f_inittutorialData()
-	tutorial.data = {
-		tutorialExist = true,
-		tutorialInitialized = false,
-		tutorialPaused = false,
-		tutorialadvancement = true,
-		tutorialRemovalIndex = {},
+function dojo.f_initData()
+	dojo.data = {
+		lessonsExist = true,
+		initialized = false,
+		wasPaused = false,
+		autoadvance = true,
+		removalIndex = {},
 		active = false,
 		allclear = false,
 		currentlesson = 1,
@@ -1668,10 +1535,7 @@ function tutorial.f_inittutorialData()
 		currentlessonmicrostep = 1,
 		validfortickcount = 0,
 		comboCounter = 0,
-		-- A step that requires no connect has no hit to key off, so the only thing separating one
-		-- of them from the next is the player entering a state again. stateinstance counts those
-		-- entries, laststateno/laststatetime spot them, and nohitinstance remembers the one that
-		-- satisfied the last no-hit step so the following step cannot take the same one.
+		-- No-hit steps key off state entries: stateinstance counts them, nohitinstance stops reuse.
 		stateinstance = 0,
 		laststateno = nil,
 		laststatetime = nil,
@@ -1682,7 +1546,7 @@ function tutorial.f_inittutorialData()
 		elapsedtime = 0,
 		runValid = false,
 		-- System lessons this character is admitted to, then its own (fresh copies).
-		lessons = tutorial.f_lessonsFor(start.f_getCharData(start.p[1].t_selected[1].ref)),
+		lessons = dojo.f_lessonsFor(start.f_getCharData(start.p[1].t_selected[1].ref)),
 		bgelemdata = {
 			vertical = {},
 			horizontal = {},
@@ -1690,77 +1554,75 @@ function tutorial.f_inittutorialData()
 		draw = {},
 		displaytimers = {
 			totaltimer = opts.TotalTimer ~= false,
-			lessontimer = opts[tutorial.profile.timerKey] ~= false,
+			lessontimer = opts[dojo.profile.timerKey] ~= false,
 		},
 	}
 
-	-- Initialize tutorialadvancement from the player's saved preference
+	-- Initialize autoadvance from the player's saved preference
 	if tostring(opts.Advancement or 'autoadvance'):lower() == 'autoadvance' then
-		tutorial.data.tutorialadvancement = true
+		dojo.data.autoadvance = true
 	else
-		tutorial.data.tutorialadvancement = false
+		dojo.data.autoadvance = false
 	end
 end
 
-function tutorial.f_tutorialBuilder()
+function dojo.f_buildMatch()
 	local valvarcheck, sumcheck, tempglyphs
-	--This function will initialize once to build all the lesson tables based on the motif information and the tutorial information loaded when the char was selected
-	--Populate background elements information
+	-- Builds the lesson tables once from the UI and parsed lessons, starting with background elements.
 	for _, v in ipairs({'vertical','horizontal'}) do
 		for _, k in ipairs({'currentstep','upcomingstep','completedstep'}) do
-			local bg = tutorial.tutorial_mode[k][v].bg
-			tutorial.data.bgelemdata[v][k .. '_bgsize'] = animGetSpriteInfo(bg.AnimData)
+			local bg = dojo.ui[k][v].bg
+			dojo.data.bgelemdata[v][k .. '_bgsize'] = animGetSpriteInfo(bg.AnimData)
 			if v == 'horizontal' then
-				tutorial.data.bgelemdata[v][k .. '_bgtailwidth'] = animGetSpriteInfo(bg.tail.AnimData)
-				tutorial.data.bgelemdata[v][k .. '_bgheadwidth'] = animGetSpriteInfo(bg.head.AnimData)
+				dojo.data.bgelemdata[v][k .. '_bgtailwidth'] = animGetSpriteInfo(bg.tail.AnimData)
+				dojo.data.bgelemdata[v][k .. '_bgheadwidth'] = animGetSpriteInfo(bg.head.AnimData)
 			end
 		end
 	end
 	
-	-- thin out tutorial data according to showforvarvalpairs
-	for i = 1, #tutorial.data.lessons, 1 do
-		if tutorial.data.lessons[i].showforvar[1] ~= nil then
+	-- thin out the lessons according to showforvarvalpairs
+	for i = 1, #dojo.data.lessons, 1 do
+		if dojo.data.lessons[i].showforvar[1] ~= nil then
 			valvarcheck = true
 			sumcheck = 0
 			-- check every var
-			for ii = 1, #tutorial.data.lessons[i].showforvar, 1 do
+			for ii = 1, #dojo.data.lessons[i].showforvar, 1 do
 				player(1)
 				-- iterate over vals
-				for iii = 1, #tutorial.data.lessons[i].showforval[ii], 1 do
-					if var(tutorial.data.lessons[i].showforvar[ii]) == tutorial.data.lessons[i].showforval[ii][iii] then
+				for iii = 1, #dojo.data.lessons[i].showforval[ii], 1 do
+					if var(dojo.data.lessons[i].showforvar[ii]) == dojo.data.lessons[i].showforval[ii][iii] then
 						sumcheck = sumcheck + 1
 					end
 				end
 			end
 			-- for every var, there should have been one hit; if not, set valvarcheck to false
-			if sumcheck ~= #tutorial.data.lessons[i].showforvar then
+			if sumcheck ~= #dojo.data.lessons[i].showforvar then
 				valvarcheck = false
 			end
-			-- remove tutorial that failed valvarcheck
+			-- remove lessons that failed valvarcheck
 			if not valvarcheck then
-				tutorial.data.tutorialRemovalIndex[#tutorial.data.tutorialRemovalIndex+1] = i
+				dojo.data.removalIndex[#dojo.data.removalIndex+1] = i
 			end
 		end
 	end
-	for i = #tutorial.data.tutorialRemovalIndex, 1, -1 do
-		table.remove(tutorial.data.lessons,tutorial.data.tutorialRemovalIndex[i])
+	for i = #dojo.data.removalIndex, 1, -1 do
+		table.remove(dojo.data.lessons,dojo.data.removalIndex[i])
 	end
 
-	--Obtain all of the tutorial information, to include the offset positions based on whether the display layout is horizontal or vertical
-	for i = 1, #tutorial.data.lessons, 1 do
-		if #tutorial.data.lessons[i].steps > tutorial.data.maxsteps then
-			tutorial.data.maxsteps = #tutorial.data.lessons[i].steps
+	--Obtain all of the lesson information, to include the offset positions based on whether the display layout is horizontal or vertical
+	for i = 1, #dojo.data.lessons, 1 do
+		if #dojo.data.lessons[i].steps > dojo.data.maxsteps then
+			dojo.data.maxsteps = #dojo.data.lessons[i].steps
 		end
-		for j = 1, #tutorial.data.lessons[i].steps, 1 do
-			local movelistline = tutorial.data.lessons[i].steps[j].glyphs
+		for j = 1, #dojo.data.lessons[i].steps, 1 do
+			local movelistline = dojo.data.lessons[i].steps[j].glyphs
 			for kk, v in main.f_sortKeys(motif.glyphs, function(t, a, b) return string.len(a) > string.len(b) end) do
 				local s = movelistline
 				
 				-- Replace glyph tokens with <token> for later lookup in motif.glyphs.
 						
 				movelistline = s:gsub('()' .. main.f_escapePattern(kk), function(pos)
-								-- If the match starts immediately after a '<', it's already inside a tag.
-								-- Leave it unchanged to prevent nested replacements.
+								-- Inside a tag already; leave it to avoid nested replacements.
 								if pos > 1 and s:sub(pos - 1, pos - 1) == '<' then
 									return kk
 								end
@@ -1779,26 +1641,25 @@ function tutorial.f_tutorialBuilder()
 					end
 				end
 				for _, layout in ipairs({'vertical','horizontal'}) do
-					if tutorial.tutorial_mode.glyphs[layout].align == -1 then
+					if dojo.ui.glyphs[layout].align == -1 then
 						for m = #tempglyphs, 1, -1 do
-							-- The glyph is appended first, so index off the slot it landed in: reading the
-							-- length again afterwards put every other field one slot past its own glyph.
-							local n = #tutorial.data.lessons[i].steps[j].glyphline[layout].glyph + 1
-							tutorial.data.lessons[i].steps[j].glyphline[layout].glyph[n] = tempglyphs[m]
-							tutorial.data.lessons[i].steps[j].glyphline[layout].pos[n] = {0,0}
-							tutorial.data.lessons[i].steps[j].glyphline[layout].width[n] = 0
-							tutorial.data.lessons[i].steps[j].glyphline[layout].alignOffset[n] = 0
-							tutorial.data.lessons[i].steps[j].glyphline[layout].lengthOffset[n] = 0
-							tutorial.data.lessons[i].steps[j].glyphline[layout].scale[n] = {1,1}
+							-- Index off the slot the glyph landed in, not the new length.
+							local n = #dojo.data.lessons[i].steps[j].glyphline[layout].glyph + 1
+							dojo.data.lessons[i].steps[j].glyphline[layout].glyph[n] = tempglyphs[m]
+							dojo.data.lessons[i].steps[j].glyphline[layout].pos[n] = {0,0}
+							dojo.data.lessons[i].steps[j].glyphline[layout].width[n] = 0
+							dojo.data.lessons[i].steps[j].glyphline[layout].alignOffset[n] = 0
+							dojo.data.lessons[i].steps[j].glyphline[layout].lengthOffset[n] = 0
+							dojo.data.lessons[i].steps[j].glyphline[layout].scale[n] = {1,1}
 						end
 					else
 						for m = 1, #tempglyphs do
-							tutorial.data.lessons[i].steps[j].glyphline[layout].glyph[m] = tempglyphs[m]
-							tutorial.data.lessons[i].steps[j].glyphline[layout].pos[m] = {0,0}
-							tutorial.data.lessons[i].steps[j].glyphline[layout].width[m] = 0
-							tutorial.data.lessons[i].steps[j].glyphline[layout].alignOffset[m] = 0
-							tutorial.data.lessons[i].steps[j].glyphline[layout].lengthOffset[m] = 0
-							tutorial.data.lessons[i].steps[j].glyphline[layout].scale[m] = {1,1}
+							dojo.data.lessons[i].steps[j].glyphline[layout].glyph[m] = tempglyphs[m]
+							dojo.data.lessons[i].steps[j].glyphline[layout].pos[m] = {0,0}
+							dojo.data.lessons[i].steps[j].glyphline[layout].width[m] = 0
+							dojo.data.lessons[i].steps[j].glyphline[layout].alignOffset[m] = 0
+							dojo.data.lessons[i].steps[j].glyphline[layout].lengthOffset[m] = 0
+							dojo.data.lessons[i].steps[j].glyphline[layout].scale[m] = {1,1}
 						end
 					end
 				end
@@ -1810,55 +1671,55 @@ function tutorial.f_tutorialBuilder()
 				local width = 0
 				--Some fonts won't give us the data we need to scale glyphs from, but sometimes that doesn't matter anyway
 				local font_def = nil
-				if layout == "vertical" and tutorial.tutorial_mode.glyphs.vertical.scalewithtext == "true" then
-					font_def = f_fontDef(tutorial.tutorial_mode.currentstep.vertical.text.font[1])
+				if layout == "vertical" and dojo.ui.glyphs.vertical.scalewithtext == "true" then
+					font_def = f_fontDef(dojo.ui.currentstep.vertical.text.font[1])
 				end
-				local glyphalign = tutorial.tutorial_mode.glyphs[layout].align
-				for m = 1, #tutorial.data.lessons[i].steps[j].glyphline[layout].glyph, 1 do
-					if motif.glyphs[tutorial.data.lessons[i].steps[j].glyphline[layout].glyph[m]] ~= nil then
+				local glyphalign = dojo.ui.glyphs[layout].align
+				for m = 1, #dojo.data.lessons[i].steps[j].glyphline[layout].glyph, 1 do
+					if motif.glyphs[dojo.data.lessons[i].steps[j].glyphline[layout].glyph[m]] ~= nil then
 						if glyphalign == 0 then --center align
-							alignOffset = tutorial.tutorial_mode.glyphs[layout].offset[1] * 0.5
+							alignOffset = dojo.ui.glyphs[layout].offset[1] * 0.5
 						elseif glyphalign == -1 then --right align
-							alignOffset = tutorial.tutorial_mode.glyphs[layout].offset[1]
+							alignOffset = dojo.ui.glyphs[layout].offset[1]
 						end
 						if glyphalign ~= align then
 							lengthOffset = 0
 							align = glyphalign
 						end
-						local scaleX = tutorial.tutorial_mode.glyphs[layout].scale[1]
-						local scaleY = tutorial.tutorial_mode.glyphs[layout].scale[2]
+						local scaleX = dojo.ui.glyphs[layout].scale[1]
+						local scaleY = dojo.ui.glyphs[layout].scale[2]
 						if glyphalign == -1 then
-							alignOffset = alignOffset - motif.glyphs[tutorial.data.lessons[i].steps[j].glyphline[layout].glyph[m]].Size[1] * scaleX
+							alignOffset = alignOffset - motif.glyphs[dojo.data.lessons[i].steps[j].glyphline[layout].glyph[m]].Size[1] * scaleX
 						end
-						tutorial.data.lessons[i].steps[j].glyphline[layout].alignOffset[m] = alignOffset
+						dojo.data.lessons[i].steps[j].glyphline[layout].alignOffset[m] = alignOffset
 						if font_def ~= nil then
-							scaleY = font_def.Size[2] * tutorial.tutorial_mode.currentstep.vertical.text.scale[2] / motif.glyphs[tutorial.data.lessons[i].steps[j].glyphline[layout].glyph[m]].Size[2]
+							scaleY = font_def.Size[2] * dojo.ui.currentstep.vertical.text.scale[2] / motif.glyphs[dojo.data.lessons[i].steps[j].glyphline[layout].glyph[m]].Size[2]
 							scaleX = scaleY
 						end
-						tutorial.data.lessons[i].steps[j].glyphline[layout].scale[m] = {scaleX, scaleY}
-						tutorial.data.lessons[i].steps[j].glyphline[layout].width[m] = math.floor(motif.glyphs[tutorial.data.lessons[i].steps[j].glyphline[layout].glyph[m]].Size[1] * scaleX + tutorial.tutorial_mode.glyphs[layout].spacing[1])
+						dojo.data.lessons[i].steps[j].glyphline[layout].scale[m] = {scaleX, scaleY}
+						dojo.data.lessons[i].steps[j].glyphline[layout].width[m] = math.floor(motif.glyphs[dojo.data.lessons[i].steps[j].glyphline[layout].glyph[m]].Size[1] * scaleX + dojo.ui.glyphs[layout].spacing[1])
 						if glyphalign == 1 then
-							lengthOffset = lengthOffset + tutorial.data.lessons[i].steps[j].glyphline[layout].width[m]
+							lengthOffset = lengthOffset + dojo.data.lessons[i].steps[j].glyphline[layout].width[m]
 						elseif glyphalign == -1 then
-							lengthOffset = lengthOffset - tutorial.data.lessons[i].steps[j].glyphline[layout].width[m]
+							lengthOffset = lengthOffset - dojo.data.lessons[i].steps[j].glyphline[layout].width[m]
 						else
-							lengthOffset = lengthOffset + tutorial.data.lessons[i].steps[j].glyphline[layout].width[m] / 2
+							lengthOffset = lengthOffset + dojo.data.lessons[i].steps[j].glyphline[layout].width[m] / 2
 						end
-						tutorial.data.lessons[i].steps[j].glyphline[layout].lengthOffset[m] = lengthOffset
-						tutorial.data.lessons[i].steps[j].glyphline[layout].pos[m] = {
-							math.floor(tutorial.tutorial_mode.lessonsteps[layout].pos[1] + tutorial.tutorial_mode.glyphs[layout].offset[1] + alignOffset + lengthOffset),
-							tutorial.tutorial_mode.lessonsteps[layout].pos[2] + tutorial.tutorial_mode.glyphs[layout].offset[2]
+						dojo.data.lessons[i].steps[j].glyphline[layout].lengthOffset[m] = lengthOffset
+						dojo.data.lessons[i].steps[j].glyphline[layout].pos[m] = {
+							math.floor(dojo.ui.steps[layout].pos[1] + dojo.ui.glyphs[layout].offset[1] + alignOffset + lengthOffset),
+							dojo.ui.steps[layout].pos[2] + dojo.ui.glyphs[layout].offset[2]
 						}
 					end
 				end
 			end
 		end
-		if #tutorial.data.lessons[i].steps > tutorial.data.maxsteps then
-			tutorial.data.maxsteps = #tutorial.data.lessons[i].steps
+		if #dojo.data.lessons[i].steps > dojo.data.maxsteps then
+			dojo.data.maxsteps = #dojo.data.lessons[i].steps
 		end
 	end
 	--Pre-populate the draw table
-	tutorial.draw = {
+	dojo.draw = {
 		vertical = {},
 		horizontal = {},
 		success = 0,
@@ -1866,44 +1727,43 @@ function tutorial.f_tutorialBuilder()
 		fadein = 0,
 		fadeout = 0,
 		fadetriggered = false,
-		textbox_text = f_newText(tutorial.tutorial_mode.textbox.text),
-		textbox_title = f_newText(tutorial.tutorial_mode.textbox.title),
-		success_text = f_newText(tutorial.tutorial_mode.success.text),
-		allclear = math.max(animGetLength(tutorial.tutorial_mode.allclear.front.AnimData), animGetLength(tutorial.tutorial_mode.allclear.bg.AnimData), tutorial.tutorial_mode.allclear.text.displaytime),
-		allclear_text = f_newText(tutorial.tutorial_mode.allclear.text),
-		lessoncounter = f_newText(tutorial.tutorial_mode.lessoncounter),
-		totallessontimer = f_newText(tutorial.tutorial_mode.totallessontimer),
-		currentlessontimer = f_newText(tutorial.tutorial_mode.currentlessontimer),
-		lessonreset_text = f_newText(tutorial.tutorial_mode.lessonreset.text),
+		textbox_text = f_newText(dojo.ui.textbox.text),
+		textbox_title = f_newText(dojo.ui.textbox.title),
+		success_text = f_newText(dojo.ui.success.text),
+		allclear = math.max(animGetLength(dojo.ui.allclear.front.AnimData), animGetLength(dojo.ui.allclear.bg.AnimData), dojo.ui.allclear.text.displaytime),
+		allclear_text = f_newText(dojo.ui.allclear.text),
+		counter = f_newText(dojo.ui.counter),
+		totaltimer = f_newText(dojo.ui.totaltimer),
+		currenttimer = f_newText(dojo.ui.currenttimer),
+		reset_text = f_newText(dojo.ui.reset.text),
 	}
 	for _, v in ipairs({'vertical','horizontal'}) do
-		tutorial.draw[v] = {
+		dojo.draw[v] = {
 			upcomingtextline = {},
 			currenttextline = {},
 			completedtextline = {},
-			lessontitle = math.max(animGetLength(tutorial.tutorial_mode.lessontitle[v].front.AnimData), animGetLength(tutorial.tutorial_mode.lessontitle[v].bg.AnimData)),
-			--lessontitle = 100,
-			lessontitle_text = f_newText(tutorial.tutorial_mode.lessontitle[v].text),
-			windowXrange = tutorial.tutorial_mode.lessonsteps[v].window.withouttextbox[3] - tutorial.tutorial_mode.lessonsteps[v].window.withouttextbox[1],
-			windowYrange = tutorial.tutorial_mode.lessonsteps[v].window.withouttextbox[4] - tutorial.tutorial_mode.lessonsteps[v].window.withouttextbox[2],
-			windowXrangeWtext = tutorial.tutorial_mode.lessonsteps[v].window.withtextbox[3] - tutorial.tutorial_mode.lessonsteps[v].window.withtextbox[1],
-			windowYrangeWtext = tutorial.tutorial_mode.lessonsteps[v].window.withtextbox[4] - tutorial.tutorial_mode.lessonsteps[v].window.withtextbox[2],
+			title = math.max(animGetLength(dojo.ui.title[v].front.AnimData), animGetLength(dojo.ui.title[v].bg.AnimData)),
+			--title = 100,
+			title_text = f_newText(dojo.ui.title[v].text),
+			windowXrange = dojo.ui.steps[v].window.withouttextbox[3] - dojo.ui.steps[v].window.withouttextbox[1],
+			windowYrange = dojo.ui.steps[v].window.withouttextbox[4] - dojo.ui.steps[v].window.withouttextbox[2],
+			windowXrangeWtext = dojo.ui.steps[v].window.withtextbox[3] - dojo.ui.steps[v].window.withtextbox[1],
+			windowYrangeWtext = dojo.ui.steps[v].window.withtextbox[4] - dojo.ui.steps[v].window.withtextbox[2],
 		}
-		tutorial.draw[v].lessontitle_text:update({x = tutorial.tutorial_mode.lessontitle[v].pos[1]+tutorial.tutorial_mode.lessontitle[v].text.offset[1], y = tutorial.tutorial_mode.lessontitle[v].pos[2]+tutorial.tutorial_mode.lessontitle[v].text.offset[2],})
-		for i = 1, tutorial.data.maxsteps, 1 do
-			tutorial.draw[v].upcomingtextline[i] = f_newText(tutorial.tutorial_mode.upcomingstep[v].text)
-			tutorial.draw[v].currenttextline[i] = f_newText(tutorial.tutorial_mode.currentstep[v].text)
-			tutorial.draw[v].completedtextline[i] = f_newText(tutorial.tutorial_mode.completedstep[v].text)
+		dojo.draw[v].title_text:update({x = dojo.ui.title[v].pos[1]+dojo.ui.title[v].text.offset[1], y = dojo.ui.title[v].pos[2]+dojo.ui.title[v].text.offset[2],})
+		for i = 1, dojo.data.maxsteps, 1 do
+			dojo.draw[v].upcomingtextline[i] = f_newText(dojo.ui.upcomingstep[v].text)
+			dojo.draw[v].currenttextline[i] = f_newText(dojo.ui.currentstep[v].text)
+			dojo.draw[v].completedtextline[i] = f_newText(dojo.ui.completedstep[v].text)
 		end
 	end
 
-	-- Wire up the Lesson select view. The same item list backs both the screen shown when the match
-	-- loads and the Pause menu's Tutorial List, so the two can never drift apart.
-	tutorial.selectFilter = 'all'
+	-- Lesson select view; one item list backs the match-load screen and the pause menu's Lesson List.
+	dojo.selectFilter = 'all'
 	-- The engine builds one pause menu per [<Gamemode> Pause Menu] section, as menu.<gamemode>.
-	tutorial.rootNode = type(menu) == 'table' and menu[tutorial.profile.gamemode] or nil
+	dojo.rootNode = type(menu) == 'table' and menu[dojo.profile.gamemode] or nil
 	local sub = nil
-	local stack = {tutorial.rootNode}
+	local stack = {dojo.rootNode}
 	while #stack > 0 do
 		local node = table.remove(stack)
 		if type(node) == 'table' and type(node.submenu) == 'table' then
@@ -1916,375 +1776,361 @@ function tutorial.f_tutorialBuilder()
 			end
 		end
 	end
-	tutorial.listNode = sub
+	dojo.listNode = sub
 	if sub ~= nil then
 		-- Remember what the section itself declared, so round start can put it all back.
-		if tutorial.listTail == nil then
-			tutorial.listTail = sub.items
+		if dojo.listTail == nil then
+			dojo.listTail = sub.items
 		end
-		if tutorial.listLoop == nil then
-			tutorial.listLoop = sub.loop
+		if dojo.listLoop == nil then
+			dojo.listLoop = sub.loop
 		end
-		sub.items = tutorial.f_buildSelectItems()
-		sub.item = tutorial.f_firstUncleared(sub.items)
+		sub.items = dojo.f_buildSelectItems()
+		sub.item = dojo.f_firstUncleared(sub.items)
 		sub.first = 1
-		-- The Tutorial List *is* the select view: hand the menu system our loop in place of its own.
+		-- The Lesson List *is* the select view: hand the menu system our loop in place of its own.
 		sub.loop = function()
-			tutorial.f_selectLoop(sub, false)
+			dojo.f_selectLoop(sub, false)
 		end
 	end
-	if tutorial.rootNode ~= nil and tutorial.rootItems == nil then
-		tutorial.rootItems = tutorial.rootNode.items
+	if dojo.rootNode ~= nil and dojo.rootItems == nil then
+		dojo.rootItems = dojo.rootNode.items
 	end
-	tutorial.select = {
-		items = sub ~= nil and sub.items or tutorial.f_buildSelectItems(),
+	dojo.select = {
+		items = sub ~= nil and sub.items or dojo.f_buildSelectItems(),
 		item = 1,
 		first = 1,
 		open = false,
 	}
-	tutorial.select.item = tutorial.f_firstUncleared(tutorial.select.items)
+	dojo.select.item = dojo.f_firstUncleared(dojo.select.items)
 
-	tutorial.data.tutorialInitialized = true
+	dojo.data.initialized = true
 end
 
-function tutorial.f_tutorialDummySetup()
-	--If the tutorial initializer was successful and the round animation is completed, we will start drawing tutorial on the screen
+function dojo.f_dummySetup()
+	--If the tutorial initializer was successful and the round animation is completed, we will start drawing the lesson on the screen
 	player(2)
 	setAILevel(0)
-	if tutorial.data.currentlesson <= #tutorial.data.lessons then
-		if tutorial.data.lessons[tutorial.data.currentlesson].p2life > 0 then
-			mapSet('_iksys_tutorialSetLife', tutorial.data.lessons[tutorial.data.currentlesson].p2life)
-			setLife(tutorial.data.lessons[tutorial.data.currentlesson].p2life)
-		elseif map('_iksys_tutorialSetLife') < lifeMax() then
-			mapSet('_iksys_tutorialSetLife', lifeMax())
+	if dojo.data.currentlesson <= #dojo.data.lessons then
+		if dojo.data.lessons[dojo.data.currentlesson].p2life > 0 then
+			mapSet('_iksys_dojoSetLife', dojo.data.lessons[dojo.data.currentlesson].p2life)
+			setLife(dojo.data.lessons[dojo.data.currentlesson].p2life)
+		elseif map('_iksys_dojoSetLife') < lifeMax() then
+			mapSet('_iksys_dojoSetLife', lifeMax())
 			setLife(lifeMax())
 		end
 	else
-		mapSet('_iksys_tutorialSetLife', lifeMax())
+		mapSet('_iksys_dojoSetLife', lifeMax())
 		setLife(lifeMax())
 	end
 	player(1)
-	if tutorial.data.currentlesson <= #tutorial.data.lessons then
-		if tutorial.data.lessons[tutorial.data.currentlesson].p1life > 0 then
-			mapSet('_iksys_tutorialSetLife', tutorial.data.lessons[tutorial.data.currentlesson].p1life)
-			setLife(tutorial.data.lessons[tutorial.data.currentlesson].p1life)
-		elseif map('_iksys_tutorialSetLife') < lifeMax() then
-			mapSet('_iksys_tutorialSetLife', lifeMax())
+	if dojo.data.currentlesson <= #dojo.data.lessons then
+		if dojo.data.lessons[dojo.data.currentlesson].p1life > 0 then
+			mapSet('_iksys_dojoSetLife', dojo.data.lessons[dojo.data.currentlesson].p1life)
+			setLife(dojo.data.lessons[dojo.data.currentlesson].p1life)
+		elseif map('_iksys_dojoSetLife') < lifeMax() then
+			mapSet('_iksys_dojoSetLife', lifeMax())
 			setLife(lifeMax())
 		end
 	else
-		mapSet('_iksys_tutorialSetLife', lifeMax())
+		mapSet('_iksys_dojoSetLife', lifeMax())
 		setLife(lifeMax())
 	end
 	player(2)
-	mapSet('_iksys_tutorialDummyControl', 0)
-	if not tutorial.data.allclear and not tutorial.data.lessons[tutorial.data.currentlesson].active then
-		if tutorial.data.lessons[tutorial.data.currentlesson].dummymode == 'stand' then
-			mapSet('_iksys_tutorialDummyMode', 0)
-		elseif tutorial.data.lessons[tutorial.data.currentlesson].dummymode == 'crouch' then
-			mapSet('_iksys_tutorialDummyMode', 1)
-		elseif tutorial.data.lessons[tutorial.data.currentlesson].dummymode == 'jump' then
-			mapSet('_iksys_tutorialDummyMode', 2)
-		elseif tutorial.data.lessons[tutorial.data.currentlesson].dummymode == 'wjump' then
-			mapSet('_iksys_tutorialDummyMode', 3)
-		elseif tutorial.data.lessons[tutorial.data.currentlesson].dummymode == 'fjump' then
-			mapSet('_iksys_tutorialDummyMode', 4)
-		elseif tutorial.data.lessons[tutorial.data.currentlesson].dummymode == 'bjump' then
-			mapSet('_iksys_tutorialDummyMode', 5)
-		elseif tutorial.data.lessons[tutorial.data.currentlesson].dummymode == 'fwjump' then
-			mapSet('_iksys_tutorialDummyMode', 6)
-		elseif tutorial.data.lessons[tutorial.data.currentlesson].dummymode == 'bwjump' then
-			mapSet('_iksys_tutorialDummyMode', 7)
+	mapSet('_iksys_dojoDummyControl', 0)
+	if not dojo.data.allclear and not dojo.data.lessons[dojo.data.currentlesson].active then
+		if dojo.data.lessons[dojo.data.currentlesson].dummymode == 'stand' then
+			mapSet('_iksys_dojoDummyMode', 0)
+		elseif dojo.data.lessons[dojo.data.currentlesson].dummymode == 'crouch' then
+			mapSet('_iksys_dojoDummyMode', 1)
+		elseif dojo.data.lessons[dojo.data.currentlesson].dummymode == 'jump' then
+			mapSet('_iksys_dojoDummyMode', 2)
+		elseif dojo.data.lessons[dojo.data.currentlesson].dummymode == 'wjump' then
+			mapSet('_iksys_dojoDummyMode', 3)
+		elseif dojo.data.lessons[dojo.data.currentlesson].dummymode == 'fjump' then
+			mapSet('_iksys_dojoDummyMode', 4)
+		elseif dojo.data.lessons[dojo.data.currentlesson].dummymode == 'bjump' then
+			mapSet('_iksys_dojoDummyMode', 5)
+		elseif dojo.data.lessons[dojo.data.currentlesson].dummymode == 'fwjump' then
+			mapSet('_iksys_dojoDummyMode', 6)
+		elseif dojo.data.lessons[dojo.data.currentlesson].dummymode == 'bwjump' then
+			mapSet('_iksys_dojoDummyMode', 7)
 		end
-		-- none / auto (blocks everything; 'all' is a synonym) / afterhit (blocks for a moment after
-		-- being hit, so a combo can be started but not continued) / random (blocks about half the time).
-		mapSet('_iksys_tutorialGuardMode', tutorial.t_guardMode[tutorial.data.lessons[tutorial.data.currentlesson].guardmode] or 0)
-		if tutorial.data.lessons[tutorial.data.currentlesson].buttonjam == 'none' then
-			mapSet('_iksys_tutorialButtonJam', 0)
-		elseif tutorial.data.lessons[tutorial.data.currentlesson].buttonjam == 'a' then
-			mapSet('_iksys_tutorialButtonJam', 1)
-		elseif tutorial.data.lessons[tutorial.data.currentlesson].buttonjam == 'b' then
-			mapSet('_iksys_tutorialButtonJam', 2)
-		elseif tutorial.data.lessons[tutorial.data.currentlesson].buttonjam == 'c' then
-			mapSet('_iksys_tutorialButtonJam', 3)
-		elseif tutorial.data.lessons[tutorial.data.currentlesson].buttonjam == 'x' then
-			mapSet('_iksys_tutorialButtonJam', 4)
-		elseif tutorial.data.lessons[tutorial.data.currentlesson].buttonjam == 'y' then
-			mapSet('_iksys_tutorialButtonJam', 5)
-		elseif tutorial.data.lessons[tutorial.data.currentlesson].buttonjam == 'z' then
-			mapSet('_iksys_tutorialButtonJam', 6)
-		elseif tutorial.data.lessons[tutorial.data.currentlesson].buttonjam == 'start' then
-			mapSet('_iksys_tutorialButtonJam', 7)
-		elseif tutorial.data.lessons[tutorial.data.currentlesson].buttonjam == 'd' then
-			mapSet('_iksys_tutorialButtonJam', 8)
-		elseif tutorial.data.lessons[tutorial.data.currentlesson].buttonjam == 'w' then
-			mapSet('_iksys_tutorialButtonJam', 9)
+		-- Guard modes: none, auto (or all), afterhit (briefly after being hit), random (about half the time).
+		mapSet('_iksys_dojoGuardMode', dojo.t_guardMode[dojo.data.lessons[dojo.data.currentlesson].guardmode] or 0)
+		if dojo.data.lessons[dojo.data.currentlesson].buttonjam == 'none' then
+			mapSet('_iksys_dojoButtonJam', 0)
+		elseif dojo.data.lessons[dojo.data.currentlesson].buttonjam == 'a' then
+			mapSet('_iksys_dojoButtonJam', 1)
+		elseif dojo.data.lessons[dojo.data.currentlesson].buttonjam == 'b' then
+			mapSet('_iksys_dojoButtonJam', 2)
+		elseif dojo.data.lessons[dojo.data.currentlesson].buttonjam == 'c' then
+			mapSet('_iksys_dojoButtonJam', 3)
+		elseif dojo.data.lessons[dojo.data.currentlesson].buttonjam == 'x' then
+			mapSet('_iksys_dojoButtonJam', 4)
+		elseif dojo.data.lessons[dojo.data.currentlesson].buttonjam == 'y' then
+			mapSet('_iksys_dojoButtonJam', 5)
+		elseif dojo.data.lessons[dojo.data.currentlesson].buttonjam == 'z' then
+			mapSet('_iksys_dojoButtonJam', 6)
+		elseif dojo.data.lessons[dojo.data.currentlesson].buttonjam == 'start' then
+			mapSet('_iksys_dojoButtonJam', 7)
+		elseif dojo.data.lessons[dojo.data.currentlesson].buttonjam == 'd' then
+			mapSet('_iksys_dojoButtonJam', 8)
+		elseif dojo.data.lessons[dojo.data.currentlesson].buttonjam == 'w' then
+			mapSet('_iksys_dojoButtonJam', 9)
 		end
-		-- Frames the dummy waits between button jam presses - or, in the jump modes, from takeoff to its
-		-- one press per jump. Set alongside the jam itself, so a Lesson that leaves it out goes back to
-		-- the default for its mode rather than keeping the last one's.
-		local jt = tutorial.data.lessons[tutorial.data.currentlesson]
-		local jdefault = tutorial.t_jumpModes[jt.dummymode] and tutorial.buttonJamAirDelayDefault or tutorial.buttonJamDelayDefault
-		mapSet('_iksys_tutorialButtonJamInterval', jt.buttondelay or jdefault)
-		mapSet('_iksys_tutorialAirJamState', 0)
+		-- Button jam delay, reset per lesson to its mode's default when unset.
+		local jt = dojo.data.lessons[dojo.data.currentlesson]
+		local jdefault = dojo.t_jumpModes[jt.dummymode] and dojo.buttonJamAirDelayDefault or dojo.buttonJamDelayDefault
+		mapSet('_iksys_dojoButtonJamInterval', jt.buttondelay or jdefault)
+		mapSet('_iksys_dojoAirJamState', 0)
 		-- Frames the dummy stays on the ground between jumps in the jump dummy modes, set the same way.
-		mapSet('_iksys_tutorialJumpInterval', tutorial.data.lessons[tutorial.data.currentlesson].jumpdelay or tutorial.jumpDelayDefault)
-		mapSet('_iksys_tutorialJumpDelay', 0)
-		-- A dummy that acts (one of the jump dummymodes, or a button jam) walks back to its dummypos
-		-- distance from the player before it does, so the action always starts from the spacing the
-		-- Lesson was written for - even after the player has moved or a forward jump has closed it.
-		-- Corner placements have no distance to keep, and a dummy that only stands or crouches is left
-		-- alone so it never backs away from the player's approach.
-		local t = tutorial.data.lessons[tutorial.data.currentlesson]
-		local acts = tutorial.t_jumpModes[t.dummymode] or (t.buttonjam ~= nil and t.buttonjam ~= 'none')
-		mapSet('_iksys_tutorialDistance', acts and (tutorial.t_dummyDistance[t.dummypos] or 0) or 0)
-		mapSet('_iksys_tutorialDirection', 0)
-		tutorial.data.lessons[tutorial.data.currentlesson].active = true
+		mapSet('_iksys_dojoJumpInterval', dojo.data.lessons[dojo.data.currentlesson].jumpdelay or dojo.jumpDelayDefault)
+		mapSet('_iksys_dojoJumpDelay', 0)
+		-- Acting dummies walk back to their dummypos distance first; corners and stand/crouch are left alone.
+		local t = dojo.data.lessons[dojo.data.currentlesson]
+		local acts = dojo.t_jumpModes[t.dummymode] or (t.buttonjam ~= nil and t.buttonjam ~= 'none')
+		mapSet('_iksys_dojoDistance', acts and (dojo.t_dummyDistance[t.dummypos] or 0) or 0)
+		mapSet('_iksys_dojoDirection', 0)
+		dojo.data.lessons[dojo.data.currentlesson].active = true
 	end
 	player(1)
 end
 
--- lesson.dummypos values the dummy keeps its distance for, as _iksys_tutorialDistance values.
-tutorial.t_dummyDistance = {close = 1, medium = 2, far = 3}
--- lesson.guardmode -> _iksys_tutorialGuardMode (see the legend at the top of dojo.zss)
-tutorial.t_guardMode = {none = 0, afterhit = 1, auto = 2, all = 2, random = 3}
+-- lesson.dummypos values the dummy keeps its distance for, as _iksys_dojoDistance values.
+dojo.t_dummyDistance = {close = 1, medium = 2, far = 3}
+-- lesson.guardmode -> _iksys_dojoGuardMode (see the legend at the top of dojo.zss)
+dojo.t_guardMode = {none = 0, afterhit = 1, auto = 2, all = 2, random = 3}
 -- lesson.dummymode values that count as the dummy acting, for the distance keeping above.
-tutorial.t_jumpModes = {jump = true, wjump = true, fjump = true, bjump = true, fwjump = true, bwjump = true}
+dojo.t_jumpModes = {jump = true, wjump = true, fjump = true, bjump = true, fwjump = true, bwjump = true}
 
 -- lesson.dummybuttondelay when a Lesson leaves it out: the gap the button jam has always used.
-tutorial.buttonJamDelayDefault = 11
+dojo.buttonJamDelayDefault = 11
 -- The same in the jump modes, where it counts from takeoff: attack as soon as the dummy leaves the ground.
-tutorial.buttonJamAirDelayDefault = 0
+dojo.buttonJamAirDelayDefault = 0
 -- lesson.dummyjumpdelay when a Lesson leaves it out: jump again as soon as the dummy lands.
-tutorial.jumpDelayDefault = 0
+dojo.jumpDelayDefault = 0
 
-local function f_iconAnimString(step)
-	local t = {}
-	for _, k in ipairs(step.iconanim) do
-		t[#t + 1] = tostring(k)
+-- The textbox portrait's anim string, from textbox.portrait.spr; nil when the def names none.
+local function f_textboxPortraitAnim()
+	local spr = dojo.ui.textbox.portrait.spr
+	if type(spr) ~= 'table' or spr[1] == nil then
+		return nil
 	end
-	return table.concat(t, ',')
+	return tostring(spr[1]) .. ',' .. tostring(spr[2] or 0) .. ',0,0,-1'
 end
 
-function tutorial.textboxportrait()
+function dojo.textboxportrait()
 	-- Cached until roundStart clears it, because the selected character can change.
-	if tutorial.charPortraitSff == nil then
-		local spr = loadText(getCharFileName(tutorial.p1selref)):lower()
+	if dojo.charPortraitSff == nil then
+		local spr = loadText(getCharFileName(dojo.p1selref)):lower()
 		spr = spr:gsub('([^\r\n;]*)%s*;[^\r\n]*', '%1')
 		spr = spr:gsub('\n%s*\n', '\n')
 		spr = spr:gsub('.*sprite.*=%s*(.*sff).*', '%1')
-		tutorial.charPortraitSff = sffNew(getCharFileName(tutorial.p1selref):gsub('(.*)%/.*def.*', '%1/') .. spr)
+		dojo.charPortraitSff = sffNew(getCharFileName(dojo.p1selref):gsub('(.*)%/.*def.*', '%1/') .. spr)
 	end
-	local tutorialanim = f_iconAnimString(tutorial.data.lessons[ct].steps[cts])
-	tutorial.tutorial_mode.textbox.portrait.anim = animNew(tutorial.charPortraitSff, tutorialanim)
+	local str = f_textboxPortraitAnim()
+	if str ~= nil then
+		dojo.ui.textbox.portrait.anim = animNew(dojo.charPortraitSff, str)
+	end
 end
 	
-function tutorial.f_tutorialDrawer()
-	if tutorial.data.tutorialInitialized and roundState() == 2 and not tutorial.data.active and tutorial.draw.fade == 0 then
-		tutorial.f_tutorialDummySetup()
-		tutorial.data.active = true
-		-- Demonstrations-only: whether the pair have moved since the lesson was entered. A demo that
-		-- restarted the lesson to get here is already under way, so they have.
-		tutorial.data.demoOnlyPlayed = tutorial.f_demoActive()
-		-- A lesson being entered shows its instruction pages first. A speedrun is against the clock,
-		-- so it skips them; the pause menu still opens them on request.
-		tutorial.f_startDummyScript(tutorial.data.currentlesson)
-		local lesson = tutorial.data.lessons[tutorial.data.currentlesson]
-		if lesson ~= nil and not lesson.pagesSeen and not tutorial.f_speedrunEnabled() and not tutorial.f_demoActive() then
-			tutorial.f_openPages(tutorial.data.currentlesson)
+function dojo.f_drawer()
+	if dojo.data.initialized and roundState() == 2 and not dojo.data.active and dojo.draw.fade == 0 then
+		dojo.f_dummySetup()
+		dojo.data.active = true
+		-- Demonstrations-only: whether the pair have moved since the lesson was entered.
+		dojo.data.demoOnlyPlayed = dojo.f_demoActive()
+		-- Show a newly entered lesson's pages first, except in a speedrun.
+		dojo.f_startDummyScript(dojo.data.currentlesson)
+		local lesson = dojo.data.lessons[dojo.data.currentlesson]
+		if lesson ~= nil and not lesson.pagesSeen and not dojo.f_speedrunEnabled() and not dojo.f_demoActive() then
+			dojo.f_openPages(dojo.data.currentlesson)
 		end
 	end
 
-	if paused() and not tutorial.data.tutorialPaused then
-		tutorial.data.tutorialPaused = true
+	if paused() and not dojo.data.wasPaused then
+		dojo.data.wasPaused = true
 	elseif not paused() then
-		tutorial.data.tutorialPaused = false
+		dojo.data.wasPaused = false
 	end
 
 	local accwidth = 0
 	local addrow = 0
 	local layout, spacing, sub, windowXrange, windowYrange, animposx, animposy
 	local textboxwindow1, textboxwindow2, textboxwindow3, textboxwindow4, textboxtext_offset1, textboxtext_offset2
-	local tutorialanim, tutorialanimoffset, tutorialanimscalex, tutorialanimscaley
-	local tutorialanimwindow1, tutorialanimwindow2, tutorialanimwindow3, tutorialanimwindow4
 	-- Initialize abbreviated values for readability
-	ct = tutorial.data.currentlesson
-	cts = tutorial.data.currentlessonstep
-	ctms = tutorial.data.currentlessonmicrostep
-	layout = tutorial.tutorial_mode.tutoriallayout
+	ct = dojo.data.currentlesson
+	cts = dojo.data.currentlessonstep
+	ctms = dojo.data.currentlessonmicrostep
+	layout = dojo.ui.layout
 
-	if tutorial.data.active then
-		if ct <= #tutorial.data.lessons and tutorial.draw.success == 0 then
+	if dojo.data.active then
+		if ct <= #dojo.data.lessons and dojo.draw.success == 0 then
 
-			--According to motif instructions, draw tutorial counter on screen
-			local trtext = tutorial.tutorial_mode.lessoncounter.text
-			trtext = trtext:gsub('%%s', tostring(ct)):gsub('%%t', tostring(#tutorial.data.lessons))
-			tutorial.draw.lessoncounter:update({text = trtext})
-			tutorial.draw.lessoncounter:draw()
-			tutorial.f_drawLessonExtras(ct)
+			--According to motif instructions, draw the counter on screen
+			local trtext = dojo.ui.counter.text
+			trtext = trtext:gsub('%%s', tostring(ct)):gsub('%%t', tostring(#dojo.data.lessons))
+			dojo.draw.counter:update({text = trtext})
+			dojo.draw.counter:draw()
+			dojo.f_drawLessonExtras(ct)
 			--Logic for the stopwatches: total time spent in lesson, and time spent on this current lesson
-			if tutorial.data.displaytimers.totaltimer then
-				local totaltimertext = tutorial.tutorial_mode.totallessontimer.text
-				tutorial.data.elapsedtime = roundTime() - tutorial.data.starttick
-				local m, s, x = f_timeConvert(tutorial.data.elapsedtime)
+			if dojo.data.displaytimers.totaltimer then
+				local totaltimertext = dojo.ui.totaltimer.text
+				dojo.data.elapsedtime = roundTime() - dojo.data.starttick
+				local m, s, x = f_timeConvert(dojo.data.elapsedtime)
 				totaltimertext = totaltimertext:gsub('%%s', m .. ":" .. s .. ":" .. x)
-				tutorial.draw.totallessontimer:update({text = totaltimertext})
-				tutorial.draw.totallessontimer:draw()
+				dojo.draw.totaltimer:update({text = totaltimertext})
+				dojo.draw.totaltimer:draw()
 			else
-				--tutorial.draw.totallessontimer:update({text = "Timer Disabled"})
-				--tutorial.draw.totallessontimer:draw()
+				--dojo.draw.totaltimer:update({text = "Timer Disabled"})
+				--dojo.draw.totaltimer:draw()
 			end
-			if tutorial.data.displaytimers.lessontimer then
-				local currenttimertext = tutorial.tutorial_mode.currentlessontimer.text
-				tutorial.data.lessons[ct].elapsedtime = roundTime() - tutorial.data.lessons[ct].starttick
-				local m, s, x = f_timeConvert(tutorial.data.lessons[ct].elapsedtime)
+			if dojo.data.displaytimers.lessontimer then
+				local currenttimertext = dojo.ui.currenttimer.text
+				dojo.data.lessons[ct].elapsedtime = roundTime() - dojo.data.lessons[ct].starttick
+				local m, s, x = f_timeConvert(dojo.data.lessons[ct].elapsedtime)
 				currenttimertext = currenttimertext:gsub('%%s', m .. ":" .. s .. ":" .. x)
-				tutorial.draw.currentlessontimer:update({text = currenttimertext})
-				tutorial.draw.currentlessontimer:draw()
+				dojo.draw.currenttimer:update({text = currenttimertext})
+				dojo.draw.currenttimer:draw()
 			else
-				--tutorial.draw.currentlessontimer:update({text = "Timer Disabled"})
-				--tutorial.draw.currentlessontimer:draw()
+				--dojo.draw.currenttimer:update({text = "Timer Disabled"})
+				--dojo.draw.currenttimer:draw()
 			end
 
 			-- Draw lesson reset reminder if enabled
-			if tutorial.tutorial_mode.lessonreset.enabled then
-				tutorial.draw.lessonreset_text:update({text = tutorial.tutorial_mode.lessonreset.text.text})
-				tutorial.draw.lessonreset_text:draw()
+			if dojo.ui.reset.enabled then
+				dojo.draw.reset_text:update({text = dojo.ui.reset.text.text})
+				dojo.draw.reset_text:draw()
 			end
 
 			-- Draw lesson step background
-			animUpdate(tutorial.tutorial_mode.lessonsteps[layout].bg.AnimData)
-			animDraw(tutorial.tutorial_mode.lessonsteps[layout].bg.AnimData)
+			animUpdate(dojo.ui.steps[layout].bg.AnimData)
+			animDraw(dojo.ui.steps[layout].bg.AnimData)
 
 			-- Draw lesson title
-			animUpdate(tutorial.tutorial_mode.lessontitle[layout].bg.AnimData)
-			animDraw(tutorial.tutorial_mode.lessontitle[layout].bg.AnimData)
-			tutorial.draw[layout].lessontitle_text:update({text = tutorial.data.lessons[ct].name})
-			tutorial.draw[layout].lessontitle_text:draw()
-			animUpdate(tutorial.tutorial_mode.lessontitle[layout].front.AnimData)
-			animDraw(tutorial.tutorial_mode.lessontitle[layout].front.AnimData)
+			animUpdate(dojo.ui.title[layout].bg.AnimData)
+			animDraw(dojo.ui.title[layout].bg.AnimData)
+			dojo.draw[layout].title_text:update({text = dojo.data.lessons[ct].name})
+			dojo.draw[layout].title_text:draw()
+			animUpdate(dojo.ui.title[layout].front.AnimData)
+			animDraw(dojo.ui.title[layout].front.AnimData)
 
 			local startonstep = 1
-			local drawtothisstep = #tutorial.data.lessons[ct].steps
+			local drawtothisstep = #dojo.data.lessons[ct].steps
 
-			--Determine whether textboxes are being shown and whether the current lesson has a textbox to display, and if so, draw them!
-			--Also adjust the window range to account for the textbox as specified in the motif
-			if tutorial.tutorial_mode.textbox_visible == true and tutorial.data.lessons[ct].textbox ~= '' then
-				windowYrange = tutorial.draw[layout].windowYrangeWtext
-				windowXrange = tutorial.draw[layout].windowXrangeWtext
+			-- Draw the textbox when shown and present, shrinking the step window to fit.
+			if dojo.ui.textbox_visible == true and dojo.data.lessons[ct].textbox ~= '' then
+				windowYrange = dojo.draw[layout].windowYrangeWtext
+				windowXrange = dojo.draw[layout].windowXrangeWtext
 
-						textboxwindow1 =    tutorial.tutorial_mode.textbox.pos[1]+tutorial.tutorial_mode.textbox.overlay.window[1]
-						textboxwindow2 =    tutorial.tutorial_mode.textbox.pos[2]+tutorial.tutorial_mode.textbox.overlay.window[2]
-						textboxwindow3 =    tutorial.tutorial_mode.textbox.pos[1]+tutorial.tutorial_mode.textbox.overlay.window[3]
-						textboxwindow4 =    tutorial.tutorial_mode.textbox.pos[2]+tutorial.tutorial_mode.textbox.overlay.window[4]
+						textboxwindow1 =    dojo.ui.textbox.pos[1]+dojo.ui.textbox.overlay.window[1]
+						textboxwindow2 =    dojo.ui.textbox.pos[2]+dojo.ui.textbox.overlay.window[2]
+						textboxwindow3 =    dojo.ui.textbox.pos[1]+dojo.ui.textbox.overlay.window[3]
+						textboxwindow4 =    dojo.ui.textbox.pos[2]+dojo.ui.textbox.overlay.window[4]
 		
 	-- An unset overlay window means "the whole canvas", which is as wide as the screen is.
 	if textboxwindow3 == 0 then
-textboxwindow3 = tutorial.vislcx
+textboxwindow3 = dojo.vislcx
 	end
 	if textboxwindow4 == 0 then
-textboxwindow4 = tutorial.mtlcy
+textboxwindow4 = dojo.mtlcy
 	end
 
-		if tutorial.tutorial_mode.textbox.overlay.RectData == nil then
-		tutorial.tutorial_mode.textbox.overlay.RectData = rectNew()
+		if dojo.ui.textbox.overlay.RectData == nil then
+		dojo.ui.textbox.overlay.RectData = rectNew()
 				end
-		rectSetColor(tutorial.tutorial_mode.textbox.overlay.RectData, 
-						tutorial.tutorial_mode.textbox.overlay.col[1],
-						tutorial.tutorial_mode.textbox.overlay.col[2],
-						tutorial.tutorial_mode.textbox.overlay.col[3])
-		rectSetAlpha(tutorial.tutorial_mode.textbox.overlay.RectData, 
-						tutorial.tutorial_mode.textbox.overlay.alpha[1],
-						tutorial.tutorial_mode.textbox.overlay.alpha[2])
-		rectSetLayerno(tutorial.tutorial_mode.textbox.overlay.RectData, 0)
-		rectSetWindow(tutorial.tutorial_mode.textbox.overlay.RectData, 
+		rectSetColor(dojo.ui.textbox.overlay.RectData, 
+						dojo.ui.textbox.overlay.col[1],
+						dojo.ui.textbox.overlay.col[2],
+						dojo.ui.textbox.overlay.col[3])
+		rectSetAlpha(dojo.ui.textbox.overlay.RectData, 
+						dojo.ui.textbox.overlay.alpha[1],
+						dojo.ui.textbox.overlay.alpha[2])
+		rectSetLayerno(dojo.ui.textbox.overlay.RectData, 0)
+		rectSetWindow(dojo.ui.textbox.overlay.RectData, 
 						textboxwindow1,
 						textboxwindow2,
 						textboxwindow3,
 						textboxwindow4)
-		rectSetLocalcoord(tutorial.tutorial_mode.textbox.overlay.RectData, tutorial.f_localcoord())
-		rectDraw(tutorial.tutorial_mode.textbox.overlay.RectData)
+		rectSetLocalcoord(dojo.ui.textbox.overlay.RectData, dojo.f_localcoord())
+		rectDraw(dojo.ui.textbox.overlay.RectData)
 
-				animSetLocalcoord(tutorial.tutorial_mode.textbox.bg.AnimData, tutorial.f_localcoord())
-				animUpdate(tutorial.tutorial_mode.textbox.bg.AnimData)
-				animDraw(tutorial.tutorial_mode.textbox.bg.AnimData)
+				animSetLocalcoord(dojo.ui.textbox.bg.AnimData, dojo.f_localcoord())
+				animUpdate(dojo.ui.textbox.bg.AnimData)
+				animDraw(dojo.ui.textbox.bg.AnimData)
 
 				-- Draw text
-				local trtext = tutorial.tutorial_mode.textbox.title.text
-				trtext = trtext:gsub('%%s', tostring(ct)):gsub('%%n', tutorial.data.lessons[ct].name)
-				tutorial.draw.textbox_title:update({text = trtext})
-				tutorial.draw.textbox_title:draw()
+				local trtext = dojo.ui.textbox.title.text
+				trtext = trtext:gsub('%%s', tostring(ct)):gsub('%%n', dojo.data.lessons[ct].name)
+				dojo.draw.textbox_title:update({text = trtext})
+				dojo.draw.textbox_title:draw()
 
-				if not tutorial.draw.draw_textbox_text then
-					tutorial.data.lessons[ct].textcnt = tutorial.data.lessons[ct].textcnt + 1
+				if not dojo.draw.draw_textbox_text then
+					dojo.data.lessons[ct].textcnt = dojo.data.lessons[ct].textcnt + 1
 				end
 				
-		if motif.Fnt[tutorial.draw.textbox_text.font] ~= nil then
-			textImgSetFont(tutorial.draw.textbox_text.ti, motif.Fnt[tutorial.draw.textbox_text.font])
+		if motif.Fnt[dojo.draw.textbox_text.font] ~= nil then
+			textImgSetFont(dojo.draw.textbox_text.ti, motif.Fnt[dojo.draw.textbox_text.font])
 		end
 
-	textboxtext_offset1 = textboxwindow1 + tutorial.tutorial_mode.textbox_text_window[1] + tutorial.tutorial_mode.textbox_text_offset[1]
-	textboxtext_offset2 = textboxwindow2 + tutorial.tutorial_mode.textbox_text_window[2] + tutorial.tutorial_mode.textbox_text_offset[2]
+	textboxtext_offset1 = textboxwindow1 + dojo.ui.textbox_text_window[1] + dojo.ui.textbox_text_offset[1]
+	textboxtext_offset2 = textboxwindow2 + dojo.ui.textbox_text_window[2] + dojo.ui.textbox_text_offset[2]
 
-		textImgSetText(tutorial.draw.textbox_text.ti,string.format(tutorial.data.lessons[ct].textbox, main.f_countSubstring(tutorial.data.lessons[ct].textbox, '_')))
-		textImgSetPos(tutorial.draw.textbox_text.ti, math.floor(textboxtext_offset1), math.floor(textboxtext_offset2))
-		textImgSetScale(tutorial.draw.textbox_text.ti, tutorial.draw.textbox_text.scaleX, tutorial.draw.textbox_text.scaleY)
-		textImgSetLocalcoord(tutorial.draw.textbox_text.ti, tutorial.f_localcoord())
-		textImgDraw(tutorial.draw.textbox_text.ti)
+		textImgSetText(dojo.draw.textbox_text.ti,string.format(dojo.data.lessons[ct].textbox, main.f_countSubstring(dojo.data.lessons[ct].textbox, '_')))
+		textImgSetPos(dojo.draw.textbox_text.ti, math.floor(textboxtext_offset1), math.floor(textboxtext_offset2))
+		textImgSetScale(dojo.draw.textbox_text.ti, dojo.draw.textbox_text.scaleX, dojo.draw.textbox_text.scaleY)
+		textImgSetLocalcoord(dojo.draw.textbox_text.ti, dojo.f_localcoord())
+		textImgDraw(dojo.draw.textbox_text.ti)
 
 
-				-- Draw portrait depending on desired source. Both sources feed the same draw
-				-- below; the anim is rebuilt every frame because iconanim is per lesson step.
-				if tutorial.tutorial_mode.textbox_portrait_source == "system" then
-					tutorialanim = f_iconAnimString(tutorial.data.lessons[ct].steps[cts])
-					tutorial.tutorial_mode.textbox.portrait.anim = animNew(sff, tutorialanim)
-				elseif tutorial.tutorial_mode.textbox_portrait_source == "char" then
-					tutorial.textboxportrait()
+				-- Portrait from its source, built once; round start clears it for the next character.
+				local por = dojo.ui.textbox.portrait
+				if por.anim == nil then
+					if dojo.ui.textbox_portrait_source == "system" then
+						local str = f_textboxPortraitAnim()
+						if str ~= nil then
+							por.anim = animNew(sff, str)
+						end
+					elseif dojo.ui.textbox_portrait_source == "char" then
+						dojo.textboxportrait()
+					end
 				end
 
-				if tutorial.tutorial_mode.textbox.portrait.anim ~= nil then
-					tutorialanimoffset = tutorial.data.lessons[ct].steps[cts].iconanimoffset
-					animposx = (textboxwindow1 + tutorial.tutorial_mode.textbox_portrait_offset[1] + tutorialanimoffset[1])
-					animposy = (textboxwindow2 + tutorial.tutorial_mode.textbox_portrait_offset[2] + tutorialanimoffset[2])
-					tutorialanimscalex = tutorial.tutorial_mode.textbox_portrait_scale[1] * tutorial.data.lessons[ct].steps[cts].iconanimscale[1]
-					tutorialanimscaley = tutorial.tutorial_mode.textbox_portrait_scale[2] * tutorial.data.lessons[ct].steps[cts].iconanimscale[2]
-					tutorialanimwindow3 = tutorial.tutorial_mode.textbox_portrait_window[3] + tutorial.data.lessons[ct].steps[cts].iconanimwindow[3] + tutorial.vislcx
-					tutorialanimwindow4 = tutorial.tutorial_mode.textbox_portrait_window[4] + tutorial.data.lessons[ct].steps[cts].iconanimwindow[4] + tutorial.mtlcy
-
-					tutorialanimwindow1 = animposx + tutorial.tutorial_mode.textbox_portrait_window[1] + tutorial.data.lessons[ct].steps[cts].iconanimwindow[1]
-					tutorialanimwindow2 = animposy + tutorial.tutorial_mode.textbox_portrait_window[2] + tutorial.data.lessons[ct].steps[cts].iconanimwindow[2]
-
-					local a = tutorial.tutorial_mode.textbox.portrait.anim
-					animSetLocalcoord(a, tutorial.f_localcoord())
+				if por.anim ~= nil then
+					animposx = textboxwindow1 + dojo.ui.textbox_portrait_offset[1]
+					animposy = textboxwindow2 + dojo.ui.textbox_portrait_offset[2]
+					local w = dojo.ui.textbox_portrait_window
+					local a = por.anim
+					animSetLocalcoord(a, dojo.f_localcoord())
 					animSetLayerno(a, 0)
 					animSetPos(a, math.floor(animposx), math.floor(animposy))
-					animSetScale(a, tutorialanimscalex, tutorialanimscaley)
-					animSetFacing(a, tutorial.tutorial_mode.textbox_portrait_facing)
-					animSetWindow(a, tutorialanimwindow1, tutorialanimwindow2, tutorialanimwindow3, tutorialanimwindow4)
+					animSetScale(a, dojo.ui.textbox_portrait_scale[1], dojo.ui.textbox_portrait_scale[2])
+					animSetFacing(a, dojo.ui.textbox_portrait_facing)
+					animSetWindow(a, animposx + w[1], animposy + w[2], w[3] + dojo.vislcx, w[4] + dojo.mtlcy)
 					animUpdate(a)
 					animDraw(a)
 				end
 
 				-- Draw textbox front
-				animUpdate(tutorial.tutorial_mode.textbox.front.AnimData)
-				animDraw(tutorial.tutorial_mode.textbox.front.AnimData)
+				animUpdate(dojo.ui.textbox.front.AnimData)
+				animDraw(dojo.ui.textbox.front.AnimData)
 			else
-				windowYrange = tutorial.draw[layout].windowYrange
-				windowXrange = tutorial.draw[layout].windowXrange
+				windowYrange = dojo.draw[layout].windowYrange
+				windowXrange = dojo.draw[layout].windowXrange
 			end
 
-			--For vertical lesson layouts, determine if all assets will be drawn within the tutorial window range, or if scrolling needs to be enabled. For horizontal layouts, we will figure it out
-			--when we determine glyph and incrementor widths (see notes below). We do this step outside of the draw loop to speed things up.
-			if #tutorial.data.lessons[ct].steps*tutorial.tutorial_mode.lessonsteps[layout].spacing[2] > windowYrange and layout == "vertical" then
+			-- Vertical layouts: decide scrolling up front; horizontal works it out while measuring glyphs.
+			if #dojo.data.lessons[ct].steps*dojo.ui.steps[layout].spacing[2] > windowYrange and layout == "vertical" then
 				startonstep = math.max(cts-2, 1)
-				if (drawtothisstep - startonstep)*tutorial.tutorial_mode.lessonsteps[layout].spacing[2] > windowYrange then
-					drawtothisstep = math.min(startonstep+math.floor(windowYrange/tutorial.tutorial_mode.lessonsteps[layout].spacing[2]),#tutorial.data.lessons[ct].steps)
+				if (drawtothisstep - startonstep)*dojo.ui.steps[layout].spacing[2] > windowYrange then
+					drawtothisstep = math.min(startonstep+math.floor(windowYrange/dojo.ui.steps[layout].spacing[2]),#dojo.data.lessons[ct].steps)
 				end
 			end
 
 			--This is the draw loop
 			for i = startonstep, drawtothisstep, 1 do
-				local tempoffset = {tutorial.tutorial_mode.lessonsteps[layout].spacing[1]*(i-startonstep),tutorial.tutorial_mode.lessonsteps[layout].spacing[2]*(i-startonstep)}
+				local tempoffset = {dojo.ui.steps[layout].spacing[1]*(i-startonstep),dojo.ui.steps[layout].spacing[2]*(i-startonstep)}
 				--sub = 'current'
 				if i < cts then
 					sub = 'completed'
@@ -2303,22 +2149,19 @@ textboxwindow4 = tutorial.mtlcy
 
 
 				if layout == "vertical" then
-					--Vertical layouts are the simplest - they have a constant width sprite or anim that the text is drawn on top of, and the glyphs are displayed wherever specified.
-					--The vertical layouts do NOT support incrementors (see notes below for horizontal layout).
-					local stepbg = tutorial.tutorial_mode[sub .. 'step'].vertical.bg
-					-- animReset restores pos, scale and window from the values the element was built
-					-- with and clears PalFX, so it has to come before this frame's setters rather than
-					-- after them - reset last is what stopped palfx from ever reaching the draw.
+					-- Vertical: fixed-width bg with text over it and glyphs where specified; no incrementors.
+					local stepbg = dojo.ui[sub .. 'step'].vertical.bg
+					-- animReset first: it restores pos/scale/window and clears palfx.
 					animReset(stepbg.AnimData)
 					animSetPos(
 						stepbg.AnimData,
-						tutorial.tutorial_mode.lessonsteps.vertical.pos[1] + stepbg.offset[1] + tempoffset[1],
-						tutorial.tutorial_mode.lessonsteps.vertical.pos[2] + stepbg.offset[2] + tempoffset[2]
+						dojo.ui.steps.vertical.pos[1] + stepbg.offset[1] + tempoffset[1],
+						dojo.ui.steps.vertical.pos[2] + stepbg.offset[2] + tempoffset[2]
 					)
-					tutorial.draw.vertical[sub .. 'textline'][i]:update({
-						x = tutorial.tutorial_mode.lessonsteps.vertical.pos[1]+tutorial.tutorial_mode[sub .. 'step'].vertical.text.offset[1]+tutorial.tutorial_mode.lessonsteps.vertical.spacing[1]*(i-startonstep),
-						y = tutorial.tutorial_mode.lessonsteps.vertical.pos[2]+tutorial.tutorial_mode[sub .. 'step'].vertical.text.offset[2]+tutorial.tutorial_mode.lessonsteps.vertical.spacing[2]*(i-startonstep),
-						text = tutorial.data.lessons[ct].steps[i].text
+					dojo.draw.vertical[sub .. 'textline'][i]:update({
+						x = dojo.ui.steps.vertical.pos[1]+dojo.ui[sub .. 'step'].vertical.text.offset[1]+dojo.ui.steps.vertical.spacing[1]*(i-startonstep),
+						y = dojo.ui.steps.vertical.pos[2]+dojo.ui[sub .. 'step'].vertical.text.offset[2]+dojo.ui.steps.vertical.spacing[2]*(i-startonstep),
+						text = dojo.data.lessons[ct].steps[i].text
 					})
 					animSetPalFX(stepbg.AnimData, {
 						time = 1,
@@ -2331,53 +2174,39 @@ textboxwindow4 = tutorial.mtlcy
 					animSetScale(stepbg.AnimData, stepbg.scale[1], stepbg.scale[2])
 					animUpdate(stepbg.AnimData)
 					animDraw(stepbg.AnimData)
-					tutorial.draw.vertical[sub .. 'textline'][i]:draw()
+					dojo.draw.vertical[sub .. 'textline'][i]:draw()
 				elseif layout == "horizontal" then
-					--Horizontal layouts are much more complicated. Text is not drawn in horizontal mode, instead we only display the glyphs. A small sprite is dynamically tiled to the width of the
-					--glyphs, and an optional background element called an incrementor (bginc) can be used to link the pieces together (think of an arrow where the body of the arrow is where the
-					--glyphs are being drawn and that's the dynamically sized part, and the head of the arrow is the incrementor which is a fixed width sprite). There's quite a bit more work that
-					--goes into displaying the horizontal layouts because the code needs to figure out the window size, and determine when it needs to "go to the next line" and create a return so
-					--that tutorial can be displayed dynamically. Back to the arrow analogy, you always want an arrow body to have an arrow head, so the incrementor width is added to the glyphs length
-					--and the padding factor specified in the motif data, it's all added together until the window width is met or exceeded, then a line return occurs and the next line is drawn.
+					-- Horizontal: glyphs only, on a tiled body with optional head (incrementor), wrapping at the window width.
 					local bgsize = {0,0}
-					local hbg = tutorial.tutorial_mode[sub .. 'step'].horizontal.bg
-					-- animGetSpriteInfo reports the raw sprite, but head and tail are drawn at the scale
-					-- their own node asks for. Row widths, line breaks and the body's start all measure
-					-- in tutorial localcoord units, so budget the drawn width, not the sprite's.
-					if tutorial.data.bgelemdata.horizontal[sub .. 'step_bgtailwidth'] ~= nil then bgtailwidth = math.floor(tutorial.data.bgelemdata.horizontal[sub .. 'step_bgtailwidth'].Size[1] * hbg.tail.scale[1]) end
-					if tutorial.data.bgelemdata.horizontal[sub .. 'step_bgheadwidth'] ~= nil then bgheadwidth = math.floor(tutorial.data.bgelemdata.horizontal[sub .. 'step_bgheadwidth'].Size[1] * hbg.head.scale[1]) end
-					if tutorial.data.bgelemdata.horizontal[sub .. 'step_bgsize'] ~= nil then bgsize = tutorial.data.bgelemdata.horizontal[sub .. 'step_bgsize'].Size end
+					local hbg = dojo.ui[sub .. 'step'].horizontal.bg
+					-- Budget head and tail at their drawn scale, not raw sprite size.
+					if dojo.data.bgelemdata.horizontal[sub .. 'step_bgtailwidth'] ~= nil then bgtailwidth = math.floor(dojo.data.bgelemdata.horizontal[sub .. 'step_bgtailwidth'].Size[1] * hbg.tail.scale[1]) end
+					if dojo.data.bgelemdata.horizontal[sub .. 'step_bgheadwidth'] ~= nil then bgheadwidth = math.floor(dojo.data.bgelemdata.horizontal[sub .. 'step_bgheadwidth'].Size[1] * hbg.head.scale[1]) end
+					if dojo.data.bgelemdata.horizontal[sub .. 'step_bgsize'] ~= nil then bgsize = dojo.data.bgelemdata.horizontal[sub .. 'step_bgsize'].Size end
 
-					totalglyphlength = tutorial.data.lessons[ct].steps[i].glyphline.horizontal.lengthOffset[#tutorial.data.lessons[ct].steps[i].glyphline.horizontal.lengthOffset]
-					padding = tutorial.tutorial_mode.lessonsteps_horizontal_padding
-					spacing = tutorial.tutorial_mode.lessonsteps_horizontal_spacing[1]
+					totalglyphlength = dojo.data.lessons[ct].steps[i].glyphline.horizontal.lengthOffset[#dojo.data.lessons[ct].steps[i].glyphline.horizontal.lengthOffset]
+					padding = dojo.ui.steps_horizontal_padding
+					spacing = dojo.ui.steps_horizontal_spacing[1]
 
 					local tempwidth = spacing + bgtailwidth + padding + totalglyphlength + padding + bgheadwidth + accwidth
-					-- Only wrap when something is already on this row. A step wider than the window on its own
-					-- has nothing to wrap away from, and breaking there would push the row it starts - the
-					-- first row included - down by a spacing it never earned.
-					if accwidth > 0 and tempwidth - tutorial.tutorial_mode.lessonsteps_horizontal_spacing[1] > windowXrange then
+					-- Only wrap when the row already has something on it.
+					if accwidth > 0 and tempwidth - dojo.ui.steps_horizontal_spacing[1] > windowXrange then
 						accwidth = 0
 						addrow = addrow + 1
 					end
 
-					tempoffset[2] = tutorial.tutorial_mode.lessonsteps_horizontal_spacing[2]*(addrow)
-					-- Rows are placed from the lessonsteps origin, the same origin the vertical layout draws its
-					-- steps from. The bg pieces carry only their own bg.offset; glyphs.offset belongs to the
-					-- glyphs and is applied once, where they are drawn.
-					local rowy = tutorial.tutorial_mode.lessonsteps_horizontal_pos[2] + tempoffset[2]
+					tempoffset[2] = dojo.ui.steps_horizontal_spacing[2]*(addrow)
+					-- Rows start at steps.pos; glyphs.offset is applied once, where glyphs draw.
+					local rowy = dojo.ui.steps_horizontal_pos[2] + tempoffset[2]
 
 					-- Calculate initial positions
 					if accwidth == 0 then
-						bgcomponentposX = tutorial.tutorial_mode.lessonsteps_horizontal_pos[1]
+						bgcomponentposX = dojo.ui.steps_horizontal_pos[1]
 					else
 						bgcomponentposX = accwidth + spacing -- + bgheadwidth 
 					end
 
-					-- Draw tail. Head and tail are fixed-width caps: they are drawn at exactly the scale
-					-- their dojo.def node declares, on both axes. Only the body between them stretches,
-					-- and only on x. The anims already carry those scales from f_loadAnimData, but the
-					-- draw sets them again so the loop never depends on what the previous step left behind.
+					-- Tail: head and tail draw at their declared scale; only the body stretches, on x.
 					local hpalfx = {
 						time = 1,
 						add = hbg.palfx.add,
@@ -2386,7 +2215,7 @@ textboxwindow4 = tutorial.mtlcy
 						invertall = hbg.palfx.invertall,
 						color = hbg.palfx.color
 					}
-					local glyphrow = tutorial.data.lessons[ct].steps[i].glyphline.horizontal
+					local glyphrow = dojo.data.lessons[ct].steps[i].glyphline.horizontal
 					animReset(hbg.tail.AnimData)
 					animSetPos(hbg.tail.AnimData,
 						bgcomponentposX + hbg.tail.offset[1],
@@ -2399,15 +2228,12 @@ textboxwindow4 = tutorial.mtlcy
 						animDraw(hbg.tail.AnimData)
 					end
 
-					-- Draw BG for Glyphs - stretch to the glyph run on x, start from tail pos. Only x is
-					-- derived: y stays at the scale the dojo.def node declares, so the body matches the
-					-- height of the head and tail it sits between.
+					-- Body: stretch x to the glyph run, keep the declared y scale.
 					local bgstretch = hbg.scale[1]
 					if bgsize[1] > 0 then bgstretch = (padding + totalglyphlength + padding)/bgsize[1] end
 					bgtargetscale = {bgstretch, hbg.scale[2]}
 					bgcomponentposX = (bgcomponentposX + bgtailwidth)
-					-- Walk the run in order: each glyph starts where the ones before it ended, and the
-					-- first starts at the body's left padding.
+					-- Glyphs run left to right from the body's left padding.
 					for m = 1, #glyphrow.glyph, 1 do
 						local gpoffset = 0
 						if m > 1 then gpoffset = glyphrow.lengthOffset[m-1] end
@@ -2436,21 +2262,18 @@ textboxwindow4 = tutorial.mtlcy
 					animUpdate(hbg.head.AnimData)
 					animDraw(hbg.head.AnimData)
 				end
-				local glyphline = tutorial.data.lessons[ct].steps[i].glyphline[layout]
-				local glyphpalfx = tutorial.tutorial_mode[sub .. 'step'][layout].glyphs.palfx
+				local glyphline = dojo.data.lessons[ct].steps[i].glyphline[layout]
+				local glyphpalfx = dojo.ui[sub .. 'step'][layout].glyphs.palfx
 				for m = 1, #glyphline.glyph, 1 do
-					-- One anim per glyph per step category, so this step's palfx cannot bleed into the
-					-- draws another category has already queued. Built in the motif's own coordinate
-					-- space, so pull it into tutorial space before placing it.
+					-- One anim per glyph per step category so palfx doesn't bleed; moved into Dojo space before placing.
 					local g = f_glyphAnim(sub, glyphline.glyph[m])
 					-- The movelist can carry tags that are not glyphs; those never got a position.
 					if g ~= nil and glyphline.pos[m] ~= nil then
 						animReset(g)
-						animSetLocalcoord(g, tutorial.f_localcoord())
-						animSetLayerno(g, f_clampLayerno(tutorial.tutorial_mode.glyphs[layout].layerno))
+						animSetLocalcoord(g, dojo.f_localcoord())
+						animSetLayerno(g, f_clampLayerno(dojo.ui.glyphs[layout].layerno))
 						animSetScale(g, glyphline.scale[m][1], glyphline.scale[m][2])
-						-- pos already carries lessonsteps.pos plus glyphs.offset from the layout pass, so the row
-						-- offset is all that is left to add here - adding glyphs.offset again would count it twice.
+						-- pos already includes glyphs.offset; add only the row offset.
 						animSetPos(g,
 							glyphline.pos[m][1],
 							glyphline.pos[m][2] + tempoffset[2]
@@ -2471,76 +2294,70 @@ textboxwindow4 = tutorial.mtlcy
 				end
 				accwidth = bgcomponentposX
 			end
-		elseif ct > #tutorial.data.lessons then
-			-- All tutorial have been completed, draw the all clear and freeze the timer
-			if not tutorial.data.allclear and tutorial.f_speedrunEnabled() and tutorial.data.runValid then
-				tutorial.f_recordSpeedrun(roundTime() - tutorial.data.starttick)
-				tutorial.data.runValid = false
+		elseif ct > #dojo.data.lessons then
+			-- All lessons have been completed, draw the all clear and freeze the timer
+			if not dojo.data.allclear and dojo.f_speedrunEnabled() and dojo.data.runValid then
+				dojo.f_recordSpeedrun(roundTime() - dojo.data.starttick)
+				dojo.data.runValid = false
 			end
-			if tutorial.draw.allclear ~= 0 then
-				tutorial.f_tutorialSuccess('allclear', ct-1)
+			if dojo.draw.allclear ~= 0 then
+				dojo.f_drawSuccess('allclear', ct-1)
 			end
 
-			tutorial.data.allclear = true
-			tutorial.draw.success = 0
-			tutorial.draw.lessoncounter:update({text = tutorial.tutorial_mode.lessoncounter.allclear.text})
-			tutorial.draw.lessoncounter:draw()
+			dojo.data.allclear = true
+			dojo.draw.success = 0
+			dojo.draw.counter:update({text = dojo.ui.counter.allclear.text})
+			dojo.draw.counter:draw()
 
-			if tutorial.data.displaytimers.totaltimer then
-				local totaltimertext = tutorial.tutorial_mode.totallessontimer.text
-				local m, s, x = f_timeConvert(tutorial.data.elapsedtime)
+			if dojo.data.displaytimers.totaltimer then
+				local totaltimertext = dojo.ui.totaltimer.text
+				local m, s, x = f_timeConvert(dojo.data.elapsedtime)
 				totaltimertext = totaltimertext:gsub('%%s', m .. ":" .. s .. ":" .. x)
-				tutorial.draw.totallessontimer:update({text = totaltimertext})
-				tutorial.draw.totallessontimer:draw()
+				dojo.draw.totaltimer:update({text = totaltimertext})
+				dojo.draw.totaltimer:draw()
 			else
-				--tutorial.draw.totallessontimer:update({text = "Timer Disabled"})
-				--tutorial.draw.totallessontimer:draw()
+				--tutorial.draw.totaltimer:update({text = "Timer Disabled"})
+				--tutorial.draw.totaltimer:draw()
 			end
-			if tutorial.data.displaytimers.lessontimer then
-				local currenttimertext = tutorial.tutorial_mode.currentlessontimer.text
-				local m, s, x = f_timeConvert(tutorial.data.lessons[ct-1].elapsedtime)
+			if dojo.data.displaytimers.lessontimer then
+				local currenttimertext = dojo.ui.currenttimer.text
+				local m, s, x = f_timeConvert(dojo.data.lessons[ct-1].elapsedtime)
 				currenttimertext = currenttimertext:gsub('%%s', m .. ":" .. s .. ":" .. x)
-				tutorial.draw.currentlessontimer:update({text = currenttimertext})
-				tutorial.draw.currentlessontimer:draw()
+				dojo.draw.currenttimer:update({text = currenttimertext})
+				dojo.draw.currenttimer:draw()
 			else
-				--tutorial.draw.currentlessontimer:update({text = "Timer Disabled"})
-				--tutorial.draw.currentlessontimer:draw()
+				--tutorial.draw.currenttimer:update({text = "Timer Disabled"})
+				--tutorial.draw.currenttimer:draw()
 			end
 		end
 	end
 end
 
 
--- Nothing already in progress counts towards a fresh attempt: whatever state the player is in has
--- been spent, so the first no-hit step of one still needs an entry of its own.
-function tutorial.f_spendState()
-	if tutorial.data ~= nil then
-		tutorial.data.nohitinstance = tutorial.data.stateinstance
+-- Spend the current state so a fresh attempt's first no-hit step needs a new entry.
+function dojo.f_spendState()
+	if dojo.data ~= nil then
+		dojo.data.nohitinstance = dojo.data.stateinstance
 	end
 end
 
-function tutorial.f_tutorialChecker(CheckIt)
+function dojo.f_checker(CheckIt)
 	local nctms
-	--This function sets dummy actions according to the character tutorial info and validates tutorial attempts
-	--To help follow along, ct = current lesson, cts = current lesson step, ncts = next current lesson step
-	-- Count the root's state entries whether or not a Lesson is accepting input, so the count does not
-	-- depend on a banner or a fade being up. A move cancelled into itself - the whole point of a custom
-	-- combo - keeps its state number, so a fall in state time is what marks that entry. Time stalls
-	-- rather than falls while the match is paused, which is why this is a < and not a ~=.
+	-- Sets dummy actions and validates attempts; the root counts state entries every frame (time falls on re-entry).
 	if CheckIt == 'root' then
 		local sn, st = stateNo(), time()
-		local newinstance = sn ~= tutorial.data.laststateno or (tutorial.data.laststatetime ~= nil and st < tutorial.data.laststatetime)
+		local newinstance = sn ~= dojo.data.laststateno or (dojo.data.laststatetime ~= nil and st < dojo.data.laststatetime)
 		if newinstance then
-			tutorial.data.stateinstance = tutorial.data.stateinstance + 1
+			dojo.data.stateinstance = dojo.data.stateinstance + 1
 		end
-		tutorial.data.laststateno = sn
-		tutorial.data.laststatetime = st
-		tutorial.f_trackEvents(newinstance)
+		dojo.data.laststateno = sn
+		dojo.data.laststatetime = st
+		dojo.f_trackEvents(newinstance)
 	end
-	if ct <= #tutorial.data.lessons and tutorial.draw.success == 0 and tutorial.draw.fade == 0 and tutorial.data.active then
+	if ct <= #dojo.data.lessons and dojo.draw.success == 0 and dojo.draw.fade == 0 and dojo.data.active then
 	
-			if tutorial.data.lessons[ct].steps[cts].hitcount[ctms] == nil then
-			tutorial.data.lessons[ct].steps[cts].hitcount[ctms] = -1
+			if dojo.data.lessons[ct].steps[cts].hitcount[ctms] == nil then
+			dojo.data.lessons[ct].steps[cts].hitcount[ctms] = -1
 		end
 	
 		local helpercheck = false
@@ -2562,8 +2379,7 @@ function tutorial.f_tutorialChecker(CheckIt)
 		player(1)
 			if projid >= 0 then
 				source = 'proj'
-				-- Redirect to the owner before asking it about the projectile: numProjId would
-				-- otherwise be answered by whoever the working char happened to be.
+				-- Redirect to the owner first so numProjId asks the right character.
 				if playerId(attackerid) and numProjId(projid) > 0 then
 					attackeranim = projVar(projid, 0, 'anim')
 				end
@@ -2581,12 +2397,10 @@ function tutorial.f_tutorialChecker(CheckIt)
 			--print("Anim: " .. attackeranim)
 		end
 		player(1)
-		local step = tutorial.data.lessons[ct].steps[cts]
-		local newhit = comboCount() > tutorial.data.comboCounter
-		-- A step that requires no connect is satisfied by its state alone, and that is true of every
-		-- frame the player spends in it - one move would otherwise be consumed by a whole run of
-		-- identical no-hit steps, one per frame. One entry into the state satisfies one of them.
-		local newstate = tutorial.data.stateinstance ~= tutorial.data.nohitinstance
+		local step = dojo.data.lessons[ct].steps[cts]
+		local newhit = comboCount() > dojo.data.comboCounter
+		-- One state entry satisfies one no-hit step, not one per frame.
+		local newstate = dojo.data.stateinstance ~= dojo.data.nohitinstance
 		local nohitok = step.hitcount[ctms] == 0 and newstate
 		local isprojstep = step.isproj[ctms] or step.projid[ctms] ~= nil
 		if CheckIt ~= nil and CheckIt ~= 'root' then
@@ -2596,13 +2410,13 @@ function tutorial.f_tutorialChecker(CheckIt)
 		for i = 0, numProj() - 1 do
 			local ptime, pid = projVar(-1, i, 'time'), projVar(-1, i, 'projid')
 			if ptime ~= nil and pid ~= nil and ptime <= 1 then
-				tutorial.data.projsource[pid] = stateNo()
+				dojo.data.projsource[pid] = stateNo()
 			end
 		end
 
 		-- Check states and anims; iterate over 'or' operand if multiple states and/or anims are provided
-		local launchstate = projid >= 0 and tutorial.data.projsource[projid] or nil
-		local desiredstates = tutorial.data.lessons[ct].steps[cts].stateno[ctms]
+		local launchstate = projid >= 0 and dojo.data.projsource[projid] or nil
+		local desiredstates = dojo.data.lessons[ct].steps[cts].stateno[ctms]
 		if desiredstates == nil or #desiredstates == 0 then
 			statecheck = true
 		else
@@ -2613,9 +2427,9 @@ function tutorial.f_tutorialChecker(CheckIt)
 				end
 			end
 		end
-		if tutorial.data.lessons[ct].steps[cts].animno[ctms] ~= nil then
+		if dojo.data.lessons[ct].steps[cts].animno[ctms] ~= nil then
 			animcheck = false
-			local desiredanims = tutorial.data.lessons[ct].steps[cts].animno[ctms]
+			local desiredanims = dojo.data.lessons[ct].steps[cts].animno[ctms]
 			for k = 1, #desiredanims, 1 do
 				if anim() == desiredanims[k] or attackeranim == desiredanims[k] then
 					animcheck = true
@@ -2624,22 +2438,28 @@ function tutorial.f_tutorialChecker(CheckIt)
 			end
 		end
 
-		if tutorial.f_isEventStep(step, ctms) then
-			-- Blocking, a blocked move or a dummy state: judged on events, not on the combo, so none
-			-- of the combo-drop resets below apply.
+		-- The window counts down for every kind of step; running out with this step still to come is noted.
+		if dojo.data.validfortickcount > 0 and paused() == false and pauseTime() == 0 and CheckIt == 'root' then
+			dojo.data.validfortickcount = dojo.data.validfortickcount - 1
+			if dojo.data.validfortickcount == 0 then
+				dojo.data.windowExpired = true
+			end
+		end
+
+		if dojo.f_isEventStep(step, ctms) then
+			-- Event steps are judged on events, so the combo-drop resets below don't apply.
 			if CheckIt == 'root' then
-				tutorial.f_checkEventStep(ct, cts, ctms, statecheck, animcheck)
+				dojo.f_checkEventStep(ct, cts, ctms, statecheck, animcheck)
 			end
 		else
 		if (step.ishelper[ctms] and statecheck) and animcheck then
-			-- A helper that fires a projectile scores the hit on the root, not on itself, so
-			-- neither one's moveHit ever reports it. projid covers that case.
+			-- Helper projectiles score on the root, so match them by projid.
 			helpercheck = ((moveHit() > 0 or projid >= 0) and newhit)
 				or step.isthrow[ctms] or nohitok
-			if tutorial.data.lessons[ct].steps[cts].validforvar ~= nil and helpercheck then
-				for i = 1, #tutorial.data.lessons[ct].steps[cts].validforvar, 1 do
+			if dojo.data.lessons[ct].steps[cts].validforvar ~= nil and helpercheck then
+				for i = 1, #dojo.data.lessons[ct].steps[cts].validforvar, 1 do
 					if helpercheck then
-						helpercheck = var(tutorial.data.lessons[ct].steps[cts].validforvar[i]) == tutorial.data.lessons[ct].steps[cts].validforval[i]
+						helpercheck = var(dojo.data.lessons[ct].steps[cts].validforvar[i]) == dojo.data.lessons[ct].steps[cts].validforval[i]
 					end
 				end
 			end
@@ -2648,237 +2468,221 @@ function tutorial.f_tutorialChecker(CheckIt)
 		if isprojstep then
 			local wantids = step.projid[ctms]
 			if step.hitcount[ctms] == 0 then
-				-- A step that is not required to connect has no hit to key off, so state is all
-				-- there is to match on - projid never comes into it.
+				-- No-hit steps match on state alone; projid doesn't apply.
 				projcheck = statecheck and animcheck and newstate
 			elseif wantids == nil then
 				-- Legacy step with no projid: match stateno as before, but require a real hit.
 				projcheck = statecheck and animcheck and projid >= 0 and newhit
 			elseif CheckIt == 'root' and projid >= 0 and newhit then
-				-- The ID is owner-independent, so match it once per frame in the root pass.
-				-- Matching in the helper passes too would advance the same step again this tick.
+				-- Match ProjIDs once per frame in the root pass, or a step advances twice.
 				for k = 1, #wantids, 1 do
 					if projid == wantids[k] then
-						-- statecheck is free when the step declares no stateno, and is what
-						-- separates two moves that share one ProjID when it does.
+						-- statecheck separates moves sharing a ProjID; free when no stateno is set.
 						projcheck = statecheck and animcheck
 						break
 					end
 				end
 			end
-			if tutorial.data.lessons[ct].steps[cts].validforvar ~= nil and projcheck then
-				for i = 1, #tutorial.data.lessons[ct].steps[cts].validforvar, 1 do
+			if dojo.data.lessons[ct].steps[cts].validforvar ~= nil and projcheck then
+				for i = 1, #dojo.data.lessons[ct].steps[cts].validforvar, 1 do
 					if projcheck then
-						projcheck = var(tutorial.data.lessons[ct].steps[cts].validforvar[i]) == tutorial.data.lessons[ct].steps[cts].validforval[i]
+						projcheck = var(dojo.data.lessons[ct].steps[cts].validforvar[i]) == dojo.data.lessons[ct].steps[cts].validforval[i]
 					end
 				end
 			end
 		end
 
 		maincharcheck = (statecheck and not(isprojstep) and not(step.ishelper[ctms]) and animcheck and ((moveHit() > 0 and newhit) or step.isthrow[ctms] or nohitok))
-		if tutorial.data.lessons[ct].steps[cts].validforvar ~= nil and maincharcheck then
-			for i = 1, #tutorial.data.lessons[ct].steps[cts].validforvar, 1 do
+		if dojo.data.lessons[ct].steps[cts].validforvar ~= nil and maincharcheck then
+			for i = 1, #dojo.data.lessons[ct].steps[cts].validforvar, 1 do
 				if maincharcheck then
-					maincharcheck = var(tutorial.data.lessons[ct].steps[cts].validforvar[i]) == tutorial.data.lessons[ct].steps[cts].validforval[i]
+					maincharcheck = var(dojo.data.lessons[ct].steps[cts].validforvar[i]) == dojo.data.lessons[ct].steps[cts].validforval[i]
 				end
 			end
 		end		
 
-		if (maincharcheck or projcheck or helpercheck) and not tutorial.f_p2StateOk(step, ctms) then
+		if (maincharcheck or projcheck or helpercheck) and not dojo.f_p2StateOk(step, ctms) then
 			maincharcheck, projcheck, helpercheck = false, false, false
 		end
 
-		if tutorial.data.validfortickcount > 0 and paused() == false and pauseTime() == 0 and CheckIt == 'root' then
-			tutorial.data.validfortickcount = tutorial.data.validfortickcount - 1
-		end
-		
 		if maincharcheck or projcheck or helpercheck then
-			if tutorial.data.lessons[ct].steps[cts].hitcount[ctms] >= 1 then
-				if tutorial.data.lessons[ct].steps[cts].stephitscount[ctms] == 0 then
-					tutorial.data.lessons[ct].steps[cts].comboCountonstep[ctms] = comboCount()
+			if dojo.data.lessons[ct].steps[cts].hitcount[ctms] >= 1 then
+				if dojo.data.lessons[ct].steps[cts].stephitscount[ctms] == 0 then
+					dojo.data.lessons[ct].steps[cts].comboCountonstep[ctms] = comboCount()
 				end
-				if comboCount() - tutorial.data.lessons[ct].steps[cts].stephitscount[ctms] == tutorial.data.lessons[ct].steps[cts].comboCountonstep[ctms] then
-					tutorial.data.lessons[ct].steps[cts].stephitscount[ctms] = tutorial.data.lessons[ct].steps[cts].stephitscount[ctms] + 1
+				if comboCount() - dojo.data.lessons[ct].steps[cts].stephitscount[ctms] == dojo.data.lessons[ct].steps[cts].comboCountonstep[ctms] then
+					dojo.data.lessons[ct].steps[cts].stephitscount[ctms] = dojo.data.lessons[ct].steps[cts].stephitscount[ctms] + 1
 				end
-			elseif tutorial.data.lessons[ct].steps[cts].hitcount[ctms] == 0 then
-				tutorial.data.lessons[ct].steps[cts].stephitscount[ctms] = 0
-				-- Matching is consuming for a no-hit step: 0 == 0 below always passes it. Spend the
-				-- entry that satisfied it so the next one has to wait for its own.
-				tutorial.data.nohitinstance = tutorial.data.stateinstance
+			elseif dojo.data.lessons[ct].steps[cts].hitcount[ctms] == 0 then
+				dojo.data.lessons[ct].steps[cts].stephitscount[ctms] = 0
+				-- Spend the entry that satisfied this no-hit step.
+				dojo.data.nohitinstance = dojo.data.stateinstance
 			end
 
-			if tutorial.data.lessons[ct].steps[cts].hitcount[ctms] == tutorial.data.lessons[ct].steps[cts].stephitscount[ctms] then
+			if dojo.data.lessons[ct].steps[cts].hitcount[ctms] == dojo.data.lessons[ct].steps[cts].stephitscount[ctms] then
 				nctms = ctms + 1
 				-- First, check that the microstep has passed
-				if nctms >= 1 and ((comboCount() > 0 and (tutorial.data.lessons[ct].steps[cts].iscounterhit[ctms] and moveCountered() > 0) or not tutorial.data.lessons[ct].steps[cts].iscounterhit[ctms]) or tutorial.data.lessons[ct].steps[cts].hitcount[ctms] == 0) then
-					if nctms >= 1 and ((tutorial.data.lessons[ct].steps[cts].hitcount[ctms] > 1 and comboCount() == tutorial.data.lessons[ct].steps[cts].stephitscount[ctms] + tutorial.data.lessons[ct].steps[cts].comboCountonstep[ctms] - 1) or tutorial.data.lessons[ct].steps[cts].hitcount[ctms] == 1 or tutorial.data.lessons[ct].steps[cts].hitcount[ctms] == 0) then
-						tutorial.data.currentlessonmicrostep = nctms
-						if tutorial.data.lessons[ct].steps[cts].validfortickcount[ctms] ~= nil then
-							tutorial.data.validfortickcount = tutorial.data.lessons[ct].steps[cts].validfortickcount[ctms]
+				if nctms >= 1 and ((comboCount() > 0 and (dojo.data.lessons[ct].steps[cts].iscounterhit[ctms] and moveCountered() > 0) or not dojo.data.lessons[ct].steps[cts].iscounterhit[ctms]) or dojo.data.lessons[ct].steps[cts].hitcount[ctms] == 0) then
+					if nctms >= 1 and ((dojo.data.lessons[ct].steps[cts].hitcount[ctms] > 1 and comboCount() == dojo.data.lessons[ct].steps[cts].stephitscount[ctms] + dojo.data.lessons[ct].steps[cts].comboCountonstep[ctms] - 1) or dojo.data.lessons[ct].steps[cts].hitcount[ctms] == 1 or dojo.data.lessons[ct].steps[cts].hitcount[ctms] == 0) then
+						dojo.data.currentlessonmicrostep = nctms
+						if dojo.data.lessons[ct].steps[cts].validfortickcount[ctms] ~= nil then
+							dojo.data.validfortickcount = dojo.data.lessons[ct].steps[cts].validfortickcount[ctms]
+							dojo.data.windowExpired = false
 						else
-							tutorial.data.validfortickcount = 0
+							dojo.data.validfortickcount = 0
+							dojo.data.windowExpired = false
 						end
-						tutorial.data.comboCounter = comboCount()
-					elseif ((comboCount() == 0 and tutorial.data.lessons[ct].steps[cts].hitcount[ctms] ~= 0) and tutorial.data.validfortickcount == 0) or (tutorial.data.validfortickcount > 0 and comboCount() > tutorial.data.comboCounter) then
-						tutorial.f_resetAttempt(ct, cts, ctms)
+						dojo.data.comboCounter = comboCount()
+					elseif ((comboCount() == 0 and dojo.data.lessons[ct].steps[cts].hitcount[ctms] ~= 0) and dojo.data.validfortickcount == 0) or (dojo.data.validfortickcount > 0 and comboCount() > dojo.data.comboCounter) then
+						dojo.f_resetAttempt(ct, cts, ctms)
 					end
 				end
 				-- Next, if microstep is exceeded, go to next lesson step
-				if tutorial.data.currentlessonmicrostep > tutorial.data.lessons[ct].steps[cts].numofmicrosteps then
-					tutorial.data.currentlessonmicrostep = 1
-					tutorial.data.currentlessonstep = cts + 1
-					if tutorial.data.lessons[ct].steps[cts].hitcount[ctms] ~= 0 and comboCount() == 0 and comboCount() == tutorial.data.comboCounter then
-						tutorial.data.comboCounter = tutorial.data.comboCounter + 1
+				if dojo.data.currentlessonmicrostep > dojo.data.lessons[ct].steps[cts].numofmicrosteps then
+					dojo.data.currentlessonmicrostep = 1
+					dojo.data.currentlessonstep = cts + 1
+					if dojo.data.lessons[ct].steps[cts].hitcount[ctms] ~= 0 and comboCount() == 0 and comboCount() == dojo.data.comboCounter then
+						dojo.data.comboCounter = dojo.data.comboCounter + 1
 					else
-						tutorial.data.comboCounter = comboCount()
+						dojo.data.comboCounter = comboCount()
 					end	
-					if tutorial.data.lessons[ct].steps[cts].validfortickcount[ctms] ~= nil then
-						tutorial.data.validfortickcount = tutorial.data.lessons[ct].steps[cts].validfortickcount[ctms]
+					if dojo.data.lessons[ct].steps[cts].validfortickcount[ctms] ~= nil then
+						dojo.data.validfortickcount = dojo.data.lessons[ct].steps[cts].validfortickcount[ctms]
+						dojo.data.windowExpired = false
 					else
-						tutorial.data.validfortickcount = 0
+						dojo.data.validfortickcount = 0
+						dojo.data.windowExpired = false
 					end
-					if tutorial.data.currentlessonstep > #tutorial.data.lessons[ct].steps and tutorial.f_countRep(ct) then
-						tutorial.f_completeLesson(ct)
+					if dojo.data.currentlessonstep > #dojo.data.lessons[ct].steps and dojo.f_countRep(ct) then
+						dojo.f_completeLesson(ct)
 					end
 				end
 			end
-		elseif ((comboCount() == 0 and tutorial.data.lessons[ct].steps[cts].hitcount[ctms] ~= 0) and tutorial.data.validfortickcount == 0) or (tutorial.data.validfortickcount > 0 and comboCount() > tutorial.data.comboCounter) then
-			if (cts == 1 and ctms == 1) or tutorial.data.validfortickcount > 0 or tutorial.f_comboUnderway(step, ctms, cts) then
-				tutorial.f_resetAttempt(ct, cts, ctms)
+		elseif ((comboCount() == 0 and dojo.data.lessons[ct].steps[cts].hitcount[ctms] ~= 0) and dojo.data.validfortickcount == 0) or (dojo.data.validfortickcount > 0 and comboCount() > dojo.data.comboCounter)
+			or (dojo.data.windowExpired and dojo.data.validfortickcount == 0 and comboCount() == 0) then
+			if dojo.data.windowExpired and not dojo.f_comboUnderway(step, ctms, cts) then
+				-- Expired window, no combo: f_resetAttempt wouldn't count it, so count it here.
+				dojo.f_noteFail(ct)
+				dojo.f_resetAttempt(ct, cts, ctms)
+			elseif (cts == 1 and ctms == 1) or dojo.data.validfortickcount > 0 or dojo.f_comboUnderway(step, ctms, cts) then
+				dojo.f_resetAttempt(ct, cts, ctms)
 			else
-				-- A hit step after steps that did not hit (block then punish, dash then attack): there is
-				-- no combo to lose, so it waits for its hit. In Trials it reset on its first frame.
-				tutorial.data.comboCounter = 0
+				-- Hit step after non-hit steps: no combo to lose, so wait for the hit.
+				dojo.data.comboCounter = 0
 			end
 		end
 		end -- event step / hit step
 	end
-	--If the lesson was completed successfully, draw the tutorial success
-	if tutorial.draw.success > 0 then
+	--If the lesson was completed successfully, draw the success banner
+	if dojo.draw.success > 0 then
 		-- The Lesson the banner is for, not whichever one ct has moved on to.
-		tutorial.f_tutorialSuccess('success', tutorial.data.successlesson or ct)
-	elseif tutorial.data.tutorialPaused then
+		dojo.f_drawSuccess('success', dojo.data.successlesson or ct)
+	elseif dojo.data.wasPaused then
 		-- Hold the fade and reposition where they are while the pause menu is open.
-	elseif tutorial.draw.fade > 0 and (tutorial.tutorial_mode.tutorialresetonsuccess == true or tutorial.draw.fadetriggered) and CheckIt == 'root' then
-		if tutorial.draw.fade < tutorial.draw.fadein + tutorial.draw.fadeout then
-			tutorial.f_tutorialFade()
+	elseif dojo.draw.fade > 0 and (dojo.ui.resetonsuccess == true or dojo.draw.fadetriggered) and CheckIt == 'root' then
+		if dojo.draw.fade < dojo.draw.fadein + dojo.draw.fadeout then
+			dojo.f_fade()
 		else
 			player(2)
-			if stateNo() == 0 or tutorial.draw.fadetriggered then
-							mapSet('_iksys_tutorialButtonJamDelay',tutorial.draw.fade)
-				tutorial.f_tutorialFade()
+			if stateNo() == 0 or dojo.draw.fadetriggered then
+							mapSet('_iksys_dojoButtonJamDelay',dojo.draw.fade)
+				dojo.f_fade()
 			end
 			player(1)
 		end
-	elseif f_checkKeyCombo(tutorial.tutorial_mode.lessonreset_buttonpress) and tutorial.draw.fade == 0 and tutorial.tutorial_mode.lessonreset.enabled and tutorial.data.currentlesson <= #tutorial.data.lessons then
-		-- A reset starts the Lesson over, so the attempt's clock starts over with it. The run
-		-- timer is left alone: a speedrun keeps counting across a reset, it is one run.
-		tutorial.f_armTimers(tutorial.data.currentlesson)
-		tutorial.draw.fadein = tutorial.tutorial_mode.fadein_time
-		tutorial.draw.fadeout = tutorial.tutorial_mode.fadeout_time
-		tutorial.draw.fade = tutorial.draw.fadein + tutorial.draw.fadeout
-		tutorial.draw.fadetriggered = true
-	-- Trials read `not CheckIt == 'root' or ...`, whose first half is always false. Only the
-	-- fade test ever mattered - and must: clearing fadetriggered on a helper pass would cut a
-	-- running reset fade short.
-	elseif tutorial.draw.fade == 0 then
-		tutorial.draw.fadetriggered = false
+	elseif f_checkKeyCombo(dojo.ui.reset_buttonpress) and dojo.draw.fade == 0 and dojo.ui.reset.enabled and dojo.data.currentlesson <= #dojo.data.lessons then
+		-- A reset restarts the attempt clock but not the run timer.
+		dojo.f_armTimers(dojo.data.currentlesson)
+		dojo.draw.fadein = dojo.ui.fadein_time
+		dojo.draw.fadeout = dojo.ui.fadeout_time
+		dojo.draw.fade = dojo.draw.fadein + dojo.draw.fadeout
+		dojo.draw.fadetriggered = true
+	-- Only the fade test matters; clearing fadetriggered on a helper pass would cut a reset fade short.
+	elseif dojo.draw.fade == 0 then
+		dojo.draw.fadetriggered = false
 	end
 		player(1)
 end
 
--- A lesson's last step has passed and its repetitions are all made: record the clear, put the
--- banner up and move on. Shared by hit steps and event steps.
-function tutorial.f_completeLesson(ct)
-	tutorial.f_stopScript(2)
-	-- A take that clears the lesson is complete: end it here rather than making the author pause.
-	-- Only a take that has started counts; one still armed or waiting holds nothing yet.
-	if tutorial.f_recording() and tutorial.rec.phase == 'recording' then
-		tutorial.f_finishRecording(false)
+-- Last step passed and reps done: record the clear, show the banner, move on.
+function dojo.f_completeLesson(ct)
+	dojo.f_stopScript(2)
+	-- A take that clears the lesson ends here; one not yet recording holds nothing.
+	if dojo.f_recording() and dojo.rec.phase == 'recording' then
+		dojo.f_finishRecording(false)
 	end
-	-- Record the clear here, not from f_tutorialSuccess: that runs every frame the
-	-- banner is up, by which point the drawer has already moved ct on to the next
-	-- Lesson, so it would credit the clear to the wrong one. This block runs once.
-	tutorial.f_recordClear(ct, roundTime() - tutorial.data.lessons[ct].starttick)
-	tutorial.selectDirty = true
-	-- The banner belongs to the Lesson that was just cleared, for as long as it is up.
-	-- ct is not that Lesson after this frame, and the banner is what arms the next
-	-- Lesson's clock, so remember which one earned it rather than reading ct again.
-	tutorial.data.successlesson = ct
+	-- Record the clear here, once; f_drawSuccess runs after ct has moved on.
+	dojo.f_recordClear(ct, roundTime() - dojo.data.lessons[ct].starttick)
+	dojo.selectDirty = true
+	-- Remember which lesson earned the banner; ct moves on next frame.
+	dojo.data.successlesson = ct
 	-- If lesson step was last, go to next lesson and display success banner
-	if tutorial.data.tutorialadvancement then
-		tutorial.data.currentlesson = ct + 1
+	if dojo.data.autoadvance then
+		dojo.data.currentlesson = ct + 1
 	end
-	tutorial.f_spendState()
-	tutorial.data.currentlessonstep = 1
-	tutorial.data.comboCounter = 0
-	if ct < #tutorial.data.lessons or (not tutorial.data.tutorialadvancement and ct == #tutorial.data.lessons) then
-		if (tutorial.tutorial_mode.success_front_displaytime == -1) and (tutorial.tutorial_mode.success_bg_displaytime == -1) then
-			tutorial.draw.success = math.max(animGetLength(tutorial.tutorial_mode.success.front.AnimData), animGetLength(tutorial.tutorial_mode.success.bg.AnimData), tutorial.tutorial_mode.success_text_displaytime)
+	dojo.f_spendState()
+	dojo.data.currentlessonstep = 1
+	dojo.data.comboCounter = 0
+	if ct < #dojo.data.lessons or (not dojo.data.autoadvance and ct == #dojo.data.lessons) then
+		if (dojo.ui.success_front_displaytime == -1) and (dojo.ui.success_bg_displaytime == -1) then
+			dojo.draw.success = math.max(animGetLength(dojo.ui.success.front.AnimData), animGetLength(dojo.ui.success.bg.AnimData), dojo.ui.success_text_displaytime)
 		else
-			tutorial.draw.success = math.max(tutorial.tutorial_mode.success_front_displaytime, tutorial.tutorial_mode.success_bg_displaytime, tutorial.tutorial_mode.success_text_displaytime)
+			dojo.draw.success = math.max(dojo.ui.success_front_displaytime, dojo.ui.success_bg_displaytime, dojo.ui.success_text_displaytime)
 		end
-		if tutorial.tutorial_mode.tutorialresetonsuccess == true then
-			tutorial.draw.fadein = tutorial.tutorial_mode.fadein_time
-			tutorial.draw.fadeout = tutorial.tutorial_mode.fadeout_time
-			tutorial.draw.fade = tutorial.draw.fadein + tutorial.draw.fadeout
+		if dojo.ui.resetonsuccess == true then
+			dojo.draw.fadein = dojo.ui.fadein_time
+			dojo.draw.fadeout = dojo.ui.fadeout_time
+			dojo.draw.fade = dojo.draw.fadein + dojo.draw.fadeout
 		end
 	end
-	-- The banner is what normally releases the latch f_tutorialDummySetup keeps, so a motif that
-	-- displays none has to release it here or the next Lesson runs on the previous one's dummy
-	-- settings. The last Lesson is the All Clear's business: it leaves currentlesson past the end
-	-- of the table, which f_tutorialDummySetup only survives once allclear is set.
-	if tutorial.draw.success == 0 and tutorial.data.currentlesson <= #tutorial.data.lessons then
-		tutorial.data.lessons[ct].active = false
-		tutorial.data.active = false
+	-- With no banner, release the dummy-setup latch here; the last lesson is the All Clear's.
+	if dojo.draw.success == 0 and dojo.data.currentlesson <= #dojo.data.lessons then
+		dojo.data.lessons[ct].active = false
+		dojo.data.active = false
 	end
 end
 
-function tutorial.f_tutorialSuccess(successstring, index)
+function dojo.f_drawSuccess(successstring, index)
 	-- This function is responsible for drawing the Success or All Clear banners after a lesson is completed successfully.
 	player(2)
-	mapSet('_iksys_tutorialDummyMode', 0)
-	mapSet('_iksys_tutorialGuardMode', 0)
-	mapSet('_iksys_tutorialButtonJam', 0)
-	mapSet('_iksys_tutorialDistance', 0)
-	mapSet('_iksys_tutorialDirection', 0)
+	mapSet('_iksys_dojoDummyMode', 0)
+	mapSet('_iksys_dojoGuardMode', 0)
+	mapSet('_iksys_dojoButtonJam', 0)
+	mapSet('_iksys_dojoDistance', 0)
+	mapSet('_iksys_dojoDirection', 0)
 	player(1)
-	if not tutorial.data.lessons[index].complete or (successstring == "allclear" and not tutorial.data.allclear) then
+	if not dojo.data.lessons[index].complete or (successstring == "allclear" and not dojo.data.allclear) then
 		-- Play sound only once
-		sndPlay(dojoSnd, tutorial.tutorial_mode[successstring .. '_snd'][1], tutorial.tutorial_mode[successstring .. '_snd'][2])
+		sndPlay(dojoSnd, dojo.ui[successstring .. '_snd'][1], dojo.ui[successstring .. '_snd'][2])
 	end
 	-- The banner text is centred on its element's pos rather than its own offset.
-	local banner = tutorial.tutorial_mode[successstring]
-	tutorial.draw[successstring .. '_text']:update({
+	local banner = dojo.ui[successstring]
+	dojo.draw[successstring .. '_text']:update({
 		text = banner.text.text,
 		x = banner.pos[1],
 		y = banner.pos[2],
 	})
 	animUpdate(banner.bg.AnimData)
 	animDraw(banner.bg.AnimData)
-	tutorial.draw[successstring .. '_text']:draw()
+	dojo.draw[successstring .. '_text']:draw()
 	animUpdate(banner.front.AnimData)
 	animDraw(banner.front.AnimData)
-	tutorial.draw[successstring] = tutorial.draw[successstring] - 1
-	tutorial.data.lessons[index].complete = true
-	-- Only hand the frame back once the banner is done. Dropping active while it is still up lets
-	-- f_tutorialDrawer run f_tutorialDummySetup for the Lesson that has already been advanced to, which
-	-- latches that Lesson's active flag - and then the mapSets at the top of this function wipe the
-	-- dummy mode, guard mode and button jam it just applied, with the latch spent so nothing applies
-	-- them again. The dummy would stay parked in stand for the whole of the next Lesson.
-	if tutorial.draw[successstring] <= 0 then
-		tutorial.data.lessons[index].active = false
-		tutorial.data.active = false
+	dojo.draw[successstring] = dojo.draw[successstring] - 1
+	dojo.data.lessons[index].complete = true
+	-- Release the frame only once the banner ends, or the next lesson's dummy settings get wiped.
+	if dojo.draw[successstring] <= 0 then
+		dojo.data.lessons[index].active = false
+		dojo.data.active = false
 	end
-	if not tutorial.data.tutorialadvancement then
-		tutorial.data.lessons[index].starttick = roundTime()
+	if not dojo.data.autoadvance then
+		dojo.data.lessons[index].starttick = roundTime()
 	end
-	if index ~= #tutorial.data.lessons then
-		tutorial.data.lessons[index+1].starttick = roundTime()
+	if index ~= #dojo.data.lessons then
+		dojo.data.lessons[index+1].starttick = roundTime()
 	end
 end
 
-function tutorial.f_tutorialFade()
+function dojo.f_fade()
 	local stagelocalcoordX = stageVar("stageinfo.localcoord.x")
 	local stageboundleft = stageVar("bound.screenleft")
 	local stageboundright = stageVar("bound.screenright")
@@ -2892,121 +2696,118 @@ function tutorial.f_tutorialFade()
 	local posx = 0
 	local oppx = 0
 
-	if tutorial.data.lessons[tutorial.data.currentlesson].dummyposoffset[1] == nil then
-	tutorial.data.lessons[tutorial.data.currentlesson].dummyposoffset[1] = 0
+	if dojo.data.lessons[dojo.data.currentlesson].dummyposoffset[1] == nil then
+	dojo.data.lessons[dojo.data.currentlesson].dummyposoffset[1] = 0
 	end
-	if tutorial.data.lessons[tutorial.data.currentlesson].dummyposoffset[2] == nil then
-	tutorial.data.lessons[tutorial.data.currentlesson].dummyposoffset[2] = 0
+	if dojo.data.lessons[dojo.data.currentlesson].dummyposoffset[2] == nil then
+	dojo.data.lessons[dojo.data.currentlesson].dummyposoffset[2] = 0
 	end
-	if tutorial.data.lessons[tutorial.data.currentlesson].playerposoffset[1] == nil then
-	tutorial.data.lessons[tutorial.data.currentlesson].playerposoffset[1] = 0
+	if dojo.data.lessons[dojo.data.currentlesson].playerposoffset[1] == nil then
+	dojo.data.lessons[dojo.data.currentlesson].playerposoffset[1] = 0
 	end
-	if tutorial.data.lessons[tutorial.data.currentlesson].playerposoffset[2] == nil then
-	tutorial.data.lessons[tutorial.data.currentlesson].playerposoffset[2] = 0
+	if dojo.data.lessons[dojo.data.currentlesson].playerposoffset[2] == nil then
+	dojo.data.lessons[dojo.data.currentlesson].playerposoffset[2] = 0
 	end
 	
-	if tutorial.data.lessons[tutorial.data.currentlesson].dummypos == 'left-corner' or tutorial.data.lessons[tutorial.data.currentlesson].playerpos == 'left-corner' then
+	if dojo.data.lessons[dojo.data.currentlesson].dummypos == 'left-corner' or dojo.data.lessons[dojo.data.currentlesson].playerpos == 'left-corner' then
 		cameraPosX = leftbound / (stagelocalcoordX/320)
 		posx = - (stagelocalcoordX/2 - stageboundleft) / (stagelocalcoordX/320)
-		if tutorial.data.lessons[tutorial.data.currentlesson].dummypos == 'close' or tutorial.data.lessons[tutorial.data.currentlesson].playerpos == 'close' then
+		if dojo.data.lessons[dojo.data.currentlesson].dummypos == 'close' or dojo.data.lessons[dojo.data.currentlesson].playerpos == 'close' then
 			oppx = posx + 10
-		elseif tutorial.data.lessons[tutorial.data.currentlesson].dummypos == 'far' or tutorial.data.lessons[tutorial.data.currentlesson].playerpos == 'far' then
+		elseif dojo.data.lessons[dojo.data.currentlesson].dummypos == 'far' or dojo.data.lessons[dojo.data.currentlesson].playerpos == 'far' then
 			oppx = posx + 260
 		else --medium or nil
 			oppx = posx + 130
 		end
-		if tutorial.data.lessons[tutorial.data.currentlesson].dummypos == 'left-corner' then
+		if dojo.data.lessons[dojo.data.currentlesson].dummypos == 'left-corner' then
 			dummyposx = posx
 			playerposx = oppx
 		else
 			playerposx = posx
 			dummyposx = oppx
 		end
-	elseif tutorial.data.lessons[tutorial.data.currentlesson].dummypos == 'right-corner' or tutorial.data.lessons[tutorial.data.currentlesson].playerpos == 'right-corner' then
+	elseif dojo.data.lessons[dojo.data.currentlesson].dummypos == 'right-corner' or dojo.data.lessons[dojo.data.currentlesson].playerpos == 'right-corner' then
 		cameraPosX = rightbound / (stagelocalcoordX/320)
 		posx = (stagelocalcoordX/2 - stageboundright) / (stagelocalcoordX/320)
-		if tutorial.data.lessons[tutorial.data.currentlesson].dummypos == 'close' or tutorial.data.lessons[tutorial.data.currentlesson].playerpos == 'close' then
+		if dojo.data.lessons[dojo.data.currentlesson].dummypos == 'close' or dojo.data.lessons[dojo.data.currentlesson].playerpos == 'close' then
 			oppx = posx - 10
-		elseif tutorial.data.lessons[tutorial.data.currentlesson].dummypos == 'far' or tutorial.data.lessons[tutorial.data.currentlesson].playerpos == 'far' then
+		elseif dojo.data.lessons[dojo.data.currentlesson].dummypos == 'far' or dojo.data.lessons[dojo.data.currentlesson].playerpos == 'far' then
 			oppx = posx - 260
 		else --medium or nil
 			oppx = posx - 130
 		end
-		if tutorial.data.lessons[tutorial.data.currentlesson].dummypos == 'right-corner' then
+		if dojo.data.lessons[dojo.data.currentlesson].dummypos == 'right-corner' then
 			dummyposx = posx
 			playerposx = oppx
 		else
 			playerposx = posx
 			dummyposx = oppx
 		end
-	elseif tutorial.data.lessons[tutorial.data.currentlesson].dummypos == 'close' or tutorial.data.lessons[tutorial.data.currentlesson].playerpos == 'close' then
+	elseif dojo.data.lessons[dojo.data.currentlesson].dummypos == 'close' or dojo.data.lessons[dojo.data.currentlesson].playerpos == 'close' then
 		dummyposx = 5
 		playerposx = -5
-	elseif tutorial.data.lessons[tutorial.data.currentlesson].dummypos == 'medium' or tutorial.data.lessons[tutorial.data.currentlesson].playerpos == 'medium' then
+	elseif dojo.data.lessons[dojo.data.currentlesson].dummypos == 'medium' or dojo.data.lessons[dojo.data.currentlesson].playerpos == 'medium' then
 		dummyposx = 65
 		playerposx = -65
-	elseif tutorial.data.lessons[tutorial.data.currentlesson].dummypos == 'far' or tutorial.data.lessons[tutorial.data.currentlesson].playerpos == 'far' then
+	elseif dojo.data.lessons[dojo.data.currentlesson].dummypos == 'far' or dojo.data.lessons[dojo.data.currentlesson].playerpos == 'far' then
 		dummyposx = 130
 		playerposx = -130
 	end
 
-	dummyposx = dummyposx + tutorial.data.lessons[tutorial.data.currentlesson].dummyposoffset[1]
-	dummyposy = dummyposy + tutorial.data.lessons[tutorial.data.currentlesson].dummyposoffset[2]
-	playerposx = playerposx + tutorial.data.lessons[tutorial.data.currentlesson].playerposoffset[1]
-	playerposy = playerposy + tutorial.data.lessons[tutorial.data.currentlesson].playerposoffset[2]
+	dummyposx = dummyposx + dojo.data.lessons[dojo.data.currentlesson].dummyposoffset[1]
+	dummyposy = dummyposy + dojo.data.lessons[dojo.data.currentlesson].dummyposoffset[2]
+	playerposx = playerposx + dojo.data.lessons[dojo.data.currentlesson].playerposoffset[1]
+	playerposy = playerposy + dojo.data.lessons[dojo.data.currentlesson].playerposoffset[2]
 	
-	mapSet('_iksys_tutorialCameraPosX', cameraPosX)
-	mapSet('_iksys_tutorialDummyPosX', dummyposx)
-	mapSet('_iksys_tutorialDummyPosY', dummyposy)
-	mapSet('_iksys_tutorialPlayerPosX', playerposx)
-	mapSet('_iksys_tutorialPlayerPosY', playerposy)
+	mapSet('_iksys_dojoCameraPosX', cameraPosX)
+	mapSet('_iksys_dojoDummyPosX', dummyposx)
+	mapSet('_iksys_dojoDummyPosY', dummyposy)
+	mapSet('_iksys_dojoPlayerPosX', playerposx)
+	mapSet('_iksys_dojoPlayerPosY', playerposy)
 	
-	-- This function is responsible for fadein/fadeout if tutorialresetonsuccess is set to true.
-	if tutorial.draw.fadeout > 0 then
+	-- This function is responsible for fadein/fadeout if resetonsuccess is set to true.
+	if dojo.draw.fadeout > 0 then
 		if not fadeActive() then
-			tutorial.draw.fadeoutData = fadeNew({
-			time = tutorial.draw.fadeout,
-			color = {tutorial.tutorial_mode.fadeout.col[1],
-			tutorial.tutorial_mode.fadeout.col[2],
-			tutorial.tutorial_mode.fadeout.col[3]},
-			anim = tutorial.tutorial_mode.fadeout.anim
+			dojo.draw.fadeoutData = fadeNew({
+			time = dojo.draw.fadeout,
+			color = {dojo.ui.fadeout.col[1],
+			dojo.ui.fadeout.col[2],
+			dojo.ui.fadeout.col[3]},
+			anim = dojo.ui.fadeout.anim
 			})
-		fadeOutInit(tutorial.draw.fadeoutData)
+		fadeOutInit(dojo.draw.fadeoutData)
 		end
-		tutorial.draw.fadeout = tutorial.draw.fadeout - 1
+		dojo.draw.fadeout = dojo.draw.fadeout - 1
 
-	elseif tutorial.draw.fadein > 0 then
+	elseif dojo.draw.fadein > 0 then
 		if not fadeActive() then
-			mapSet('_iksys_tutorialReposition', 1)
-			tutorial.draw.fadeinData = fadeNew({
-			time = tutorial.draw.fadein,
-			color = {tutorial.tutorial_mode.fadein.col[1],
-			tutorial.tutorial_mode.fadein.col[2],
-			tutorial.tutorial_mode.fadein.col[3]},
-			anim = tutorial.tutorial_mode.fadein.anim
+			mapSet('_iksys_dojoReposition', 1)
+			dojo.draw.fadeinData = fadeNew({
+			time = dojo.draw.fadein,
+			color = {dojo.ui.fadein.col[1],
+			dojo.ui.fadein.col[2],
+			dojo.ui.fadein.col[3]},
+			anim = dojo.ui.fadein.anim
 			})
-		fadeInInit(tutorial.draw.fadeinData)
+		fadeInInit(dojo.draw.fadeinData)
 	end
-		tutorial.draw.fadein = tutorial.draw.fadein - 1
+		dojo.draw.fadein = dojo.draw.fadein - 1
 	end
 
-	tutorial.draw.fade = tutorial.draw.fade - 1
-	if tutorial.draw.fade == 0 then
-			mapSet('_iksys_tutorialCameraReset', 1)
+	dojo.draw.fade = dojo.draw.fade - 1
+	if dojo.draw.fade == 0 then
+			mapSet('_iksys_dojoCameraReset', 1)
 end
 end
 
-function tutorial.f_tutorialSelectScreen()
--- Grays out portraits on the select screen for characters the current track has no lessons for.
--- Which characters those are depends on the track (Character Guides grays everyone without a lesson
--- file of their own), so the cells are redone whenever the track changes, not only on entering
--- or leaving the mode. selectScreenPalMod is 'normal' or the track the grid was last grayed for.
-	local want = tutorial.f_inMode() and tutorial.track or 'normal'
-	if want == tutorial.selectScreenPalMod then
+function dojo.f_selectScreen()
+-- Gray out select-screen portraits with no lessons on this track; redone when the track changes.
+	local want = dojo.f_inMode() and dojo.track or 'normal'
+	if want == dojo.selectScreenPalMod then
 		return
 	end
-	tutorial.selectScreenPalMod = want
-	local tm = tutorial.tutorial_mode
+	dojo.selectScreenPalMod = want
+	local tm = dojo.ui
 	local dark = {
 		time = -1,
 		add = tm.selscreenpalfx_add,
@@ -3025,9 +2826,9 @@ function tutorial.f_tutorialSelectScreen()
 				-- The random cell is left as the screenpack draws it.
 				if charData and charData.char_ref ~= nil and charData.hidden == 0 and charData.char ~= 'randomselect' then
 					-- Only cells whose state changes are touched, so a cell never grayed keeps its own palfx.
-					local grayed = want ~= 'normal' and not tutorial.f_hasLessons(charData)
-					if grayed ~= (charData.tutorialGrayed == true) then
-						charData.tutorialGrayed = grayed
+					local grayed = want ~= 'normal' and not dojo.f_hasLessons(charData)
+					if grayed ~= (charData.dojoGrayed == true) then
+						charData.dojoGrayed = grayed
 						animSetPalFX(charData.cell_data, grayed and dark or normal)
 						animUpdate(charData.cell_data)
 					end
@@ -3041,8 +2842,8 @@ end
 --; Lesson select view
 --;===========================================================
 -- The profile in force's own pause menu section: [Trials Pause Menu] or [Tutorial Pause Menu].
-function tutorial.f_pauseSection(p)
-	p = p or tutorial.profile
+function dojo.f_pauseSection(p)
+	p = p or dojo.profile
 	if motif.pause_menu == nil then
 		return nil
 	end
@@ -3050,7 +2851,7 @@ function tutorial.f_pauseSection(p)
 end
 
 local function f_pauseMenuValues()
-	local sec = tutorial.f_pauseSection()
+	local sec = dojo.f_pauseSection()
 	if sec ~= nil and type(sec.menu) == 'table' then
 		return sec.menu.valuename or {}
 	end
@@ -3067,7 +2868,7 @@ local t_difficultyDefault = {
 }
 
 -- Screenpacks rename or translate the tier labels through menu.valuename.tutorialdifficulty_*.
-function tutorial.f_difficultyName(d)
+function dojo.f_difficultyName(d)
 	local key = d
 	if key == nil or key == '' or key == 'other' then
 		key = 'none'
@@ -3076,23 +2877,21 @@ function tutorial.f_difficultyName(d)
 	return pmv['tutorialdifficulty_' .. key] or t_difficultyDefault[key] or key
 end
 
--- The name a filter is shown under: a chapter's own name, or a difficulty tier's label.
--- menu.valuename.tutorialchapter_<id> overrides a chapter's name, for translations.
-function tutorial.f_catName(cat)
-	if cat == 'all' or cat == 'other' or cat == nil or cat == '' or tutorial.t_difficultyIndex[cat] then
-		return tutorial.f_difficultyName(cat)
+-- Filter display name: chapter name or tier label, overridable via menu.valuename.tutorialchapter_<id>.
+function dojo.f_catName(cat)
+	if cat == 'all' or cat == 'other' or cat == nil or cat == '' or dojo.t_difficultyIndex[cat] then
+		return dojo.f_difficultyName(cat)
 	end
 	local pmv = f_pauseMenuValues()
-	return pmv['tutorialchapter_' .. cat] or tutorial.chapterNames[cat] or cat
+	return pmv['tutorialchapter_' .. cat] or dojo.chapterNames[cat] or cat
 end
 
-function tutorial.f_speedrunEnabled()
-	return menu.tutorialspeedrun == 1 and not tutorial.f_demoOnly()
+function dojo.f_speedrunEnabled()
+	return menu.tutorialspeedrun == 1 and not dojo.f_demoOnly()
 end
 
--- What the list is filtered by. Chapters when any lesson names one; difficulty when none does
--- but some declare a tier, as Trials Mode always did; nothing at all otherwise.
-function tutorial.f_filterMode(arr)
+-- Filter by chapter if any lesson names one, else difficulty if any declare it, else nothing.
+function dojo.f_filterMode(arr)
 	if arr == nil then
 		return 'none'
 	end
@@ -3109,7 +2908,7 @@ function tutorial.f_filterMode(arr)
 end
 
 -- The filter a lesson falls under in the given mode.
-function tutorial.f_lessonCat(lesson, mode)
+function dojo.f_lessonCat(lesson, mode)
 	local c = ''
 	if mode == 'chapter' then
 		c = lesson.chapter or ''
@@ -3122,10 +2921,10 @@ function tutorial.f_lessonCat(lesson, mode)
 	return c
 end
 
-function tutorial.f_filterOrder(arr)
+function dojo.f_filterOrder(arr)
 	local t = {'all'}
-	arr = arr or (tutorial.data ~= nil and tutorial.data.lessons or nil)
-	local mode = tutorial.f_filterMode(arr)
+	arr = arr or (dojo.data ~= nil and dojo.data.lessons or nil)
+	local mode = dojo.f_filterMode(arr)
 	if mode == 'none' then
 		return t
 	end
@@ -3133,7 +2932,7 @@ function tutorial.f_filterOrder(arr)
 	if mode == 'chapter' then
 		-- In the order chapters first come up: system lessons are listed first, so their chapters lead.
 		for i = 1, #arr, 1 do
-			local c = tutorial.f_lessonCat(arr[i], mode)
+			local c = dojo.f_lessonCat(arr[i], mode)
 			if c == 'other' then
 				other = true
 			elseif not has[c] then
@@ -3143,10 +2942,10 @@ function tutorial.f_filterOrder(arr)
 		end
 	else
 		for i = 1, #arr, 1 do
-			local c = tutorial.f_lessonCat(arr[i], mode)
+			local c = dojo.f_lessonCat(arr[i], mode)
 			has[c] = true
 		end
-		for _, d in ipairs(tutorial.t_difficulty) do
+		for _, d in ipairs(dojo.t_difficulty) do
 			if has[d] then
 				t[#t + 1] = d
 			end
@@ -3163,20 +2962,19 @@ local function f_inFilter(arr, i, filter, mode)
 	if filter == 'all' then
 		return true
 	end
-	return tutorial.f_lessonCat(arr[i], mode or tutorial.f_filterMode(arr)) == filter
+	return dojo.f_lessonCat(arr[i], mode or dojo.f_filterMode(arr)) == filter
 end
 
--- A gated file's lessons open one at a time: a lesson is locked until the one before it from the
--- same file (as the list stands, after grooves have thinned it) has been cleared.
-function tutorial.f_isLocked(index, arr, ref)
-	arr = arr or (tutorial.data ~= nil and tutorial.data.lessons or nil)
+-- Gated file: a lesson is locked until the previous lesson from the same file is cleared.
+function dojo.f_isLocked(index, arr, ref)
+	arr = arr or (dojo.data ~= nil and dojo.data.lessons or nil)
 	-- Nothing is ever cleared in demonstrations-only, so nothing could ever open.
-	if arr == nil or arr[index] == nil or not arr[index].gated or tutorial.f_demoOnly() then
+	if arr == nil or arr[index] == nil or not arr[index].gated or dojo.f_demoOnly() then
 		return false
 	end
 	for i = index - 1, 1, -1 do
 		if arr[i].file == arr[index].file then
-			local rec = tutorial.f_lessonRecord(i, arr, ref)
+			local rec = dojo.f_lessonRecord(i, arr, ref)
 			return rec == nil or not rec.cleared
 		end
 	end
@@ -3184,21 +2982,21 @@ function tutorial.f_isLocked(index, arr, ref)
 end
 
 -- %s is the cleared tally (3/5), %p the percentage cleared.
-function tutorial.f_headerValue(fmt, entry)
+function dojo.f_headerValue(fmt, entry)
 	return (fmt:gsub('%%s', entry.value or ''):gsub('%%p', tostring(entry.percent or 0)))
 end
 
-function tutorial.f_buildSelectItems(arr, ref, withTail)
+function dojo.f_buildSelectItems(arr, ref, withTail)
 	local items = {}
-	arr = arr or (tutorial.data ~= nil and tutorial.data.lessons or nil)
+	arr = arr or (dojo.data ~= nil and dojo.data.lessons or nil)
 	if arr == nil then
 		return items
 	end
 	if withTail == nil then
 		withTail = true
 	end
-	local order = tutorial.f_filterOrder(arr)
-	local filter = tutorial.selectFilter or 'all'
+	local order = dojo.f_filterOrder(arr)
+	local filter = dojo.selectFilter or 'all'
 	local known = false
 	for _, v in ipairs(order) do
 		if v == filter then
@@ -3208,9 +3006,9 @@ function tutorial.f_buildSelectItems(arr, ref, withTail)
 	end
 	if not known then
 		filter = 'all'
-		tutorial.selectFilter = filter
+		dojo.selectFilter = filter
 	end
-	local mode = tutorial.f_filterMode(arr)
+	local mode = dojo.f_filterMode(arr)
 	local tier = {}
 	local entries = {}
 	for _, f in ipairs(order) do
@@ -3218,7 +3016,7 @@ function tutorial.f_buildSelectItems(arr, ref, withTail)
 		for i = 1, #arr, 1 do
 			if f_inFilter(arr, i, f, mode) then
 				n = n + 1
-				local rec = tutorial.f_lessonRecord(i, arr, ref)
+				local rec = dojo.f_lessonRecord(i, arr, ref)
 				if rec ~= nil and rec.cleared then
 					done = done + 1
 				end
@@ -3227,20 +3025,20 @@ function tutorial.f_buildSelectItems(arr, ref, withTail)
 				end
 			end
 		end
-		entries[#entries + 1] = {cat = f, label = tutorial.f_catName(f), value = done .. '/' .. n,
+		entries[#entries + 1] = {cat = f, label = dojo.f_catName(f), value = done .. '/' .. n,
 			percent = n > 0 and math.floor(done * 100 / n) or 0}
 	end
 
-	local label = tutorial.f_catName(filter)
-	if #order > 1 and tutorial.tutorial_mode.tutorialmenu.headerdisplay ~= 'sidebyside' then
+	local label = dojo.f_catName(filter)
+	if #order > 1 and dojo.ui.menu.headerdisplay ~= 'sidebyside' then
 		-- Laid out side by side the other filters are visible, so the arrows earn nothing.
 		label = '< ' .. label .. ' >'
 	end
-	tutorial.selectHeader = {label = label, cat = filter, entries = entries}
+	dojo.selectHeader = {label = label, cat = filter, entries = entries}
 	for _, e in ipairs(entries) do
 		if e.cat == filter then
-			tutorial.selectHeader.value = e.value
-			tutorial.selectHeader.percent = e.percent
+			dojo.selectHeader.value = e.value
+			dojo.selectHeader.percent = e.percent
 		end
 	end
 	for _, i in ipairs(tier) do
@@ -3248,13 +3046,13 @@ function tutorial.f_buildSelectItems(arr, ref, withTail)
 			itemname = 'tutorialentry',
 			paramname = 'tutorialentry',
 			displayname = arr[i].name,
-			selected = tutorial.data ~= nil and i == tutorial.data.currentlesson,
+			selected = dojo.data ~= nil and i == dojo.data.currentlesson,
 			lesson = i,
-			locked = tutorial.f_isLocked(i, arr, ref),
+			locked = dojo.f_isLocked(i, arr, ref),
 		}
 	end
-	if withTail and tutorial.listTail ~= nil then
-		for _, item in ipairs(tutorial.listTail) do
+	if withTail and dojo.listTail ~= nil then
+		for _, item in ipairs(dojo.listTail) do
 			items[#items + 1] = item
 		end
 	end
@@ -3264,16 +3062,15 @@ function tutorial.f_buildSelectItems(arr, ref, withTail)
 	return items
 end
 
--- Where the cursor starts: the first Lesson the player has yet to clear, so re-entering a character
--- picks up where they left off.
-function tutorial.f_firstUncleared(items, arr, ref)
+-- Cursor starts on the first uncleared lesson.
+function dojo.f_firstUncleared(items, arr, ref)
 	local first = nil
 	for i, v in ipairs(items) do
 		if v.lesson ~= nil then
 			if first == nil then
 				first = i
 			end
-			local rec = tutorial.f_lessonRecord(v.lesson, arr, ref)
+			local rec = dojo.f_lessonRecord(v.lesson, arr, ref)
 			if (rec == nil or not rec.cleared) and not v.locked then
 				return i
 			end
@@ -3283,108 +3080,99 @@ function tutorial.f_firstUncleared(items, arr, ref)
 end
 
 -- Rebuilt whenever progress changes, so a clear shows up on the row immediately.
-function tutorial.f_refreshSelect()
-	if tutorial.data == nil or not tutorial.data.tutorialInitialized then
+function dojo.f_refreshSelect()
+	if dojo.data == nil or not dojo.data.initialized then
 		return
 	end
-	local items = tutorial.f_buildSelectItems()
-	for _, node in ipairs(tutorial.f_selectNodes()) do
+	local items = dojo.f_buildSelectItems()
+	for _, node in ipairs(dojo.f_selectNodes()) do
 		node.items = items
 		if node.item > #items then
 			node.item = #items
 		end
 	end
-	tutorial.selectDirty = false
+	dojo.selectDirty = false
 end
 
--- The two views onto the same list: the Pause menu's Tutorial List and the match-load screen.
-function tutorial.f_selectNodes()
+-- The two views onto the same list: the Pause menu's Lesson List and the match-load screen.
+function dojo.f_selectNodes()
 	local t = {}
-	if type(tutorial.listNode) == 'table' then t[#t + 1] = tutorial.listNode end
-	if type(tutorial.select) == 'table' then t[#t + 1] = tutorial.select end
+	if type(dojo.listNode) == 'table' then t[#t + 1] = dojo.listNode end
+	if type(dojo.select) == 'table' then t[#t + 1] = dojo.select end
 	return t
 end
 
--- After a filter change both views are showing a different list, so both cursors go back to the
--- first Lesson that filter still leaves uncleared.
-function tutorial.f_resetSelectCursors()
-	for _, node in ipairs(tutorial.f_selectNodes()) do
+-- After a filter change, both cursors go to the first uncleared lesson in the filter.
+function dojo.f_resetSelectCursors()
+	for _, node in ipairs(dojo.f_selectNodes()) do
 		if type(node.items) == 'table' then
-			node.item = tutorial.f_firstUncleared(node.items)
+			node.item = dojo.f_firstUncleared(node.items)
 			node.first = 1
 		end
 	end
 end
 
--- Left and right step through the filters. Returns whether anything moved, so the caller knows
--- whether to make a sound.
-function tutorial.f_cycleFilterFor(node, dir)
-	local order = tutorial.f_filterOrder(node.tutorial)
+-- Step through filters; returns whether anything moved, for the sound.
+function dojo.f_cycleFilterFor(node, dir)
+	local order = dojo.f_filterOrder(node.list)
 	if #order < 2 then
 		return false
 	end
 	local idx = 1
 	for i, v in ipairs(order) do
-		if v == (tutorial.selectFilter or 'all') then
+		if v == (dojo.selectFilter or 'all') then
 			idx = i
 			break
 		end
 	end
-	tutorial.selectFilter = order[(idx - 1 + dir) % #order + 1]
-	node.items = tutorial.f_buildSelectItems(node.tutorial, node.ref, false)
-	node.item = tutorial.f_firstUncleared(node.items, node.tutorial, node.ref)
+	dojo.selectFilter = order[(idx - 1 + dir) % #order + 1]
+	node.items = dojo.f_buildSelectItems(node.list, node.ref, false)
+	node.item = dojo.f_firstUncleared(node.items, node.list, node.ref)
 	node.first = 1
 	return true
 end
 
-function tutorial.f_cycleFilter(dir)
-	local order = tutorial.f_filterOrder()
+function dojo.f_cycleFilter(dir)
+	local order = dojo.f_filterOrder()
 	if #order < 2 then
 		return false
 	end
 	local idx = 1
 	for i, v in ipairs(order) do
-		if v == (tutorial.selectFilter or 'all') then
+		if v == (dojo.selectFilter or 'all') then
 			idx = i
 			break
 		end
 	end
-	tutorial.selectFilter = order[(idx - 1 + dir) % #order + 1]
-	tutorial.f_refreshSelect()
-	tutorial.f_resetSelectCursors()
+	dojo.selectFilter = order[(idx - 1 + dir) % #order + 1]
+	dojo.f_refreshSelect()
+	dojo.f_resetSelectCursors()
 	return true
 end
 
--- Holds both players still while the view is up. The value is a countdown dojo.zss ticks down,
--- so the hold releases itself if this stops being called every frame.
-function tutorial.f_menuHold(on)
+-- Freeze both players while the view is up; a countdown in dojo.zss releases it if not refreshed.
+function dojo.f_menuHold(on)
 	local v = 0
 	if on then
 		v = 10
 	end
 	player(2)
-	mapSet('_iksys_tutorialMenuOpen', v)
+	mapSet('_iksys_dojoMenuOpen', v)
 	player(1)
-	mapSet('_iksys_tutorialMenuOpen', v)
+	mapSet('_iksys_dojoMenuOpen', v)
 end
 
--- tutoriallistdisplay decides when, if ever, the player is asked which Lesson to play:
---   select - between stage select and the fight loading
---   start  - once the match is up, over the frozen pair
---   off    - never; the match starts on the first Lesson
-function tutorial.f_listDisplay()
-	local v = tostring(tutorial.tutorial_mode.tutoriallistdisplay or 'start'):lower()
+-- When the lesson list shows: select (before the fight), start (over the frozen match), or off.
+function dojo.f_listDisplay()
+	local v = tostring(dojo.ui.listdisplay or 'start'):lower()
 	if v == 'select' or v == 'off' then
 		return v
 	end
 	return 'start'
 end
 
--- Whether any of the character's Tutorial are gated on P1's vars. Those values do not exist until the
--- match is up, so a character with even one of them cannot be asked which Lesson to play beforehand -
--- the pre-fight list would offer every groove's Tutorial and most of them would be gone by roundState 2.
--- Reads the parsed data, never tutorial.data.lessons, which f_tutorialBuilder has already thinned.
-function tutorial.f_hasVarGatedTutorial(arr)
+-- Whether any lesson is gated on P1's vars, which can't be read before the match; uses the unthinned list.
+function dojo.f_hasVarGatedLessons(arr)
 	if arr == nil then
 		if type(start.p) ~= 'table' or type(start.p[1]) ~= 'table'
 			or type(start.p[1].t_selected) ~= 'table' or start.p[1].t_selected[1] == nil then
@@ -3394,13 +3182,13 @@ function tutorial.f_hasVarGatedTutorial(arr)
 		if not ok or type(charData) ~= 'table' then
 			return false
 		end
-		arr = tutorial.f_lessonsFor(charData)
+		arr = dojo.f_lessonsFor(charData)
 	end
 	if type(arr) ~= 'table' then
 		return false
 	end
 	for i = 1, #arr, 1 do
-		-- The same test f_tutorialBuilder thins by, so the two cannot disagree about what counts as gated.
+		-- The same test f_buildMatch thins by, so the two cannot disagree about what counts as gated.
 		if type(arr[i].showforvar) == 'table' and arr[i].showforvar[1] ~= nil then
 			return true
 		end
@@ -3408,56 +3196,56 @@ function tutorial.f_hasVarGatedTutorial(arr)
 	return false
 end
 
-function tutorial.f_openSelect()
-	if tutorial.select == nil or tutorial.data == nil or #tutorial.data.lessons == 0 then
+function dojo.f_openSelect()
+	if dojo.select == nil or dojo.data == nil or #dojo.data.lessons == 0 then
 		return
 	end
-	tutorial.f_refreshSelect()
-	tutorial.select.item = tutorial.f_firstUncleared(tutorial.select.items)
-	tutorial.select.first = 1
-	tutorial.select.openDelay = 10
-	local it = tutorial.select.items[tutorial.select.item]
+	dojo.f_refreshSelect()
+	dojo.select.item = dojo.f_firstUncleared(dojo.select.items)
+	dojo.select.first = 1
+	dojo.select.openDelay = 10
+	local it = dojo.select.items[dojo.select.item]
 	if it ~= nil and it.lesson ~= nil then
-		tutorial.data.currentlesson = it.lesson
+		dojo.data.currentlesson = it.lesson
 	end
-	tutorial.select.open = true
-	tutorial.f_menuHold(true)
-	local sec = tutorial.f_selectSection()
+	dojo.select.open = true
+	dojo.f_menuHold(true)
+	local sec = dojo.f_selectSection()
 	if sec ~= nil then
 		sndPlay(motif.Snd, sec.enter.snd[1], sec.enter.snd[2])
 	end
 end
 
-function tutorial.f_armTimers(index, wholeRun)
-	if tutorial.data == nil then
+function dojo.f_armTimers(index, wholeRun)
+	if dojo.data == nil then
 		return
 	end
 	local now = roundTime()
 	if wholeRun then
-		tutorial.data.starttick = now
-		tutorial.data.elapsedtime = 0
+		dojo.data.starttick = now
+		dojo.data.elapsedtime = 0
 	end
-	if tutorial.data.lessons[index] ~= nil then
-		tutorial.data.lessons[index].starttick = now
+	if dojo.data.lessons[index] ~= nil then
+		dojo.data.lessons[index].starttick = now
 	end
 end
 
-function tutorial.f_closeSelect()
-	if tutorial.select ~= nil then
-		tutorial.select.open = false
+function dojo.f_closeSelect()
+	if dojo.select ~= nil then
+		dojo.select.open = false
 	end
-	tutorial.f_menuHold(false)
+	dojo.f_menuHold(false)
 	-- Time spent choosing belongs to nobody's run.
-	if tutorial.data ~= nil then
-		tutorial.f_armTimers(tutorial.data.currentlesson, true)
+	if dojo.data ~= nil then
+		dojo.f_armTimers(dojo.data.currentlesson, true)
 	end
 end
 
-function tutorial.f_selectSection()
+function dojo.f_selectSection()
 	if motif.pause_menu == nil then
 		return nil
 	end
-	return tutorial.f_pauseSection() or motif.pause_menu.pause_menu
+	return dojo.f_pauseSection() or motif.pause_menu.pause_menu
 end
 
 --;===========================================================
@@ -3510,10 +3298,7 @@ local function f_menuOn(v)
 	return v == true or tostring(v):lower() == 'true'
 end
 
--- A filled rect from an overlay node, its window read as x1,y1,x2,y2 relative to x,y. Used both for
--- the sheet dimming the match behind the menu (drawn at the origin) and for the bar under the active
--- row (drawn at that row). Localcoord goes on before the window, since the rect scales the window as
--- it takes it. A window with no area is nothing to draw.
+-- Filled rect from an overlay node, window relative to x,y; localcoord first, empty windows skipped.
 local function f_menuRect(node, x, y)
 	if type(node) ~= 'table' or not f_menuOn(node.visible) then
 		return
@@ -3525,7 +3310,7 @@ local function f_menuRect(node, x, y)
 	if node.RectData == nil then
 		node.RectData = rectNew()
 	end
-	rectSetLocalcoord(node.RectData, tutorial.f_localcoord())
+	rectSetLocalcoord(node.RectData, dojo.f_localcoord())
 	rectSetColor(node.RectData, node.col[1], node.col[2], node.col[3])
 	rectSetAlpha(node.RectData, node.alpha[1], node.alpha[2])
 	rectSetLayerno(node.RectData, f_clampLayerno(node.layerno))
@@ -3533,8 +3318,7 @@ local function f_menuRect(node, x, y)
 	rectDraw(node.RectData)
 end
 
--- Whether the author actually named art for this element. A sprite or anim wins; otherwise the
--- element's .text label is drawn in its place, which is how the CLEAR label is replaced by art.
+-- Whether the author named art; if not, the element's .text label draws instead.
 local function f_hasArt(node)
 	if type(node) ~= 'table' then
 		return false
@@ -3551,11 +3335,9 @@ local function f_hasArt(node)
 	return false
 end
 
--- Text objects for the styles a category actually uses, made on first sight. Pre-allocating every
--- category against every state against every visible row would be 15 pools for a menu that draws
--- one style per row.
+-- Text objects per used style, made on first sight rather than pre-allocated.
 local function f_rowText(style, cat, row, node)
-	local d = tutorial.menuDraw
+	local d = dojo.menuDraw
 	local key = style .. '.' .. cat
 	if d.rows[key] == nil then
 		d.rows[key] = {}
@@ -3571,8 +3353,7 @@ local function f_menuText(obj, node, x, y, str)
 	obj:draw()
 end
 
--- An element drawn as art if the author named any, and as its .text label otherwise. The
--- clear marker and the scroll arrows both work this way.
+-- Draw as art if named, otherwise as the .text label.
 local function f_menuMark(node, obj, x, y)
 	if f_hasArt(node) then
 		f_menuAnim(node, x, y)
@@ -3600,11 +3381,11 @@ local function f_scrollTo(node, visible, total)
 	end
 end
 
-function tutorial.f_selectDraw(node)
+function dojo.f_selectDraw(node)
 	-- Shown both before the fight, on the motif's aspect, and over a live match, on the stage's.
-	tutorial.f_syncAspect()
-	local m = tutorial.tutorial_mode.tutorialmenu
-	local d = tutorial.menuDraw
+	dojo.f_syncAspect()
+	local m = dojo.ui.menu
+	local d = dojo.menuDraw
 	local t = node.items
 	local visible = math.min(m.visibleitems, #t)
 	f_scrollTo(node, visible, #t)
@@ -3615,7 +3396,7 @@ function tutorial.f_selectDraw(node)
 		f_menuText(d.title, m.title, m.pos[1], m.pos[2], m.title.text)
 	end
 	-- The filter banner is pinned above the list: it does not scroll with the rows.
-	local h = tutorial.selectHeader
+	local h = dojo.selectHeader
 	if h ~= nil then
 		local hx, hy = m.pos[1] + m.header.offset[1], m.pos[2] + m.header.offset[2]
 		if m.headerdisplay == 'sidebyside' then
@@ -3630,7 +3411,7 @@ function tutorial.f_selectDraw(node)
 				local val, vk = f_catState(m.header, e.cat, on, 'value')
 				if val.text ~= '' then
 					f_menuText(f_rowText('headervalue', vk .. e.cat, k, val), val, ex, ey,
-						tutorial.f_headerValue(val.text, e))
+						dojo.f_headerValue(val.text, e))
 				end
 			end
 		else
@@ -3640,7 +3421,7 @@ function tutorial.f_selectDraw(node)
 			f_menuText(f_rowText('header', tk, 1, txt), txt, hx, hy, h.label)
 			local val, vk = f_catState(m.header, cat, true, 'value')
 			if val.text ~= '' then
-				f_menuText(f_rowText('headervalue', vk, 1, val), val, hx, hy, tutorial.f_headerValue(val.text, h))
+				f_menuText(f_rowText('headervalue', vk, 1, val), val, hx, hy, dojo.f_headerValue(val.text, h))
 			end
 		end
 	end
@@ -3655,9 +3436,9 @@ function tutorial.f_selectDraw(node)
 		local active = i == node.item
 		local cat = 'other'
 		if item.lesson ~= nil then
-			local arr = node.tutorial or (tutorial.data ~= nil and tutorial.data.lessons or nil)
+			local arr = node.list or (dojo.data ~= nil and dojo.data.lessons or nil)
 			if arr ~= nil and arr[item.lesson] ~= nil then
-				cat = tutorial.f_lessonCat(arr[item.lesson], tutorial.f_filterMode(arr))
+				cat = dojo.f_lessonCat(arr[item.lesson], dojo.f_filterMode(arr))
 			end
 		end
 		if active then
@@ -3683,7 +3464,7 @@ function tutorial.f_selectDraw(node)
 		end
 		f_menuText(f_rowText(style, ck, row + 1, cfg), cfg, x, y, item.displayname)
 		if item.lesson ~= nil then
-			local rec = tutorial.f_lessonRecord(item.lesson, node.tutorial, node.ref)
+			local rec = dojo.f_lessonRecord(item.lesson, node.list, node.ref)
 			local cleared = rec ~= nil and rec.cleared
 			local st = cleared and m.status.cleared or m.status.uncleared
 			local obj2 = cleared and d.cleared[row + 1] or d.uncleared[row + 1]
@@ -3788,19 +3569,19 @@ local function f_moveCursor(node, dir)
 end
 
 -- standalone: driven from the mode's own loop at match load, with no pause menu around it.
-function tutorial.f_selectLoop(node, standalone)
-	local sec = tutorial.f_selectSection()
-	if sec == nil or tutorial.data == nil or tutorial.menuDraw == nil or node.items == nil then
+function dojo.f_selectLoop(node, standalone)
+	local sec = dojo.f_selectSection()
+	if sec == nil or dojo.data == nil or dojo.menuDraw == nil or node.items == nil then
 		return
 	end
 	if not standalone then
 		hook.run("menu.menu.loop")
 	end
 	if standalone then
-		tutorial.f_menuHold(true)
+		dojo.f_menuHold(true)
 	end
-	if tutorial.selectDirty then
-		tutorial.f_refreshSelect()
+	if dojo.selectDirty then
+		dojo.f_refreshSelect()
 	end
 	local t = node.items
 	if #t == 0 then
@@ -3809,12 +3590,11 @@ function tutorial.f_selectLoop(node, standalone)
 	node.item = math.max(1, math.min(node.item, #t))
 	for _, item in ipairs(t) do
 		if item.lesson ~= nil then
-			item.selected = item.lesson == tutorial.data.currentlesson
+			item.selected = item.lesson == dojo.data.currentlesson
 		end
 	end
-	tutorial.f_selectDraw(node)
-	-- Sample input every frame, including the ones we go on to ignore, so a button still held from
-	-- whatever opened the view reads as held rather than as a fresh press once we start listening.
+	dojo.f_selectDraw(node)
+	-- Sample input every frame so a held button doesn't read as a fresh press.
 	local dir, filter, done, cancel = f_selectInput(node, standalone, sec)
 	-- Draw during fades, but don't act on input until they finish.
 	if fadeActive() then
@@ -3828,15 +3608,14 @@ function tutorial.f_selectLoop(node, standalone)
 		return
 	end
 	-- Left and right change which difficulty the list is showing, wherever the cursor happens to be.
-	if filter ~= 0 and tutorial.f_cycleFilter(filter) then
+	if filter ~= 0 and dojo.f_cycleFilter(filter) then
 		sndPlay(motif.Snd, sec.cursor.move.snd[1], sec.cursor.move.snd[2])
 		return
 	end
 	if dir ~= 0 and f_moveCursor(node, dir) then
 		sndPlay(motif.Snd, sec.cursor.move.snd[1], sec.cursor.move.snd[2])
 	end
-	-- Cancel only has somewhere to go inside the pause menu. On the match-load screen the way out
-	-- is to pick a Lesson, or the list's own Back item.
+	-- Cancel only applies in the pause menu; match-load exits by picking or Back.
 	if cancel then
 		sndPlay(motif.Snd, sec.cancel.snd[1], sec.cancel.snd[2])
 		menu.currentMenu[1] = menu.currentMenu[2]
@@ -3851,11 +3630,11 @@ function tutorial.f_selectLoop(node, standalone)
 		sndPlay(motif.Snd, sec.cancel.snd[1], sec.cancel.snd[2])
 	elseif it.lesson ~= nil then
 		sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
-		tutorial.f_gotoLesson(it.lesson, false, standalone)
+		dojo.f_gotoLesson(it.lesson, false, standalone)
 	elseif standalone then
 		-- the section's own tail items, Back among them: nothing to go back to out here, so close.
 		sndPlay(motif.Snd, sec.cancel.snd[1], sec.cancel.snd[2])
-		tutorial.f_closeSelect()
+		dojo.f_closeSelect()
 	else
 		sndPlay(motif.Snd, sec.cancel.snd[1], sec.cancel.snd[2])
 		menu.currentMenu[1] = menu.currentMenu[2]
@@ -3865,9 +3644,7 @@ end
 --;===========================================================
 --; Lesson select menu - before the fight
 --;===========================================================
--- What the select screen had settled on when the pre-fight list opened. f_selectReset hands every
--- side fresh tables rather than clearing the old ones, so holding on to these is enough to put the
--- picks back after it runs.
+-- Snapshot the select picks so they can be restored after f_selectReset.
 local function f_snapshotSelect()
 	local snap = {}
 	for side = 1, 2 do
@@ -3884,19 +3661,15 @@ local function f_snapshotSelect()
 	return snap
 end
 
--- Cancel out of the pre-fight list goes back one step rather than all the way to P1's pick: to stage
--- select when there is one, otherwise to P2's pick. Runs off the start.f_selectReset hook, after the
--- reset f_selectMode does on the way back to the select screen. The stage cursor survives that
--- reset on its own and stageEnd is cleared by it, so the stage list reopens on the stage picked.
-function tutorial.f_restoreSelect()
-	local snap = tutorial.backToSelectSnap
-	tutorial.backToSelectSnap = nil
-	if snap == nil or not tutorial.f_inMode() then
+-- Cancelling the pre-fight list goes back one step (stage select, else P2's pick), not to P1's pick.
+function dojo.f_restoreSelect()
+	local snap = dojo.backToSelectSnap
+	dojo.backToSelectSnap = nil
+	if snap == nil or not dojo.f_inMode() then
 		return
 	end
 	local stageStep = main.stageMenu
-	-- With no stage select, the step before the list is P2's pick - but only if P2 was picked at all.
-	-- A forced P2 means the step before is P1's pick, which is what the plain reset already gives.
+	-- Without stage select, step back to P2's pick only if P2 was picked rather than forced.
 	local p2Step = not stageStep and main.selectMenu[2] and main.forceChar[2] == nil and #snap[2].t_selected > 0
 	if not stageStep and not p2Step then
 		return
@@ -3922,17 +3695,15 @@ function tutorial.f_restoreSelect()
 	end
 end
 
--- The lesson list shown outside a match: before the fight in Character Guides and Combined, and as
--- the Game Tutorial's own menu. Returns the display name of the lesson picked, or nil on cancel.
--- The second return is true when the list had nothing in it to show, and so was never opened.
-function tutorial.f_lessonListLoop(lessons, ref, sec)
-	tutorial.selectFilter = 'all'
-	local node = {tutorial = lessons, ref = ref, item = 1, first = 1}
-	node.items = tutorial.f_buildSelectItems(node.tutorial, node.ref, false)
+-- Out-of-match lesson list; returns the picked name or nil, and true when it was empty.
+function dojo.f_lessonListLoop(lessons, ref, sec)
+	dojo.selectFilter = 'all'
+	local node = {lessonList = lessons, ref = ref, item = 1, first = 1}
+	node.items = dojo.f_buildSelectItems(node.list, node.ref, false)
 	if #node.items == 0 then
 		return nil, true
 	end
-	node.item = tutorial.f_firstUncleared(node.items, node.tutorial, node.ref)
+	node.item = dojo.f_firstUncleared(node.items, node.list, node.ref)
 	-- Whatever the cursor rests on is the answer; cancel means no answer.
 	local picked = node.items[node.item].displayname
 	sndPlay(motif.Snd, sec.enter.snd[1], sec.enter.snd[2])
@@ -3952,7 +3723,7 @@ function tutorial.f_lessonListLoop(lessons, ref, sec)
 		elseif getInput(-1, sec.menu.subtract.key) then
 			filter = -1
 		end
-		if filter ~= 0 and tutorial.f_cycleFilterFor(node, filter) then
+		if filter ~= 0 and dojo.f_cycleFilterFor(node, filter) then
 			sndPlay(motif.Snd, sec.cursor.move.snd[1], sec.cursor.move.snd[2])
 		elseif dir ~= 0 and f_moveCursor(node, dir) then
 			sndPlay(motif.Snd, sec.cursor.move.snd[1], sec.cursor.move.snd[2])
@@ -3977,7 +3748,7 @@ function tutorial.f_lessonListLoop(lessons, ref, sec)
 		end
 		clearColor(motif.selectbgdef.bgclearcolor[1], motif.selectbgdef.bgclearcolor[2], motif.selectbgdef.bgclearcolor[3])
 		bgDraw(motif.selectbgdef.BGDef, 0)
-		tutorial.f_selectDraw(node)
+		dojo.f_selectDraw(node)
 		bgDraw(motif.selectbgdef.BGDef, 1)
 		main.f_preloadTick(2)
 		refresh()
@@ -3986,9 +3757,9 @@ function tutorial.f_lessonListLoop(lessons, ref, sec)
 	return picked
 end
 
-function tutorial.f_preFightMenu()
+function dojo.f_preFightMenu()
 	-- The Game Tutorial picked its lesson before the match was set up (gametutorial.lua).
-	if not tutorial.f_inMode() or tutorial.track == 'game' or tutorial.f_listDisplay() ~= 'select' then
+	if not dojo.f_inMode() or dojo.track == 'game' or dojo.f_listDisplay() ~= 'select' then
 		return
 	end
 	if type(start.p) ~= 'table' or type(start.p[1]) ~= 'table'
@@ -4000,66 +3771,61 @@ function tutorial.f_preFightMenu()
 	if not ok or type(charData) ~= 'table' then
 		return
 	end
-	local lessons = tutorial.f_lessonsFor(charData)
+	local lessons = dojo.f_lessonsFor(charData)
 	if #lessons == 0 then
 		return
 	end
-	-- Nothing out here can read the vars this character's Tutorial are gated on, so asking now would list
-	-- every groove's Tutorial and most of the answers would be wrong. The match-load list asks instead.
-	if tutorial.f_hasVarGatedTutorial(lessons) then
+	-- Var-gated lessons can't be listed before the match; the match-load list asks instead.
+	if dojo.f_hasVarGatedLessons(lessons) then
 		return
 	end
-	local sec = tutorial.f_selectSection()
+	local sec = dojo.f_selectSection()
 	if sec == nil then
 		return
 	end
 	local snap = f_snapshotSelect()
-	tutorial.backToSelect = false
-	local picked, empty = tutorial.f_lessonListLoop(lessons, ref, sec)
+	dojo.backToSelect = false
+	local picked, empty = dojo.f_lessonListLoop(lessons, ref, sec)
 	if empty then
 		return
 	end
-	tutorial.pendingLesson = picked
+	dojo.pendingLesson = picked
 	if picked == nil then
-		-- Back out one step to the select screen (stage select, or P2's pick without one). The
-		-- fight is already being set up by now, so f_selectVersus is told to call it off.
-		tutorial.backToSelect = true
-		tutorial.backToSelectSnap = snap
+		-- Back one step to the select screen; f_selectVersus calls the fight off.
+		dojo.backToSelect = true
+		dojo.backToSelectSnap = snap
 	end
 end
 
 --;===========================================================
 --; Game Tutorial
 --;===========================================================
--- The Game Tutorial's match script, run as main.luaPath through gametutorial.lua: the lesson list,
--- then a match for the lesson picked, then the list again, until the player backs out of it.
--- P1 is the lesson's lesson.playerchar, else TutorialPlayerChar, else the select screen's pick. The
--- dummy is TutorialDummy, else the select screen's pick, else a mirror of P1.
-function tutorial.f_gameTutorialRun()
+-- Game Tutorial loop: lesson list, match, repeat; P1 from playerchar/TutorialPlayerChar/pick, P2 from dummychar/TutorialDummy/pick/mirror.
+function dojo.f_gameTutorialRun()
 	local selectShown = main.selectMenu[1] or main.selectMenu[2]
 	-- launchFight overwrites t_selected, so what the select screen settled on is kept here.
-	tutorial.pickedRef = start.p[1].t_selected[1] ~= nil and start.p[1].t_selected[1].ref or nil
-	local p2Picked = nil
+	dojo.pickedRef = start.p[1].t_selected[1] ~= nil and start.p[1].t_selected[1].ref or nil
+	dojo.p2PickedRef = nil
 	if main.selectMenu[2] and main.forceChar[2] == nil and start.p[2].t_selected[1] ~= nil then
-		p2Picked = start.p[2].t_selected[1].ref
+		dojo.p2PickedRef = start.p[2].t_selected[1].ref
 	end
-	tutorial.relaunchLesson = nil
-	local sec = tutorial.f_selectSection()
-	local lessons = tutorial.f_lessonsFor(nil)
+	dojo.relaunchLesson = nil
+	local sec = dojo.f_selectSection()
+	local lessons = dojo.f_lessonsFor(nil)
 	if #lessons == 0 or sec == nil then
 		print('Dojo: the Game Tutorial has no game-wide lessons to offer; see SystemTutorial in config.ini.')
 		setMatchNo(-1)
 		return
 	end
 	while true do
-		local name = tutorial.relaunchLesson
-		tutorial.relaunchLesson = nil
+		local name = dojo.relaunchLesson
+		dojo.relaunchLesson = nil
 		if name == nil then
 			bgReset(motif.selectbgdef.BGDef)
 			playBgm({source = "motif.select", interrupt = true})
 			-- Fresh copies each time round, so the list shows what the last match cleared.
-			lessons = tutorial.f_lessonsFor(nil)
-			name = tutorial.f_lessonListLoop(lessons, tutorial.pickedRef, sec)
+			lessons = dojo.f_lessonsFor(nil)
+			name = dojo.f_lessonListLoop(lessons, dojo.pickedRef, sec)
 			if name == nil then
 				-- Back out: to the select screen when there was one, to the main menu otherwise.
 				if not selectShown then
@@ -4075,15 +3841,15 @@ function tutorial.f_gameTutorialRun()
 				break
 			end
 		end
-		local p1 = tutorial.f_playerFor(lesson)
+		local p1 = dojo.f_playerFor(lesson)
 		if p1 == nil then
 			print('Dojo: no character to play "' .. tostring(name) .. '" with; set TutorialPlayerChar in config.ini.')
 			setMatchNo(-1)
 			return
 		end
-		local p2 = tutorial.dummyRef or p2Picked or p1
-		tutorial.gameP1 = p1
-		tutorial.pendingLesson = name
+		local p2 = dojo.f_dummyFor(lesson)
+		dojo.gameP1, dojo.gameP2 = p1, p2
+		dojo.pendingLesson = name
 		-- launchFight replaces P1's selection when given p1char, but adds p2char to P2's.
 		start.p[2].t_selected = {}
 		start.p[2].t_selTemp = {}
@@ -4091,10 +3857,8 @@ function tutorial.f_gameTutorialRun()
 			p1char = {start.f_getCharData(p1).char},
 			p2char = {start.f_getCharData(p2).char},
 		}
-		if tutorial.relaunchLesson == nil then
-			-- Exit leaves for the main menu (launchFight sets matchNo -1 when there is no select
-			-- screen to go back to). With a select screen, any way out of the match goes back to it.
-			-- Without one, Character Change comes back to this list.
+		if dojo.relaunchLesson == nil then
+			-- Leave on exit or when a select screen exists; otherwise Character Change returns to the list.
 			if matchNo() == -1 or selectShown then
 				return
 			end
@@ -4105,28 +3869,16 @@ end
 --;===========================================================
 --; Speedrun
 --;===========================================================
--- Speedrun is a run of the whole character, in order, against the clock. The Tutorial List is taken
--- off the Pause menu so no Lesson can be skipped, and Advancement is held at Auto-Advance because
--- Repeat would stall a run.
---
--- The same pass decides every root item that only applies some of the time, so both pause menus can
--- list everything and still never offer a row that would do nothing:
---   tutorialrecord / tutorialrecorddummy - authoring aids, only with [Config] RecordDemo = true
---   tutoriallist                         - not during a speedrun
---   tutorialdemo                         - only for an entry with a demoscript, and not in a speedrun
---   tutorialinstructions                 - only for an entry with instruction pages
--- In demonstrations-only, Watch Demo and both Record rows go: the demo is already playing, and
--- there is no playing the lesson to record.
--- Run again whenever the pause menu opens (menu.f_init below), since the current entry moves on.
+-- Decides which conditional root items show: no list in speedrun, demo/record/instructions only where they apply.
 local function f_rootItemShown(name, on)
 	if name == 'tutorialrecord' or name == 'tutorialrecorddummy' then
-		return tutorial.recordEnabled and not tutorial.f_demoOnly()
-	elseif name == 'tutorialdemo' and tutorial.f_demoOnly() then
+		return dojo.recordEnabled and not dojo.f_demoOnly()
+	elseif name == 'tutorialdemo' and dojo.f_demoOnly() then
 		return false
 	elseif name == 'tutoriallist' then
 		return not on
 	elseif name == 'tutorialdemo' or name == 'tutorialinstructions' then
-		local d = tutorial.data
+		local d = dojo.data
 		if d == nil or type(d.lessons) ~= 'table' or #d.lessons == 0 then
 			return false
 		end
@@ -4139,34 +3891,33 @@ local function f_rootItemShown(name, on)
 	return true
 end
 
-function tutorial.f_applySpeedrun()
-	if tutorial.rootNode == nil or tutorial.rootItems == nil then
+function dojo.f_applySpeedrun()
+	if dojo.rootNode == nil or dojo.rootItems == nil then
 		return
 	end
-	local on = tutorial.f_speedrunEnabled()
+	local on = dojo.f_speedrunEnabled()
 	local items = {}
-	for _, item in ipairs(tutorial.rootItems) do
+	for _, item in ipairs(dojo.rootItems) do
 		if f_rootItemShown(item.itemname, on) then
 			items[#items + 1] = item
 		end
 	end
-	-- A row coming or going moves every row under it, so the cursor would land on a different item
-	-- than the one it was left on. Start it back at the top instead.
-	if #items ~= #(tutorial.rootNode.items or {}) then
-		tutorial.rootNode.item = 1
-		tutorial.rootNode.cursorPosY = 1
-		tutorial.rootNode.moveTxt = 0
+	-- Rows changed, so reset the cursor to the top.
+	if #items ~= #(dojo.rootNode.items or {}) then
+		dojo.rootNode.item = 1
+		dojo.rootNode.cursorPosY = 1
+		dojo.rootNode.moveTxt = 0
 	end
-	tutorial.rootNode.items = items
-	if tutorial.rootNode.item > #items then
-		tutorial.rootNode.item = #items
-		tutorial.rootNode.cursorPosY = 1
-		tutorial.rootNode.moveTxt = 0
+	dojo.rootNode.items = items
+	if dojo.rootNode.item > #items then
+		dojo.rootNode.item = #items
+		dojo.rootNode.cursorPosY = 1
+		dojo.rootNode.moveTxt = 0
 	end
 	if on then
 		menu.tutorialadvancement = 1
-		if tutorial.data ~= nil then
-			tutorial.data.tutorialadvancement = true
+		if dojo.data ~= nil then
+			dojo.data.autoadvance = true
 		end
 		for _, v in ipairs(menu.t_vardisplayPointers) do
 			if v.itemname == 'tutorialadvancement' then
@@ -4176,12 +3927,10 @@ function tutorial.f_applySpeedrun()
 	end
 end
 
--- A run belongs to the sitting it was started in. Leaving for the character select screen ends it,
--- whether that was Character Change, the end of a match, or exiting the mode altogether - they all
--- come through start.f_selectReset.
-function tutorial.f_resetSpeedrun()
+-- Leaving for character select ends the speedrun.
+function dojo.f_resetSpeedrun()
 	menu.tutorialspeedrun = 2
-	tutorial.f_applySpeedrun()
+	dojo.f_applySpeedrun()
 	for _, v in ipairs(menu.t_vardisplayPointers) do
 		if v.itemname == 'tutorialspeedrun' then
 			v.vardisplay = menu.f_vardisplay('tutorialspeedrun')
@@ -4190,190 +3939,170 @@ function tutorial.f_resetSpeedrun()
 end
 
 -- Starts a fresh run: back to the first Lesson with the total timer armed and the run counted.
-function tutorial.f_startSpeedrun()
-	if tutorial.data == nil or #tutorial.data.lessons == 0 then
+function dojo.f_startSpeedrun()
+	if dojo.data == nil or #dojo.data.lessons == 0 then
 		return
 	end
-	tutorial.f_gotoLesson(1, true, true)
-	tutorial.data.runValid = true
+	dojo.f_gotoLesson(1, true, true)
+	dojo.data.runValid = true
 end
 
--- Game Tutorial only. Once the current lesson needs a different P1 from the one this match was
--- launched with - picked from the Lesson List, reached with Next / Previous or by auto-advance - the
--- match is ended the way Character Change ends one, and the lesson handed over to gametutorial.lua.
--- Waits out the pause menu and a Success banner, so both finish first. True while ending.
-function tutorial.f_relaunchForPlayer()
-	if tutorial.track ~= 'game' then
+-- Game Tutorial: end the match when the lesson needs a different P1 or dummy, after pause and banner finish.
+function dojo.f_relaunchForPlayer()
+	if dojo.track ~= 'game' then
 		return false
 	end
-	if tutorial.relaunchLesson ~= nil then
+	if dojo.relaunchLesson ~= nil then
 		return true
 	end
-	if paused() or (tutorial.draw ~= nil and (tutorial.draw.success or 0) > 0) then
+	if paused() or (dojo.draw ~= nil and (dojo.draw.success or 0) > 0) then
 		return false
 	end
-	local l = tutorial.data.lessons[tutorial.data.currentlesson]
-	if l == nil or tutorial.f_playerFor(l) == tutorial.gameP1 then
+	local l = dojo.data.lessons[dojo.data.currentlesson]
+	if l == nil or (dojo.f_playerFor(l) == dojo.gameP1 and dojo.f_dummyFor(l) == dojo.gameP2) then
 		return false
 	end
-	tutorial.relaunchLesson = l.name
-	tutorial.f_endDemo(false)
-	tutorial.f_stopScript(1)
-	tutorial.f_stopScript(2)
+	dojo.relaunchLesson = l.name
+	dojo.f_endDemo(false)
+	dojo.f_stopScript(1)
+	dojo.f_stopScript(2)
 	endMatch()
 	start.characterchange = true
 	return true
 end
 
-function tutorial.f_tutorialMode()
-	-- The match may be running at an aspect the module was not loaded on - with the aspect ratio
-	-- option set to "stage", every stage can bring its own. Lay the canvas out for the one in force
-	-- before anything is drawn in it. No-op once it has settled, which is every frame after the
-	-- first of a match.
-	tutorial.f_syncAspect()
+function dojo.f_matchLoop()
+	-- Lay the canvas out for the current aspect; no-op once settled.
+	dojo.f_syncAspect()
 
 	if roundStart() then
-		tutorial.f_cancelRecording()
-		tutorial.f_endDemo(false)
-		tutorial.f_stopScript(1)
-		tutorial.f_stopScript(2)
-		tutorial.data = nil
-		-- Empty the tutorial list back to the items and loop the section declared.
-		if tutorial.listNode ~= nil and tutorial.listTail ~= nil then
-			tutorial.listNode.items = tutorial.listTail
-			tutorial.listNode.item = 1
-			tutorial.listNode.cursorPosY = 1
-			tutorial.listNode.moveTxt = 0
-			tutorial.listNode.loop = tutorial.listLoop
+		dojo.f_cancelRecording()
+		dojo.f_endDemo(false)
+		dojo.f_stopScript(1)
+		dojo.f_stopScript(2)
+		dojo.data = nil
+		-- Empty the lesson list back to the items and loop the section declared.
+		if dojo.listNode ~= nil and dojo.listTail ~= nil then
+			dojo.listNode.items = dojo.listTail
+			dojo.listNode.item = 1
+			dojo.listNode.cursorPosY = 1
+			dojo.listNode.moveTxt = 0
+			dojo.listNode.loop = dojo.listLoop
 		end
-		if tutorial.rootNode ~= nil and tutorial.rootItems ~= nil then
-			tutorial.rootNode.items = tutorial.rootItems
-			tutorial.rootNode.item = 1
-			tutorial.rootNode.cursorPosY = 1
-			tutorial.rootNode.moveTxt = 0
+		if dojo.rootNode ~= nil and dojo.rootItems ~= nil then
+			dojo.rootNode.items = dojo.rootItems
+			dojo.rootNode.item = 1
+			dojo.rootNode.cursorPosY = 1
+			dojo.rootNode.moveTxt = 0
 		end
-		tutorial.select = nil
-		tutorial.pages = nil
-		tutorial.selectDirty = false
-		tutorial.p1selref = nil
-		tutorial.charPortraitSff = nil
-		if tutorial.tutorial_mode.textbox.portrait.anim ~= nil then
-		animReset(tutorial.tutorial_mode.textbox.portrait.anim)
-					end
-		-- Check if there's a tutorial file - if so, parse it
-		if tutorial.f_hasLessons(start.f_getCharData(start.p[1].t_selected[1].ref)) then
-			tutorial.f_inittutorialData()
-			tutorialExist = true
+		dojo.select = nil
+		dojo.pages = nil
+		dojo.selectDirty = false
+		dojo.p1selref = nil
+		dojo.charPortraitSff = nil
+		dojo.ui.textbox.portrait.anim = nil
+		-- Check if there's a lesson file - if so, parse it
+		if dojo.f_hasLessons(start.f_getCharData(start.p[1].t_selected[1].ref)) then
+			dojo.f_initData()
+			lessonsExist = true
  		else
-			tutorialExist = false
+			lessonsExist = false
 		end
 	end
 
-	if tutorial.p1selref == nil then
+	if dojo.p1selref == nil then
 		if start.p[1].t_selected[1].ref ~= nil then
-			tutorial.p1selref = start.p[1].t_selected[1].ref
+			dojo.p1selref = start.p[1].t_selected[1].ref
 		end
 	end
 					
-	if tutorialExist and roundState() == 2 and not tutorial.data.tutorialInitialized then
-		-- Initialize the tutorial based on parsed file and char state at roundState() == 2
-		tutorial.f_tutorialBuilder()
-		menu.f_tutorialReset()
-		-- Honour a Lesson picked before the fight. Names, not indices: f_tutorialBuilder drops Tutorial
-		-- whose showforvarvalpairs do not match, so the parsed indices need not survive into here.
+	if lessonsExist and roundState() == 2 and not dojo.data.initialized then
+		-- Initialize the lessons based on parsed file and char state at roundState() == 2
+		dojo.f_buildMatch()
+		menu.f_dojoReset()
+		-- Restore the pre-fight pick by name, since f_buildMatch may have dropped lessons.
 		local pickLost = false
-		if tutorial.pendingLesson ~= nil then
+		if dojo.pendingLesson ~= nil then
 			pickLost = true
-			for i = 1, #tutorial.data.lessons, 1 do
-				if tutorial.data.lessons[i].name == tutorial.pendingLesson then
-					tutorial.data.currentlesson = i
+			for i = 1, #dojo.data.lessons, 1 do
+				if dojo.data.lessons[i].name == dojo.pendingLesson then
+					dojo.data.currentlesson = i
 					pickLost = false
 					break
 				end
 			end
-			tutorial.pendingLesson = nil
+			dojo.pendingLesson = nil
 		end
-		-- Arm both clocks together before anything else looks at them. The paths that follow may
-		-- re-arm (a run restarting, the select view closing); a match that starts straight on a
-		-- Lesson has nothing else that would.
-		tutorial.f_armTimers(tutorial.data.currentlesson, true)
-		-- A speedrun goes straight to the first Lesson, and so does a screenpack that turned the
-		-- menu off. Otherwise the player picks one before anything starts.
-		-- Under 'select' the asking normally happened before the fight, so there is nothing to do
-		-- here - except for a character whose Tutorial are gated on vars, which could not be asked out
-		-- there, and for a pick that turned out to be gated away, which needs asking again.
-		-- The Game Tutorial's lesson was always picked from its own list before the match.
-		local mode = tutorial.f_listDisplay()
-		if tutorial.f_speedrunEnabled() then
-			tutorial.f_startSpeedrun()
-		elseif tutorial.track == 'game' then
+		-- Arm both clocks before anything reads them.
+		dojo.f_armTimers(dojo.data.currentlesson, true)
+		-- Speedrun or list off goes straight in; otherwise ask, unless already asked before the fight.
+		local mode = dojo.f_listDisplay()
+		if dojo.f_speedrunEnabled() then
+			dojo.f_startSpeedrun()
+		elseif dojo.track == 'game' then
 			if pickLost then
-				tutorial.f_openSelect()
+				dojo.f_openSelect()
 			end
-		elseif mode == 'start' or (mode == 'select' and (tutorial.f_hasVarGatedTutorial() or pickLost)) then
-			tutorial.f_openSelect()
+		elseif mode == 'start' or (mode == 'select' and (dojo.f_hasVarGatedLessons() or pickLost)) then
+			dojo.f_openSelect()
 		end
-	elseif tutorialExist and roundState() == 2 and tutorial.data.tutorialInitialized
-		and tutorial.select ~= nil and tutorial.select.open then
-		-- The select view owns the frame until the player picks a Lesson - except while the pause
-		-- menu is up, which owns it instead.
+	elseif lessonsExist and roundState() == 2 and dojo.data.initialized
+		and dojo.select ~= nil and dojo.select.open then
+		-- The select view owns the frame unless paused.
 		if not paused() then
-			tutorial.f_selectLoop(tutorial.select, true)
+			dojo.f_selectLoop(dojo.select, true)
 		end
-	elseif tutorialExist and roundState() == 2 and tutorial.data.tutorialInitialized and tutorial.f_pagesOpen() then
+	elseif lessonsExist and roundState() == 2 and dojo.data.initialized and dojo.f_pagesOpen() then
 		-- Instruction pages own the frame until read, like the select view, unless the pause menu is up.
 		if not paused() then
-			tutorial.f_pagesLoop()
+			dojo.f_pagesLoop()
 		end
-	elseif tutorialExist and roundState() == 2 and tutorial.data.tutorialInitialized then
-		-- A Game Tutorial lesson played with another P1 than this match's ends the match here, and
-		-- gametutorial.lua launches the next one with the right character.
-		if tutorial.f_relaunchForPlayer() then
+	elseif lessonsExist and roundState() == 2 and dojo.data.initialized then
+		-- Game Tutorial: end the match here when the lesson needs another P1.
+		if dojo.f_relaunchForPlayer() then
 			return
 		end
-		-- If tutorial initialized, draw elements and check for success!
-		if tutorial.f_demoActive() and not paused() then
-			tutorial.f_demoTick()
+		-- If the lessons are initialized, draw elements and check for success!
+		if dojo.f_demoActive() and not paused() then
+			dojo.f_demoTick()
 		end
-		tutorial.f_tutorialDrawer()
-		tutorial.f_demoOnlyGuard()
+		dojo.f_drawer()
+		dojo.f_demoOnlyGuard()
 		player(1)
-		tutorial.f_tutorialChecker('root')
-		if numHelper() > 0 and tutorial.draw.success == 0 then
+		dojo.f_checker('root')
+		if numHelper() > 0 and dojo.draw.success == 0 then
 			for i = 1, numHelper(), 1 do
-				tutorial.f_tutorialChecker(i)
+				dojo.f_checker(i)
 			end
 		end
 		player(1)
 		if not paused() then
-			tutorial.f_scriptTick()
+			dojo.f_scriptTick()
 		end
-		tutorial.f_recordTick()
+		dojo.f_recordTick()
 	elseif roundState() == 2 then
-		-- No tutorial present!
+		-- No lessons present!
 		player(2)
 		setAILevel(0)
-		mapSet('_iksys_tutorialSetLife', lifeMax())
+		mapSet('_iksys_dojoSetLife', lifeMax())
 		player(1)
-		mapSet('_iksys_tutorialDummyControl', 0)
-		mapSet('_iksys_tutorialSetLife', lifeMax())
-		if tutorial.notutorialcounter == nil then
-			tutorial.notutorialcounter = f_newText(tutorial.tutorial_mode.lessoncounter)
+		mapSet('_iksys_dojoDummyControl', 0)
+		mapSet('_iksys_dojoSetLife', lifeMax())
+		if dojo.nodatacounter == nil then
+			dojo.nodatacounter = f_newText(dojo.ui.counter)
 		end
-		tutorial.notutorialcounter:update({x = tutorial.tutorial_mode.lessoncounter_pos[1], y = tutorial.tutorial_mode.lessoncounter_pos[2], text = tutorial.tutorial_mode.lessoncounter_notutorialdata_text})
-		tutorial.notutorialcounter:draw()
+		dojo.nodatacounter:update({x = dojo.ui.counter_pos[1], y = dojo.ui.counter_pos[2], text = dojo.ui.counter_nodata_text})
+		dojo.nodatacounter:draw()
 	end
 end
 
 --;===========================================================
 --; Teaching features: instruction pages, repetitions, hints, event steps
 --;===========================================================
--- Defaults for the UI def blocks these features draw from, so a def that predates them (a
--- trialsmode.def from before the merge, say) still gets a working, if plain, look. Run per profile
--- by f_buildProfile, like the rest of the UI build.
+-- Defaults for the teaching blocks, so older defs still get a plain working look.
 local function f_uiTeach()
-	local tm = tutorial.tutorial_mode
-	local cx, cy = tutorial.mtlcx / 2, tutorial.mtlcy / 2
+	local tm = dojo.ui
+	local cx, cy = dojo.mtlcx / 2, dojo.mtlcy / 2
 	local function textNode(n, txt)
 		if type(n.offset) ~= 'table' then n.offset = {0, 0} end
 		if type(n.font) ~= 'table' then n.font = {-1} end
@@ -4404,8 +4133,7 @@ local function f_uiTeach()
 	if type(pageNode.snd) ~= 'table' then pageNode.snd = {-1, 0} end
 	textNode(f_node(ins, 'prompt'))
 	if type(ins.snd) ~= 'table' then ins.snd = {-1, 0} end
-	-- The portrait is built per page when the page is shown (a page can name its own), so only its
-	-- placement is settled here. spr / anim stay as the def wrote them.
+	-- Only the portrait's placement is settled here; it's built per page.
 	local por = artNode(f_node(ins, 'portrait'))
 	por.source = tostring(por.source or 'system'):lower():gsub('"', '')
 	if por.source ~= 'system' and por.source ~= 'char' then
@@ -4418,7 +4146,7 @@ local function f_uiTeach()
 	if por.layerno == nil then por.layerno = 2 end
 
 	local hint = f_node(tm, 'hint')
-	if type(hint.pos) ~= 'table' then hint.pos = {cx, tutorial.mtlcy - 40} end
+	if type(hint.pos) ~= 'table' then hint.pos = {cx, dojo.mtlcy - 40} end
 	if hint.visible == nil then hint.visible = true end
 	artNode(f_node(hint, 'bg'))
 	textNode(f_node(hint, 'text'), '%s')
@@ -4430,10 +4158,10 @@ local function f_uiTeach()
 	artNode(f_node(demo, 'bg'))
 	textNode(f_node(demo, 'text'), 'DEMO')
 	local dprompt = f_node(tm, 'demoprompt')
-	if type(dprompt.pos) ~= 'table' then dprompt.pos = {cx, tutorial.mtlcy - 80} end
+	if type(dprompt.pos) ~= 'table' then dprompt.pos = {cx, dojo.mtlcy - 80} end
 	textNode(f_node(dprompt, 'text'), 'Pause and pick Watch Demo to see it done')
 	local doprompt = f_node(tm, 'demoonlyprompt')
-	if type(doprompt.pos) ~= 'table' then doprompt.pos = {cx, tutorial.mtlcy - 80} end
+	if type(doprompt.pos) ~= 'table' then doprompt.pos = {cx, dojo.mtlcy - 80} end
 	local dot = textNode(f_node(doprompt, 'text'), 'Confirm: next lesson    Back: instructions')
 	if dot.last == nil then dot.last = 'Confirm: lesson list    Back: instructions' end
 	local rep = f_node(tm, 'repcounter')
@@ -4450,7 +4178,7 @@ local function f_uiTeach()
 		if n.layerno == nil then n.layerno = 2 end
 	end
 
-	tutorial.teach = {
+	dojo.teach = {
 		title = f_newText(ins.title),
 		body = f_newText(ins.text),
 		page = f_newText(ins.page),
@@ -4471,7 +4199,7 @@ end
 
 local function f_drawArt(node, x, y)
 	if type(node) == 'table' and node.AnimData ~= nil then
-		animSetLocalcoord(node.AnimData, tutorial.f_localcoord())
+		animSetLocalcoord(node.AnimData, dojo.f_localcoord())
 		animSetPos(node.AnimData, x + node.offset[1], y + node.offset[2])
 		animUpdate(node.AnimData)
 		animDraw(node.AnimData)
@@ -4497,8 +4225,7 @@ local function f_wrapText(obj, node, x, y)
 	textImgSetTextWrap(obj.ti, true)
 end
 
--- A character's own sprites and actions, for portraits sourced from it: the sprite and anim files
--- its def names under [Files]. Cached per character ref; false marks one that could not be read.
+-- Per-character sprite and anim cache for char-sourced portraits; false marks an unreadable one.
 local t_charArt = {}
 local function f_charArt(ref)
 	if ref == nil then
@@ -4547,12 +4274,9 @@ local function f_charArt(ref)
 	return t_charArt[ref] or nil
 end
 
--- Builds the portrait for one instruction page. A page that names a portrait.spr or portrait.anim of
--- its own replaces both of the def's, so a page's sprite is never hidden behind the def's anim.
--- source picks where they come from: "system" is the Dojo's own sprites and actions (dojo.sff and
--- dojo.air / dojo.def, as every other element), "char" is P1's own sff and air.
+-- Page portrait: the page's spr/anim replace the def's; source is system (Dojo art) or char (P1's).
 local function f_pagePortrait(pg)
-	local por = tutorial.tutorial_mode.instructions.portrait
+	local por = dojo.ui.instructions.portrait
 	local pp = type(pg.portrait) == 'table' and pg.portrait or {}
 	local spr, anim = por.spr, tonumber(por.anim)
 	if pp.spr ~= nil or pp.anim ~= nil then
@@ -4563,7 +4287,7 @@ local function f_pagePortrait(pg)
 	end
 	local sprData, animData = nil, nil
 	if (pp.source or por.source) == 'char' then
-		local art = f_charArt(tutorial.p1selref)
+		local art = f_charArt(dojo.p1selref)
 		if art == nil then
 			return nil
 		end
@@ -4573,29 +4297,27 @@ local function f_pagePortrait(pg)
 		facing = por.facing, layerno = por.layerno}, 0, 0, sprData, animData)
 end
 
--- What showing a page does besides drawing it: its portrait is built (and starts from its first
--- frame), and its sound plays - the page's own lesson.page.N.snd, else instructions.page.snd.
+-- Showing a page builds its portrait and plays its sound.
 local function f_showPage(p, lesson)
 	local pg = lesson.pages[p.page]
 	if pg == nil then
 		return
 	end
 	p.portrait = f_pagePortrait(pg)
-	f_playSnd(pg.snd or tutorial.tutorial_mode.instructions.page.snd)
+	f_playSnd(pg.snd or dojo.ui.instructions.page.snd)
 end
 
--- instructions.portrait.window is x1,y1,x2,y2 from the portrait's own position; all zero leaves it
--- unclipped.
+-- Portrait window is x1,y1,x2,y2 from its position; all zero leaves it unclipped.
 local function f_drawPortrait(a, por, x, y)
 	if a == nil then
 		return
 	end
 	local px, py = x + por.offset[1], y + por.offset[2]
 	local w = por.window
-	animSetLocalcoord(a, tutorial.f_localcoord())
+	animSetLocalcoord(a, dojo.f_localcoord())
 	animSetPos(a, px, py)
 	if w[1] == 0 and w[2] == 0 and w[3] == 0 and w[4] == 0 then
-		animSetWindow(a, 0, 0, tutorial.vislcx, tutorial.mtlcy)
+		animSetWindow(a, 0, 0, dojo.vislcx, dojo.mtlcy)
 	else
 		animSetWindow(a, px + w[1], py + w[2], px + w[3], py + w[4])
 	end
@@ -4606,48 +4328,47 @@ end
 ----------------------------------------------------------------
 -- Instruction pages
 ----------------------------------------------------------------
--- A lesson's lesson.page.N.* is shown once each time the lesson is entered: on being picked,
--- advanced to or restarted, not on each repetition or reset. The pause menu reopens it.
-function tutorial.f_openPages(index)
-	local lesson = tutorial.data ~= nil and tutorial.data.lessons[index] or nil
+-- Pages show once per lesson entry; the pause menu reopens them.
+function dojo.f_openPages(index)
+	local lesson = dojo.data ~= nil and dojo.data.lessons[index] or nil
 	if lesson == nil or type(lesson.pages) ~= 'table' or #lesson.pages == 0 then
 		return false
 	end
 	lesson.pagesSeen = true
-	tutorial.pages = {open = true, lesson = index, page = 1, ticks = 0}
-	tutorial.f_menuHold(true)
-	f_playSnd(tutorial.tutorial_mode.instructions.snd)
-	f_showPage(tutorial.pages, lesson)
+	dojo.pages = {open = true, lesson = index, page = 1, ticks = 0}
+	dojo.f_menuHold(true)
+	f_playSnd(dojo.ui.instructions.snd)
+	f_showPage(dojo.pages, lesson)
 	return true
 end
 
-function tutorial.f_closePages()
-	if tutorial.pages ~= nil then
-		tutorial.pages.open = false
+function dojo.f_closePages()
+	if dojo.pages ~= nil then
+		dojo.pages.open = false
 	end
-	tutorial.f_menuHold(false)
+	dojo.f_menuHold(false)
 	-- Reading is nobody's attempt time. A speedrun never opens the pages, so its run clock is safe.
-	if tutorial.data ~= nil then
-		tutorial.f_armTimers(tutorial.data.currentlesson)
+	if dojo.data ~= nil then
+		dojo.f_armTimers(dojo.data.currentlesson)
 	end
 end
 
-function tutorial.f_pagesOpen()
-	return tutorial.pages ~= nil and tutorial.pages.open
+function dojo.f_pagesOpen()
+	return dojo.pages ~= nil and dojo.pages.open
 end
 
-function tutorial.f_pagesLoop()
-	local p = tutorial.pages
-	local lesson = tutorial.data.lessons[p.lesson]
+function dojo.f_pagesLoop()
+	local p = dojo.pages
+	local lesson = dojo.data.lessons[p.lesson]
 	local pg = lesson ~= nil and lesson.pages[p.page] or nil
 	if pg == nil then
-		tutorial.f_closePages()
+		dojo.f_closePages()
 		return
 	end
-	tutorial.f_syncAspect()
-	tutorial.f_menuHold(true)
-	local ins = tutorial.tutorial_mode.instructions
-	local t = tutorial.teach
+	dojo.f_syncAspect()
+	dojo.f_menuHold(true)
+	local ins = dojo.ui.instructions
+	local t = dojo.teach
 	local x, y = ins.pos[1], ins.pos[2]
 	f_menuRect(ins.overlay, x, y)
 	f_drawArt(ins.bg, x, y)
@@ -4671,9 +4392,8 @@ function tutorial.f_pagesLoop()
 	f_drawText(t.prompt, ins.prompt, x, y, ins.prompt.text)
 	f_drawArt(ins.front, x, y)
 
-	-- Input, through the pause menu section's keys, like the lesson list. Sampled every frame so a
-	-- held button from whatever opened the pages does not read as a fresh press.
-	local sec = tutorial.f_selectSection()
+	-- Pause section keys, sampled every frame so a held button isn't a fresh press.
+	local sec = dojo.f_selectSection()
 	if sec == nil then
 		return
 	end
@@ -4696,7 +4416,7 @@ function tutorial.f_pagesLoop()
 			f_showPage(p, lesson)
 		else
 			sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
-			tutorial.f_closePages()
+			dojo.f_closePages()
 		end
 	elseif back and p.page > 1 then
 		p.page, p.ticks, p.wait = p.page - 1, 0, 6
@@ -4708,12 +4428,9 @@ end
 ----------------------------------------------------------------
 -- Repetitions, failures and hints
 ----------------------------------------------------------------
--- Called when the last step of a lesson passes. True once lesson.repeat clears have been made, at
--- which point the lesson is cleared as normal; until then the lesson goes round again without a
--- banner or a recorded clear.
--- Every step's hit tallies back to nothing, for a fresh attempt.
+-- Zero every step's hit tallies for a fresh attempt.
 local function f_clearStepCounts(index)
-	for _, s in ipairs(tutorial.data.lessons[index].steps) do
+	for _, s in ipairs(dojo.data.lessons[index].steps) do
 		for k = 1, s.numofmicrosteps, 1 do
 			s.stephitscount[k] = 0
 			s.comboCountonstep[k] = 0
@@ -4721,10 +4438,10 @@ local function f_clearStepCounts(index)
 	end
 end
 
-function tutorial.f_countRep(index)
-	local lesson = tutorial.data.lessons[index]
+function dojo.f_countRep(index)
+	local lesson = dojo.data.lessons[index]
 	-- A demo never earns a clear, and demonstrations-only never has anything else.
-	local watching = tutorial.f_demoActive() or tutorial.f_demoOnly()
+	local watching = dojo.f_demoActive() or dojo.f_demoOnly()
 	if not watching then
 		lesson.repsdone = (lesson.repsdone or 0) + 1
 	end
@@ -4732,91 +4449,87 @@ function tutorial.f_countRep(index)
 		lesson.repsdone = 0
 		return true
 	end
-	tutorial.f_spendState()
+	dojo.f_spendState()
 	f_clearStepCounts(index)
-	tutorial.data.currentlessonstep = 1
-	tutorial.data.currentlessonmicrostep = 1
-	-- The combo that finished this round is still running: hold on to its count, or its next frame
-	-- reads as a fresh hit and makes the next round too.
-	tutorial.data.comboCounter = comboCount()
-	tutorial.data.validfortickcount = 0
-	f_playSnd(tutorial.tutorial_mode.repcounter.snd)
+	dojo.data.currentlessonstep = 1
+	dojo.data.currentlessonmicrostep = 1
+	-- Keep the finishing combo's count so its next frame isn't a fresh hit.
+	dojo.data.comboCounter = comboCount()
+	dojo.data.validfortickcount = 0
+	dojo.data.windowExpired = false
+	f_playSnd(dojo.ui.repcounter.snd)
 	return false
 end
 
--- An attempt that had got somewhere and was lost. Drives lesson.hintafter (and, in time, the demo
--- offer). Idle frames at the first step are not failures.
-function tutorial.f_noteFail(index)
-	local lesson = tutorial.data.lessons[index]
-	if lesson ~= nil and not tutorial.f_demoActive() and not tutorial.f_demoOnly() then
+-- Count a lost attempt toward hintafter; idle frames at step one aren't failures.
+function dojo.f_noteFail(index)
+	local lesson = dojo.data.lessons[index]
+	if lesson ~= nil and not dojo.f_demoActive() and not dojo.f_demoOnly() then
 		lesson.fails = (lesson.fails or 0) + 1
 	end
 end
 
--- Starts the attempt over from the first step - the reset Trials Mode always did - counting it as
--- a failure when there was progress to lose.
-function tutorial.f_resetAttempt(index, si, mi)
-	local step = tutorial.data.lessons[index].steps[si]
-	if tutorial.f_comboUnderway(step, mi, si) then
-		tutorial.f_noteFail(index)
+-- Restart the attempt from step one, counting a failure if progress was lost.
+function dojo.f_resetAttempt(index, si, mi)
+	local step = dojo.data.lessons[index].steps[si]
+	if dojo.f_comboUnderway(step, mi, si) then
+		dojo.f_noteFail(index)
 	end
-	tutorial.f_spendState()
-	tutorial.data.currentlessonstep = 1
-	tutorial.data.currentlessonmicrostep = 1
-	-- All steps, not just this one: Trials zeroed only this one and left the idle reset on the
-	-- next frame to catch the rest, which would now read as a second failure.
+	dojo.f_spendState()
+	dojo.data.currentlessonstep = 1
+	dojo.data.currentlessonmicrostep = 1
+	-- Clear all steps, so the idle reset next frame isn't a second failure.
 	f_clearStepCounts(index)
-	tutorial.data.comboCounter = 0
-	tutorial.data.validfortickcount = 0
+	dojo.data.comboCounter = 0
+	dojo.data.validfortickcount = 0
+	dojo.data.windowExpired = false
 end
 
--- Whether dropping to a combo count of 0 loses anything: hits were landed on this step, or the
--- steps before it built a combo. Without either the player simply has not started, which is
--- how a hit step can follow one that does not hit.
-function tutorial.f_comboUnderway(step, mi, si)
-	return ((si > 1 or mi > 1) and tutorial.data.comboCounter > 0) or (step.stephitscount[mi] or 0) > 0
+-- Whether a drop to zero combo loses progress: hits on this step, or a combo from earlier steps.
+function dojo.f_comboUnderway(step, mi, si)
+	return ((si > 1 or mi > 1) and dojo.data.comboCounter > 0) or (step.stephitscount[mi] or 0) > 0
 end
 
-function tutorial.f_hintsOn()
+function dojo.f_hintsOn()
 	return tostring(opts.Hints or 'true'):lower() ~= 'false'
 end
 
 -- The repetition counter and the hint, drawn with the rest of the lesson HUD.
-function tutorial.f_drawLessonExtras(index)
-	local lesson = tutorial.data.lessons[index]
+function dojo.f_drawLessonExtras(index)
+	local lesson = dojo.data.lessons[index]
 	if lesson == nil then
 		return
 	end
-	local tm, t = tutorial.tutorial_mode, tutorial.teach
+	local tm, t = dojo.ui, dojo.teach
 	if (lesson.reps or 1) > 1 then
 		local rep = tm.repcounter
 		f_drawArt(rep.bg, rep.pos[1], rep.pos[2])
 		f_drawText(t.rep, rep.text, rep.pos[1], rep.pos[2],
 			(rep.text.text:gsub('%%s', tostring(lesson.repsdone or 0)):gsub('%%t', tostring(lesson.reps))))
 	end
-	if tutorial.f_recording() then
+	if dojo.f_recording() then
 		local dm = tm.demo
-		local who = tutorial.rec.pn == 2 and 'REC DUMMY' or 'REC'
-		local label = tutorial.rec.phase == 'recording' and (who .. ' ' .. #tutorial.rec.frames) or (who .. ' - waiting for input (pause to stop)')
+		local who = dojo.rec.pn == 2 and 'REC DUMMY' or 'REC'
+		local label = dojo.rec.phase == 'recording' and (who .. ' ' .. #dojo.rec.frames) or (who .. ' - waiting for input (pause to stop)')
 		f_drawText(t.demo, dm.text, dm.pos[1], dm.pos[2], label)
-	elseif tutorial.f_demoActive() then
+	elseif dojo.f_demoActive() then
 		local dm = tm.demo
 		f_drawArt(dm.bg, dm.pos[1], dm.pos[2])
 		f_drawText(t.demo, dm.text, dm.pos[1], dm.pos[2], dm.text.text)
-		if tutorial.f_demoOnly() then
+		if dojo.f_demoOnly() then
 			local dp = tm.demoonlyprompt
-			local last = index >= #tutorial.data.lessons
+			local last = index >= #dojo.data.lessons
 			local str = last and dp.text.last or dp.text.text
 			if str ~= '' then
 				f_drawText(t.demoonlyprompt, dp.text, dp.pos[1], dp.pos[2], str)
 			end
 		end
-	elseif tutorial.f_demoOffered(lesson) then
+	elseif dojo.f_demoOffered(lesson) then
 		local dp = tm.demoprompt
 		f_drawText(t.demoprompt, dp.text, dp.pos[1], dp.pos[2], dp.text.text)
 	end
 	local hint = tm.hint
-	if lesson.hint ~= '' and tutorial.f_hintsOn() and f_menuOn(hint.visible) and (lesson.fails or 0) >= (lesson.hintafter or 0) then
+	if lesson.hint ~= '' and dojo.f_hintsOn() and f_menuOn(hint.visible) and (lesson.fails or 0) >= (lesson.hintafter or 0) then
 		f_drawArt(hint.bg, hint.pos[1], hint.pos[2])
 		t.hint:update({x = hint.pos[1] + hint.text.offset[1], y = hint.pos[2] + hint.text.offset[2],
 			text = (hint.text.text:gsub('%%s', (lesson.hint:gsub('%%', '%%%%'))))})
@@ -4829,13 +4542,11 @@ end
 -- Event steps: guard, isguarded, p2stateno
 ----------------------------------------------------------------
 -- Guard-hit states from common1: standing, crouching and air guard. Entering one is a block.
-tutorial.t_guardStates = {[150] = 'high', [151] = 'high', [152] = 'low', [153] = 'low', [154] = 'air', [155] = 'air'}
+dojo.t_guardStates = {[150] = 'high', [151] = 'high', [152] = 'low', [153] = 'low', [154] = 'air', [155] = 'air'}
 
--- Per-frame bookkeeping in the root pass, whether or not a lesson is accepting input: what P1
--- blocked, whether P1 was hit, whether P1's own move was blocked, and the dummy's state. Each is
--- stamped with the frame it happened on so a step only ever counts what happened this frame.
-function tutorial.f_trackEvents(newinstance)
-	local d = tutorial.data
+-- Per-frame events stamped with the frame: P1 blocked, P1 hit, P1's move blocked, dummy state.
+function dojo.f_trackEvents(newinstance)
+	local d = dojo.data
 	d.frame = (d.frame or 0) + 1
 	local ev = d.ev
 	if ev == nil then
@@ -4843,7 +4554,7 @@ function tutorial.f_trackEvents(newinstance)
 		d.ev = ev
 	end
 	local sn = stateNo()
-	local kind = tutorial.t_guardStates[sn]
+	local kind = dojo.t_guardStates[sn]
 	if kind ~= nil and newinstance and (sn == 150 or sn == 152 or sn == 154) then
 		ev.guardFrame, ev.guardKind = d.frame, kind
 	end
@@ -4857,6 +4568,13 @@ function tutorial.f_trackEvents(newinstance)
 		ev.guardedFrame = d.frame
 	end
 	ev.lastGuarded = mg
+	-- P1's projectiles being blocked: ticks since the last blocked contact, -1 when the last contact wasn't one.
+	local okp, pg = pcall(projGuardedTime, 0)
+	pg = okp and tonumber(pg) or -1
+	if pg >= 0 and ((ev.lastProjGuarded or -1) < 0 or pg < ev.lastProjGuarded) then
+		ev.projGuardedFrame = d.frame
+	end
+	ev.lastProjGuarded = pg
 	player(2)
 	local p2 = stateNo()
 	local p2t = time()
@@ -4880,17 +4598,16 @@ local function f_inList(list, v)
 end
 
 -- Whether the dummy's state satisfies the microstep's p2stateno (free when it declares none).
-function tutorial.f_p2StateOk(step, mi)
+function dojo.f_p2StateOk(step, mi)
 	local want = step.p2stateno[mi]
 	if want == nil or #want == 0 then
 		return true
 	end
-	return f_inList(want, tutorial.data.ev ~= nil and tutorial.data.ev.p2State or nil)
+	return f_inList(want, dojo.data.ev ~= nil and dojo.data.ev.p2State or nil)
 end
 
--- A step judged on events rather than on the combo: blocking (guard), getting your own move
--- blocked (isguarded), or the dummy entering a state with nothing else asked of the step.
-function tutorial.f_isEventStep(step, mi)
+-- Event step: guard, isguarded, or dummy state with nothing else asked.
+function dojo.f_isEventStep(step, mi)
 	if step.guard[mi] ~= nil or step.isguarded[mi] then
 		return true
 	end
@@ -4898,26 +4615,72 @@ function tutorial.f_isEventStep(step, mi)
 		and #step.stateno == 0 and #step.animno == 0 and #step.projid == 0
 end
 
--- Moves the attempt past the current microstep, and past the step and the lesson when it was the
--- last one. Event steps finish here; hit steps keep their own, older path.
+-- Advance past the microstep, and past the step and lesson when last; event steps only.
 local function f_advanceMicro(index, si, mi)
-	local step = tutorial.data.lessons[index].steps[si]
+	local step = dojo.data.lessons[index].steps[si]
 	step.stephitscount[mi] = 0
-	tutorial.data.currentlessonmicrostep = mi + 1
-	tutorial.data.validfortickcount = 0
-	tutorial.data.comboCounter = comboCount()
-	if tutorial.data.currentlessonmicrostep > step.numofmicrosteps then
-		tutorial.data.currentlessonmicrostep = 1
-		tutorial.data.currentlessonstep = si + 1
-		if tutorial.data.currentlessonstep > #tutorial.data.lessons[index].steps and tutorial.f_countRep(index) then
-			tutorial.f_completeLesson(index)
+	dojo.data.stringUnit = nil
+	dojo.data.currentlessonmicrostep = mi + 1
+	dojo.data.validfortickcount = step.validfortickcount[mi] or 0
+	dojo.data.windowExpired = false
+	dojo.data.comboCounter = comboCount()
+	if dojo.data.currentlessonmicrostep > step.numofmicrosteps then
+		dojo.data.currentlessonmicrostep = 1
+		dojo.data.currentlessonstep = si + 1
+		if dojo.data.currentlessonstep > #dojo.data.lessons[index].steps and dojo.f_countRep(index) then
+			dojo.f_completeLesson(index)
 		end
 	end
 end
 
+-- Blockstring: an isguarded unit right after another must land before the dummy leaves blockstun.
+-- Enforced once the dummy is seen in blockstun after the earlier block, so arrival-frame timing can't fail it.
+local function f_blockstringBroken(index, si, mi)
+	local d = dojo.data
+	local lesson = d.lessons[index]
+	local ps, pm = nil, nil
+	if mi > 1 then
+		ps, pm = lesson.steps[si], mi - 1
+	elseif si > 1 then
+		ps = lesson.steps[si - 1]
+		pm = ps.numofmicrosteps
+	end
+	if ps == nil or not ps.isguarded[pm] then
+		return false
+	end
+	local unit = si .. ':' .. mi
+	if d.stringUnit ~= unit then
+		d.stringUnit, d.stringSeen = unit, false
+	end
+	if dojo.t_guardStates[(d.ev or {}).p2State] ~= nil then
+		d.stringSeen = true
+		return false
+	end
+	return d.stringSeen
+end
+
+-- isguarded with projid: the blocked contact was one of the step's projectiles, fired from its stateno if any.
+local function f_projGuardMatch(step, mi, statecheck)
+	local want = step.stateno[mi]
+	for _, id in ipairs(step.projid[mi]) do
+		local ok, t = pcall(projGuardedTime, id)
+		if ok and tonumber(t) ~= nil and tonumber(t) >= 0 then
+			if want == nil or #want == 0 or statecheck then
+				return true
+			end
+			for _, s in ipairs(want) do
+				if dojo.data.projsource[id] == s then
+					return true
+				end
+			end
+		end
+	end
+	return false
+end
+
 -- Root pass only: every event is the root's (P1 blocking, P1's move blocked, the dummy's state).
-function tutorial.f_checkEventStep(index, si, mi, statecheck, animcheck)
-	local d, ev = tutorial.data, tutorial.data.ev or {}
+function dojo.f_checkEventStep(index, si, mi, statecheck, animcheck)
+	local d, ev = dojo.data, dojo.data.ev or {}
 	local step = d.lessons[index].steps[si]
 	local need = math.max(step.hitcount[mi] or 1, 1)
 	local happened = false
@@ -4926,18 +4689,42 @@ function tutorial.f_checkEventStep(index, si, mi, statecheck, animcheck)
 		happened = ev.guardFrame == d.frame and (want == 'any' or want == ev.guardKind)
 		if not happened and ev.hitFrame == d.frame then
 			-- Hit instead of blocking: that attempt is over.
-			tutorial.f_noteFail(index)
-			tutorial.f_spendState()
+			dojo.f_noteFail(index)
+			dojo.f_spendState()
 			d.currentlessonstep, d.currentlessonmicrostep = 1, 1
 			step.stephitscount[mi] = 0
 			return
 		end
 	elseif step.isguarded[mi] then
-		happened = ev.guardedFrame == d.frame and statecheck and animcheck
+		if step.projid[mi] ~= nil and #step.projid[mi] > 0 then
+			-- A projectile is blocked on the projectile, not on P1's move.
+			happened = ev.projGuardedFrame == d.frame and f_projGuardMatch(step, mi, statecheck)
+		else
+			happened = ev.guardedFrame == d.frame and statecheck and animcheck
+		end
+		if not happened and f_blockstringBroken(index, si, mi) then
+			-- The dummy got out of blockstun between blocked steps: that attempt is over.
+			dojo.f_noteFail(index)
+			dojo.f_spendState()
+			d.currentlessonstep, d.currentlessonmicrostep = 1, 1
+			d.stringUnit = nil
+			step.stephitscount[mi] = 0
+			return
+		end
 	else
 		happened = ev.p2Frame == d.frame
 	end
-	if happened and tutorial.f_p2StateOk(step, mi) then
+	if not happened and d.windowExpired then
+		-- The previous step's window ran out first: that attempt is over, whatever the combo.
+		dojo.f_noteFail(index)
+		dojo.f_spendState()
+		d.currentlessonstep, d.currentlessonmicrostep = 1, 1
+		d.stringUnit = nil
+		d.validfortickcount, d.windowExpired = 0, false
+		step.stephitscount[mi] = 0
+		return
+	end
+	if happened and dojo.f_p2StateOk(step, mi) then
 		step.stephitscount[mi] = (step.stephitscount[mi] or 0) + 1
 		if step.stephitscount[mi] >= need then
 			f_advanceMicro(index, si, mi)
@@ -4948,19 +4735,14 @@ end
 --;===========================================================
 --; Input scripts: demonstrations (P1) and dummy scripts (P2)
 --;===========================================================
--- lesson.demoscript and lesson.dummyscript are written the same way: comma-separated tokens of
--- <frames>:<inputs>, inputs joined with +, _ for nothing held. A token without a frame count lasts
--- one frame. F and B are relative to the way the character faces, as in a command.
---    lesson.demoscript = 6:D, 3:D+F, 3:F+x, 40:_    ; a quarter circle forward + x
--- Lua sets one map per input on the scripted character every frame, and dojo.zss's
--- TutorialScriptPress asserts them; asserted input reaches the command buffer like a held button.
-tutorial.t_scriptInputs = {'U', 'D', 'F', 'B', 'a', 'b', 'c', 'x', 'y', 'z', 's', 'd', 'w'}
+-- Input scripts: frames:inputs tokens, + joins, _ is nothing, F/B face-relative; dojo.zss asserts them.
+dojo.t_scriptInputs = {'U', 'D', 'F', 'B', 'a', 'b', 'c', 'x', 'y', 'z', 's', 'd', 'w'}
 local t_scriptValid = {}
-for _, k in ipairs(tutorial.t_scriptInputs) do t_scriptValid[k] = true end
-tutorial.scriptMaxFrames = 3600
+for _, k in ipairs(dojo.t_scriptInputs) do t_scriptValid[k] = true end
+dojo.scriptMaxFrames = 3600
 
 -- Script text -> array of per-frame input sets; nil and a reason when it cannot be read.
-function tutorial.f_parseScript(src)
+function dojo.f_parseScript(src)
 	if type(src) ~= 'string' or src:match('^%s*$') then
 		return nil, 'empty'
 	end
@@ -4976,8 +4758,7 @@ function tutorial.f_parseScript(src)
 			local set = {}
 			if inputs ~= '_' then
 				for k in (inputs .. '+'):gmatch('([^+]*)%+') do
-					-- case-sensitive, as in a command: directions U D F B, buttons a b c x y z s d w
-					-- (b and d are buttons, not back and down)
+					-- Case-sensitive: directions U D F B, buttons a b c x y z s d w.
 					if not t_scriptValid[k] then
 						return nil, 'unknown input "' .. k .. '" in "' .. tok .. '"'
 					end
@@ -4986,8 +4767,8 @@ function tutorial.f_parseScript(src)
 			end
 			for _ = 1, n, 1 do
 				frames[#frames + 1] = set
-				if #frames > tutorial.scriptMaxFrames then
-					return nil, 'longer than ' .. tutorial.scriptMaxFrames .. ' frames'
+				if #frames > dojo.scriptMaxFrames then
+					return nil, 'longer than ' .. dojo.scriptMaxFrames .. ' frames'
 				end
 			end
 		end
@@ -4998,37 +4779,36 @@ function tutorial.f_parseScript(src)
 	return frames
 end
 
--- One running script per side: tutorial.scripts[1] the demo, [2] the dummy's.
-tutorial.scripts = {}
+-- One running script per side: dojo.scripts[1] the demo, [2] the dummy's.
+dojo.scripts = {}
 
--- Map names are case-insensitive in the engine (stored lowercased), so the directions cannot be
--- _iksys_tutorialInD / InB: those would be the same maps as the d and b buttons.
-tutorial.t_scriptMapName = {U = 'Up', D = 'Down', F = 'Fwd', B = 'Back'}
+-- Map names are case-insensitive, so directions avoid colliding with the d and b buttons.
+dojo.t_scriptMapName = {U = 'Up', D = 'Down', F = 'Fwd', B = 'Back'}
 
 local function f_setScriptMaps(pn, set)
 	player(pn)
-	mapSet('_iksys_tutorialScript', set ~= nil and 1 or 0)
-	for _, k in ipairs(tutorial.t_scriptInputs) do
-		mapSet('_iksys_tutorialIn' .. (tutorial.t_scriptMapName[k] or k), (set ~= nil and set[k]) and 1 or 0)
+	mapSet('_iksys_dojoScript', set ~= nil and 1 or 0)
+	for _, k in ipairs(dojo.t_scriptInputs) do
+		mapSet('_iksys_dojoIn' .. (dojo.t_scriptMapName[k] or k), (set ~= nil and set[k]) and 1 or 0)
 	end
 	player(1)
 end
 
-function tutorial.f_startScript(pn, frames, loop, delay)
-	tutorial.scripts[pn] = {frames = frames, pos = 1, loop = loop, delay = delay or 0, wait = 0}
+function dojo.f_startScript(pn, frames, loop, delay)
+	dojo.scripts[pn] = {frames = frames, pos = 1, loop = loop, delay = delay or 0, wait = 0}
 end
 
-function tutorial.f_stopScript(pn)
-	if tutorial.scripts[pn] ~= nil then
-		tutorial.scripts[pn] = nil
+function dojo.f_stopScript(pn)
+	if dojo.scripts[pn] ~= nil then
+		dojo.scripts[pn] = nil
 		f_setScriptMaps(pn, nil)
 	end
 end
 
 -- One frame of every running script. Returns nothing; a finished non-looping script stops itself.
-function tutorial.f_scriptTick()
+function dojo.f_scriptTick()
 	for pn = 1, 2, 1 do
-		local s = tutorial.scripts[pn]
+		local s = dojo.scripts[pn]
 		if s ~= nil then
 			if s.wait > 0 then
 				s.wait = s.wait - 1
@@ -5038,9 +4818,9 @@ function tutorial.f_scriptTick()
 					s.pos, s.wait = 1, s.delay
 					f_setScriptMaps(pn, {})
 				else
-					tutorial.f_stopScript(pn)
+					dojo.f_stopScript(pn)
 					if pn == 1 then
-						tutorial.f_demoScriptDone()
+						dojo.f_demoScriptDone()
 					end
 				end
 			else
@@ -5051,121 +4831,114 @@ function tutorial.f_scriptTick()
 	end
 end
 
--- The dummy's own walking, jumping and button jam, switched off so they cannot fight a script or a
--- dummy take (auto-guard stays).
+-- Switch off the dummy's own movement and jam so it can't fight a script (guard stays).
 local function f_quietDummy()
 	player(2)
-	mapSet('_iksys_tutorialDummyMode', 0)
-	mapSet('_iksys_tutorialButtonJam', 0)
-	mapSet('_iksys_tutorialDistance', 0)
+	mapSet('_iksys_dojoDummyMode', 0)
+	mapSet('_iksys_dojoButtonJam', 0)
+	mapSet('_iksys_dojoDistance', 0)
 	player(1)
 end
 
 -- The dummy's script runs while its lesson is accepting input.
-function tutorial.f_startDummyScript(index)
-	tutorial.f_stopScript(2)
+function dojo.f_startDummyScript(index)
+	dojo.f_stopScript(2)
 	-- A dummy take is the author driving the dummy: no script, and none of its own moves.
-	if tutorial.rec ~= nil and tutorial.rec.pn == 2 then
+	if dojo.rec ~= nil and dojo.rec.pn == 2 then
 		f_quietDummy()
 		return
 	end
-	local lesson = tutorial.data.lessons[index]
+	local lesson = dojo.data.lessons[index]
 	if lesson == nil or lesson.dummyscript == '' then
 		return
 	end
 	if lesson.dummyframes == nil then
-		local frames, why = tutorial.f_parseScript(lesson.dummyscript)
+		local frames, why = dojo.f_parseScript(lesson.dummyscript)
 		if frames == nil then
-			print('Dojo: "' .. lesson.name .. '" has an unreadable lesson.dummyscript (' .. why .. ').')
+			print('Dojo: "' .. lesson.name .. '" has an unreadable dummyscript (' .. why .. ').')
 			lesson.dummyscript = ''
 			return
 		end
 		lesson.dummyframes = frames
 	end
 	f_quietDummy()
-	tutorial.f_startScript(2, lesson.dummyframes, lesson.dummyscriptloop, lesson.dummyscriptdelay)
+	dojo.f_startScript(2, lesson.dummyframes, lesson.dummyscriptloop, lesson.dummyscriptdelay)
 end
 
 ----------------------------------------------------------------
 -- Demonstrations
 ----------------------------------------------------------------
--- Watching one: the lesson restarts (so both sides are back in their start positions), P1's
--- controller is pointed at an empty input slot so the player cannot interfere, and lesson.demoscript
--- plays. The steps light up as it goes, but nothing is recorded. When it ends - or the player
--- skips it with the menu's done or cancel key - the controller comes back and the lesson starts
--- over for the player to try.
-tutorial.demoSlot = 12 -- MaxPlayerNo; nobody's keys or pad are configured on it in practice
+-- Demo: restart, point P1 at an empty slot, play demoscript; nothing recorded, done/cancel skips.
+dojo.demoSlot = 12 -- MaxPlayerNo; nobody's keys or pad are configured on it in practice
 
-function tutorial.f_demoActive()
-	return tutorial.demo ~= nil
+function dojo.f_demoActive()
+	return dojo.demo ~= nil
 end
 
-function tutorial.f_hasDemo(index)
-	local lesson = tutorial.data ~= nil and tutorial.data.lessons[index] or nil
+function dojo.f_hasDemo(index)
+	local lesson = dojo.data ~= nil and dojo.data.lessons[index] or nil
 	return lesson ~= nil and lesson.demoscript ~= ''
 end
 
--- inPlace: the pair are already in their start positions (the lesson was only just entered), so
--- the lesson is not restarted first. Demonstrations-only uses it to save a second fade.
-function tutorial.f_startDemo(index, inPlace)
-	local lesson = tutorial.data.lessons[index]
+-- inPlace skips the restart when the pair are already in their start positions.
+function dojo.f_startDemo(index, inPlace)
+	local lesson = dojo.data.lessons[index]
 	if lesson.demoframes == nil then
-		local frames, why = tutorial.f_parseScript(lesson.demoscript)
+		local frames, why = dojo.f_parseScript(lesson.demoscript)
 		if frames == nil then
-			print('Dojo: "' .. lesson.name .. '" has an unreadable lesson.demoscript (' .. why .. ').')
+			print('Dojo: "' .. lesson.name .. '" has an unreadable demoscript (' .. why .. ').')
 			lesson.demoscript = ''
 			return false
 		end
 		lesson.demoframes = frames
 	end
 	if not inPlace then
-		tutorial.f_gotoLesson(index, false, true)
+		dojo.f_gotoLesson(index, false, true)
 	end
 	lesson.pagesSeen = true
-	tutorial.demo = {lesson = index, phase = 'waiting', tail = 0}
-	if tutorial.data ~= nil then
-		tutorial.data.demoOnlyPlayed = true
+	dojo.demo = {lesson = index, phase = 'waiting', tail = 0}
+	if dojo.data ~= nil then
+		dojo.data.demoOnlyPlayed = true
 	end
 	return true
 end
 
 -- Called every frame from the match loop while a demo is on.
-function tutorial.f_demoTick()
-	local dm = tutorial.demo
+function dojo.f_demoTick()
+	local dm = dojo.demo
 	if dm.phase == 'waiting' then
 		-- for the restart's fade and reposition to finish
-		if tutorial.data.active and tutorial.draw.fade == 0 then
+		if dojo.data.active and dojo.draw.fade == 0 then
 			local ok, orig = pcall(getRemapInput, 1)
 			dm.remap = ok and orig or 1
-			pcall(remapInput, 1, tutorial.demoSlot)
-			tutorial.f_startScript(1, tutorial.data.lessons[dm.lesson].demoframes, false, 0)
+			pcall(remapInput, 1, dojo.demoSlot)
+			dojo.f_startScript(1, dojo.data.lessons[dm.lesson].demoframes, false, 0)
 			dm.phase = 'playing'
 		end
 	elseif dm.phase == 'tail' then
 		-- let the last move finish before handing back
 		dm.tail = dm.tail - 1
 		if dm.tail <= 0 then
-			if tutorial.f_demoOnly() then
+			if dojo.f_demoOnly() then
 				-- demonstrations-only: round again until the player moves on
-				tutorial.f_startDemo(dm.lesson)
+				dojo.f_startDemo(dm.lesson)
 			else
-				tutorial.f_endDemo(true)
+				dojo.f_endDemo(true)
 			end
 			return
 		end
 	end
-	local sec = tutorial.f_selectSection()
-	if sec ~= nil and dm.phase ~= 'waiting' and tutorial.f_demoOnly() then
-		-- done steps forward, cancel back; each needs a fresh press, so the one that closed the
-		-- pages or picked the lesson is not read again here
+	local sec = dojo.f_selectSection()
+	if sec ~= nil and dm.phase ~= 'waiting' and dojo.f_demoOnly() then
+		-- Done forward, cancel back; each needs a fresh press.
 		local done = getInput(-1, sec.menu.done.key)
 		local back = getInput(-1, sec.menu.cancel.key)
 		if dm.released and done then
 			sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
-			tutorial.f_demoOnlyNext(dm.lesson)
+			dojo.f_demoOnlyNext(dm.lesson)
 			return
 		elseif dm.released and back then
-			if tutorial.f_demoOnlyBack(dm.lesson) then
+			if dojo.f_demoOnlyBack(dm.lesson) then
 				sndPlay(motif.Snd, sec.cursor.move.snd[1], sec.cursor.move.snd[2])
 				return
 			end
@@ -5175,7 +4948,7 @@ function tutorial.f_demoTick()
 		-- Raw UI input: P1's own command input is remapped away for the demo.
 		local held = getInput(-1, sec.menu.done.key) or getInput(-1, sec.menu.cancel.key)
 		if held and dm.released then
-			tutorial.f_endDemo(true)
+			dojo.f_endDemo(true)
 			return
 		end
 		if not held then
@@ -5184,142 +4957,128 @@ function tutorial.f_demoTick()
 	end
 end
 
-function tutorial.f_demoScriptDone()
-	if tutorial.demo ~= nil then
-		tutorial.demo.phase = 'tail'
-		tutorial.demo.tail = 60
+function dojo.f_demoScriptDone()
+	if dojo.demo ~= nil then
+		dojo.demo.phase = 'tail'
+		dojo.demo.tail = 60
 	end
 end
 
 -- restart: start the lesson over for the player (false when the match is being torn down).
-function tutorial.f_endDemo(restart)
-	local dm = tutorial.demo
+function dojo.f_endDemo(restart)
+	local dm = dojo.demo
 	if dm == nil then
 		return
 	end
-	tutorial.demo = nil
-	tutorial.f_stopScript(1)
+	dojo.demo = nil
+	dojo.f_stopScript(1)
 	if dm.remap ~= nil then
 		pcall(remapInput, 1, dm.remap)
 	end
-	if restart and tutorial.data ~= nil and tutorial.data.lessons[dm.lesson] ~= nil then
-		tutorial.f_gotoLesson(dm.lesson, false, true)
-		tutorial.data.lessons[dm.lesson].pagesSeen = true
+	if restart and dojo.data ~= nil and dojo.data.lessons[dm.lesson] ~= nil then
+		dojo.f_gotoLesson(dm.lesson, false, true)
+		dojo.data.lessons[dm.lesson].pagesSeen = true
 	end
 end
 
 -- Whether to put "watch the demo" in front of the player: lesson.demoafter failures and counting.
-function tutorial.f_demoOffered(lesson)
+function dojo.f_demoOffered(lesson)
 	return lesson.demoscript ~= '' and (lesson.demoafter or 0) > 0 and (lesson.fails or 0) >= lesson.demoafter
 end
 
 ----------------------------------------------------------------
 -- Recording a demo (authoring aid)
 ----------------------------------------------------------------
--- With [Config] RecordDemo = true in config.ini, the pause menu offers Record Demo and Record
--- Dummy. Pick one and play; clearing the lesson (or pausing) ends the take. What the recorded side
--- held is printed to the console as a lesson.demoscript (P1) or lesson.dummyscript (P2) line, and
--- written to save/tutorial_demo.txt, ready to paste into a lesson file.
+-- RecordDemo: pause menu Record Demo / Dummy; the take prints and saves a script line to save/dojo_demo.txt.
 do
-	local v = tostring(tutorial.ini.Config.RecordDemo or ''):lower()
-	tutorial.recordEnabled = v == 'true' or v == '1' or v == 'yes'
+	local v = tostring(dojo.ini.Config.RecordDemo or ''):lower()
+	dojo.recordEnabled = v == 'true' or v == '1' or v == 'yes'
 end
-tutorial.recordPath = 'save/tutorial_demo.txt'
+dojo.recordPath = 'save/dojo_demo.txt'
 
 ----------------------------------------------------------------
 -- Demonstrations only
 ----------------------------------------------------------------
--- With [Config] TutorialDemonstrationsOnly = true, every tutorial track (not Trials) becomes a
--- show-and-tell: a lesson's instruction pages, then its demo, looping, with the player's controller
--- off throughout. The menu's done key steps forward (next page, then the demo, then the next
--- lesson; the lesson list after the last), cancel steps back (previous page, or from the demo back
--- to the pages - the previous lesson when there are none). Nothing is ever cleared or recorded.
--- Lessons without a lesson.demoscript have nothing to show, so they are left out of the list.
+-- TutorialDemonstrationsOnly: tutorial tracks show pages then a looping demo, controller off; nothing cleared.
 do
-	local v = tostring(tutorial.ini.Config.TutorialDemonstrationsOnly or ''):lower()
-	tutorial.demoOnlyEnabled = v == 'true' or v == '1' or v == 'yes'
+	local v = tostring(dojo.ini.Config.TutorialDemonstrationsOnly or ''):lower()
+	dojo.demoOnlyEnabled = v == 'true' or v == '1' or v == 'yes'
 end
 
-function tutorial.f_demoOnly()
-	return tutorial.demoOnlyEnabled and tutorial.profile ~= nil and tutorial.profile.id == 'tutorial'
+function dojo.f_demoOnly()
+	return dojo.demoOnlyEnabled and dojo.profile ~= nil and dojo.profile.id == 'tutorial'
 end
 
 -- Whether a lesson is offered at all: in demonstrations-only, only one with a demo to show.
 local t_demoOnlyWarned = {}
-function tutorial.f_lessonOffered(lesson)
-	if not tutorial.f_demoOnly() or lesson.demoscript ~= '' then
+function dojo.f_lessonOffered(lesson)
+	if not dojo.f_demoOnly() or lesson.demoscript ~= '' then
 		return true
 	end
 	if not t_demoOnlyWarned[lesson] then
 		t_demoOnlyWarned[lesson] = true
-		print('Dojo: "' .. tostring(lesson.name) .. '" has no lesson.demoscript, so TutorialDemonstrationsOnly leaves it out.')
+		print('Dojo: "' .. tostring(lesson.name) .. '" has no demoscript, so TutorialDemonstrationsOnly leaves it out.')
 	end
 	return false
 end
 
 -- Done during a demonstrations-only demo: on to the next lesson, or the list after the last one.
-function tutorial.f_demoOnlyNext(index)
-	tutorial.f_endDemo(false)
-	if index < #tutorial.data.lessons then
-		tutorial.f_gotoLesson(index + 1, false, true)
+function dojo.f_demoOnlyNext(index)
+	dojo.f_endDemo(false)
+	if index < #dojo.data.lessons then
+		dojo.f_gotoLesson(index + 1, false, true)
 	else
-		tutorial.f_openSelect()
+		dojo.f_openSelect()
 	end
 end
 
--- Cancel during a demonstrations-only demo: back to this lesson's pages, else the previous lesson.
--- False when there is nowhere to go back to, and the demo carries on.
-function tutorial.f_demoOnlyBack(index)
-	local lesson = tutorial.data.lessons[index]
+-- Back to this lesson's pages, else the previous lesson; false if there's nowhere to go.
+function dojo.f_demoOnlyBack(index)
+	local lesson = dojo.data.lessons[index]
 	if lesson ~= nil and type(lesson.pages) == 'table' and #lesson.pages > 0 then
-		tutorial.f_endDemo(false)
-		tutorial.f_openPages(index)
+		dojo.f_endDemo(false)
+		dojo.f_openPages(index)
 		-- stepping back lands on the page before the demo: the last one
 		if #lesson.pages > 1 then
-			tutorial.pages.page = #lesson.pages
-			f_showPage(tutorial.pages, lesson)
+			dojo.pages.page = #lesson.pages
+			f_showPage(dojo.pages, lesson)
 		end
 		return true
 	elseif index > 1 then
-		tutorial.f_endDemo(false)
-		tutorial.f_gotoLesson(index - 1, false, true)
+		dojo.f_endDemo(false)
+		dojo.f_gotoLesson(index - 1, false, true)
 		return true
 	end
 	return false
 end
 
--- Run every match frame after the drawer, before the checker: whenever a lesson is up and neither
--- its pages nor its demo are, the demo starts. This is the one place that does it, so every way
--- of arriving at a lesson - entering it, closing its pages, backing out of the list - ends in the
--- demo, and no frame is ever left for the player to play the lesson themselves. A lesson just
--- entered still has the pair in their start positions, so its first demo starts in place; any
--- later one restarts the lesson to put them back.
-function tutorial.f_demoOnlyGuard()
-	if not tutorial.f_demoOnly() or tutorial.f_demoActive() or tutorial.f_pagesOpen() then
+-- Start the demo whenever a lesson is up without pages or demo, so the player never gets control.
+function dojo.f_demoOnlyGuard()
+	if not dojo.f_demoOnly() or dojo.f_demoActive() or dojo.f_pagesOpen() then
 		return
 	end
-	local d = tutorial.data
-	if not d.active or tutorial.draw.success > 0 or tutorial.draw.fade > 0 then
+	local d = dojo.data
+	if not d.active or dojo.draw.success > 0 or dojo.draw.fade > 0 then
 		return
 	end
 	local index = d.currentlesson
-	if d.lessons[index] == nil or not tutorial.f_hasDemo(index) then
+	if d.lessons[index] == nil or not dojo.f_hasDemo(index) then
 		return
 	end
-	tutorial.f_startDemo(index, not d.demoOnlyPlayed)
+	dojo.f_startDemo(index, not d.demoOnlyPlayed)
 end
 
 -- A frame set as script text: inputs in t_scriptInputs order, _ for none.
 local function f_setText(set)
 	local k = {}
-	for _, n in ipairs(tutorial.t_scriptInputs) do
+	for _, n in ipairs(dojo.t_scriptInputs) do
 		if set[n] then k[#k + 1] = n end
 	end
 	return #k > 0 and table.concat(k, '+') or '_'
 end
 
 -- Frames -> "n:inputs, ..." with runs of identical frames merged; the inverse of f_parseScript.
-function tutorial.f_scriptText(frames)
+function dojo.f_scriptText(frames)
 	local out, last, run = {}, nil, 0
 	for _, set in ipairs(frames) do
 		local s = f_setText(set)
@@ -5334,27 +5093,25 @@ function tutorial.f_scriptText(frames)
 	return table.concat(out, ', ')
 end
 
-function tutorial.f_recording()
-	return tutorial.rec ~= nil
+function dojo.f_recording()
+	return dojo.rec ~= nil
 end
 
--- pn 1 records P1 for lesson.demoscript, pn 2 the dummy for lesson.dummyscript. A dummy take swaps
--- the two sides' controllers, so the author's pad drives the dummy (and a second pad, if any, drives
--- P1); the swap is undone when the take ends.
-function tutorial.f_startRecording(pn)
+-- pn 1 records P1, pn 2 the dummy; a dummy take swaps controllers until it ends.
+function dojo.f_startRecording(pn)
 	pn = pn or 1
-	tutorial.f_cancelRecording()
+	dojo.f_cancelRecording()
 	-- 'armed' until every button is let go, so the press that closed the menu is not recorded
-	tutorial.rec = {frames = {}, phase = 'armed', pn = pn}
+	dojo.rec = {frames = {}, phase = 'armed', pn = pn}
 	if pn == 2 then
 		local ok1, r1 = pcall(getRemapInput, 1)
 		local ok2, r2 = pcall(getRemapInput, 2)
 		if ok1 and ok2 then
-			tutorial.rec.remap = {r1, r2}
+			dojo.rec.remap = {r1, r2}
 			pcall(remapInput, 1, r2)
 			pcall(remapInput, 2, r1)
 		end
-		tutorial.f_stopScript(2)
+		dojo.f_stopScript(2)
 		f_quietDummy()
 	end
 end
@@ -5368,16 +5125,16 @@ local function f_releaseRecording(rec)
 end
 
 -- Drop a take without printing it (the match is ending or being torn down).
-function tutorial.f_cancelRecording()
-	local rec = tutorial.rec
-	tutorial.rec = nil
+function dojo.f_cancelRecording()
+	local rec = dojo.rec
+	dojo.rec = nil
 	f_releaseRecording(rec)
 end
 
 local function f_heldNow(pn)
 	player(pn)
 	local set, any = {}, false
-	for _, k in ipairs(tutorial.t_scriptInputs) do
+	for _, k in ipairs(dojo.t_scriptInputs) do
 		local ok, t = pcall(inputTime, k)
 		if ok and type(t) == 'number' and t > 0 then
 			set[k], any = true, true
@@ -5387,23 +5144,21 @@ local function f_heldNow(pn)
 	return set, any
 end
 
--- restart: after a dummy take, start the lesson over so the dummy's own settings and script come
--- back (false when the lesson is being cleared, which moves on by itself).
-function tutorial.f_finishRecording(restart)
-	local rec = tutorial.rec
-	tutorial.rec = nil
+-- restart: after a dummy take, restart the lesson to restore the dummy's settings.
+function dojo.f_finishRecording(restart)
+	local rec = dojo.rec
+	dojo.rec = nil
 	if rec == nil then
 		return
 	end
 	f_releaseRecording(rec)
-	if rec.pn == 2 and restart ~= false and tutorial.data ~= nil and #tutorial.data.lessons > 0 then
-		local ct = math.min(tutorial.data.currentlesson, #tutorial.data.lessons)
-		tutorial.f_gotoLesson(ct, false, true)
-		tutorial.data.lessons[ct].pagesSeen = true
+	if rec.pn == 2 and restart ~= false and dojo.data ~= nil and #dojo.data.lessons > 0 then
+		local ct = math.min(dojo.data.currentlesson, #dojo.data.lessons)
+		dojo.f_gotoLesson(ct, false, true)
+		dojo.data.lessons[ct].pagesSeen = true
 	end
 	local f = rec.frames
-	-- Leading and trailing frames with nothing held carry nothing, and neither does the start
-	-- press that paused the game to end the take.
+	-- Trim empty leading/trailing frames and the start press that ended the take.
 	while #f > 0 and (next(f[#f]) == nil or (f[#f].s and f_setText(f[#f]) == 's')) do
 		table.remove(f)
 	end
@@ -5412,28 +5167,25 @@ function tutorial.f_finishRecording(restart)
 		return
 	end
 	f[#f + 1] = {}
-	-- Spelled the way the profile's own files are written; either prefix reads the same.
-	local prefix = tutorial.profile.id == 'trials' and 'trial.' or 'lesson.'
-	local line = prefix .. (rec.pn == 2 and 'dummyscript = ' or 'demoscript = ') .. tutorial.f_scriptText(f)
+	local line = (rec.pn == 2 and 'dummyscript = ' or 'demoscript = ') .. dojo.f_scriptText(f)
 	print('Dojo: recorded ' .. #f .. ' frames:\n' .. line)
-	local ok = pcall(main.f_fileWrite, tutorial.recordPath, line .. '\n')
+	local ok = pcall(main.f_fileWrite, dojo.recordPath, line .. '\n')
 	if ok then
-		print('Dojo: also written to ' .. tutorial.recordPath .. '.')
+		print('Dojo: also written to ' .. dojo.recordPath .. '.')
 	end
-	tutorial.lastRecording = line
+	dojo.lastRecording = line
 end
 
 -- Every frame of the match loop, paused or not: pausing is what ends a take.
-function tutorial.f_recordTick()
-	local rec = tutorial.rec
+function dojo.f_recordTick()
+	local rec = dojo.rec
 	if rec == nil then
 		return
 	end
 	if paused() then
-		-- Still armed is the pause that started the take; past that, a pause ends it, even one
-		-- with nothing recorded yet (which also hands a dummy take's controllers back).
+		-- Past the arming pause, any pause ends the take.
 		if rec.phase ~= 'armed' then
-			tutorial.f_finishRecording()
+			dojo.f_finishRecording()
 		end
 		return
 	end
@@ -5450,8 +5202,8 @@ function tutorial.f_recordTick()
 		end
 	else
 		rec.frames[#rec.frames + 1] = set
-		if #rec.frames >= tutorial.scriptMaxFrames then
-			tutorial.f_finishRecording()
+		if #rec.frames >= dojo.scriptMaxFrames then
+			dojo.f_finishRecording()
 		end
 	end
 end
@@ -5486,12 +5238,8 @@ if menu.tutorialclearcharprogress == nil then
 	menu.tutorialclearcharprogress = 1
 end
 
--- [Trials Pause Menu]'s itemnames: Trials Mode 1.x's, plus trials* names for the rows added since.
--- They are renamed to the shared tutorial* ones before the engine builds its menus (menu.f_start
--- runs after every module has loaded), so the shipped section, an old screenpack's and one that
--- uses the shared names directly all work. menu.valuename keys are <itemname>_<value>, so they are
--- renamed by the same table.
-tutorial.t_legacyPauseItems = {
+-- Legacy trials* pause itemnames, renamed to the shared tutorial* ones before menus build.
+dojo.t_legacyPauseItems = {
 	trialsinstructions = 'tutorialinstructions',
 	trialsdemo = 'tutorialdemo',
 	trialsrecord = 'tutorialrecord',
@@ -5520,7 +5268,7 @@ local function f_renameLegacyPause(sec)
 	if type(sec) ~= 'table' or type(sec.menu) ~= 'table' then
 		return
 	end
-	local map = tutorial.t_legacyPauseItems
+	local map = dojo.t_legacyPauseItems
 	local function rename(key)
 		local parts = main.f_strsplit('_', key)
 		local changed = false
@@ -5533,8 +5281,7 @@ local function f_renameLegacyPause(sec)
 		return changed and table.concat(parts, '_') or key
 	end
 	if type(sec.menu.itemname_order) == 'table' then
-		-- A row declared under both spellings is kept once, where it first appears (spacers repeat
-		-- on purpose and are left alone).
+		-- Keep a row declared under both spellings once (spacers excepted).
 		local order, seen = {}, {}
 		for _, suffix in ipairs(sec.menu.itemname_order) do
 			local new = rename(suffix)
@@ -5568,11 +5315,10 @@ local function f_renameLegacyPause(sec)
 		end
 	end
 end
-f_renameLegacyPause(tutorial.f_pauseSection(tutorial.t_profiles.trials))
+f_renameLegacyPause(dojo.f_pauseSection(dojo.t_profiles.trials))
 
--- The value labels of the pause menu's options, from the profile in force's section. Rebuilt by
--- f_useProfile, so Trials and the tutorial tracks can label them differently.
-function tutorial.f_menuValueNames()
+-- Pause option value labels from the profile's section; rebuilt per profile.
+function dojo.f_menuValueNames()
 local pmv = f_pauseMenuValues()
 
 menu.t_valuename.tutorialadvancement = {
@@ -5599,67 +5345,58 @@ menu.t_valuename.tutorialspeedrun = {
 	{itemname = "enabled", displayname = pmv.tutorialspeedrun_enabled or "On"},
 	{itemname = "disabled", displayname = pmv.tutorialspeedrun_disabled or "Off"}
 }
--- Clearing progress has nothing to display until it has happened, and then it has to say so: the
--- pause menu is drawn over a frozen match, so there is nowhere to put a dialog and nothing else on
--- screen would change. The row reads back "Cleared" until the menu is reset.
+-- The row reads "Cleared" after clearing, until the menu resets.
 menu.t_valuename.tutorialclearprogress = {
 	{itemname = "ready", displayname = pmv.tutorialclearprogress_ready or ""},
 	{itemname = "cleared", displayname = pmv.tutorialclearprogress_cleared or "Cleared"}
 }
 end
-tutorial.f_menuValueNames()
--- Moves the match to one Lesson and leaves the pause menu, the way its own Continue does.
--- Latching the fade is what actually repositions the pair: f_tutorialFade sets
--- _iksys_tutorialReposition, f_tutorialDummySetup only sets life and dummy mode.
---   keepTimer - starting a run rather than jumping within one, so the total timer stays armed and
---               restarts here. A plain jump retires the timer, because the run is no longer a run.
---   noMenu    - called from the select screen at match load, with no pause menu to leave.
-function tutorial.f_gotoLesson(index, keepTimer, noMenu)
-	if tutorial.data == nil or not tutorial.data.tutorialInitialized or tutorial.data.lessons[index] == nil then
+dojo.f_menuValueNames()
+-- Jump to a lesson and leave the pause menu; the fade repositions the pair.
+function dojo.f_gotoLesson(index, keepTimer, noMenu)
+	if dojo.data == nil or not dojo.data.initialized or dojo.data.lessons[index] == nil then
 		return true
 	end
-	-- Next / Previous Lesson can't jump into a lesson its gated file has not opened. A speedrun
-	-- (keepTimer) plays everything in order, so it is never stopped by this.
-	if not keepTimer and tutorial.f_isLocked(index) then
+	-- Next / Previous can't enter a locked lesson; a speedrun is exempt.
+	if not keepTimer and dojo.f_isLocked(index) then
 		return true
 	end
 	-- Going anywhere else ends a demo first, so the player always gets their controller back.
-	if tutorial.f_demoActive() then
-		tutorial.f_endDemo(false)
+	if dojo.f_demoActive() then
+		dojo.f_endDemo(false)
 	end
-	tutorial.f_stopScript(2)
+	dojo.f_stopScript(2)
 	-- Picking a Lesson is what dismisses the select view, wherever it was picked from.
-	if tutorial.select ~= nil and tutorial.select.open then
-		tutorial.select.open = false
-		tutorial.f_menuHold(false)
+	if dojo.select ~= nil and dojo.select.open then
+		dojo.select.open = false
+		dojo.f_menuHold(false)
 	end
-	tutorial.f_spendState()
-	tutorial.data.currentlessonstep = 1
-	tutorial.data.currentlessonmicrostep = 1
-	tutorial.data.comboCounter = 0
-	tutorial.data.currentlesson = index
-	tutorial.data.successlesson = nil
-	-- Picking a Lesson cancels the banner the previous one may still be showing. Left up, it would
-	-- keep running against the Lesson just jumped to and mark that one complete.
-	tutorial.draw.success = 0
-	tutorial.data.lessons[index].complete = false
-	tutorial.data.lessons[index].active = false
+	dojo.f_spendState()
+	dojo.data.currentlessonstep = 1
+	dojo.data.currentlessonmicrostep = 1
+	dojo.data.comboCounter = 0
+	dojo.data.currentlesson = index
+	dojo.data.successlesson = nil
+	-- Cancel any banner still up so it can't complete the new lesson.
+	dojo.draw.success = 0
+	dojo.data.lessons[index].complete = false
+	dojo.data.lessons[index].active = false
 	-- Entering a lesson starts its repetitions over and shows its pages again.
-	tutorial.data.lessons[index].repsdone = 0
-	tutorial.data.lessons[index].pagesSeen = false
-	tutorial.data.active = false
-	tutorial.data.allclear = false
+	dojo.data.lessons[index].repsdone = 0
+	dojo.data.lessons[index].pagesSeen = false
+	dojo.data.active = false
+	dojo.data.allclear = false
 	if keepTimer then
-		tutorial.data.displaytimers.totaltimer = opts.TotalTimer ~= false
+		dojo.data.displaytimers.totaltimer = opts.TotalTimer ~= false
 	else
-		tutorial.data.displaytimers.totaltimer = false
-		tutorial.data.runValid = false
+		dojo.data.displaytimers.totaltimer = false
+		dojo.data.runValid = false
 	end
-	tutorial.f_armTimers(index, keepTimer)
-	tutorial.draw.fadein = tutorial.tutorial_mode.fadein_time
-	tutorial.draw.fadeout = tutorial.tutorial_mode.fadeout_time
-	tutorial.draw.fade = tutorial.draw.fadein + tutorial.draw.fadeout
-	tutorial.draw.fadetriggered = true
+	dojo.f_armTimers(index, keepTimer)
+	dojo.draw.fadein = dojo.ui.fadein_time
+	dojo.draw.fadeout = dojo.ui.fadeout_time
+	dojo.draw.fade = dojo.draw.fadein + dojo.draw.fadeout
+	dojo.draw.fadetriggered = true
 	if not noMenu then
 		menu.currentMenu[1] = menu.currentMenu[2]
 		menu.pauseExitDelay = gameOption('Input.PauseExitDelay')
@@ -5668,20 +5405,20 @@ function tutorial.f_gotoLesson(index, keepTimer, noMenu)
 end
 
 menu.t_itemname['tutorialadvancement'] = function(t, item, cursorPosY, moveTxt, sec)
-	if tutorial.f_speedrunEnabled() then
+	if dojo.f_speedrunEnabled() then
 		-- Repeat would stall a run, so a speedrun holds Advancement at Auto-Advance.
 		return true
 	end
 	local changed, value = menu.f_valueChanged(t.items[item], sec)
 	if changed then
-		if tutorial.data ~= nil then
+		if dojo.data ~= nil then
 			if value == "autoadvance" then
-				tutorial.data.tutorialadvancement = true
+				dojo.data.autoadvance = true
 			else
-				tutorial.data.tutorialadvancement = false
+				dojo.data.autoadvance = false
 			end
 		end
-		tutorial.f_savePref('Advancement', value)
+		dojo.f_savePref('Advancement', value)
 	end
 	return true
 end
@@ -5697,11 +5434,11 @@ menu.t_itemname['tutoriallayout'] = function(t, item, cursorPosY, moveTxt, sec)
 	local changed, value = menu.f_valueChanged(t.items[item], sec)
 	if changed then
 		if value == "vertical" then
-			tutorial.tutorial_mode.tutoriallayout = "vertical"
+			dojo.ui.layout = "vertical"
 		else
-			tutorial.tutorial_mode.tutoriallayout = "horizontal"
+			dojo.ui.layout = "horizontal"
 		end
-		tutorial.f_savePref('Layout', tutorial.tutorial_mode.tutoriallayout)
+		dojo.f_savePref('Layout', dojo.ui.layout)
 	end
 	return true
 end
@@ -5717,11 +5454,11 @@ menu.t_itemname['tutorialresetonsuccess'] = function(t, item, cursorPosY, moveTx
 	local changed, value = menu.f_valueChanged(t.items[item], sec)
 	if changed then
 		if value == "enabled" then
-			tutorial.tutorial_mode.tutorialresetonsuccess = true
+			dojo.ui.resetonsuccess = true
 		else
-			tutorial.tutorial_mode.tutorialresetonsuccess = false
+			dojo.ui.resetonsuccess = false
 		end
-		tutorial.f_savePref('ResetOnSuccess', tutorial.tutorial_mode.tutorialresetonsuccess)
+		dojo.f_savePref('ResetOnSuccess', dojo.ui.resetonsuccess)
 	end
 	return true
 end
@@ -5736,7 +5473,7 @@ end
 menu.t_itemname['tutorialhints'] = function(t, item, cursorPosY, moveTxt, sec)
 	local changed, value = menu.f_valueChanged(t.items[item], sec)
 	if changed then
-		tutorial.f_savePref('Hints', value == 'show')
+		dojo.f_savePref('Hints', value == 'show')
 	end
 	return true
 end
@@ -5755,14 +5492,13 @@ end
 
 -- Show Instructions: the current lesson's pages again, over the match.
 menu.t_itemname['tutorialinstructions'] = function(t, item, cursorPosY, moveTxt, sec)
-	if getInput(-1, sec.menu.done.key) and tutorial.data ~= nil and tutorial.data.tutorialInitialized then
-		-- Demonstrations-only: the pages need the controller the demo has switched off. The demo
-		-- starts over once they close.
-		local l = tutorial.data.lessons[tutorial.data.currentlesson]
-		if tutorial.f_demoOnly() and l ~= nil and type(l.pages) == 'table' and #l.pages > 0 then
-			tutorial.f_endDemo(false)
+	if getInput(-1, sec.menu.done.key) and dojo.data ~= nil and dojo.data.initialized then
+		-- Demonstrations-only: end the demo so the pages get the controller; it restarts on close.
+		local l = dojo.data.lessons[dojo.data.currentlesson]
+		if dojo.f_demoOnly() and l ~= nil and type(l.pages) == 'table' and #l.pages > 0 then
+			dojo.f_endDemo(false)
 		end
-		if tutorial.f_openPages(tutorial.data.currentlesson) then
+		if dojo.f_openPages(dojo.data.currentlesson) then
 			sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
 			f_leavePause()
 		else
@@ -5775,9 +5511,9 @@ end
 
 -- Watch Demo: the CPU plays the lesson's lesson.demoscript. Not during a speedrun, which it would void.
 menu.t_itemname['tutorialdemo'] = function(t, item, cursorPosY, moveTxt, sec)
-	if getInput(-1, sec.menu.done.key) and tutorial.data ~= nil and tutorial.data.tutorialInitialized then
-		local ct_ = math.min(tutorial.data.currentlesson, #tutorial.data.lessons)
-		if not tutorial.f_speedrunEnabled() and not tutorial.f_demoActive() and tutorial.f_hasDemo(ct_) and tutorial.f_startDemo(ct_) then
+	if getInput(-1, sec.menu.done.key) and dojo.data ~= nil and dojo.data.initialized then
+		local ct_ = math.min(dojo.data.currentlesson, #dojo.data.lessons)
+		if not dojo.f_speedrunEnabled() and not dojo.f_demoActive() and dojo.f_hasDemo(ct_) and dojo.f_startDemo(ct_) then
 			sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
 			f_leavePause()
 		else
@@ -5787,21 +5523,21 @@ menu.t_itemname['tutorialdemo'] = function(t, item, cursorPosY, moveTxt, sec)
 	return true
 end
 
--- Record Demo: see tutorial.f_recordTick. Not offered unless RecordDemo is on.
+-- Record Demo: see dojo.f_recordTick. Not offered unless RecordDemo is on.
 menu.t_itemname['tutorialrecord'] = function(t, item, cursorPosY, moveTxt, sec)
-	if getInput(-1, sec.menu.done.key) and tutorial.recordEnabled and tutorial.data ~= nil and not tutorial.f_demoActive() then
+	if getInput(-1, sec.menu.done.key) and dojo.recordEnabled and dojo.data ~= nil and not dojo.f_demoActive() then
 		sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
-		tutorial.f_startRecording(1)
+		dojo.f_startRecording(1)
 		f_leavePause()
 	end
 	return true
 end
 
--- Record Dummy: the same for P2, played on the author's controller; see tutorial.f_startRecording.
+-- Record Dummy: the same for P2, played on the author's controller; see dojo.f_startRecording.
 menu.t_itemname['tutorialrecorddummy'] = function(t, item, cursorPosY, moveTxt, sec)
-	if getInput(-1, sec.menu.done.key) and tutorial.recordEnabled and tutorial.data ~= nil and not tutorial.f_demoActive() then
+	if getInput(-1, sec.menu.done.key) and dojo.recordEnabled and dojo.data ~= nil and not dojo.f_demoActive() then
 		sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
-		tutorial.f_startRecording(2)
+		dojo.f_startRecording(2)
 		f_leavePause()
 	end
 	return true
@@ -5809,9 +5545,9 @@ end
 
 -- Restart Lesson: back to its first step and its start positions, repetitions and pages included.
 menu.t_itemname['tutorialrestart'] = function(t, item, cursorPosY, moveTxt, sec)
-	if getInput(-1, sec.menu.done.key) and tutorial.data ~= nil and #tutorial.data.lessons > 0 then
+	if getInput(-1, sec.menu.done.key) and dojo.data ~= nil and #dojo.data.lessons > 0 then
 		sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
-		return tutorial.f_gotoLesson(math.min(tutorial.data.currentlesson, #tutorial.data.lessons))
+		return dojo.f_gotoLesson(math.min(dojo.data.currentlesson, #dojo.data.lessons))
 	end
 	return true
 end
@@ -5820,12 +5556,12 @@ menu.t_itemname['tutorialtextboxes'] = function(t, item, cursorPosY, moveTxt, se
 	local changed, value = menu.f_valueChanged(t.items[item], sec)
 	if changed then
 		if value == "show" then
-			tutorial.tutorial_mode.textbox_visible = true
+			dojo.ui.textbox_visible = true
 		else
-			tutorial.tutorial_mode.textbox_visible = false
+			dojo.ui.textbox_visible = false
 		end
-		tutorial.tutorial_mode.textbox.visible = tutorial.tutorial_mode.textbox_visible
-		tutorial.f_savePref('Textboxes', value)
+		dojo.ui.textbox.visible = dojo.ui.textbox_visible
+		dojo.f_savePref('Textboxes', value)
 	end
 	return true
 end
@@ -5839,23 +5575,21 @@ end
 
 
 menu.t_itemname['tutorialspeedrun'] = function(t, item, cursorPosY, moveTxt, sec)
-	-- A Game Tutorial whose lessons need more than one P1 reloads the match between them, and a
-	-- run cannot survive that, so Speedrun Mode stays Off there.
-	-- Nor in demonstrations-only, where there is nothing to clear.
-	if tutorial.f_speedrunSpansChars() or tutorial.f_demoOnly() then
+	-- No speedrun across P1 changes or in demonstrations-only.
+	if dojo.f_speedrunSpansChars() or dojo.f_demoOnly() then
 		return true
 	end
 	local changed, value = menu.f_valueChanged(t.items[item], sec)
 	if changed then
 		menu.tutorialspeedrun = value == "enabled" and 1 or 2
-		tutorial.f_applySpeedrun()
+		dojo.f_applySpeedrun()
 		for _, v in ipairs(menu.t_vardisplayPointers) do
 			if v.itemname == 'tutorialspeedrun' then
 				v.vardisplay = menu.f_vardisplay('tutorialspeedrun')
 			end
 		end
 		if value == "enabled" then
-			tutorial.f_startSpeedrun()
+			dojo.f_startSpeedrun()
 			-- Leave the menu the way picking a Lesson does: the run starts now.
 			menu.currentMenu[1] = menu.currentMenu[2]
 			menu.pauseExitDelay = gameOption('Input.PauseExitDelay')
@@ -5864,11 +5598,10 @@ menu.t_itemname['tutorialspeedrun'] = function(t, item, cursorPosY, moveTxt, sec
 	end
 	return true
 end
--- On/Off, followed by this character's best full run if they have one - the only place a run
--- record would otherwise have to show itself.
+-- On/Off plus the character's best run, if any.
 local function f_speedrunVardisplay()
 	local label = menu.t_valuename.tutorialspeedrun[menu.tutorialspeedrun or 2].displayname
-	local rec = tutorial.f_speedrunRecord()
+	local rec = dojo.f_speedrunRecord()
 	if rec ~= nil and rec.besttime ~= nil then
 		local m, s, x = f_timeConvert(rec.besttime)
 		label = label .. '  ' .. m .. ':' .. s .. ':' .. x
@@ -5885,7 +5618,7 @@ local t_clears = {
 		yes = 'Yes, Erase Everything',
 		no = 'No',
 		run = function()
-			tutorial.f_clearProgress()
+			dojo.f_clearProgress()
 			return true
 		end,
 	},
@@ -5894,10 +5627,9 @@ local t_clears = {
 		confirm = 'tutorialclearcharconfirm',
 		yes = 'Yes, Erase This Character',
 		no = 'No',
-		-- Whoever is loaded into P1. Nothing is acknowledged when there is no character to resolve;
-		-- the module has already said why on the console.
+		-- P1's character; nothing to acknowledge when it can't be resolved.
 		run = function()
-			return tutorial.f_clearCharProgress()
+			return dojo.f_clearCharProgress()
 		end,
 	},
 }
@@ -5922,9 +5654,7 @@ for _, c in ipairs(t_clears) do
 				end
 			end
 		end
-		-- Staying put is what makes the acknowledgement visible: leaving would drop the player at
-		-- the top of the pause menu (the engine's Back goes to the root, not up a level), where
-		-- neither row is on screen to read "Cleared" back to them.
+		-- Stay on the row so "Cleared" is visible.
 		return true
 	end
 end
@@ -5947,14 +5677,11 @@ local function f_fillClearConfirm(tbl)
 	end
 end
 
--- menu.f_start() builds every pause menu from the motif's itemnames, and main.lua calls it after
--- the last module has loaded, so there is nothing to walk until it has run. Another module wrapping
--- it too, before or after this one, simply chains.
--- Opening the pause menu refilters its root for the entry being played (see f_rootItemShown).
+-- Wrap menu.f_init so opening the pause menu refilters its root items.
 local f_menuInit = menu.f_init
 function menu.f_init(...)
-	if tutorial.f_inMode() then
-		tutorial.f_applySpeedrun()
+	if dojo.f_inMode() then
+		dojo.f_applySpeedrun()
 	end
 	if f_menuInit ~= nil then
 		return f_menuInit(...)
@@ -5972,22 +5699,22 @@ function menu.f_start(...)
 end
 
 menu.t_itemname['tutorialnext'] = function(t, item, cursorPosY, moveTxt, sec)
-	if getInput(-1, sec.menu.done.key) and tutorial.data ~= nil and #tutorial.data.lessons > 0 then
+	if getInput(-1, sec.menu.done.key) and dojo.data ~= nil and #dojo.data.lessons > 0 then
 		sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
-		return tutorial.f_gotoLesson(tutorial.data.currentlesson % #tutorial.data.lessons + 1)
+		return dojo.f_gotoLesson(dojo.data.currentlesson % #dojo.data.lessons + 1)
 	end
 	return true
 end
 
 menu.t_itemname['tutorialprevious'] = function(t, item, cursorPosY, moveTxt, sec)
-	if getInput(-1, sec.menu.done.key) and tutorial.data ~= nil and #tutorial.data.lessons > 0 then
+	if getInput(-1, sec.menu.done.key) and dojo.data ~= nil and #dojo.data.lessons > 0 then
 		sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
-		return tutorial.f_gotoLesson((tutorial.data.currentlesson - 2) % #tutorial.data.lessons + 1)
+		return dojo.f_gotoLesson((dojo.data.currentlesson - 2) % #dojo.data.lessons + 1)
 	end
 	return true
 end
 
-local t_tutorialPrefs = {
+local t_prefItems = {
 	tutorialadvancement = true,
 	tutorialresetonsuccess = true,
 	tutoriallayout = true,
@@ -6000,51 +5727,50 @@ local t_tutorialPrefs = {
 	tutorialclearcharconfirm = true,
 }
 
-function menu.f_tutorialReset()
+function menu.f_dojoReset()
 	if tostring(opts.Advancement or 'autoadvance'):lower() == 'autoadvance' then
 		menu.tutorialadvancement = 1
 	else
 		menu.tutorialadvancement = 2
 	end
-	if tutorial.tutorial_mode.tutorialresetonsuccess == true then
+	if dojo.ui.resetonsuccess == true then
 		menu.tutorialresetonsuccess = 1
 	else
 		menu.tutorialresetonsuccess = 2
 	end
-	if tutorial.tutorial_mode.tutoriallayout == "vertical" then
+	if dojo.ui.layout == "vertical" then
 		menu.tutoriallayout = 1
 	else
 		menu.tutoriallayout = 2
 	end
 	if (opts.Textboxes ~= nil and tostring(opts.Textboxes):lower() ~= "hide")
-		or (opts.Textboxes == nil and tutorial.tutorial_mode.textbox_visible == true) then
+		or (opts.Textboxes == nil and dojo.ui.textbox_visible == true) then
 		menu.tutorialtextboxes = 1
 	else
 		menu.tutorialtextboxes = 2
 	end
-	menu.tutorialhints = tutorial.f_hintsOn() and 1 or 2
-	-- "Cleared" is an acknowledgement of something that just happened, not a state to carry into
-	-- the next match.
+	menu.tutorialhints = dojo.f_hintsOn() and 1 or 2
+	-- "Cleared" doesn't carry into the next match.
 	menu.tutorialclearprogress = 1
 	menu.tutorialclearcharprogress = 1
 	for _, v in ipairs(menu.t_vardisplayPointers) do
-		if t_tutorialPrefs[v.itemname] then
+		if t_prefItems[v.itemname] then
 			v.vardisplay = menu.f_vardisplay(v.itemname)
 		end
 	end
-	tutorial.f_applySpeedrun()
+	dojo.f_applySpeedrun()
 	player(2)
 	setAILevel(0)
-	mapSet('_iksys_tutorialDummyControl', 0)
-	mapSet('_iksys_tutorialDummyMode', 0)
-	mapSet('_iksys_tutorialGuardMode', 0)
-	mapSet('_iksys_tutorialFallRecovery', 0)
-	mapSet('_iksys_tutorialDistance', 0)
-	mapSet('_iksys_tutorialButtonJam', 0)
-	mapSet('_iksys_tutorialReposition', 0)
-	mapSet('_iksys_tutorialSetLife', lifeMax())
+	mapSet('_iksys_dojoDummyControl', 0)
+	mapSet('_iksys_dojoDummyMode', 0)
+	mapSet('_iksys_dojoGuardMode', 0)
+	mapSet('_iksys_dojoFallRecovery', 0)
+	mapSet('_iksys_dojoDistance', 0)
+	mapSet('_iksys_dojoButtonJam', 0)
+	mapSet('_iksys_dojoReposition', 0)
+	mapSet('_iksys_dojoSetLife', lifeMax())
 	player(1)
-	mapSet('_iksys_tutorialSetLife', lifeMax())
+	mapSet('_iksys_dojoSetLife', lifeMax())
 end
 
 --;===========================================================
@@ -6054,22 +5780,12 @@ end
 --;===========================================================
 --; Lesson files
 --;===========================================================
--- A lesson file is read the same way wherever it comes from: a character's def names one with
--- `tutorial = tutorial.def` (the character track), and config.ini's SystemTutorial lists any
--- number of them (the system track, playable with every character).
---
--- Sections:   [Tutorial]                 file-wide settings (tutorial.gated)
---             [Chapter, <name>]          declares a chapter and its chapter.text
---             [Lesson, <name>]           one lesson; [TrialDef, <name>] is accepted as an alias
--- Keys are matched whole, case-insensitively. trial.* and trialstep.* are aliases of lesson.* and
--- lessonstep.*, so a Trials Mode file loads unchanged.
+-- Lesson files: [Lesson, name] (or [TrialDef, name]) sections; trial* keys alias lesson*.
 
--- Keys that take a language suffix (lesson.textbox.es); the language picked is resolved at the
--- end of the file so the order the lines come in does not matter.
+-- Language-suffixed keys, resolved at file end.
 local t_multilingual = {
 	['lesson.textbox'] = true,
 	['lesson.hint'] = true,
-	['chapter.text'] = true,
 }
 
 -- lesson.* keys holding a whole number of frames (or a count), 0 or more.
@@ -6084,29 +5800,25 @@ local t_lessonCounts = {
 
 -- lessonstep.X.* list fields: commas separate microsteps. The id lists also take '|' alternatives.
 local t_stepIdLists = {stateno = true, animno = true, projid = true, p2stateno = true}
-local t_stepNumLists = {hitcount = true, validfortickcount = true,
-	iconanim = true, iconanimoffset = true, iconanimscale = true, iconanimwindow = true}
+local t_stepNumLists = {hitcount = true, validfortickcount = true}
 local t_stepBoolLists = {isthrow = true, iscounterhit = true, ishelper = true, isproj = true, isguarded = true}
 local t_guardValues = {any = true, high = true, low = true, air = true}
 
--- A chapter's id is its name folded to something usable as a dojo.def key, so a
--- screenpack can style tutorialmenu.item.<id>.* per chapter. Ids that would land on a structural
--- key of that block get a trailing underscore.
+-- Chapter id: name folded to a dojo.def key; structural names get a trailing underscore.
 local t_reservedCats = {all = true, other = true, text = true, bg = true, active = true, selected = true,
 	overlay = true, locked = true, value = true, spacing = true, offset = true}
-function tutorial.f_chapterId(name)
+function dojo.f_chapterId(name)
 	local id = tostring(name or ''):lower():gsub('[^%w]+', '_'):gsub('^_+', ''):gsub('_+$', '')
-	if id ~= '' and (t_reservedCats[id] or tutorial.t_difficultyIndex[id]) then
+	if id ~= '' and (t_reservedCats[id] or dojo.t_difficultyIndex[id]) then
 		id = id .. '_'
 	end
 	return id
 end
-tutorial.t_difficultyIndex = {}
-for _, d in ipairs(tutorial.t_difficulty) do tutorial.t_difficultyIndex[d] = true end
+dojo.t_difficultyIndex = {}
+for _, d in ipairs(dojo.t_difficulty) do dojo.t_difficultyIndex[d] = true end
 
 -- Display names for chapter ids, filled as files are read; the select header looks names up here.
-tutorial.chapterNames = tutorial.chapterNames or {}
-tutorial.chapterText = tutorial.chapterText or {}
+dojo.chapterNames = dojo.chapterNames or {}
 
 local function f_newLesson(name)
 	return {
@@ -6116,7 +5828,7 @@ local function f_newLesson(name)
 		guardmode = "none",
 		buttonjam = "none",
 		buttondelay = nil, -- resolved per mode when the Lesson starts
-		jumpdelay = tutorial.jumpDelayDefault,
+		jumpdelay = dojo.jumpDelayDefault,
 		active = false,
 		complete = false,
 		p1life = -1,
@@ -6134,8 +5846,9 @@ local function f_newLesson(name)
 		steps = {},
 		-- Tutorial Mode additions
 		chapter = "",
-		chars = nil,     -- set of lowercase names / folders / def paths; nil = everyone
+		showforchars = nil, -- set of lowercase names / folders / def paths; nil = everyone
 		playerchar = nil, -- game-wide lessons: P1 forced in the Game Tutorial (select.def spelling)
+		dummychar = nil,  -- game-wide lessons: P2 forced in the Game Tutorial (select.def spelling)
 		reps = 1,        -- clears needed (lesson.repeat)
 		repsdone = 0,
 		hint = "",
@@ -6171,10 +5884,6 @@ local function f_newStep()
 		validfortickcount = {},
 		validforvar = {},
 		validforval = {},
-		iconanim = {},
-		iconanimoffset = {},
-		iconanimscale = {},
-		iconanimwindow = {},
 		glyphline = {
 			vertical = {glyph = {}, pos = {}, width = {}, alignOffset = {}, lengthOffset = {}, scale = {}},
 			horizontal = {glyph = {}, pos = {}, width = {}, alignOffset = {}, lengthOffset = {}, scale = {}},
@@ -6182,8 +5891,7 @@ local function f_newStep()
 	}
 end
 
--- Fills every microstep's defaults once the whole step has been read. The microstep count comes
--- from the id lists (and guard), as it always has: hitcount and the flags follow it.
+-- Fill microstep defaults once the step is read; the count comes from the id lists.
 local function f_finishStep(step)
 	local n = math.max(1, #step.stateno, #step.animno, #step.projid, #step.p2stateno, #step.guard)
 	step.numofmicrosteps = n
@@ -6195,18 +5903,6 @@ local function f_finishStep(step)
 			if step[f][k] == nil then step[f][k] = false end
 		end
 	end
-	-- The icon fields describe one sprite for the whole step, not one per microstep.
-	if #step.iconanim == 0 then
-		local spr = tutorial.tutorial_mode.textbox.portrait.spr
-		if spr ~= nil then
-			step.iconanim = {spr[1], spr[2], 0, 0, -1}
-		else
-			step.iconanim = {0, 0, 0, 0, -1}
-		end
-	end
-	if #step.iconanimoffset == 0 then step.iconanimoffset = {0, 0} end
-	if #step.iconanimscale == 0 then step.iconanimscale = {1, 1} end
-	if #step.iconanimwindow == 0 then step.iconanimwindow = {0, 0, 0, 0} end
 end
 
 -- '1, 2|3' -> {{1}, {2, 3}}
@@ -6240,9 +5936,8 @@ local function f_pickLang(cands, lang)
 	return cands[lang] or cands.en or cands['']
 end
 
--- Parses one lesson file. track is 'char' or 'system'; label names the file in console warnings.
--- Returns {lessons = {...}, gated = bool} or nil when the file cannot be read.
-function tutorial.f_parseFile(path, track, label)
+-- Parse a lesson file; returns {lessons} or nil. Gating comes from config.ini's [Gating], by source.
+function dojo.f_parseFile(path, track, label)
 	local ok, src = pcall(loadText, path)
 	if not ok or type(src) ~= 'string' then
 		print('Dojo: could not read lesson file ' .. tostring(path) .. '.')
@@ -6254,11 +5949,10 @@ function tutorial.f_parseFile(path, track, label)
 		print('Dojo: ' .. label .. ' - ' .. msg)
 	end
 
-	local out = {lessons = {}, gated = false}
-	local section = nil      -- 'tutorial' | 'chapter' | 'lesson' | 'unknown'
+	local out = {lessons = {}}
+	local section = nil      -- 'lesson' | 'unknown'
 	local lesson = nil       -- the lesson being read
-	local chapterId = nil    -- the chapter being read
-	local ml = nil           -- multilingual candidates for the current lesson/chapter: ml[key][suffix]
+	local ml = nil           -- multilingual candidates for the current lesson: ml[key][suffix]
 	local steps = nil        -- sparse steps of the current lesson, keyed by number
 	local pageml = nil       -- page candidates: pageml[n][field][suffix]
 	local names = {}         -- dupe counter, for progress keys
@@ -6275,7 +5969,7 @@ function tutorial.f_parseFile(path, track, label)
 			for n = 1, max, 1 do
 				local s = steps[n]
 				if s == nil then
-					warn('"' .. lesson.name .. '" has no lessonstep.' .. n .. '; the steps after it are numbered down.')
+					warn('"' .. lesson.name .. '" has no step.' .. n .. '; the steps after it are numbered down.')
 				else
 					s.step.text = f_pickLang(s.text, lang) or ''
 					f_finishStep(s.step)
@@ -6300,9 +5994,9 @@ function tutorial.f_parseFile(path, track, label)
 			-- Input scripts are read now, so a typo is reported at load rather than when played.
 			for _, f in ipairs({'demoscript', 'dummyscript'}) do
 				if lesson[f] ~= '' then
-					local frames, why = tutorial.f_parseScript(lesson[f])
+					local frames, why = dojo.f_parseScript(lesson[f])
 					if frames == nil then
-						warn('"' .. lesson.name .. '" has an unreadable lesson.' .. f .. ' (' .. why .. '); it is ignored.')
+						warn('"' .. lesson.name .. '" has an unreadable ' .. f .. ' (' .. why .. '); it is ignored.')
 						lesson[f] = ''
 					else
 						lesson[f == 'demoscript' and 'demoframes' or 'dummyframes'] = frames
@@ -6321,13 +6015,8 @@ function tutorial.f_parseFile(path, track, label)
 				lesson.file = path:gsub('\\', '/'):lower()
 				out.lessons[#out.lessons + 1] = lesson
 			end
-		elseif section == 'chapter' and chapterId ~= nil then
-			local t = f_pickLang(ml['chapter.text'], lang)
-			if t ~= nil then
-				tutorial.chapterText[chapterId] = t
-			end
 		end
-		section, lesson, chapterId, ml, steps, pageml = nil, nil, nil, nil, nil, nil
+		section, lesson, ml, steps, pageml = nil, nil, nil, nil, nil
 	end
 
 	local lineno = 0
@@ -6346,20 +6035,15 @@ function tutorial.f_parseFile(path, track, label)
 			if kind == 'lesson' or kind == 'trialdef' then
 				section = 'lesson'
 				if name == '' then
-					name = (tutorial.profile.id == 'trials' and 'Trial ' or 'Lesson ') .. tostring(#out.lessons + 1)
+					name = (dojo.profile.id == 'trials' and 'Trial ' or 'Lesson ') .. tostring(#out.lessons + 1)
 				end
 				lesson = f_newLesson(name)
 			elseif kind == 'chapter' then
-				section = 'chapter'
-				chapterId = tutorial.f_chapterId(name)
-				if chapterId == '' then
-					warn('[Chapter] on line ' .. lineno .. ' has no name and is ignored.')
-					section = 'unknown'
-				elseif tutorial.chapterNames[chapterId] == nil then
-					tutorial.chapterNames[chapterId] = name
-				end
+				section = 'unknown'
+				warn('[Chapter] sections are no longer read (line ' .. lineno .. '); a chapter is named by chapter = on its entries.')
 			elseif kind == 'tutorial' then
-				section = 'tutorial'
+				section = 'unknown'
+				warn('[Tutorial] sections are no longer read (line ' .. lineno .. '); gating is set in config.ini [Gating].')
 			else
 				section = 'unknown'
 				warn('unknown section [' .. head .. '] on line ' .. lineno .. '; its keys are ignored.')
@@ -6368,21 +6052,14 @@ function tutorial.f_parseFile(path, track, label)
 			local key = line:match('^%s*(.-)%s*=') :lower()
 			local raw = line:match('=%s*(.-)%s*$') or ''
 			local val = raw:lower()
-			key = key:gsub('^trialstep%.', 'lessonstep.'):gsub('^trial%.', 'lesson.')
-			if section == 'tutorial' then
-				if key == 'tutorial.gated' then
-					out.gated = f_flag(val)
-				end
-			elseif section == 'chapter' then
-				local base, suffix = key, ''
-				if not t_multilingual[key] then
-					base, suffix = key:match('^(.-)%.(%a%a%a?)$')
-				end
-				if base ~= nil and t_multilingual[base] then
-					ml[base] = ml[base] or {}
-					ml[base][suffix] = raw
-				end
-			elseif section == 'lesson' then
+			-- Short form (hint, page.1.text, step.1.stateno) and the old prefixed ones read the same; the
+			-- parser below works on the prefixed names, so short keys are expanded here.
+			local written = key
+			key = key:gsub('^trialstep%.', 'lessonstep.'):gsub('^trial%.', 'lesson.'):gsub('^step%.', 'lessonstep.')
+			if section == 'lesson' and not key:find('^lesson%.') and not key:find('^lessonstep%.') then
+				key = 'lesson.' .. key
+			end
+			if section == 'lesson' then
 				local sn, field = key:match('^lessonstep%.(%d+)%.(.+)$')
 				local pn, pfield = key:match('^lesson%.page%.(%d+)%.(.+)$')
 				if sn ~= nil then
@@ -6407,7 +6084,7 @@ function tutorial.f_parseFile(path, track, label)
 						step.guard = main.f_strsplit(',', (val:gsub('%s+', '')))
 						for k, g in ipairs(step.guard) do
 							if not t_guardValues[g] then
-								warn('"' .. lesson.name .. '" lessonstep.' .. sn .. '.guard has an unknown value (' .. g .. '); expected any, high, low or air.')
+								warn('"' .. lesson.name .. '" step.' .. sn .. '.guard has an unknown value (' .. g .. '); expected any, high, low or air.')
 								step.guard[k] = 'any'
 							end
 						end
@@ -6419,7 +6096,7 @@ function tutorial.f_parseFile(path, track, label)
 							step.validforval[#step.validforval + 1] = pairs_[k + 1]
 						end
 					else
-						warn('unknown key ' .. key .. ' on line ' .. lineno .. '.')
+						warn('unknown key ' .. written .. ' on line ' .. lineno .. '.')
 					end
 				elseif pn ~= nil then
 					pn = tonumber(pn)
@@ -6435,23 +6112,23 @@ function tutorial.f_parseFile(path, track, label)
 							local v = {nums[1], tonumber(nums[2]) or 0}
 							if pfield == 'snd' then pg.snd = v else pg.portrait.spr = v end
 						elseif val ~= '' then
-							warn('"' .. lesson.name .. '" has an invalid ' .. key .. ' (' .. val .. '). Expected group, number.')
+							warn('"' .. lesson.name .. '" has an invalid ' .. written .. ' (' .. val .. '). Expected group, number.')
 						end
 					elseif pfield == 'portrait.anim' then
 						if tonumber(val) ~= nil then
 							pg.portrait.anim = tonumber(val)
 						elseif val ~= '' then
-							warn('"' .. lesson.name .. '" has an invalid ' .. key .. ' (' .. val .. '). Expected an action number.')
+							warn('"' .. lesson.name .. '" has an invalid ' .. written .. ' (' .. val .. '). Expected an action number.')
 						end
 					elseif pfield == 'portrait.source' then
 						local v = val:gsub('"', '')
 						if v == 'system' or v == 'char' then
 							pg.portrait.source = v
 						elseif v ~= '' then
-							warn('"' .. lesson.name .. '" has an unknown ' .. key .. ' (' .. v .. '); expected system or char.')
+							warn('"' .. lesson.name .. '" has an unknown ' .. written .. ' (' .. v .. '); expected system or char.')
 						end
 					else
-						warn('unknown key ' .. key .. ' on line ' .. lineno .. '.')
+						warn('unknown key ' .. written .. ' on line ' .. lineno .. '.')
 					end
 				else
 					local base, suffix = key, ''
@@ -6463,39 +6140,46 @@ function tutorial.f_parseFile(path, track, label)
 						ml[base] = ml[base] or {}
 						ml[base][suffix] = raw
 					elseif f == nil then
-						warn('unknown key ' .. key .. ' on line ' .. lineno .. '.')
+						warn('unknown key ' .. written .. ' on line ' .. lineno .. '.')
 					elseif f == 'difficulty' then
 						lesson.difficulty = ''
-						if tutorial.t_difficultyIndex[val] then
+						if dojo.t_difficultyIndex[val] then
 							lesson.difficulty = val
 						elseif val ~= '' then
-							warn('"' .. lesson.name .. '" has an unrecognised lesson.difficulty (' .. val
+							warn('"' .. lesson.name .. '" has an unrecognised difficulty (' .. val
 								.. '). Expected Beginner, Intermediate, Advanced or Expert.')
 						end
 					elseif f == 'chapter' then
-						lesson.chapter = tutorial.f_chapterId(raw)
-						if lesson.chapter ~= '' and tutorial.chapterNames[lesson.chapter] == nil then
-							tutorial.chapterNames[lesson.chapter] = raw
+						lesson.chapter = dojo.f_chapterId(raw)
+						if lesson.chapter ~= '' and dojo.chapterNames[lesson.chapter] == nil then
+							dojo.chapterNames[lesson.chapter] = raw
 						end
-					elseif f == 'chars' then
-						lesson.chars = {}
+					elseif f == 'showforchars' or f == 'chars' then -- chars: the old name
+						lesson.showforchars = {}
 						for _, c in ipairs(main.f_strsplit(',', val)) do
 							c = c:gsub('\\', '/'):match('^%s*(.-)%s*$')
-							if c ~= '' then lesson.chars[c] = true end
+							if c ~= '' then lesson.showforchars[c] = true end
 						end
 					elseif f == 'playerchar' then
 						-- Game-wide lessons only: in a character's file P1 is that character already.
 						if track ~= 'system' then
-							warn('"' .. lesson.name .. '" sets lesson.playerchar, which only game-wide lessons take; it is ignored.')
+							warn('"' .. lesson.name .. '" sets playerchar, which only game-wide lessons take; it is ignored.')
 						elseif val ~= '' then
 							lesson.playerchar = raw:gsub('\\', '/'):match('^%s*(.-)%s*$')
+						end
+					elseif f == 'dummychar' then
+						-- Game-wide lessons only, like playerchar: only the Game Tutorial can reload the match for it.
+						if track ~= 'system' then
+							warn('"' .. lesson.name .. '" sets dummychar, which only game-wide lessons take; it is ignored.')
+						elseif val ~= '' then
+							lesson.dummychar = raw:gsub('\\', '/'):match('^%s*(.-)%s*$')
 						end
 					elseif f == 'dummymode' then
 						lesson.dummymode = val
 					elseif f == 'guardmode' then
 						lesson.guardmode = val
-						if tutorial.t_guardMode[val] == nil then
-							warn('"' .. lesson.name .. '" has an unknown lesson.guardmode (' .. val .. '); expected none, auto, afterhit or random.')
+						if dojo.t_guardMode[val] == nil then
+							warn('"' .. lesson.name .. '" has an unknown guardmode (' .. val .. '); expected none, auto, afterhit or random.')
 						end
 					elseif f == 'dummybuttonjam' then
 						lesson.buttonjam = val
@@ -6504,7 +6188,7 @@ function tutorial.f_parseFile(path, track, label)
 						if n ~= nil and n >= 0 and n == math.floor(n) then
 							lesson[t_lessonCounts[f]] = n
 						elseif val ~= '' then
-							warn('"' .. lesson.name .. '" has an invalid lesson.' .. f .. ' (' .. val .. '). Expected a whole number, 0 or more.')
+							warn('"' .. lesson.name .. '" has an invalid ' .. f .. ' (' .. val .. '). Expected a whole number, 0 or more.')
 						end
 					elseif f == 'playerlife' then
 						lesson.p1life = tonumber(val)
@@ -6529,15 +6213,18 @@ function tutorial.f_parseFile(path, track, label)
 					elseif f == 'dummyscriptloop' then
 						lesson.dummyscriptloop = f_flag(val)
 					else
-						warn('unknown key ' .. key .. ' on line ' .. lineno .. '.')
+						warn('unknown key ' .. written .. ' on line ' .. lineno .. '.')
 					end
 				end
 			end
 		end
 	end
 	closeSection()
+	-- Character files gate by the profile reading them: Trials, or Character Guides.
+	local gated = dojo.f_gatingOn(track == 'system' and 'SystemTutorial'
+		or (dojo.profile.id == 'trials' and 'Trials' or 'CharacterGuides'))
 	for _, l in ipairs(out.lessons) do
-		l.gated = out.gated
+		l.gated = gated
 	end
 	return out
 end
@@ -6545,22 +6232,20 @@ end
 --;===========================================================
 --; Building and switching profiles
 --;===========================================================
--- Builds one profile: its UI (every f_ui* step above, in the order they always ran at load)
--- and its saved progress. Leaves the profile in force, and keeps what was built on the profile so
--- f_useProfile can put it back later without building anything again.
-function tutorial.f_buildProfile(p)
+-- Build a profile's UI and progress, store them on it, and leave it in force.
+function dojo.f_buildProfile(p)
 	f_loadAssets()
-	tutorial.profile = p
+	dojo.profile = p
 	opts = p.opts
 	local root, lx, ly = f_prepareUI(p)
-	tutorial.tutorial_mode = root
-	tr_pos = root
-	tutorial.mtlcx, tutorial.mtlcy = lx, ly
+	dojo.ui = root
+	ui = root
+	dojo.mtlcx, dojo.mtlcy = lx, ly
 	f_uiMenuDefaults()
 	f_uiStepDefaults()
 	f_uiAnchors()
-	tutorial.vislcx = f_vislcx(f_screenAspect())
-	tutorial.anchordelta = tutorial.vislcx - tutorial.mtlcx
+	dojo.vislcx = f_vislcx(f_screenAspect())
+	dojo.anchordelta = dojo.vislcx - dojo.mtlcx
 	f_applyAnchors()
 	f_uiElems()
 	f_uiMenuDraw()
@@ -6571,71 +6256,66 @@ function tutorial.f_buildProfile(p)
 		mtlcy = ly,
 		anchored = t_anchored,
 		elems = t_elems,
-		menuDraw = tutorial.menuDraw,
-		teach = tutorial.teach,
-		vislcx = tutorial.vislcx,
+		menuDraw = dojo.menuDraw,
+		teach = dojo.teach,
+		vislcx = dojo.vislcx,
 	}
-	p.progress = tutorial.f_loadProgress(p)
-	tutorial.progress = p.progress
-	tutorial.progressPath = p.progressPath
-	tutorial.dummyPath, tutorial.stagePath, tutorial.playerCharPath = p.dummyPath, p.stagePath, p.playerCharPath
+	p.progress = dojo.f_loadProgress(p)
+	dojo.progress = p.progress
+	dojo.progressPath = p.progressPath
+	dojo.dummyPath, dojo.stagePath, dojo.playerCharPath = p.dummyPath, p.stagePath, p.playerCharPath
 	p.built = true
 end
 
--- Puts a built profile in force: its config, look, labels and save file. The pause menu nodes the
--- module takes over (the List, the root's items) are remembered per profile, because each game mode
--- has a pause menu of its own and round start puts back whichever one it took over.
-function tutorial.f_useProfile(p)
+-- Put a built profile in force; its pause menu nodes are cached per profile.
+function dojo.f_useProfile(p)
 	if not p.built then
-		tutorial.f_buildProfile(p)
+		dojo.f_buildProfile(p)
 	end
-	local cur = tutorial.profile
+	local cur = dojo.profile
 	if cur ~= nil and cur.ui ~= nil then
-		cur.ui.vislcx = tutorial.vislcx
+		cur.ui.vislcx = dojo.vislcx
 		cur.menuCache = {
-			listTail = tutorial.listTail,
-			listLoop = tutorial.listLoop,
-			listNode = tutorial.listNode,
-			rootItems = tutorial.rootItems,
-			rootNode = tutorial.rootNode,
+			listTail = dojo.listTail,
+			listLoop = dojo.listLoop,
+			listNode = dojo.listNode,
+			rootItems = dojo.rootItems,
+			rootNode = dojo.rootNode,
 		}
 	end
-	tutorial.profile = p
+	dojo.profile = p
 	opts = p.opts
-	tutorial.tutorial_mode = p.ui.root
-	tr_pos = p.ui.root
-	tutorial.mtlcx, tutorial.mtlcy = p.ui.mtlcx, p.ui.mtlcy
+	dojo.ui = p.ui.root
+	ui = p.ui.root
+	dojo.mtlcx, dojo.mtlcy = p.ui.mtlcx, p.ui.mtlcy
 	t_anchored, t_elems = p.ui.anchored, p.ui.elems
-	tutorial.menuDraw, tutorial.teach = p.ui.menuDraw, p.ui.teach
-	tutorial.vislcx = p.ui.vislcx
-	tutorial.anchordelta = tutorial.vislcx - tutorial.mtlcx
+	dojo.menuDraw, dojo.teach = p.ui.menuDraw, p.ui.teach
+	dojo.vislcx = p.ui.vislcx
+	dojo.anchordelta = dojo.vislcx - dojo.mtlcx
 	local c = p.menuCache or {}
-	tutorial.listTail, tutorial.listLoop, tutorial.listNode = c.listTail, c.listLoop, c.listNode
-	tutorial.rootItems, tutorial.rootNode = c.rootItems, c.rootNode
-	tutorial.progress = p.progress
-	tutorial.progressPath = p.progressPath
-	tutorial.dummyPath, tutorial.stagePath, tutorial.playerCharPath = p.dummyPath, p.stagePath, p.playerCharPath
+	dojo.listTail, dojo.listLoop, dojo.listNode = c.listTail, c.listLoop, c.listNode
+	dojo.rootItems, dojo.rootNode = c.rootItems, c.rootNode
+	dojo.progress = p.progress
+	dojo.progressPath = p.progressPath
+	dojo.dummyPath, dojo.stagePath, dojo.playerCharPath = p.dummyPath, p.stagePath, p.playerCharPath
 	-- Drawn with the last profile's font; rebuilt from this one's the first time it is needed.
-	tutorial.notutorialcounter = nil
-	tutorial.f_menuValueNames()
+	dojo.nodatacounter = nil
+	dojo.f_menuValueNames()
 end
 
--- Every enabled profile is built now. Character files are read with their own profile in force,
--- because a step's default portrait comes from that profile's textbox.portrait.
-for _, id in ipairs(tutorial.t_profileOrder) do
-	local p = tutorial.t_profiles[id]
+-- Build every enabled profile.
+for _, id in ipairs(dojo.t_profileOrder) do
+	local p = dojo.t_profiles[id]
 	if p.enabled then
-		tutorial.f_buildProfile(p)
+		dojo.f_buildProfile(p)
 	end
 end
 
--- The character tracks: every character whose def names a file with `<charKey> = <file>` -
--- `trials = trials.def` for Trials, `tutorial = tutorial.def` for Character Guides. Both files are
--- read by the same parser, so either key may point at a file of either kind.
-for _, id in ipairs(tutorial.t_profileOrder) do
-	local p = tutorial.t_profiles[id]
+-- Character tracks: read each char def's <charKey> file; one parser handles both kinds.
+for _, id in ipairs(dojo.t_profileOrder) do
+	local p = dojo.t_profiles[id]
 	if p.enabled then
-		tutorial.f_useProfile(p)
+		dojo.f_useProfile(p)
 		local pattern = '^%s*' .. p.charKey .. '%s*='
 		for row = 1, #main.t_selChars, 1 do
 			local c = main.t_selChars[row]
@@ -6654,19 +6334,18 @@ for _, id in ipairs(tutorial.t_profileOrder) do
 			end
 			c[p.charKey .. 'def'] = file
 			if file ~= "" then
-				local res = tutorial.f_parseFile(file, 'char', tostring(c.name))
+				local res = dojo.f_parseFile(file, 'char', tostring(c.name))
 				c[p.dataField] = res ~= nil and res.lessons or {}
 			end
 		end
 	end
 end
 
--- The system track: config.ini's [Config] SystemTutorial, a comma-separated list of lesson files.
--- Game-wide lessons belong to the tutorial tracks only.
-tutorial.systemLessons = {}
-if tutorial.t_profiles.tutorial.enabled then
-	tutorial.f_useProfile(tutorial.t_profiles.tutorial)
-	local list = tutorial.ini.Config.SystemTutorial
+-- System track: game-wide lesson files from [Config] SystemTutorial, tutorial tracks only.
+dojo.systemLessons = {}
+if dojo.t_profiles.tutorial.enabled then
+	dojo.f_useProfile(dojo.t_profiles.tutorial)
+	local list = dojo.ini.Config.SystemTutorial
 	-- loadIni may already have split a comma list into a table.
 	if type(list) == 'table' then
 		list = table.concat(list, ',')
@@ -6675,12 +6354,12 @@ if tutorial.t_profiles.tutorial.enabled then
 		for _, p in ipairs(main.f_strsplit(',', list)) do
 			p = p:gsub('\\', '/'):match('^%s*(.-)%s*$')
 			if p ~= '' then
-				local res = main.f_fileExists(p) and tutorial.f_parseFile(p, 'system', p) or nil
+				local res = main.f_fileExists(p) and dojo.f_parseFile(p, 'system', p) or nil
 				if res == nil then
 					print('Dojo: SystemTutorial file ' .. p .. ' could not be read; it is skipped.')
 				else
 					for _, l in ipairs(res.lessons) do
-						tutorial.systemLessons[#tutorial.systemLessons + 1] = l
+						dojo.systemLessons[#dojo.systemLessons + 1] = l
 					end
 				end
 			end
@@ -6688,10 +6367,9 @@ if tutorial.t_profiles.tutorial.enabled then
 	end
 end
 
--- Whether a system lesson's lesson.chars admits a character: matched against its display name,
--- its folder and its def path, all lowercase.
+-- Whether lesson.showforchars admits a character by name, folder or def path, lowercase.
 local function f_charAdmits(lesson, charData)
-	if lesson.chars == nil then
+	if lesson.showforchars == nil then
 		return true
 	end
 	local cands = {}
@@ -6705,50 +6383,44 @@ local function f_charAdmits(lesson, charData)
 	end
 	if type(charData.char) == 'string' then cands[#cands + 1] = charData.char:gsub('\\', '/'):lower() end
 	for _, c in ipairs(cands) do
-		if c ~= nil and lesson.chars[c] then
+		if c ~= nil and lesson.showforchars[c] then
 			return true
 		end
 	end
 	return false
 end
 
--- Whether a game-wide lesson belongs on the track being played. A lesson.chars restriction makes a
--- game-wide lesson character content: the Game Tutorial leaves it out, and Character Guides offers it
--- to the characters it names. Combined offers every game-wide lesson its lesson.chars admits.
--- Trials never offers game-wide lessons: its profile has no system track.
+-- Whether a game-wide lesson belongs on this track, per lesson.showforchars; never in Trials.
 local function f_systemOnTrack(lesson, charData)
-	if not tutorial.profile.system then
+	if not dojo.profile.system then
 		return false
-	elseif tutorial.track == 'game' then
-		return lesson.chars == nil
-	elseif tutorial.track == 'chars' then
-		return lesson.chars ~= nil and type(charData) == 'table' and f_charAdmits(lesson, charData)
+	elseif dojo.track == 'game' then
+		return lesson.showforchars == nil
+	elseif dojo.track == 'chars' then
+		return lesson.showforchars ~= nil and type(charData) == 'table' and f_charAdmits(lesson, charData)
 	end
 	return type(charData) == 'table' and f_charAdmits(lesson, charData)
 end
 
--- The character's own file for the profile in force: its trials file in Trials, its lesson file
--- in the tutorial tracks. nil when it has none.
+-- The character's own file for this profile, or nil.
 local function f_charLessons(charData)
-	if tutorial.track == 'game' or type(charData) ~= 'table' then
+	if dojo.track == 'game' or type(charData) ~= 'table' then
 		return nil
 	end
-	local t = charData[tutorial.profile.dataField]
+	local t = charData[dojo.profile.dataField]
 	return type(t) == 'table' and t or nil
 end
 
--- Every lesson the current track offers, game-wide lessons first: a fresh copy each call, so a
--- match can mark its lessons up freely. charData is a t_selChars entry (or anything
--- start.f_getCharData returns); the Game Tutorial's list is the same whoever P1 is.
-function tutorial.f_lessonsFor(charData)
+-- Every lesson the track offers, game-wide first, as fresh copies.
+function dojo.f_lessonsFor(charData)
 	local t = {}
-	for _, l in ipairs(tutorial.systemLessons) do
-		if f_systemOnTrack(l, charData) and tutorial.f_lessonOffered(l) then
+	for _, l in ipairs(dojo.systemLessons) do
+		if f_systemOnTrack(l, charData) and dojo.f_lessonOffered(l) then
 			t[#t + 1] = main.f_tableCopy(l)
 		end
 	end
 	for _, l in ipairs(f_charLessons(charData) or {}) do
-		if tutorial.f_lessonOffered(l) then
+		if dojo.f_lessonOffered(l) then
 			t[#t + 1] = main.f_tableCopy(l)
 		end
 	end
@@ -6756,40 +6428,47 @@ function tutorial.f_lessonsFor(charData)
 end
 
 -- Cheaper than building the list: whether the current track has anything for a character at all.
-function tutorial.f_hasLessons(charData)
+function dojo.f_hasLessons(charData)
 	for _, l in ipairs(f_charLessons(charData) or {}) do
-		if tutorial.f_lessonOffered(l) then
+		if dojo.f_lessonOffered(l) then
 			return true
 		end
 	end
-	for _, l in ipairs(tutorial.systemLessons) do
-		if f_systemOnTrack(l, charData) and tutorial.f_lessonOffered(l) then
+	for _, l in ipairs(dojo.systemLessons) do
+		if f_systemOnTrack(l, charData) and dojo.f_lessonOffered(l) then
 			return true
 		end
 	end
 	return false
 end
 
--- The P1 a Game Tutorial lesson is played with: its own lesson.playerchar, else TutorialPlayerChar,
--- else whoever was picked on the select screen.
-function tutorial.f_playerFor(lesson)
+-- Game Tutorial P1: lesson.playerchar, else TutorialPlayerChar, else the pick.
+function dojo.f_playerFor(lesson)
 	if type(lesson) == 'table' and lesson.playerref ~= nil then
 		return lesson.playerref
 	end
-	return tutorial.playerRef or tutorial.pickedRef
+	return dojo.playerRef or dojo.pickedRef
 end
 
--- A Game Tutorial speedrun is one match, so it is only offered while every lesson shares a P1.
-function tutorial.f_speedrunSpansChars()
-	if tutorial.track ~= 'game' then
+-- Game Tutorial P2: lesson.dummychar, else TutorialDummy, else the pick, else a mirror of P1.
+function dojo.f_dummyFor(lesson)
+	if type(lesson) == 'table' and lesson.dummyref ~= nil then
+		return lesson.dummyref
+	end
+	return dojo.dummyRef or dojo.p2PickedRef or dojo.f_playerFor(lesson)
+end
+
+-- A Game Tutorial speedrun is one match, so it is only offered while every lesson shares a P1 and a dummy.
+function dojo.f_speedrunSpansChars()
+	if dojo.track ~= 'game' then
 		return false
 	end
-	local first = nil
-	for i, l in ipairs(tutorial.f_lessonsFor(nil)) do
-		local p = tutorial.f_playerFor(l)
+	local first, firstDummy = nil, nil
+	for i, l in ipairs(dojo.f_lessonsFor(nil)) do
+		local p, d = dojo.f_playerFor(l), dojo.f_dummyFor(l)
 		if i == 1 then
-			first = p
-		elseif p ~= first then
+			first, firstDummy = p, d
+		elseif p ~= first or d ~= firstDummy then
 			return true
 		end
 	end
@@ -6800,17 +6479,14 @@ end
 --; global.lua
 --;===========================================================
 -- Each enabled profile's game mode runs the same per-frame loop.
-for _, id in ipairs(tutorial.t_profileOrder) do
-	local p = tutorial.t_profiles[id]
+for _, id in ipairs(dojo.t_profileOrder) do
+	local p = dojo.t_profiles[id]
 	if p.enabled then
-		hook.add("loop#" .. p.gamemode, "f_tutorialMode", tutorial.f_tutorialMode)
+		hook.add("loop#" .. p.gamemode, "f_dojoMatchLoop", dojo.f_matchLoop)
 	end
 end
--- Each enabled track gets its main menu entry. A disabled one is hidden from every menu the way the
--- engine hides a locked mode (main.f_hiddenItems): an unlock condition that is never true. Merely
--- leaving its handler out would not do - the item would still be listed, and picking it would send
--- the menu looking for a submenu of that name.
-for _, t in pairs(tutorial.t_tracks) do
+-- Register enabled tracks; hide disabled ones with an unlock that's never true.
+for _, t in pairs(dojo.t_tracks) do
 	for _, name in ipairs({t.itemname, t.legacy}) do
 		if t.enabled then
 			main.t_itemname[name] = t.start
@@ -6819,54 +6495,46 @@ for _, t in pairs(tutorial.t_tracks) do
 		end
 	end
 end
--- Whichever profile the module was left on while loading, the first menu entry puts its own in force.
--- Until then, Trials is the default, which is what a screenpack's own [Trials Pause Menu] labels expect.
-if tutorial.t_profiles.trials.enabled then
-	tutorial.f_useProfile(tutorial.t_profiles.trials)
-elseif tutorial.t_profiles.tutorial.enabled then
-	tutorial.f_useProfile(tutorial.t_profiles.tutorial)
+-- Put the first entry's profile in force; Trials is the default until then.
+if dojo.t_profiles.trials.enabled then
+	dojo.f_useProfile(dojo.t_profiles.trials)
+elseif dojo.t_profiles.tutorial.enabled then
+	dojo.f_useProfile(dojo.t_profiles.tutorial)
 end
-hook.add("start.f_selectScreen", "f_tutorialSelectScreen", tutorial.f_tutorialSelectScreen)
--- Fires once selection is settled and before the fight loads, which is where
--- tutoriallistdisplay = select puts the menu.
-hook.add("start.f_selectReset", "f_tutorialSpeedrunReset", function()
-	tutorial.f_cancelRecording()
-	tutorial.f_endDemo(false)
-	tutorial.f_resetSpeedrun()
-	tutorial.f_restoreSelect()
+hook.add("start.f_selectScreen", "f_dojoSelectScreen", dojo.f_selectScreen)
+-- Runs once selection settles, before the fight loads (listdisplay = select).
+hook.add("start.f_selectReset", "f_dojoSpeedrunReset", function()
+	dojo.f_cancelRecording()
+	dojo.f_endDemo(false)
+	dojo.f_resetSpeedrun()
+	dojo.f_restoreSelect()
 end)
--- TrialsStage / TutorialStage. The engine only puts Config.TrainingStage up in training mode, so the module hands its own
--- stage over as an assigned one - which also wins over a character's stage parameter, as the
--- training stage does. A stage that cannot be loaded falls back to the engine's own choice.
+-- Hand TrialsStage / TutorialStage over as an assigned stage; falls back if unloadable.
 local f_setStageOrig = start.f_setStage
 function start.f_setStage(num, assigned)
-	if tutorial.f_inMode() and tutorial.stagePath ~= '' and not main.stageMenu then
-		local ref = main.t_stageDef[tutorial.stagePath:lower()]
+	if dojo.f_inMode() and dojo.stagePath ~= '' and not main.stageMenu then
+		local ref = main.t_stageDef[dojo.stagePath:lower()]
 		if ref == nil then
-			ref = main.f_addStage(tutorial.stagePath)
+			ref = main.f_addStage(dojo.stagePath)
 		end
 		if ref ~= nil then
 			return f_setStageOrig(ref, true)
 		end
-		print('Dojo: ' .. tutorial.profile.stageKey .. ' (' .. tutorial.stagePath .. ') could not be loaded; using the default stage instead.')
-		tutorial.stagePath = ''
-		tutorial.profile.stagePath = ''
+		print('Dojo: ' .. dojo.profile.stageKey .. ' (' .. dojo.stagePath .. ') could not be loaded; using the default stage instead.')
+		dojo.stagePath = ''
+		dojo.profile.stagePath = ''
 	end
 	return f_setStageOrig(num, assigned)
 end
 
-hook.add("launchFight", "f_tutorialPreFightMenu", function()
-	tutorial.f_preFightMenu()
+hook.add("launchFight", "f_dojoPreFightMenu", function()
+	dojo.f_preFightMenu()
 end)
--- launchFight has no way for a hook to call the fight off, but it gives up on the match whenever
--- the VS screen reports a cancel. So a cancel out of the pre-fight list is passed off as one: the
--- match is dropped before anything loads, and f_selectMode resets selection and reopens the
--- select screen, the same as backing out of the VS screen; f_restoreSelect then puts the picks back
--- so the player lands one step back instead of on P1's pick.
+-- Pass a pre-fight list cancel off as a VS cancel so the match drops and picks are restored.
 local f_selectVersusOrig = start.f_selectVersus
 function start.f_selectVersus(...)
-	if tutorial.backToSelect then
-		tutorial.backToSelect = false
+	if dojo.backToSelect then
+		dojo.backToSelect = false
 		return false
 	end
 	return f_selectVersusOrig(...)
