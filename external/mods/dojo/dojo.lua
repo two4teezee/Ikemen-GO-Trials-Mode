@@ -3698,7 +3698,7 @@ end
 -- Out-of-match lesson list; returns the picked name or nil, and true when it was empty.
 function dojo.f_lessonListLoop(lessons, ref, sec)
 	dojo.selectFilter = 'all'
-	local node = {lessonList = lessons, ref = ref, item = 1, first = 1}
+	local node = {list = lessons, ref = ref, item = 1, first = 1}
 	node.items = dojo.f_buildSelectItems(node.list, node.ref, false)
 	if #node.items == 0 then
 		return nil, true
@@ -4794,14 +4794,55 @@ local function f_setScriptMaps(pn, set)
 	player(1)
 end
 
-function dojo.f_startScript(pn, frames, loop, delay)
-	dojo.scripts[pn] = {frames = frames, pos = 1, loop = loop, delay = delay or 0, wait = 0}
+local function f_idleFrame(set)
+	return next(set) == nil
+end
+
+-- distance: a looping dummy script's _iksys_dojoDistance. The dummy keeps that distance on the script's idle
+-- frames; an action (the first input frame after idle) found out of place holds the script, and once the
+-- dummy is back in place the script starts over from its first frame.
+function dojo.f_startScript(pn, frames, loop, delay, distance)
+	local s = {frames = frames, pos = 1, loop = loop, delay = delay or 0, wait = 0, distance = distance}
+	if distance ~= nil then
+		s.actionStart = {}
+		for i = 1, #frames, 1 do
+			if not f_idleFrame(frames[i]) and (i == 1 or f_idleFrame(frames[i - 1])) then
+				s.actionStart[i] = true
+			end
+		end
+	end
+	dojo.scripts[pn] = s
+end
+
+-- Distance keeping on or off for a gated script's dummy; off also ends any walk in progress.
+local function f_scriptWalk(pn, s, on)
+	player(pn)
+	mapSet('_iksys_dojoDistance', on and s.distance or 0)
+	if not on then
+		mapSet('_iksys_dojoDirection', 0)
+	end
+	player(1)
+	s.walking = on
+end
+
+-- Whether the dummy is where a gated script's action expects it. Only the cooperative dummy keeps
+-- distance (dojo.zss), so AI and manual control are never held.
+local function f_scriptInPlace(pn)
+	player(pn)
+	local ok = map('_iksys_dojoDummyControl') ~= 0 or map('_iksys_dojoInPlace') ~= 0
+	player(1)
+	return ok
 end
 
 function dojo.f_stopScript(pn)
-	if dojo.scripts[pn] ~= nil then
+	local s = dojo.scripts[pn]
+	if s ~= nil then
 		dojo.scripts[pn] = nil
 		f_setScriptMaps(pn, nil)
+		-- Stopped mid walk: the walk was the script's, so it ends with it.
+		if s.walking then
+			f_scriptWalk(pn, s, false)
+		end
 	end
 end
 
@@ -4810,12 +4851,27 @@ function dojo.f_scriptTick()
 	for pn = 1, 2, 1 do
 		local s = dojo.scripts[pn]
 		if s ~= nil then
-			if s.wait > 0 then
+			local gated = s.distance ~= nil
+			if pn == 2 and dojo.draw ~= nil and dojo.draw.fade > 0 then
+				-- A reset fade repositions both sides: press nothing through it, then start over from the top.
+				s.pos, s.wait, s.holding = 1, 0, false
+				if gated then f_scriptWalk(pn, s, false) end
+				f_setScriptMaps(pn, {})
+			elseif s.holding then
+				-- Walking back into place; the script starts over once the dummy gets there.
+				f_scriptWalk(pn, s, true)
+				f_setScriptMaps(pn, {})
+				if f_scriptInPlace(pn) then
+					s.pos, s.holding = 1, false
+				end
+			elseif s.wait > 0 then
 				s.wait = s.wait - 1
+				if gated then f_scriptWalk(pn, s, true) end
 				f_setScriptMaps(pn, {})
 			elseif s.pos > #s.frames then
 				if s.loop then
 					s.pos, s.wait = 1, s.delay
+					if gated then f_scriptWalk(pn, s, true) end
 					f_setScriptMaps(pn, {})
 				else
 					dojo.f_stopScript(pn)
@@ -4823,7 +4879,13 @@ function dojo.f_scriptTick()
 						dojo.f_demoScriptDone()
 					end
 				end
+			elseif gated and s.actionStart[s.pos] and not f_scriptInPlace(pn) then
+				-- Out of place: hold the script until the dummy is back, then run it from the top.
+				s.holding = true
+				f_scriptWalk(pn, s, true)
+				f_setScriptMaps(pn, {})
 			else
+				if gated then f_scriptWalk(pn, s, f_idleFrame(s.frames[s.pos])) end
 				f_setScriptMaps(pn, s.frames[s.pos])
 				s.pos = s.pos + 1
 			end
@@ -4862,7 +4924,9 @@ function dojo.f_startDummyScript(index)
 		lesson.dummyframes = frames
 	end
 	f_quietDummy()
-	dojo.f_startScript(2, lesson.dummyframes, lesson.dummyscriptloop, lesson.dummyscriptdelay)
+	-- A looping script with a dummypos distance acts from that distance, not wherever the player has pushed or left the dummy.
+	local distance = lesson.dummyscriptloop and dojo.t_dummyDistance[lesson.dummypos] or nil
+	dojo.f_startScript(2, lesson.dummyframes, lesson.dummyscriptloop, lesson.dummyscriptdelay, distance)
 end
 
 ----------------------------------------------------------------

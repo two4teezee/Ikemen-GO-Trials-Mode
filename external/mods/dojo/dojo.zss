@@ -10,6 +10,7 @@
 # _iksys_dojoFallRecovery: 0 - none, 1 - ground, 2 - air, 3 - random
 # _iksys_dojoDummyMode: 0 - stand, 1 - crouch, 2 - jump, 3 - wjump, 4 - fjump, 5 - bjump, 6 - fwjump, 7 - bwjump
 # _iksys_dojoDistance: 0 - any, 1 - close, 2 - medium, 3 - far (set from lesson.dummypos)
+# _iksys_dojoInPlace: 1 while the dummy is keeping a distance and sits inside its band (read by Lua to hold a looping dummyscript)
 # _iksys_dojoButtonJam: 0 - none, 1-9 - a/b/c/x/y/z/s/d/w
 # _iksys_dojoButtonJamInterval: frames to wait between button jam presses (lesson.dummybuttondelay)
 # _iksys_dojoAirJamState / _iksys_dojoAirJamTimer: the jump modes' once-per-jump button jam (see Button jam)
@@ -223,6 +224,7 @@ ignoreHitPause if gameMode = "trials" || gameMode = "tutorial" {
 			map(_iksys_dojoButtonJam) := 0;
 			map(_iksys_dojoDirection) := 0;
 			map(_iksys_dojoDistance) := 0;
+			map(_iksys_dojoInPlace) := 0;
 			map(_iksys_dojoDummyControl) := 0;
 			map(_iksys_dojoDummyMode) := 0;
 			map(_iksys_dojoJumpDelay) := 0;
@@ -337,6 +339,10 @@ ignoreHitPause if gameMode = "trials" || gameMode = "tutorial" {
 						}
 					}
 				}
+				# In place: keeping a distance, on the ground with control, inside its band and not walking.
+				# A looping dummyscript waits on this before each pass (dojo.f_scriptTick).
+				# Parenthesised: := binds tighter than &&, so without them only the first term would be stored.
+				map(_iksys_dojoInPlace) := (map(_iksys_dojoDistance) != 0 && ctrl && stateType != A && $dir = 0 && map(_iksys_dojoDirection) = 0);
 				if map(_iksys_dojoDirection) != 0 {
 					# If adjusting position is no longer needed
 					if $dir = 0 {
