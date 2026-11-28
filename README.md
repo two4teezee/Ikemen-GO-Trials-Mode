@@ -282,8 +282,9 @@ Set `RecordDemo` back to `false` before you ship.
 With `TutorialDemonstrationsOnly = true` in `config.ini`, the tutorial modes (Game Tutorial, Character Guides, Combined Tutorial) only show lessons; the player never plays them. Trials is unaffected.
 
 - Each lesson shows its instruction pages, then plays its `demoscript` on a loop under the DEMO banner. The player's controller stays off.
-- The menu's done key steps forward: next page, then the demo, then the next lesson. After the last lesson it opens the lesson list.
-- The cancel key steps back: previous page. From the demo, it goes back to the lesson's last page, or to the previous lesson if the lesson has no pages.
+- On the pages, the menu's done key turns the page and the cancel key goes back one.
+- During the demo, any button (`a` `b` `c` `x` `y` `z` `d` `w`) moves on to the next lesson. After the last lesson it opens the lesson list. The press never reaches the character playing the demo: P1's character stays cut off until the button is let go.
+- The demo's character is cut off from P1's controller, so the press is read through a spare controller that has no character on it. This needs `Players` set to 3 or more in `save/config.ini` (the default is 4).
 - Nothing is cleared or recorded, so gated lessons are all open. Speedrun, Watch Demo and the record rows are left out of the pause menu. Restart, Next / Previous and the lesson list still work.
 - Every lesson needs a `demoscript`. A lesson without one, or with one that can't be read, is left out of the list, and the console names it.
 

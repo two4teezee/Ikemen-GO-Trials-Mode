@@ -628,8 +628,8 @@ demoonlyprompt.text.offset = 0,0
 demoonlyprompt.text.font = 1,0,0, 120, 200, 255
 demoonlyprompt.text.scale = 2,2
 demoonlyprompt.text.font.height = -1
-demoonlyprompt.text.text = "Confirm: next lesson    Back: instructions"
-demoonlyprompt.text.last = "Confirm: lesson list    Back: instructions"
+demoonlyprompt.text.text = "Press any button: next lesson"
+demoonlyprompt.text.last = "Press any button: lesson list"
 
 ; REPETITION COUNTER -------------------------------------------------------
 ; Drawn for trials with repeat above 1. %s is the clears made, %t the clears needed.

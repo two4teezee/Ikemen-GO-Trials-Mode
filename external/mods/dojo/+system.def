@@ -158,11 +158,11 @@ menu.valuename.tutorialdifficulty_expert = Expert
 menu.valuename.tutorialdifficulty_none = Other
 
 menu.itemname.back = Continue
-menu.itemname.tutorialinstructions = Show Instructions
+; menu.itemname.tutorialinstructions = Show Instructions
 menu.itemname.tutorialdemo = Watch Demo
 menu.itemname.tutorialrecord = Record Demo
 menu.itemname.tutorialrecorddummy = Record Dummy
-menu.itemname.tutorialrestart = Restart Lesson
+; menu.itemname.tutorialrestart = Restart Lesson
 menu.itemname.tutoriallist = Lesson List
 menu.itemname.tutoriallist.back = Back
 ; menu.itemname.tutorialnext = Next Lesson

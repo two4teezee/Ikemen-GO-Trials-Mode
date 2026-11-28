@@ -1883,6 +1883,8 @@ function dojo.f_dummySetup()
 		local jt = dojo.data.lessons[dojo.data.currentlesson]
 		local jdefault = dojo.t_jumpModes[jt.dummymode] and dojo.buttonJamAirDelayDefault or dojo.buttonJamDelayDefault
 		mapSet('_iksys_dojoButtonJamInterval', jt.buttondelay or jdefault)
+		-- Every timer starts fresh, so the dummy's actions run the same from activation every time.
+		mapSet('_iksys_dojoButtonJamDelay', jt.buttondelay or jdefault)
 		mapSet('_iksys_dojoAirJamState', 0)
 		-- Frames the dummy stays on the ground between jumps in the jump dummy modes, set the same way.
 		mapSet('_iksys_dojoJumpInterval', dojo.data.lessons[dojo.data.currentlesson].jumpdelay or dojo.jumpDelayDefault)
@@ -1936,13 +1938,16 @@ function dojo.textboxportrait()
 end
 	
 function dojo.f_drawer()
-	if dojo.data.initialized and roundState() == 2 and not dojo.data.active and dojo.draw.fade == 0 then
+	if dojo.data.initialized and roundState() == 2 and not dojo.data.active and dojo.draw.fade == 0
+		and dojo.f_demoReady() then
 		dojo.f_dummySetup()
 		dojo.data.active = true
 		-- Demonstrations-only: whether the pair have moved since the lesson was entered.
 		dojo.data.demoOnlyPlayed = dojo.f_demoActive()
 		-- Show a newly entered lesson's pages first, except in a speedrun.
 		dojo.f_startDummyScript(dojo.data.currentlesson)
+		-- A demo's script starts here, on the frame the dummy's script or actions do, so the two always line up.
+		dojo.f_demoBegin()
 		local lesson = dojo.data.lessons[dojo.data.currentlesson]
 		if lesson ~= nil and not lesson.pagesSeen and not dojo.f_speedrunEnabled() and not dojo.f_demoActive() then
 			dojo.f_openPages(dojo.data.currentlesson)
@@ -3974,6 +3979,7 @@ end
 function dojo.f_matchLoop()
 	-- Lay the canvas out for the current aspect; no-op once settled.
 	dojo.f_syncAspect()
+	dojo.f_shieldTick()
 
 	if roundStart() then
 		dojo.f_cancelRecording()
@@ -4944,6 +4950,105 @@ function dojo.f_hasDemo(index)
 	return lesson ~= nil and lesson.demoscript ~= ''
 end
 
+-- The shield: P1's character reads the empty demo slot, so nothing the player presses reaches it. The
+-- UI reads controllers through the same remap, so a spare controller with no character on it (the
+-- watcher) is pointed at P1's own input instead: the player's presses are still seen, getInput(-1)
+-- included, without ever driving the demo.
+dojo.t_watchKeys = {'a', 'b', 'c', 'x', 'y', 'z', 'd', 'w'}
+-- Frames after the watcher is pointed at P1 before its buttons are trusted.
+dojo.shieldSettle = 4
+
+function dojo.f_shieldOn()
+	local ok, orig = pcall(getRemapInput, 1)
+	if dojo.shield ~= nil then
+		if ok and orig == dojo.demoSlot then
+			return
+		end
+		-- The remap was reset behind the shield's back (a new match): start it over.
+		dojo.shield = nil
+	end
+	local sh = {remap = ok and orig or 1, released = false, settle = dojo.shieldSettle}
+	pcall(remapInput, 1, dojo.demoSlot)
+	-- Highest controller past P2 with no character on it.
+	for w = tonumber(gameOption('Config.Players')) or 0, 3, -1 do
+		if not player(w) then
+			local okw, wr = pcall(getRemapInput, w)
+			if okw and pcall(remapInput, w, sh.remap) then
+				sh.watcher, sh.watcherRemap = w, wr
+				break
+			end
+		end
+	end
+	player(1)
+	if sh.watcher == nil and not dojo.watcherWarned then
+		dojo.watcherWarned = true
+		print('Dojo: no spare controller to read P1 through during a demo (raise Players in config.ini to 3 or more).')
+	end
+	dojo.shield = sh
+end
+
+function dojo.f_shieldOff()
+	local sh = dojo.shield
+	if sh == nil then
+		return
+	end
+	dojo.shield = nil
+	pcall(remapInput, 1, sh.remap)
+	if sh.watcher ~= nil then
+		pcall(remapInput, sh.watcher, sh.watcherRemap)
+	end
+end
+
+-- Whether P1 is holding any of the watched buttons, read through the watcher.
+function dojo.f_shieldHeld()
+	local sh = dojo.shield
+	if sh == nil or sh.watcher == nil then
+		return false
+	end
+	local ok, t = pcall(getInputTime, sh.watcher, dojo.t_watchKeys)
+	return ok and type(t) == 'number' and t > 0
+end
+
+-- A fresh press of a watched button: one that started after the shield went up, never one carried
+-- in (the press that closed the pages, or the one that ended the last demo).
+function dojo.f_shieldPressed()
+	local sh = dojo.shield
+	if sh == nil then
+		return false
+	end
+	local held = dojo.f_shieldHeld()
+	-- The watcher's buffer only picks P1 up on its next step, so for its first frames a button still
+	-- held from the pages reads as let go. Nothing is a release, or a press, until it has caught up.
+	if sh.settle > 0 then
+		sh.settle = sh.settle - 1
+		sh.released = false
+		return false
+	end
+	local pressed = held and sh.released
+	sh.released = not held
+	return pressed
+end
+
+-- Every frame: a shield kept up past its demo (demonstrations-only, between lessons) stays up through
+-- the fade into the next lesson, and comes down only once something that holds the character still
+-- needs P1's input (the pages or the lesson list) and the press that moved on has been let go. A
+-- lesson that goes straight to its demo takes the shield over without it ever coming down.
+function dojo.f_shieldTick()
+	if dojo.shield == nil then
+		return
+	end
+	-- The buttons that drive the pause menu are its own: one still held as it closes isn't a fresh press.
+	if paused() then
+		dojo.shield.released = false
+	end
+	if dojo.f_demoActive() or dojo.f_shieldHeld() then
+		return
+	end
+	if not dojo.f_demoOnly() or dojo.f_pagesOpen() or (dojo.select ~= nil and dojo.select.open) then
+		dojo.f_shieldOff()
+	end
+end
+
 -- inPlace skips the restart when the pair are already in their start positions.
 function dojo.f_startDemo(index, inPlace)
 	local lesson = dojo.data.lessons[index]
@@ -4957,10 +5062,27 @@ function dojo.f_startDemo(index, inPlace)
 		lesson.demoframes = frames
 	end
 	if not inPlace then
+		-- Ends any demo already running, handing its remap back, before this one takes P1.
 		dojo.f_gotoLesson(index, false, true)
+	else
+		-- No fade, but the lesson is set up again so the dummy starts over with the demo (f_drawer).
+		if dojo.f_pagesOpen() then
+			dojo.f_closePages()
+		end
+		dojo.data.lessons[index].active = false
+		dojo.data.active = false
 	end
+	-- P1's own input goes for the whole demo, fade and wait included.
+	dojo.f_shieldOn()
+	-- The dummy goes quiet until the demo starts: whatever it was doing would otherwise carry on through
+	-- the fade, and its actions would start out of step with the demo script.
+	dojo.f_stopScript(2)
+	f_quietDummy()
+	player(2)
+	mapSet('_iksys_dojoDirection', 0)
+	player(1)
 	lesson.pagesSeen = true
-	dojo.demo = {lesson = index, phase = 'waiting', tail = 0}
+	dojo.demo = {lesson = index, phase = 'waiting', tail = 0, wait = 0}
 	if dojo.data ~= nil then
 		dojo.data.demoOnlyPlayed = true
 	end
@@ -4971,13 +5093,9 @@ end
 function dojo.f_demoTick()
 	local dm = dojo.demo
 	if dm.phase == 'waiting' then
-		-- for the restart's fade and reposition to finish
-		if dojo.data.active and dojo.draw.fade == 0 then
-			local ok, orig = pcall(getRemapInput, 1)
-			dm.remap = ok and orig or 1
-			pcall(remapInput, 1, dojo.demoSlot)
-			dojo.f_startScript(1, dojo.data.lessons[dm.lesson].demoframes, false, 0)
-			dm.phase = 'playing'
+		-- for the restart's fade and reposition to finish; f_drawer starts it (dojo.f_demoBegin)
+		if dojo.draw.fade == 0 and not paused() then
+			dm.wait = dm.wait + 1
 		end
 	elseif dm.phase == 'tail' then
 		-- let the last move finish before handing back
@@ -4993,21 +5111,16 @@ function dojo.f_demoTick()
 		end
 	end
 	local sec = dojo.f_selectSection()
-	if sec ~= nil and dm.phase ~= 'waiting' and dojo.f_demoOnly() then
-		-- Done forward, cancel back; each needs a fresh press.
-		local done = getInput(-1, sec.menu.done.key)
-		local back = getInput(-1, sec.menu.cancel.key)
-		if dm.released and done then
-			sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
+	if dojo.f_demoOnly() then
+		-- Any button (a b c x y z d w), at any point of the demo, moves on. It is read through the
+		-- watcher, never the character, and needs a fresh press.
+		if dojo.f_shieldPressed() then
+			if sec ~= nil then
+				sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])
+			end
 			dojo.f_demoOnlyNext(dm.lesson)
 			return
-		elseif dm.released and back then
-			if dojo.f_demoOnlyBack(dm.lesson) then
-				sndPlay(motif.Snd, sec.cursor.move.snd[1], sec.cursor.move.snd[2])
-				return
-			end
 		end
-		dm.released = not done and not back
 	elseif sec ~= nil and dm.phase ~= 'waiting' then
 		-- Raw UI input: P1's own command input is remapped away for the demo.
 		local held = getInput(-1, sec.menu.done.key) or getInput(-1, sec.menu.cancel.key)
@@ -5021,6 +5134,35 @@ function dojo.f_demoTick()
 	end
 end
 
+-- Most frames a waiting demo holds the lesson's start for the pair to settle, so neither side is still
+-- mid-move when the demo and the dummy begin.
+dojo.demoSettleMax = 120
+
+-- Whether the lesson may start: always, unless a demo is waiting for both sides to stand idle.
+function dojo.f_demoReady()
+	local dm = dojo.demo
+	if dm == nil or dm.phase ~= 'waiting' then
+		return true
+	end
+	if dm.wait >= dojo.demoSettleMax then
+		return true
+	end
+	player(2)
+	local idle = stateNo() == 0
+	player(1)
+	return idle and stateNo() == 0
+end
+
+-- Called by f_drawer on the frame the lesson starts, after the dummy's setup and script.
+function dojo.f_demoBegin()
+	local dm = dojo.demo
+	if dm == nil or dm.phase ~= 'waiting' then
+		return
+	end
+	dojo.f_startScript(1, dojo.data.lessons[dm.lesson].demoframes, false, 0)
+	dm.phase = 'playing'
+end
+
 function dojo.f_demoScriptDone()
 	if dojo.demo ~= nil then
 		dojo.demo.phase = 'tail'
@@ -5029,16 +5171,17 @@ function dojo.f_demoScriptDone()
 end
 
 -- restart: start the lesson over for the player (false when the match is being torn down).
-function dojo.f_endDemo(restart)
+-- keepShield: leave P1 shielded (dojo.f_shieldTick lets go once the buttons are up).
+function dojo.f_endDemo(restart, keepShield)
+	if not keepShield then
+		dojo.f_shieldOff()
+	end
 	local dm = dojo.demo
 	if dm == nil then
 		return
 	end
 	dojo.demo = nil
 	dojo.f_stopScript(1)
-	if dm.remap ~= nil then
-		pcall(remapInput, 1, dm.remap)
-	end
 	if restart and dojo.data ~= nil and dojo.data.lessons[dm.lesson] ~= nil then
 		dojo.f_gotoLesson(dm.lesson, false, true)
 		dojo.data.lessons[dm.lesson].pagesSeen = true
@@ -5086,34 +5229,15 @@ function dojo.f_lessonOffered(lesson)
 	return false
 end
 
--- Done during a demonstrations-only demo: on to the next lesson, or the list after the last one.
+-- A button during a demonstrations-only demo: on to the next lesson, or the list after the last one.
+-- P1 stays shielded until the press is let go, so it never reaches the character.
 function dojo.f_demoOnlyNext(index)
-	dojo.f_endDemo(false)
+	dojo.f_endDemo(false, true)
 	if index < #dojo.data.lessons then
 		dojo.f_gotoLesson(index + 1, false, true)
 	else
 		dojo.f_openSelect()
 	end
-end
-
--- Back to this lesson's pages, else the previous lesson; false if there's nowhere to go.
-function dojo.f_demoOnlyBack(index)
-	local lesson = dojo.data.lessons[index]
-	if lesson ~= nil and type(lesson.pages) == 'table' and #lesson.pages > 0 then
-		dojo.f_endDemo(false)
-		dojo.f_openPages(index)
-		-- stepping back lands on the page before the demo: the last one
-		if #lesson.pages > 1 then
-			dojo.pages.page = #lesson.pages
-			f_showPage(dojo.pages, lesson)
-		end
-		return true
-	elseif index > 1 then
-		dojo.f_endDemo(false)
-		dojo.f_gotoLesson(index - 1, false, true)
-		return true
-	end
-	return false
 end
 
 -- Start the demo whenever a lesson is up without pages or demo, so the player never gets control.
@@ -5426,8 +5550,14 @@ function dojo.f_gotoLesson(index, keepTimer, noMenu)
 		return true
 	end
 	-- Going anywhere else ends a demo first, so the player always gets their controller back.
+	-- Demonstrations-only keeps P1 shielded: the next demo takes it over, or f_shieldTick lets go.
 	if dojo.f_demoActive() then
-		dojo.f_endDemo(false)
+		dojo.f_endDemo(false, dojo.f_demoOnly())
+	end
+	-- Pages left up would own every frame (f_drawer never runs, so the lesson never starts) and keep the
+	-- select hold on. The new lesson opens its own pages once it starts, unless a demo has marked them seen.
+	if dojo.f_pagesOpen() then
+		dojo.f_closePages()
 	end
 	dojo.f_stopScript(2)
 	-- Picking a Lesson is what dismisses the select view, wherever it was picked from.
@@ -5557,10 +5687,12 @@ end
 -- Show Instructions: the current lesson's pages again, over the match.
 menu.t_itemname['tutorialinstructions'] = function(t, item, cursorPosY, moveTxt, sec)
 	if getInput(-1, sec.menu.done.key) and dojo.data ~= nil and dojo.data.initialized then
-		-- Demonstrations-only: end the demo so the pages get the controller; it restarts on close.
+		-- End any demo so the pages get the controller back: P1 is remapped away for a demo, and the
+		-- pages read P1's input. Demonstrations-only restarts its demo on close; otherwise the lesson
+		-- starts over for the player once the pages close.
 		local l = dojo.data.lessons[dojo.data.currentlesson]
-		if dojo.f_demoOnly() and l ~= nil and type(l.pages) == 'table' and #l.pages > 0 then
-			dojo.f_endDemo(false)
+		if dojo.f_demoActive() and l ~= nil and type(l.pages) == 'table' and #l.pages > 0 then
+			dojo.f_endDemo(not dojo.f_demoOnly())
 		end
 		if dojo.f_openPages(dojo.data.currentlesson) then
 			sndPlay(motif.Snd, sec.cursor.done.snd[1], sec.cursor.done.snd[2])

@@ -1,4 +1,5 @@
 ; -- IKEMEN GO TUTORIAL MODE EXTERNAL MODULE --------------------------------
+; ---------------------------------------------------------------------------
 ; gametutorial.def - sample game-wide lessons.
 ;
 ; This file is for lessons about the game, not about any one character: a character's own
@@ -17,45 +18,60 @@
 
 ; These lessons open one at a time ([Gating] SystemTutorial = on in config.ini).
 
-;---------------------------------------------
+; -------------------------------------------------------------------------
+
 [Lesson, Walking]
 chapter = Movement
 page.1.title = Welcome
 page.1.text = These lessons cover what every fighter can do.\nEach one starts with a page like this one. Read it, then try what it describes.
 page.2.title = Walking
 page.2.text = Hold forward or back to walk. Walking is slow, but you can stop and block at any moment.
-; Pause and pick Watch Demo to see a lesson done. Input scripts: <frames>:<inputs>, inputs joined
-; with +, _ for none; F and B follow the way the character faces.
+
 demoscript = 30:F, 20:_
+
 step.1.text = Walk
 step.1.glyphs = _F
 step.1.stateno = 20
 step.1.hitcount = 0
 
+; -------------------------------------------------------------------------
+
 [Lesson, Crouching]
 chapter = Movement
 page.1.text = Hold down to crouch. Crouching ducks under some attacks, and it is how you block low.
+
+demoscript = 30:D, 20:_
+
 step.1.text = Crouch
 step.1.glyphs = _D
 step.1.stateno = 10|11
 step.1.hitcount = 0
 
+; -------------------------------------------------------------------------
+
 [Lesson, Jumping]
 chapter = Movement
-page.1.text = Press up to jump. Up-forward and up-back jump in those directions. Jumping clears low attacks, but you cannot change course in the air.
 repeat = 3
+page.1.text = Press up to jump. Up-forward and up-back jump in those directions. Jumping clears low attacks, but you cannot change course in the air.
+
+demoscript = 30:U, 20:_
+
 step.1.text = Jump
 step.1.glyphs = _U
 step.1.stateno = 40
 step.1.hitcount = 0
+
+; -------------------------------------------------------------------------
 
 [Lesson, Running and Hopping Back]
 chapter = Movement
 page.1.text = Tap forward twice to run in, and back twice to hop away. Running closes distance fast; the back hop gets you out of range.
 hint = Tap the direction twice quickly - don't hold it.
 hintafter = 0
+
 demoscript = 2:F, 2:_, 20:F, 20:_, 2:B, 2:_, 2:B, 30:_
 demoafter = 2
+
 step.1.text = Run
 step.1.glyphs = _F_F
 step.1.stateno = 100
@@ -65,6 +81,7 @@ step.2.glyphs = _B_B
 step.2.stateno = 105
 step.2.hitcount = 0
 
+; -------------------------------------------------------------------------
 
 [Lesson, Standing Guard]
 chapter = Defence
@@ -73,36 +90,70 @@ page.1.text = Hold back - away from your opponent - to block. A standing block s
 repeat = 3
 hint = Hold back before the attack arrives, not as it hits.
 hintafter = 2
+
 dummypos = close
 dummybuttonjam = x
 dummybuttondelay = 45
+
+demoscript = 45:_, 30:B
+
 step.1.text = Block a standing attack
 step.1.glyphs = _B
 step.1.guard = high
 
+; -------------------------------------------------------------------------
+
 [Lesson, Crouching Guard]
 chapter = Defence
-page.1.text = Attacks made crouching hit low, and a standing block will not stop them. Hold down-back to block low.
 repeat = 3
+page.1.text = Attacks made crouching hit low, and a standing block will not stop them. Hold down-back to block low.
 hint = Down-back, not just back: low attacks go under a standing block.
 hintafter = 2
+
 dummypos = close
 dummymode = crouch
 dummybuttonjam = a
 dummybuttondelay = 45
+
 step.1.text = Block a crouching attack
 step.1.glyphs = _DB
 step.1.guard = low
+
+
+; -------------------------------------------------------------------------
+
+[Lesson, Blocking Jumping Attacks]
+chapter = Defence
+repeat = 3
+page.1.text = Jumping attacks hit high, and a crouching block will not stop them. Hold back to block jumping attacks.
+hint = Just back, not down-back: jumping attacks hit high.
+hintafter = 2
+
+dummypos = medium
+dummymode = fjump
+dummybuttonjam = b
+dummybuttondelay = 18
+
+demoscript = 30:_, 30:B, 50:_, 30:B, 50:_, 30:B
+
+step.1.text = Block a jumping attack
+step.1.glyphs = _B
+step.1.guard = high
+
+; -------------------------------------------------------------------------
 
 [Lesson, Mixed Guard]
 chapter = Defence
 page.1.text = Now the dummy mixes standing and crouching attacks. Watch for which one is coming and block it the right way: back for standing, down-back for crouching.
 hint = Hold down-back by default and stand only when you see a standing attack.
 hintafter = 2
+
 dummypos = close
-; The dummy's own attacks, as an input script on a loop: a standing x, then a crouching a.
 dummyscript = 50:_, 1:x, 50:_, 6:D, 1:D+a, 6:D
 dummyscriptloop = true
+
+demoscript = 50:_, 5:B, 100:D+B
+
 step.1.text = Block the standing attack
 step.1.glyphs = _B
 step.1.guard = high
